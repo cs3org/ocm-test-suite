@@ -1,25 +1,6 @@
 #!/bin/bash
 set -e
 
-# docker build -t tester .
-
-# image for stub1 and stub2:
-cd ocm-stub
-cp -r ../tls .
-docker build -t stub .
-cd ..
-
-# image for running the tests from Github Actions:
-cd servers/ci
-cp -r ../../tls .
-docker build -t ci .
-
-# image for revad1, revad2, revanc1, revanc2:
-cd ../revad
-cp -r ../../tls .
-# docker build -t revad --build-arg CACHEBUST=`date +%s` .
-docker build -t revad .
-
 # base image for nextcloud image and owncloud image:
 cd ../apache-php
 cp -r ../../tls .

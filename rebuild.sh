@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+cd servers/apache-php
+
 # base image for nextcloud image and owncloud image:
 cd ../apache-php
 cp -r ../../tls .

@@ -16,43 +16,44 @@ gatewaysvc = "revanc1.docker:19000"
 # basic = ["localhost:1234"]
 # publiclink = ["localhost:9876"]
 
-[grpc]
-address = "0.0.0.0:19000"
-# certfile = "/etc/revad/tls/revanc1.crt"
-# keyfile = "/etc/revad/tls/revanc1.key"
+# These are the defaults
+# [grpc]
+# address = "0.0.0.0:19000"
+# # certfile = "/etc/revad/tls/revanc1.crt"
+# # keyfile = "/etc/revad/tls/revanc1.key"
 
-[grpc.services.gateway]
-authregistrysvc = "revanc1.docker:19000"
-appprovidersvc = "revanc1.docker:19000"
-appregistry = "revanc1.docker:19000"
-storageregistrysvc = "revanc1.docker:19000"
-preferencessvc = "revanc1.docker:19000"
-userprovidersvc = "revanc1.docker:19000"
-usershareprovidersvc = "revanc1.docker:19000"
-publicshareprovidersvc = "revanc1.docker:19000"
-ocmcoresvc = "revanc1.docker:19000"
-ocmshareprovidersvc = "revanc1.docker:19000"
-ocminvitemanagersvc = "revanc1.docker:19000"
-ocmproviderauthorizersvc = "revanc1.docker:19000"
-commit_share_to_storage_grant = false
-datagateway = "https://revanc1.docker/data"
-transfer_expires = 6 # give it a moment
+# [grpc.services.gateway]
+# authregistrysvc = "revanc1.docker:19000"
+# appprovidersvc = "revanc1.docker:19000"
+# appregistry = "revanc1.docker:19000"
+# storageregistrysvc = "revanc1.docker:19000"
+# preferencessvc = "revanc1.docker:19000"
+# userprovidersvc = "revanc1.docker:19000"
+# usershareprovidersvc = "revanc1.docker:19000"
+# publicshareprovidersvc = "revanc1.docker:19000"
+# ocmcoresvc = "revanc1.docker:19000"
+# ocmshareprovidersvc = "revanc1.docker:19000"
+# ocminvitemanagersvc = "revanc1.docker:19000"
+# ocmproviderauthorizersvc = "revanc1.docker:19000"
+# commit_share_to_storage_grant = false
+# datagateway = "https://revanc1.docker/data"
+# transfer_expires = 6 # give it a moment
 
-[grpc.services.authregistry]
-driver = "static"
+# [grpc.services.authregistry]
+# driver = "static"
 
-[grpc.services.authregistry.drivers.static.rules]
-basic = "revanc1.docker:19000"
+# [grpc.services.authregistry.drivers.static.rules]
+# basic = "revanc1.docker:19000"
 
-[grpc.services.storageregistry]
-driver = "static"
+# [grpc.services.storageregistry]
+# driver = "static"
 
-[grpc.services.storageregistry.drivers.static]
-home_provider = "/home"
+# [grpc.services.storageregistry.drivers.static]
+# home_provider = "/home"
 
-[grpc.services.storageregistry.drivers.static.rules]
-"/home" = {"address" = "revanc1.docker:19000"}
-"123e4567-e89b-12d3-a456-426655440000" = {"address" = "revanc1.docker:19000"}
+# [grpc.services.storageregistry.drivers.static.rules]
+# "/home" = {"address" = "revanc1.docker:19000"}
+# "123e4567-e89b-12d3-a456-426655440000" = {"address" = "revanc1.docker:19000"}
 
 [grpc.services.usershareprovider]
 driver = "memory"
@@ -129,11 +130,11 @@ driver = "nextcloud"
 [grpc.services.userprovider.drivers.nextcloud]
 endpoint = "https://nc1.docker/index.php/apps/sciencemesh/"
 shared_secret = "shared-secret-1"
-mock_http = false
+# mock_http = false
 
-[http]
-enabled_services = ["ocmd"]
-enabled_middlewares = ["providerauthorizer", "cors"]
+# [http]
+# enabled_services = ["ocmd"]
+# enabled_middlewares = ["providerauthorizer", "cors"]
 address = "0.0.0.0:443"
 certfile = "/etc/revad/tls/revanc1.crt"
 keyfile = "/etc/revad/tls/revanc1.key"

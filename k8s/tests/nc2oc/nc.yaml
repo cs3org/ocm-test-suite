@@ -1,0 +1,34 @@
+_: &nextcloudConf
+  endpoint: http://nextcloud-server/index.php/apps/sciencemesh/
+  shared_secret: 'shared-secret-nc'
+
+site:
+  efss:
+    vendor: nextcloud
+
+gateway:
+  config:
+    shared:
+      jwt_secret: ocm-test-nc-123
+    http:
+      services:
+        dataprovider:
+          drivers:
+            nextcloud: *nextcloudConf
+    grpc:
+      services:
+        authprovider:
+          auth_managers:
+            nextcloud: *nextcloudConf
+        ocmcore:
+          drivers:
+            nextcloud: *nextcloudConf
+        ocmshareprovider:
+          drivers:
+            nextcloud: *nextcloudConf
+        storageprovider:
+          drivers:
+            nextcloud: *nextcloudConf
+        userprovider:
+          drivers:
+            nextcloud: *nextcloudConf

@@ -1,0 +1,35 @@
+apiVersion: v2
+name: sciencemesh-site
+description: Helm chart for ScienceMesh-enabled site deployment
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+home: https://sciencemesh.io/
+sources:
+  - https://github.com/owncloud-docker/helm-charts
+  - https://github.com/nextcloud/helm
+  - https://github.com/cs3org/charts
+  - http://github.com/bitnami/charts
+dependencies:
+  - name: revad
+    version: '1.6.0'
+    repository: 'file:///Users/miroslavbauer/Code/github.com/mirekys/cs3org-charts/revad'
+    alias: gateway
+  - name: owncloud
+    version: 0.4.0
+    repository: https://owncloud-docker.github.io/helm-charts
+    alias: efss
+    condition: site.efss.vendor == "owncloud"
+  - name: nextcloud
+    version: 3.4.5
+    repository: https://nextcloud.github.io/helm/
+    alias: efss
+    condition: site.efss.vendor == "nextcloud"
+  - name: mariadb
+    repository: https://charts.bitnami.com/bitnami
+    version: 11.4.6
+    alias: db
+  - name: redis
+    repository: https://charts.bitnami.com/bitnami
+    version: 17.7.2
+    alias: cache

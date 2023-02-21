@@ -1,0 +1,90 @@
+# Default values for the whole site
+# =================================
+site:
+  efss:
+    vendor: 'owncloud'
+
+# Default values for Reva gateway
+# ===============================
+gateway:
+  config:
+    log:
+      level: debug
+    shared:
+      jwt_secret: ocm-test-suite-test-123
+    grpc:
+      services:
+        authprovider:
+          auth_manager: nextcloud
+        gateway:
+          commit_share_to_storage_grant: false
+          commit_share_to_storage_ref: true
+          transfer_expires: 6
+        ocmcore:
+          driver: nextcloud
+        ocmproviderauthorizer:
+          drivers:
+            json:
+              verify_request_hostname: true
+        ocmshareprovider:
+          driver: nextcloud
+        preferences: {}
+        publicshareprovider:
+          driver: memory
+        storageprovider:
+          driver: nextcloud
+          expose_data_server: true
+          enable_home_creation: true
+        userprovider:
+          driver: nextcloud
+        usershareprovider:
+          driver: memory
+    http:
+      services:
+        dataprovider:
+          driver: nextcloud
+        ocdav:
+          prefix: ocdav
+        ocmd:
+          prefix: ocm
+        ocs:
+          prefix: ocs
+        prometheus: {}
+        sysinfo: {}
+      middlewares:
+        cors: {}
+        providerauthorizer:
+          drivers:
+            json:
+              verify_request_hostname: true
+
+# Default values shared by all EFSS vendors
+# =========================================
+
+# Default values for ownCloud deployment
+# ======================================
+owncloud:
+  image:
+    tag: 10.10
+  service:
+    type: ClusterIP
+  owncloud:
+    adminPassword: oc-password
+    adminUsername: oc-admin
+    allowUserToChangeDisplayName: false
+    apps:
+      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor'
+    configExtra:
+      allow_user_to_change_mail_address: false
+  persistence:
+    enabled: false
+  db:
+    host: owncloud-db
+    name: owncloud
+    username: owncloud-db-user
+    password: owncloud-db-password
+    type: mysql
+
+# Default values for Nextcloud deployment
+# =======================================
+nextcloud: {}

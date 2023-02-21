@@ -1,12 +1,8 @@
-# Default values for the whole site
-# =================================
-site:
-  efss:
-    vendor: 'owncloud'
-
 # Default values for Reva gateway
 # ===============================
-gateway:
+revad:
+  ingress:
+    enabled: false
   config:
     log:
       level: debug
@@ -57,34 +53,3 @@ gateway:
           drivers:
             json:
               verify_request_hostname: true
-
-# Default values shared by all EFSS vendors
-# =========================================
-
-# Default values for ownCloud deployment
-# ======================================
-owncloud:
-  image:
-    tag: 10.10
-  service:
-    type: ClusterIP
-  owncloud:
-    adminPassword: oc-password
-    adminUsername: oc-admin
-    allowUserToChangeDisplayName: false
-    apps:
-      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor'
-    configExtra:
-      allow_user_to_change_mail_address: false
-  persistence:
-    enabled: false
-  db:
-    host: owncloud-db
-    name: owncloud
-    username: owncloud-db-user
-    password: owncloud-db-password
-    type: mysql
-
-# Default values for Nextcloud deployment
-# =======================================
-nextcloud: {}

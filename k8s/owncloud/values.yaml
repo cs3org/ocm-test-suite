@@ -1,0 +1,27 @@
+# Default values for ownCloud deployment
+# ======================================
+owncloud:
+  image:
+    tag: '10.10'
+  ingress:
+    enabled: true
+    className: nginx
+  service:
+    type: ClusterIP
+  owncloud:
+    adminPassword: oc-password
+    adminUsername: oc-admin
+    allowUserToChangeDisplayName: false
+    apps:
+      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor'
+    configExtra:
+      allow_user_to_change_mail_address: false
+    domain: owncloud.localdev.me
+  persistence:
+    enabled: false
+  db:
+    host: owncloud-db
+    name: owncloud
+    username: owncloud-db-user
+    password: owncloud-db-password
+    type: mysql

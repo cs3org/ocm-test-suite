@@ -1,0 +1,13 @@
+apiVersion: v2
+name: revad
+description: Helm chart for reva gateway deployment
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+home: https://sciencemesh.io/
+  - https://github.com/cs3org/charts
+dependencies:
+  - name: revad
+    version: '1.6.0'
+    repository: 'https://github.com/mirekys/cs3org-charts'
+    alias: gateway

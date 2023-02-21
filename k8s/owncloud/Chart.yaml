@@ -1,0 +1,27 @@
+apiVersion: v2
+name: owncloud
+description: Helm chart for ScienceMesh-enabled owncloud
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+home: https://sciencemesh.io/
+sources:
+  - https://github.com/owncloud-docker/helm-charts
+  - https://github.com/cs3org/charts
+  - http://github.com/bitnami/charts
+dependencies:
+  - name: revad
+    version: 0.1.0
+    repository: 'file://../revad'
+    alias: gateway
+  - name: mariadb
+    repository: https://charts.bitnami.com/bitnami
+    version: 11.4.6
+    alias: db
+  - name: redis
+    repository: https://charts.bitnami.com/bitnami
+    version: 17.7.2
+    alias: cache
+  - name: owncloud
+    version: 0.4.0
+    repository: https://owncloud-docker.github.io/helm-charts

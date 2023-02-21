@@ -2,10 +2,6 @@ _: &nextcloudConf
   endpoint: http://nextcloud-server/index.php/apps/sciencemesh/
   shared_secret: 'shared-secret-nc'
 
-site:
-  efss:
-    vendor: nextcloud
-
 gateway:
   config:
     shared:

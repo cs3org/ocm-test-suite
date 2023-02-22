@@ -178,9 +178,9 @@ cat <<EOF
     Use 'admin-user' password:
 	${DASHBOARD_TOKEN}
 
- 🔌  Start the kubernetes port-forwarding proxy
+ 🔌  Start the ingress-controller port-forwarding proxy
 
-	$ ./start.sh
+	$ ./ingress-proxy.sh
 
  🚀  Pick and deploy a testing scenario
 

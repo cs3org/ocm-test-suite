@@ -1,0 +1,12 @@
+-----------------------------------------------------------------
+Deployed {{ .Release.Name }} {{ .Values.owncloud.image.tag }} \w sciencemesh app & patches
+-----------------------------------------------------------------
+
+You can access it from:
+http://{{ .Values.owncloud.owncloud.domain }}:8080/
+
+Default admin user credentials:
+Username: {{ .Values.owncloud.owncloud.adminUsername }}
+Password: {{ .Values.owncloud.owncloud.adminPassword }}
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

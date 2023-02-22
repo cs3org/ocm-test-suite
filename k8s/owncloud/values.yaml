@@ -43,3 +43,7 @@ cache:
   architecture: standalone
   auth:
     password: owcnloud-redis-password
+
+db:
+  auth:
+    rootPassword: owncloud-mariadb-root-pw

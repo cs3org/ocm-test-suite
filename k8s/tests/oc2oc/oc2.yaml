@@ -1,0 +1,34 @@
+_: &owncloudConf
+  endpoint: http://owncloud-server/index.php/apps/sciencemesh/
+  shared_secret: 'shared-secret-oc'
+
+gateway:
+  config:
+    shared:
+      jwt_secret: ocm-test-oc-123
+    http:
+      services:
+        dataprovider:
+          drivers:
+            nextcloud: *owncloudConf
+    grpc:
+      services:
+        authprovider:
+          auth_managers:
+            nextcloud: *owncloudConf
+        ocmcore:
+          drivers:
+            nextcloud: *owncloudConf
+        ocmshareprovider:
+          drivers:
+            nextcloud: *owncloudConf
+        storageprovider:
+          drivers:
+            nextcloud: *owncloudConf
+        userprovider:
+          drivers:
+            nextcloud: *owncloudConf
+
+owncloud:
+  owncloud:
+    domain: owncloud2.localdev.me

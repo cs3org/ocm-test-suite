@@ -11,11 +11,20 @@ if [ ${#scenarios[@]} -eq 0 ]; then
     exit 1
 fi
 
+options=()
+for d in $scenarios; do
+    options+=("$d ($(head -n 2 "$d/NOTES.txt" | tail -1))")
+done
+
 # Prompt user to select a directory
 if [ -z "$SCENARIO_DIR" ]; then
     echo "📝  Select a test scenario to uninstall:"
-    select dir in "${scenarios[@]}"; do
+    select opt in "${options[@]}"; do
         if [[ "$REPLY" =~ ^[0-9]+$ ]]; then
+            dir=$(echo "$opt" | cut -d " " -f1)
+
+            echo
+            echo "🚀  Uninstalling test scenario" $(echo "$opt" | cut -d ' ' -f1)
             break
         else
             echo "Invalid selection. Please try again."
@@ -24,8 +33,6 @@ if [ -z "$SCENARIO_DIR" ]; then
     SCENARIO_DIR=$dir
 fi
 
-echo
-echo '🚀  Uninstalling test scenario' $(basename "$SCENARIO_DIR")
 cd "$SCENARIO_DIR" && ./cleanup.sh && (
     echo '✅  Unistalled successfully!'
 ) || echo '❌  Failed to uninstall'

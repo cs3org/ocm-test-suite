@@ -1,4 +1,5 @@
-Nextcloud 25 <=> ownCloud 10.10 
+-------------------------------
+Nextcloud 25 <=> ownCloud 10.10
 -------------------------------
 
 # Nextcloud apps:

@@ -1,0 +1,12 @@
+Nextcloud 25 <=> ownCloud 10.10 
+-------------------------------
+
+# Nextcloud apps:
+
+- nc-sciencemesh: pondersource/master
+- reva: v1.2.1
+
+# ownCloud apps:
+
+- oc-sciencemesh: pondersource/master
+- reva: v1.2.1

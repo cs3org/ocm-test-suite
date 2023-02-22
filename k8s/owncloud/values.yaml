@@ -1,11 +1,24 @@
 # Default values for ownCloud deployment
 # ======================================
 owncloud:
+  db:
+    host: owncloud-db
+    name: owncloud
+    username: owncloud-db-user
+    password: owncloud-db-password
+    type: mysql
+  enablePreviews: true
+  enabledPreviewProviders: 'OC\\Preview\\PNG,OC\\Preview\\JPEG'
+  log:
+    timezone: 'Europe/Prague'
   image:
+    # Image built by ./build.sh
+    repository: sciencemesh-owncloud
     tag: '10.10'
   ingress:
     enabled: true
     className: nginx
+  integrityIgnoreMissingAppSignature: 'sciencemesh'
   service:
     type: ClusterIP
   owncloud:
@@ -13,15 +26,20 @@ owncloud:
     adminUsername: oc-admin
     allowUserToChangeDisplayName: false
     apps:
-      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor'
+      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor sciencemesh'
     configExtra:
       allow_user_to_change_mail_address: false
     domain: owncloud.localdev.me
   persistence:
     enabled: false
-  db:
-    host: owncloud-db
-    name: owncloud
-    username: owncloud-db-user
-    password: owncloud-db-password
-    type: mysql
+  redis:
+    enabled: true
+    host: owncloud-cache
+    password: owncloud-redis-password
+  secret: owncloud-secret-123
+  sharingManagerFactory: 'OCA\\ScienceMesh\\ScienceMeshProviderFactory'
+
+cache:
+  architecture: standalone
+  auth:
+    password: owcnloud-redis-password

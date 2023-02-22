@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-which docker
+docker=$DOCKER_PATH
 
 # Kubernetes Dashboard admin-user token.
 DASHBOARD_TOKEN=""
@@ -29,11 +29,11 @@ function helm_add() {
 }
 
 function ask() {
-	read -r -p "❓ Do you want to proceed? (y/n) " yn
+	read -r -p "❓ Do you want to ${1}? (y/n) " yn
 
 	case $yn in
 	[yY])
-		$1
+		"${2}"
 		return
 		;;
 	[nN])
@@ -41,6 +41,21 @@ function ask() {
 		;;
 	*) echo invalid response ;;
 	esac
+}
+
+function build_push_images() {
+	(
+		echo "🐳  Building & publishing Docker images in Kubernetes registry"
+		(
+			find . -name build.sh -type f | while read -r build_file; do
+				build_dir="$(dirname "${build_file}")"
+				(
+					echo "🏗️  Building ${build_dir}" | indent &&
+						cd "${build_dir}" && ./build.sh . 2>&1 >/dev/null | indent_cli
+				)
+			done
+		) || (echo "❗️ Failed publish docker images.." && exit 1)
+	) | indent
 }
 
 function install_k8s_dashboard() {
@@ -130,13 +145,13 @@ is_installed helm
 is_installed kubectl
 
 ( 
-	(docker ps 2>&1 >/dev/null && echo "✅ Docker is properly executable") ||
+	($docker ps 2>&1 >/dev/null && echo "✅ Docker is properly executable") ||
 		(echo "❌ Cannot run docker ps, you might need to check that your user is able to use docker properly" && exit 1)
 ) | indent
 
 ( 
-	(kubectl cluster-info | grep kubernetes.docker 2>&1 >/dev/null && echo "✅ Minikube cluster is running properly") ||
-		(echo "❌ Minikube cluster is not running properly. Please refer to https://minikube.sigs.k8s.io/docs/ on how to start it." && exit 1)
+	(kubectl version --short | grep 'Server Version:' 2>&1 >/dev/null && echo "✅ Kubernetes cluster is running properly") ||
+		(echo "❌ Kubernetes cluster is not running properly. Please refer e.g. to https://rancherdesktop.io on how to set-up a single-node Kubernetes cluster." && exit 1)
 ) | indent
 
 echo
@@ -145,9 +160,10 @@ fetch_repositories
 
 echo
 echo "☸️ Setting up Kubernetes environment"
+build_push_images
 configure_helm
-ask install_k8s_dashboard
-ask install_k8s_ingress_controller
+ask "install k8s dashboard" install_k8s_dashboard
+ask "install nginx ingress controller" install_k8s_ingress_controller
 
 cat <<EOF
 
@@ -156,36 +172,22 @@ cat <<EOF
  ╚═════════════════════════════════════════╝
 
  🖥️  You can check status & manage all k8s services by navigating to:
-
+    NOTE: This applies only if you choose to install the k8s dashboard.
     http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login
 
     Use 'admin-user' password:
 	${DASHBOARD_TOKEN}
-    
 
- 🚀  Start the Nextcloud server by running
+ 🔌  Start the kubernetes port-forwarding proxy
 
-	$ docker-compose up -d nextcloud
+	$ ./start.sh
 
+ 🚀  Pick and deploy a testing scenario
 
- 💤  Stop it with
+	$ ./deploy.sh
 
-	$ docker-compose stop nextcloud
+ 🗑  Wipe all cluster deployments & namespaces
 
-
- 🗑  Fresh install and wipe all data
-
-	$ docker-compose down -v
-
-
-	Note that for performance reasons the server repository has been cloned with
-	--depth=1. To get the full history it is highly recommended to run:
-
-	$ cd workspace/server
-	$ git fetch --unshallow
-	$ git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-	$ git fetch origin
-
-	This may take some time depending on your internet connection speed.
+	$ ./cleanup.sh
 
 EOF

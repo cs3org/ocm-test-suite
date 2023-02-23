@@ -50,3 +50,20 @@ function is_installed() {
 		fi
 	) | indent
 }
+
+function clone_repo() {
+	URL=$1
+	NAME=$2
+	BRANCH=${3:-main}
+
+	if [ -d "${NAME}" ]; then
+		echo "✅ Repository ${NAME} already present Pulling latest changes..."
+		(cd "$NAME" && git pull)
+		return
+	fi
+
+	echo "🌏 Fetching 𓆱  ${BRANCH} of ${NAME}"
+	(
+		git clone -b "${BRANCH}" "${URL}" "${NAME}" 2>&1 | indent_cli
+	) || (echo "❌ Failed to clone ${NAME}" | indent && exit 1)
+}

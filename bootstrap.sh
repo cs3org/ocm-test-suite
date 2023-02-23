@@ -42,30 +42,13 @@ function install_k8s_ingress_controller() {
 	) | indent
 }
 
-function clone_repo() {
-	URL=$1
-	NAME=$2
-	BRANCH=${3:-main}
-
-	if [ -d "workspace/${NAME}" ]; then
-		echo "✅ Repository ${NAME} already present."
-		return
-	fi
-
-	echo "🌏 Fetching 𓆱  ${BRANCH} of ${NAME}"
-	(
-		git clone -b "${BRANCH}" "${URL}" "workspace/${NAME}" 2>&1 | indent_cli
-	) || (echo "❌ Failed to clone ${NAME}" | indent && exit 1)
-}
-
 function fetch_repositories() {
 	( 
 		(
 			mkdir -p workspace/ &&
-				clone_repo https://github.com/pondersource/nc-sciencemesh nc-sciencemesh &&
-				clone_repo https://github.com/pondersource/oc-sciencemesh oc-sciencemesh &&
-				clone_repo https://github.com/cs3org/reva revad master &&
-				clone_repo https://github.com/michielbdejong/ocm-stub ocm-stub
+				clone_repo https://github.com/pondersource/nc-sciencemesh workspace/nc-sciencemesh &&
+				clone_repo https://github.com/cs3org/reva workspace/revad master &&
+				clone_repo https://github.com/michielbdejong/ocm-stub workspace/ocm-stub
 		) || (echo "❌ Failed to set up repositories" && exit 1)
 	) | indent
 }
@@ -109,7 +92,7 @@ is_installed kubectl
 ) | indent
 
 ( 
-	(kubectl version --short | grep 'Server Version:' 2>&1 >/dev/null && echo "✅ Kubernetes cluster is running properly") ||
+	(kubectl version | grep 'Server Version:' 2>&1 >/dev/null && echo "✅ Kubernetes cluster is running properly") ||
 		(echo "❌ Kubernetes cluster is not running properly. Please refer e.g. to https://rancherdesktop.io on how to set-up a single-node Kubernetes cluster." && exit 1)
 ) | indent
 

@@ -14,10 +14,11 @@ dependencies:
     version: 0.1.0
     repository: 'file://../revad'
     alias: gateway
-  - name: mariadb
-    repository: https://charts.bitnami.com/bitnami
-    version: 11.4.6
-    alias: db
+  # TODO: sqlite will do for now
+  # - name: mariadb
+  #   repository: https://charts.bitnami.com/bitnami
+  #   version: 11.4.6
+  #   alias: db
   - name: redis
     repository: https://charts.bitnami.com/bitnami
     version: 17.7.2

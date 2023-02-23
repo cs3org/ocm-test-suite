@@ -2,16 +2,6 @@
 # ======================================
 
 owncloud:
-  db:
-    host: owncloud-db
-    name: owncloud
-    username: owncloud-db-user
-    password: owncloud-db-password
-    type: mysql
-  enablePreviews: true
-  enabledPreviewProviders: 'OC\\Preview\\PNG,OC\\Preview\\JPEG'
-  log:
-    timezone: 'Europe/Prague'
   image:
     # Image built by ./build.sh
     repository: sciencemesh-owncloud
@@ -19,7 +9,6 @@ owncloud:
   ingress:
     enabled: true
     className: nginx
-  integrityIgnoreMissingAppSignature: 'sciencemesh'
   service:
     type: ClusterIP
   owncloud:
@@ -27,24 +16,47 @@ owncloud:
     adminUsername: oc-admin
     allowUserToChangeDisplayName: false
     apps:
-      install: 'activity calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor sciencemesh'
+      install: 'calendar contacts files_mediaviewer files_pdfviewer files_texteditor impersonate oauth2 templateeditor'
+      enable: 'sciencemesh'
     configExtra:
       allow_user_to_change_mail_address: false
+    # TODO: sqlite will do for now
+    # db:
+    #   host: owncloud-db
+    #   name: owncloud
+    #   username: owncloud-db-user
+    #   password: owncloud-db-password
+    #   type: mysql
     domain: owncloud.localdev.me
+    enablePreviews: true
+    enabledPreviewProviders: 'OC\\Preview\\PNG,OC\\Preview\\JPEG'
+    integrityIgnoreMissingAppSignature: 'sciencemesh'
+    log:
+      level: debug
+    redis:
+      enabled: true
+      host: owncloud-cache-master
+      password: owncloud-redis-password
+    secret: owncloud-secret-123
+    # sharingManagerFactory: 'OCA\\ScienceMesh\\ScienceMeshProviderFactory'
+    timezone: 'Europe/Prague'
   persistence:
     enabled: false
-  redis:
-    enabled: true
-    host: owncloud-cache
-    password: owncloud-redis-password
-  secret: owncloud-secret-123
-  sharingManagerFactory: 'OCA\\ScienceMesh\\ScienceMeshProviderFactory'
 
 cache:
   architecture: standalone
   auth:
-    password: owcnloud-redis-password
-
-db:
-  auth:
-    rootPassword: owncloud-mariadb-root-pw
+    password: owncloud-redis-password
+  master:
+    persistence:
+      enabled: false
+# TODO: sqlite will do for now
+# db:
+#   auth:
+#     username: owncloud-db-user
+#     password: owncloud-db-password
+#     database: owncloud
+#     rootPassword: owncloud-mariadb-root-pw
+#   primary:
+#     persistence:
+#       enabled: false

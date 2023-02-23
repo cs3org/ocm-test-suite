@@ -5,6 +5,7 @@ export TARGET=server-dev
 
 . ../../common.sh
 
+helm dependency update
 helm dependency build
 
 clone_repo https://github.com/pondersource/oc-sciencemesh apps/sciencemesh

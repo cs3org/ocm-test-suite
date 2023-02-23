@@ -4,56 +4,16 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-docker=$DOCKER_PATH
+. ./common.sh
 
 # Kubernetes Dashboard admin-user token.
 DASHBOARD_TOKEN=""
-
-indent() {
-	sed 's/^/    /'
-}
-
-indent_cli() {
-	if [[ "$OSTYPE" == "darwin"* ]]; then
-		sed -l 's/^/   > /'
-	else
-		sed -u 's/^/   > /'
-	fi
-}
-
-function helm_add() {
-	( 
-		(helm repo add "$1" "$2" 2>&1 >/dev/null && echo "✅ $1 repo configured successfully") ||
-			(echo "❌ Failed to configure repo $1" && exit 1)
-	) | indent
-}
-
-function ask() {
-	read -r -p "❓ Do you want to ${1}? (y/n) " yn
-
-	case $yn in
-	[yY])
-		"${2}"
-		return
-		;;
-	[nN])
-		return
-		;;
-	*) echo invalid response ;;
-	esac
-}
 
 function build_push_images() {
 	(
 		echo "🐳  Building & publishing Docker images in Kubernetes registry"
 		(
-			find . -name build.sh -type f | while read -r build_file; do
-				build_dir="$(dirname "${build_file}")"
-				(
-					echo "🏗️  Building ${build_dir}" | indent &&
-						cd "${build_dir}" && ./build.sh . 2>&1 >/dev/null | indent_cli
-				)
-			done
+			./build-images.sh
 		) || (echo "❗️ Failed publish docker images.." && exit 1)
 	) | indent
 }
@@ -105,8 +65,7 @@ function fetch_repositories() {
 				clone_repo https://github.com/pondersource/nc-sciencemesh nc-sciencemesh &&
 				clone_repo https://github.com/pondersource/oc-sciencemesh oc-sciencemesh &&
 				clone_repo https://github.com/cs3org/reva revad master &&
-				clone_repo https://github.com/michielbdejong/ocm-stub ocm-stub &&
-				clone_repo https://github.com/sciencemesh/efss-deployment-sample.git efss-deployment
+				clone_repo https://github.com/michielbdejong/ocm-stub ocm-stub
 		) || (echo "❌ Failed to set up repositories" && exit 1)
 	) | indent
 }

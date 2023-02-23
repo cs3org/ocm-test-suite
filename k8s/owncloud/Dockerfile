@@ -17,7 +17,7 @@ RUN tar -xzf sciencemesh.tar.gz
 FROM owncloud/server:${SERVER_VERSION} AS server
 WORKDIR /var/www/owncloud
 
-ADD ./10-configure_extras.sh /etc/post_install.d/10-configure_extras.sh
+COPY ./docker/post_install.d/ /etc/post_install.d/
 RUN chmod u+x -R /etc/post_install.d/
 
 # Apply the sciencemesh sharing patch && install the app

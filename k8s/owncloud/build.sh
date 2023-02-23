@@ -2,7 +2,7 @@
 export SERVER_VERSION=10.10
 export PHP_VERSION=20.04
 
-docker=$DOCKER_PATH
+. ../../common.sh
 
 helm dependency build
 

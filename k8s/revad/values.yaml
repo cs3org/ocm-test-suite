@@ -2,7 +2,14 @@
 # ===============================
 revad:
   ingress:
-    enabled: false
+    enabled: true
+    services:
+      http:
+        annotations:
+          kubernetes.io/ingress.class: 'nginx'
+      grpc:
+        annotations:
+          kubernetes.io/ingress.class: 'nginx'
   config:
     log:
       level: debug

@@ -1,34 +1,46 @@
-_: &owncloudConf
-  endpoint: http://owncloud-server/index.php/apps/sciencemesh/
-  shared_secret: 'shared-secret-oc'
+_: &sharedSecret shared-secret-oc2
+__: &owncloudConf
+  endpoint: http://owncloud/index.php/apps/sciencemesh/
+  shared_secret: *sharedSecret
 
 gateway:
-  config:
-    shared:
-      jwt_secret: ocm-test-oc-123
-    http:
+  revad:
+    ingress:
       services:
-        dataprovider:
-          drivers:
-            nextcloud: *owncloudConf
-    grpc:
-      services:
-        authprovider:
-          auth_managers:
-            nextcloud: *owncloudConf
-        ocmcore:
-          drivers:
-            nextcloud: *owncloudConf
-        ocmshareprovider:
-          drivers:
-            nextcloud: *owncloudConf
-        storageprovider:
-          drivers:
-            nextcloud: *owncloudConf
-        userprovider:
-          drivers:
-            nextcloud: *owncloudConf
+        http:
+          hostname: http.gateway2.localdev.me
+        grpc:
+          hostname: grpc.gateway2.localdev.me
+    config:
+      shared:
+        jwt_secret: ocm-test-oc2-123
+      http:
+        services:
+          dataprovider:
+            drivers:
+              nextcloud: *owncloudConf
+      grpc:
+        services:
+          authprovider:
+            auth_managers:
+              nextcloud: *owncloudConf
+          ocmcore:
+            drivers:
+              nextcloud: *owncloudConf
+          ocmshareprovider:
+            drivers:
+              nextcloud: *owncloudConf
+          storageprovider:
+            drivers:
+              nextcloud: *owncloudConf
+          userprovider:
+            drivers:
+              nextcloud: *owncloudConf
 
 owncloud:
   owncloud:
+    configExtra:
+      sciencemesh:
+        iopUrl: http://http.gateway2.localdev.me/
+        revaSharedSecret: *sharedSecret
     domain: owncloud2.localdev.me

@@ -10,4 +10,3 @@ dependencies:
   - name: revad
     version: '1.6.0'
     repository: 'https://github.com/mirekys/cs3org-charts'
-    alias: gateway

@@ -1,5 +1,6 @@
 # Default values for ownCloud deployment
 # ======================================
+
 owncloud:
   db:
     host: owncloud-db

@@ -36,7 +36,8 @@ if [ -z "$SCENARIO_DIR" ]; then
 fi
 
 echo
-cd "$SCENARIO_DIR" && ./deploy.sh && (
+shift
+cd "$SCENARIO_DIR" && ./deploy.sh "$@" && (
     echo '✅  Scenario successfully Deployed!' && (
         test -f NOTES.txt && cat NOTES.txt || echo
     )

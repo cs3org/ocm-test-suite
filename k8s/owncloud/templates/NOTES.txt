@@ -1,5 +1,5 @@
 -----------------------------------------------------------------
-Deployed {{ .Release.Name }} {{ .Values.owncloud.image.tag }} \w sciencemesh app & patches
+[{{ .Release.Namespace}}]: Deployed {{ .Release.Name }} {{ .Values.owncloud.image.tag }} \w sciencemesh app & patches
 -----------------------------------------------------------------
 
 You can access it from:

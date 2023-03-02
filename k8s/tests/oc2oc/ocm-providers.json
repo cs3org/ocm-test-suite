@@ -1,0 +1,160 @@
+[
+    {
+        "name": "Site1",
+        "full_name": "OCM Test Site #1",
+        "description": "OCM Test site #1",
+        "organization": "Site1",
+        "domain": "owncloud-revad.oc-site1.svc.cluster.local",
+        "homepage": "http://owncloud1.localdev.me/",
+        "email": "info@site1.org",
+        "services": [
+            {
+                "host": "owncloud-revad.oc-site1.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "WEBDAV",
+                        "description": "Web Distributed Authoring and Versioning Service"
+                    },
+                    "name": "WEBDAV",
+                    "path": "http://http.gateway1.localdev.me/remote.php/webdav"
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site1.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "OCM",
+                        "description": "OpenCloudMesh Service"
+                    },
+                    "name": "OCM",
+                    "path": "http://http.gateway1.localdev.me/ocm"
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site1.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "GATEWAY",
+                        "description": "CS3 Gateway Service"
+                    },
+                    "name": "GATEWAY",
+                    "path": "grpc://owncloud-revad.oc-site1.svc.cluster.local:19000",
+                    "is_monitored": true
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site1.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "REVAD",
+                        "description": "Reva Daemon Service"
+                    },
+                    "name": "REVAD",
+                    "path": "https://http.gateway1.localdev.me/",
+                    "is_monitored": true,
+                    "properties": {
+                        "API_VERSION": "0.1.0"
+                    }
+                },
+                "api_version": "0.1.0",
+                "additional_endpoints": [
+                    {
+                        "type": {
+                            "name": "METRICS",
+                            "description": "Prometheus metrics provider"
+                        },
+                        "name": "METRICS",
+                        "path": "https://http.gateway1.localdev.me/metrics",
+                        "is_monitored": true
+                    }
+                ]
+            }
+        ],
+        "properties": {
+            "OPERATOR": "Site1",
+            "ORGANIZATION": "Site1"
+        }
+    },
+    {
+        "name": "Site2",
+        "full_name": "OCM Test Site #2",
+        "description": "OCM Test site #2",
+        "organization": "Site2",
+        "domain": "owncloud-revad.oc-site2.svc.cluster.local",
+        "homepage": "http://owncloud2.localdev.me/",
+        "email": "info@site2.org",
+        "services": [
+            {
+                "host": "owncloud-revad.oc-site2.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "WEBDAV",
+                        "description": "Web Distributed Authoring and Versioning Service"
+                    },
+                    "name": "WEBDAV",
+                    "path": "http://http.gateway2.localdev.me/remote.php/webdav"
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site2.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "OCM",
+                        "description": "OpenCloudMesh Service"
+                    },
+                    "name": "OCM",
+                    "path": "http://http.gateway.localdev.me/ocm"
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site2.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "GATEWAY",
+                        "description": "CS3 Gateway Service"
+                    },
+                    "name": "GATEWAY",
+                    "path": "grpc://owncloud-revad.oc-site2.svc.cluster.local:19000",
+                    "is_monitored": true
+                },
+                "api_version": "0.1.0"
+            },
+            {
+                "host": "owncloud-revad.oc-site2.svc.cluster.local",
+                "endpoint": {
+                    "type": {
+                        "name": "REVAD",
+                        "description": "Reva Daemon Service"
+                    },
+                    "name": "REVAD",
+                    "path": "https://http.gateway2.localdev.me/",
+                    "is_monitored": true,
+                    "properties": {
+                        "API_VERSION": "0.1.0"
+                    }
+                },
+                "api_version": "0.1.0",
+                "additional_endpoints": [
+                    {
+                        "type": {
+                            "name": "METRICS",
+                            "description": "Prometheus metrics provider"
+                        },
+                        "name": "METRICS",
+                        "path": "https://http.gateway2.localdev.me/metrics",
+                        "is_monitored": true
+                    }
+                ]
+            }
+        ],
+        "properties": {
+            "OPERATOR": "Site2",
+            "ORGANIZATION": "Site2"
+        }
+    }
+]

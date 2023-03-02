@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: iop-meshdirectory
+    project: iop-meshdirectory
+  name: iop-meshdirectory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iop-meshdirectory
+      project: iop-meshdirectory
+  template:
+    metadata:
+      labels:
+        app: iop-meshdirectory
+        project: iop-meshdirectory
+    spec:
+      containers:
+      - command:
+        - yarn
+        args:
+        - run
+        - start
+        image: apps.du.cesnet.cz/meshdirectory-web:2.0.0
+        imagePullPolicy: Always
+        name: meshdirectory
+        env:
+        - name: "IOP_HOST"
+          value: "sciencemesh.cesnet.cz:443"
+        - name: "PROVIDERS_API"
+          value: "https://iop.sciencemesh.uni-muenster.de/iop/mentix/cs3"
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        resources: {}
+      restartPolicy: Always
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: regcred

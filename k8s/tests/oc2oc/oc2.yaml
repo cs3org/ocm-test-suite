@@ -1,6 +1,6 @@
 _: &sharedSecret shared-secret-oc2
 __: &owncloudConf
-  endpoint: http://owncloud2.localdev.me/index.php/apps/sciencemesh/
+  endpoint: http://owncloud:8080/index.php/apps/sciencemesh/
   shared_secret: *sharedSecret
 
 gateway:
@@ -41,6 +41,9 @@ owncloud:
   owncloud:
     configExtra:
       sciencemesh:
-        iopUrl: http://http.gateway2.localdev.me/
+        iopUrl: http://owncloud-revad.oc-site2.svc.cluster.local:19001/
         revaSharedSecret: *sharedSecret
     domain: owncloud2.localdev.me
+    trustedDomains:
+      - owncloud1.localdev.me
+      - owncloud

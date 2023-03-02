@@ -28,7 +28,7 @@ revad:
         ocmproviderauthorizer:
           drivers:
             json:
-              verify_request_hostname: true
+              verify_request_hostname: false
         ocmshareprovider:
           driver: nextcloud
         preferences: {}
@@ -59,4 +59,4 @@ revad:
         providerauthorizer:
           drivers:
             json:
-              verify_request_hostname: true
+              verify_request_hostname: false

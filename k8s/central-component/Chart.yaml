@@ -1,0 +1,7 @@
+apiVersion: v2
+name: central-component
+description: Central Component services of the Science Mesh project.
+type: application
+version: 0.0.1
+appVersion: 2.0.1
+home: https://developer.sciencemesh.io/

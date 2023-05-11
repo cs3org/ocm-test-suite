@@ -59,7 +59,8 @@ provider_domain = "your.revad.com"
 [grpc.services.ocmshareprovider]
 driver = "nextcloud"
 provider_domain = "your.revad.com"
-webdav_endpoint = "https://your.efss.com/"
+webdav_endpoint = "https://your.reva.com"
+webdav_prefix = "https://your.reva.com/remote.php/dav/files"
 
 [grpc.services.ocmshareprovider.drivers.nextcloud]
 webdav_host = "https://your.efss.com/"
@@ -167,3 +168,9 @@ prefix = "ocs"
 prefix = "ocdav"
 
 [http.middlewares.cors]
+
+[http.services.ocmprovider]
+endpoint = "https://your.reva.com"
+provider = "Your Institute Name"
+enable_webapp = true
+enable_datatx = false

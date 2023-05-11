@@ -172,5 +172,5 @@ prefix = "ocdav"
 [http.services.ocmprovider]
 endpoint = "https://your.reva.com"
 provider = "Your Institute Name"
-enable_webapp = true
-enable_datatx = false
+enable_webapp = false
+enable_datatx = true

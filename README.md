@@ -16,6 +16,14 @@ to the ocm-stub server:
 * OC-10
 * Reva
 
+## Running locally
+The OCM test suite is currently being developed by Mahdi Baghbani as part of the [Ponder Source dev-stock GitHub Actions](https://github.com/pondersource/dev-stock/tree/main/.github/workflows). You can look at those jobs and run them locally, for instance:
+```
+git clone https://github.com/pondersource/dev-stock
+cd dev-stock
+./dev/ocm-test-suite.sh login ocmstub 1.0 ci electron
+```
+
 ## Running in CDE
 There is a .gitpod.yml file that points to a gitpod-init.sh script and a gitpod-command.sh script. Use it to your liking
 with GitPod, GitHub Codespaces, or similar!

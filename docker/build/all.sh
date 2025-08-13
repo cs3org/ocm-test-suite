@@ -500,23 +500,26 @@ main() {
     # ownCloud Base
     build_docker_image owncloud-base.Dockerfile     pondersource/owncloud-base     "latest"           DEFAULT
 
+    # owncloud is really dead as of 2025/13/08,
+    # Since ownCloud build is dependent on https://github.com/Graffino/Browser-Update, and the repo is gone our build would face:
+    # error Error: https://codeload.github.com/Graffino/Browser-Update/tar.gz/76efd225894bf77c411aa8cced870fe6327ac259: Request failed "404 Not Found"
     # ownCloud Versions
     # The first element in this array is considered the "latest".
-    owncloud_versions=("v10.15.0")
+    # owncloud_versions=("v10.15.0")
 
     # Iterate over the array of versions
-    for i in "${!owncloud_versions[@]}"; do
-        version="${owncloud_versions[i]}"
-        tags="${version}"
-        [[ "$i" -eq 0 ]] && tags="${version} latest"
+    # for i in "${!owncloud_versions[@]}"; do
+    #     version="${owncloud_versions[i]}"
+    #     tags="${version}"
+    #     [[ "$i" -eq 0 ]] && tags="${version} latest"
 
-        build_docker_image \
-            owncloud.Dockerfile \
-            pondersource/owncloud \
-            "${tags}" \
-            DEFAULT \
-            "--build-arg OWNCLOUD_BRANCH=${version}"
-    done
+    #     build_docker_image \
+    #         owncloud.Dockerfile \
+    #         pondersource/owncloud \
+    #         "${tags}" \
+    #         DEFAULT \
+    #         "--build-arg OWNCLOUD_BRANCH=${version}"
+    # done
 
     # Build ownCloud App Variants
     # ScienceMesh using git

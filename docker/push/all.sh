@@ -86,7 +86,7 @@ for i in "${!ocmstub_versions[@]}"; do
     run_quietly_if_ci docker push "pondersource/ocmstub:${version}"
 done
 
-reva_versions=("v1.29.0" "v1.28.0")
+reva_versions=("v3.0.1" "v1.29.0" "v1.28.0")
 for i in "${!reva_versions[@]}"; do
     version="${reva_versions[i]}"
 

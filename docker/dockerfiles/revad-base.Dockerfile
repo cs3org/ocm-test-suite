@@ -7,8 +7,11 @@
 # ----------------------------------------------------------------------------
 # Stage 1: Build Stage
 # ----------------------------------------------------------------------------
+# Select Go version via build-arg. Default matches your current choice.
+ARG GO_VERSION=1.24.6
+
 # Use a specific, pinned Go image to ensure reproducible and secure builds.
-FROM golang:1.23.4-bookworm@sha256:ef30001eeadd12890c7737c26f3be5b3a8479ccdcdc553b999c84879875a27ce AS build
+FROM golang:${GO_VERSION}-bookworm AS build
 
 # Enable CGO for better performance on certain operations (e.g., SQLite).
 ENV CGO_ENABLED=1
@@ -37,7 +40,7 @@ WORKDIR /
 # These allow customizing which repository and branch to clone at build time.
 # CACHEBUST is used to force rebuild steps when needed.
 ARG REVA_REPO=https://github.com/cs3org/reva
-ARG REVA_BRANCH=v1.28.0
+ARG REVA_BRANCH=v3.0.1
 ARG CACHEBUST="default"
 
 # ----------------------------------------------------------------------------
@@ -63,6 +66,9 @@ WORKDIR /reva-git
 # Install Dependencies
 # ----------------------------------------------------------------------------
 # Download Go module dependencies specified in go.mod to improve build caching.
+RUN go clean -modcache
+RUN rm go.sum
+RUN go mod tidy
 RUN go mod download
 
 # ----------------------------------------------------------------------------
@@ -76,7 +82,7 @@ RUN make revad
 # Stage 2: Application Image
 # ----------------------------------------------------------------------------
 # Use a minimal Debian-based image for the runtime environment.
-FROM debian:bookworm-slim@sha256:1537a6a1cbc4b4fd401da800ee9480207e7dc1f23560c21259f681db56768f63
+FROM debian:bookworm-slim@sha256:8f8e63bb364a33694362f38ee9a9e38b09eb9eb138584693800b87ca173bfd4a
 
 # ----------------------------------------------------------------------------
 # OCI Image Metadata

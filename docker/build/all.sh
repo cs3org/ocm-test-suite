@@ -303,6 +303,18 @@ derive_current_nextcloud_version() {
   echo "v${ver}"
 }
 
+go_version_for_reva() {
+  # Input like "v3.0.1", "v1.29.0", or "1.28.0"
+  local ref="$1"
+  local major
+  major="$(sed -E 's/^v?([0-9]+).*/\1/' <<<"$ref")"
+  if (( major >= 3 )); then
+    printf '%s\n' "1.24.6"
+  else
+    printf '%s\n' "1.23.12"
+  fi
+}
+
 
 # -----------------------------------------------------------------------------------
 # Main Execution
@@ -339,7 +351,7 @@ main() {
 
     # Reva Versions
     # The first element in this array is considered the "latest".
-    reva_versions=("v1.29.0" "v1.28.0")
+    reva_versions=("v3.0.1" "v1.29.0" "v1.28.0")
 
     # Iterate over the array of versions
     for i in "${!reva_versions[@]}"; do
@@ -348,8 +360,11 @@ main() {
         tags="${version}"
         # If this is the first element (index 0), also add the "latest" tag
         [[ "$i" -eq 0 ]] && tags+=" latest"
+
+        GO_VERSION="$(go_version_for_reva "$version")"
         
-        build_args="--build-arg REVA_REPO=${REVA_REPO}"
+        build_args="--build-arg GO_VERSION=${GO_VERSION}"
+        build_args="${build_args} --build-arg REVA_REPO=${REVA_REPO}"
         build_args="${build_args} --build-arg REVA_BRANCH=${version}"
         
         # Revad base

@@ -7,7 +7,7 @@
 
 # Description:
 #   This script automates EFSS (Enterprise File Synchronization and Sharing) OCM (Open Cloud Mesh) test suite case execution.
-#   It supports operations such as login, share-with, share-link, and invite-link for platforms like
+#   It supports operations such as login, share-with, share-link, invite-link, and wayf for platforms like
 #   Nextcloud, ownCloud, Seafile, and others.
 
 # Usage:
@@ -16,7 +16,7 @@
 
 # Arguments:
 #   TEST_CASE               : Test case to execute (default: "login").
-#                             Options: login, share-with, share-link, invite-link.
+#                             Options: login, share-with, share-link, invite-link, wayf.
 #   EFSS_PLATFORM_1         : Primary EFSS platform (default: "nextcloud").
 #   EFSS_PLATFORM_1_VERSION : Version of the primary EFSS platform (default: "v27.1.11").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
@@ -218,6 +218,35 @@ handle_invite_link() {
 }
 
 # -----------------------------------------------------------------------------------
+# Function: handle_wayf
+# Purpose: Handle the "wayf" test case.
+# Arguments:
+#   $1 - EFSS platform 1.
+#   $2 - EFSS platform 1 version.
+#   $3 - EFSS platform 2.
+#   $4 - EFSS platform 2 version.
+#   $5 - Script mode.
+#   $6 - Browser platform.
+# -----------------------------------------------------------------------------------
+handle_wayf() {
+    local platform1="${1}"
+    local version1="${2}"
+    local platform2="${3}"
+    local version2="${4}"
+    local mode="${5}"
+    local browser="${6}"
+    local script_path="${ENV_ROOT}/dev/ocm-test-suite/wayf/${platform1}-${platform2}.sh"
+
+    # Check for unsupported combinations.
+    if [[ "${platform1}-${platform2}" =~ ^(nextcloud-seafile|owncloud-seafile|seafile-nextcloud|seafile-owncloud)$ ]]; then
+        print_error "Combination '${platform1}-${platform2}' is not supported for 'wayf' test case."
+        exit 1
+    else
+        run_test_script "${script_path}" "${version1}" "${version2}" "${mode}" "${browser}"
+    fi
+}
+
+# -----------------------------------------------------------------------------------
 # Function: main
 # Purpose: Main function to manage the flow of the script.
 # -----------------------------------------------------------------------------------
@@ -236,10 +265,10 @@ main() {
 
     # Validate test case.
     case "${test_case}" in
-    "login" | "share-with" | "share-link" | "invite-link") ;;
+    "login" | "share-with" | "share-link" | "invite-link" | "wayf") ;;
 
     *)
-        error_exit "Unknown test case: '${test_case}'. Valid options are: login, share-with, share-link, invite-link."
+        error_exit "Unknown test case: '${test_case}'. Valid options are: login, share-with, share-link, invite-link, wayf."
         ;;
     esac
 
@@ -256,6 +285,9 @@ main() {
         ;;
     "invite-link")
         handle_invite_link "${efss_platform_1}" "${efss_platform_1_version}" "${efss_platform_2}" "${efss_platform_2_version}" "${script_mode}" "${browser_platform}"
+        ;;
+    "wayf")
+        handle_wayf "${efss_platform_1}" "${efss_platform_1_version}" "${efss_platform_2}" "${efss_platform_2_version}" "${script_mode}" "${browser_platform}"
         ;;
     esac
 }

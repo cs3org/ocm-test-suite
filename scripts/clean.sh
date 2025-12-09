@@ -105,19 +105,20 @@ modify_cypress_config() {
 # Purpose: Stops and removes all Docker containers.
 # -----------------------------------------------------------------------------------
 stop_and_remove_docker_containers() {
-    # @MahdiBaghbani This is a safeguard agains the unfortunate event of running the CI Action with
-    # bahdotsh/wrkflw or nektos/act which are actually docker container runners themselves :)
-    # I don't expect it to be effective since it prevents nuking the dev-stock container, RIGHT!
-    # but the act/wrkflw master container gets nuked anyway and halts the ci run
-    # this is only very helpfull in the actuall GitHub CI when the master action runner isn't
-    # a container itself and is a (I suspect) an LXD container bor bare-metal host machine or VPS
-    # 1. Stop running containers whose *image* or *name* is NOT dev-stock
+    # This is a safeguard against the unfortunate event of running the CI Action with
+    # bahdotsh/wrkflw or nektos/act which are actually docker container runners themselves.
+    # It prevents nuking the dev-stock container, but the act/wrkflw master container
+    # gets nuked anyway and halts the CI run. This is only helpful in the actual GitHub CI
+    # when the master action runner isn't a container itself and is an LXD container
+    # or bare-metal host machine or VPS.
+    #
+    # 1. Stop running containers whose image or name is NOT dev-stock
     docker ps --format '{{.ID}} {{.Image}} {{.Names}}' |
         { grep -vE '[[:space:]]dev-stock(:|$)|(^|[[:space:]])dev-stock($|[[:space:]])' || true; } |
         awk '{print $1}' |
         xargs -r docker stop
 
-    # 2. Remove all exited/stopped containers except the dev-stock ones
+    # 2. Remove all exited or stopped containers except the dev-stock ones
     docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' |
         { grep -vE '[[:space:]]dev-stock(:|$)|(^|[[:space:]])dev-stock($|[[:space:]])' || true; } |
         awk '{print $1}' |
@@ -164,7 +165,7 @@ recreate_docker_network() {
 
 # -----------------------------------------------------------------------------------
 # Function: main
-# Usage: clean.sh [yes|no] [platform1 [platform2 …]]
+# Usage: clean.sh [yes|no] [platform1 [platform2 ...]]
 # -----------------------------------------------------------------------------------
 main() {
     # Use existing value or default to "clean"
@@ -191,10 +192,16 @@ main() {
     if [[ ${#platforms[@]} -gt 0 ]]; then
         declare -A COUNTER=()                  # per-base-token index
         for raw in "${platforms[@]}"; do
-            # 1. normalise token
-            # drop “-sm” plus trailing digits, e.g. owncloud-sm → owncloud
-            # revaowncloud-sm       → revaowncloud
+            # 1. Normalize token
+            # Drop "-sm" plus trailing digits, e.g. owncloud-sm -> owncloud
+            # Drop "-wayf" suffix for wayf containers, e.g. nextcloud-wayf -> nextcloud (but keep wayf flag)
+            # revaowncloud-sm -> revaowncloud
             local token="${raw%%-sm*}"
+            local is_wayf=false
+            if [[ "${raw}" == *-wayf ]]; then
+                token="${raw%%-wayf*}"
+                is_wayf=true
+            fi
 
             local idx="" cname=""
 
@@ -206,9 +213,14 @@ main() {
                 cname="${token}${idx}.docker"          # numbered
             fi
 
-            # 2. skip if container absent
-            if ! docker ps -a --format '{{.Names}}' | grep -qx "${cname}"; then
-                run_quietly_if_ci echo "Container ${cname} not found - cleaning skipped."
+            # 2. skip if container absent (check actual wayf container name if applicable)
+            local actual_cname="${cname}"
+            if [[ "${is_wayf}" == true ]]; then
+                # Wayf containers use -wayf suffix: nextcloud1-wayf.docker
+                actual_cname="${token}${idx}-wayf.docker"
+            fi
+            if ! docker ps -a --format '{{.Names}}' | grep -qx "${actual_cname}"; then
+                run_quietly_if_ci echo "Container ${actual_cname} not found - cleaning skipped."
                 continue
             fi
 
@@ -221,7 +233,13 @@ main() {
                     run_quietly_if_ci printf "Warning: delete_reva function not present - cleaning skipped.\n" >&2
                 fi
             else
-                local fn="delete_${token}"
+                # For wayf containers, use delete_${token}_wayf function
+                local fn
+                if [[ "${is_wayf}" == true ]]; then
+                    fn="delete_${token}_wayf"
+                else
+                    fn="delete_${token}"
+                fi
                 if declare -f "${fn}" >/dev/null; then
                     [[ -n "${idx}" ]] && "${fn}" "${idx}" || "${fn}"
                 else
@@ -231,6 +249,10 @@ main() {
         done
     else
         # Big Hammer for Nuking the system to the oblivion
+        # WARNING: This removes ALL containers except dev-stock. For local testing,
+        # always specify platform names: ./scripts/clean.sh nextcloud-wayf cernbox-wayf
+        echo "WARNING: Running Big Hammer mode - this will remove ALL containers except dev-stock!" >&2
+        echo "For safe local testing, use: ./scripts/clean.sh <platform1> [platform2 ...]" >&2
         stop_and_remove_docker_containers
         docker_cleanup
     fi

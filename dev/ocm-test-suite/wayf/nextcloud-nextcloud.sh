@@ -112,8 +112,8 @@ main() {
     setup "$@"
     
     # Create EFSS containers using DockyPody nextcloud-contacts images with OCM Invites enabled
-    create_nextcloud_wayf 1 "einstein" "relativity" "local/nextcloud-contacts" "ocm-testing"
-    create_nextcloud_wayf 2 "michiel" "dejong" "local/nextcloud-contacts" "ocm-testing"
+    create_nextcloud_wayf 1 "einstein" "relativity" "ghcr.io/mahdibaghbani/containers/nextcloud-contacts" "v8.1.0-ocm-nc-master-debian"
+    create_nextcloud_wayf 2 "michiel" "dejong" "ghcr.io/mahdibaghbani/containers/nextcloud-contacts" "v8.1.0-ocm-nc-master-debian"
     
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

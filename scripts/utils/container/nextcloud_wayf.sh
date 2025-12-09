@@ -53,6 +53,7 @@ _create_nextcloud_wayf_base() {
 
     # Start Nextcloud WAYF container with OCM Invites enabled
     # Container name includes -wayf suffix, but hostname is nextcloud${number}.docker for Cypress compatibility
+    # Uses NEXTCLOUD_HTTPS_MODE=https-only to enable HTTPS on port 443 for WAYF tests
     run_docker_container --detach --network="${DOCKER_NETWORK}" \
         --name="nextcloud${number}-wayf.docker" \
         --hostname="nextcloud${number}.docker" \
@@ -60,6 +61,7 @@ _create_nextcloud_wayf_base() {
         -e HOST="nextcloud${number}" \
         -e NEXTCLOUD_HOST="nextcloud${number}.docker" \
         -e NEXTCLOUD_TRUSTED_DOMAINS="nextcloud${number}.docker" \
+        -e NEXTCLOUD_HTTPS_MODE="https-only" \
         -e NEXTCLOUD_ADMIN_USER="${user}" \
         -e NEXTCLOUD_ADMIN_PASSWORD="${password}" \
         -e NEXTCLOUD_APACHE_LOGLEVEL="warn" \

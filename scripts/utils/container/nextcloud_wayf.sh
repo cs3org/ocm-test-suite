@@ -73,6 +73,9 @@ _create_nextcloud_wayf_base() {
         -e CONTACTS_OCM_INVITES_MODE="advanced" \
         "${image}:${tag}" || error_exit "Failed to start Nextcloud WAYF container ${number}."
 
+
+    sleep 10
+
     # Ensure Nextcloud is ready to accept connections
     run_quietly_if_ci wait_for_port "nextcloud${number}-wayf.docker" 443
 }

@@ -3,18 +3,18 @@
  * Utility functions for Cypress tests interacting with Nextcloud version 33.
  * These functions provide abstractions for common actions such as sharing files,
  * updating permissions, renaming files, and navigating the UI.
- * 
+ *
  * For v33, the Contacts app and WAYF flow replace the legacy ScienceMesh app.
  *
  * @author Mohammad Mahdi Baghbani Pourvahid <mahdi@pondersource.com>
  */
 
-import * as general from '../../general.js';
+import * as general from "../../general.js";
 
-import * as implementation from './implementation.js';
+import * as implementation from "./implementation.js";
 
-export const platform = 'nextcloud';
-export const version = 'v33';
+export const platform = "nextcloud";
+export const version = "v33";
 
 /**
  * Login to Nextcloud and navigate to the files app.
@@ -29,21 +29,13 @@ export function login({ url, username, password }) {
   implementation.loginCore({ url, username, password });
 
   // Verify dashboard visibility
-  cy.url({ timeout: 10000 }).should('match', /apps\/dashboard(\/|$)/);
-
-  // Navigate to the files app using v33 Applications menu
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.contains('a', 'Files').click();
-  });
-
-  // Verify files app visibility
-  cy.url({ timeout: 10000 }).should('match', /apps\/files(\/|$)/);
+  cy.url({ timeout: 10000 }).should("match", /apps\/dashboard(\/|$)/);
 }
 
 /**
  * Creates an invite link via WAYF flow (Contacts app -> WAYF page -> provider entry -> redirect URL).
  * This is the WAYF-specific flow that includes the extra step of entering the provider on the WAYF page.
- * 
+ *
  * For pure invite links (direct token exchange without WAYF), use createInviteLink instead.
  */
 export function createWayfInviteLink({
@@ -61,37 +53,27 @@ export function createWayfInviteLink({
   cy.get('nav[aria-label="Applications menu"]').within(() => {
     cy.get('a[href*="/apps/contacts/"]').click();
   });
-  cy.url({ timeout: 10000 }).should('match', /apps\/contacts\/?/);
+  cy.url({ timeout: 10000 }).should("match", /apps\/contacts\/?/);
 
-  if (recipientPlatform == 'nextcloud' || recipientPlatform == 'owncloud') {
-    // Step 3: Generate the WAYF invite link
-    implementation.createWayfInviteLink(recipientUrl).then((wayfLink) => {
-      // Step 4: Ensure the WAYF link is not empty
-      expect(wayfLink).to.be.a('string').and.not.be.empty;
-      
-      // Step 5: Visit WAYF page and handle WAYF flow to get redirect URL
-      // This captures the redirect URL to recipient login page and saves it
-      cy.visit(wayfLink);
-      implementation.handleWayfFlow(recipientUrl).then((redirectUrl) => {
-        // Step 6: Save the redirect URL (not the WAYF link) for recipient-side job
-        cy.writeFile(inviteLinkFileName, redirectUrl);
-      });
+  // Step 3: Generate the WAYF invite link
+  implementation.createWayfInviteLink(recipientUrl).then((wayfLink) => {
+    // Step 4: Ensure the WAYF link is not empty
+    expect(wayfLink).to.be.a("string").and.not.be.empty;
+
+    // Step 5: Visit WAYF page and handle WAYF flow to get redirect URL
+    // This captures the redirect URL to recipient login page and saves it
+    cy.visit(wayfLink);
+    implementation.handleWayfFlow(recipientUrl).then((redirectUrl) => {
+      // Step 6: Save the redirect URL (not the WAYF link) for recipient-side job
+      cy.writeFile(inviteLinkFileName, redirectUrl);
     });
-  } else {
-    // Step 3: Generate the invite token and save it to a file
-    implementation.createInviteToken(recipientUrl).then((inviteToken) => {
-      // Step 4: Ensure the invite token is not empty
-      expect(inviteToken).to.be.a('string').and.not.be.empty;
-      // Step 5: Save the invite token to a file for later use
-      cy.writeFile(inviteLinkFileName, inviteToken);
-    });
-  }
+  });
 }
 
 /**
  * Creates a pure invite link (direct token/link exchange without WAYF flow).
  * This is a placeholder for future implementation of pure invite links in v33.
- * 
+ *
  * For WAYF flow (with provider selection), use createWayfInviteLink instead.
  */
 export function createInviteLink({
@@ -102,13 +84,15 @@ export function createInviteLink({
   recipientUrl,
   inviteLinkFileName,
 }) {
-  throw new Error('createInviteLink for pure invite exchange is not yet implemented for Nextcloud v33. Use createWayfInviteLink for WAYF flow.');
+  throw new Error(
+    "createInviteLink for pure invite exchange is not yet implemented for Nextcloud v33. Use createWayfInviteLink for WAYF flow."
+  );
 }
 
 /**
  * Accepts an invite link via WAYF flow (reads redirect URL saved by createWayfInviteLink).
  * This handles the recipient side after WAYF redirect has occurred.
- * 
+ *
  * For pure invite links (direct token exchange without WAYF), use acceptInviteLink instead.
  */
 export function acceptWayfInviteLink({
@@ -122,19 +106,24 @@ export function acceptWayfInviteLink({
   recipientPassword,
   inviteLinkFileName,
 }) {
-  const flagReva = general.revaBasedPlatforms.has(senderPlatform);
+  const flagReva = general.revaBasedWayfPlatforms.has(senderPlatform);
   const flagUsername = general.usernameContactPlatforms.has(senderPlatform);
 
   // Step 1: Load the redirect URL from the saved file (saved by createWayfInviteLink after WAYF flow)
   cy.readFile(inviteLinkFileName).then((redirectUrl) => {
     // Step 2: Ensure the redirect URL is valid
-    expect(redirectUrl).to.be.a('string').and.not.be.empty;
+    expect(redirectUrl).to.be.a("string").and.not.be.empty;
 
-    // Step 3: Visit the redirect URL (login page with redirect_url param pointing to invite-accept dialog)
+    // Step 3: Log in on recipient instance
+    implementation.loginCore({
+      url: recipientUrl,
+      username: recipientUsername,
+      password: recipientPassword,
+    });
+    
+    
+    // Step 4: Visit the redirect URL
     cy.visit(redirectUrl);
-
-    // Step 4: Log in on recipient instance
-    implementation.loginCore({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
 
     // Step 5: Accept the invitation dialog
     implementation.acceptInviteDialog(senderDomain, senderUsername);
@@ -143,7 +132,7 @@ export function acceptWayfInviteLink({
     implementation.verifyFederatedContact(
       recipientDomain,
       flagUsername ? senderUsername : senderDisplayName,
-      flagReva ? `reva${senderDomain}` : senderDomain,
+      flagReva ? `reva${senderDomain}` : senderDomain
     );
   });
 }
@@ -151,7 +140,7 @@ export function acceptWayfInviteLink({
 /**
  * Accepts a pure invite link (direct token/link exchange without WAYF flow).
  * This is a placeholder for future implementation of pure invite links in v33.
- * 
+ *
  * For WAYF flow (with redirect URL), use acceptWayfInviteLink instead.
  */
 export function acceptInviteLink({
@@ -165,7 +154,9 @@ export function acceptInviteLink({
   recipientPassword,
   inviteLinkFileName,
 }) {
-  throw new Error('acceptInviteLink for pure invite exchange is not yet implemented for Nextcloud v33. Use acceptWayfInviteLink for WAYF flow.');
+  throw new Error(
+    "acceptInviteLink for pure invite exchange is not yet implemented for Nextcloud v33. Use acceptWayfInviteLink for WAYF flow."
+  );
 }
 
 export function shareViaInviteLink({
@@ -183,6 +174,11 @@ export function shareViaInviteLink({
   // Step 1: Log in to the sender's Nextcloud instance
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
 
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
   // Step 2: Ensure the original file exists before renaming
   implementation.ensureFileExists(originalFileName);
 
@@ -192,25 +188,17 @@ export function shareViaInviteLink({
   // Step 4: Verify the file has been renamed
   implementation.ensureFileExists(sharedFileName);
 
-  const flagReva = general.revaBasedPlatforms.has(senderPlatform);
+  const useRevaPrefix = general.revaBasedWayfPlatforms.has(senderPlatform);
+  const contactDomainForShare = useRevaPrefix
+    ? `reva${recipientDomain}`
+    : recipientDomain;
 
-  if (flagReva) {
-    // Step 5: Create a federated share for the recipient via Contacts/OCM
-    // Note: The 'reva' prefix is added to the recipient domain as per application behavior
-    implementation.createFederatedShare(
-      senderDomain,
-      recipientDisplayName,
-      `reva${recipientDomain}`,
-      sharedFileName,
-    );
-  } else {
-    implementation.createFederatedShare(
-      senderDomain,
-      recipientDisplayName,
-      recipientDomain,
-      sharedFileName,
-    );
-  }
+  implementation.createFederatedShare(
+    senderDomain,
+    recipientDisplayName,
+    contactDomainForShare,
+    sharedFileName
+  );
 }
 
 export function acceptInviteLinkShare({
@@ -220,9 +208,20 @@ export function acceptInviteLinkShare({
   sharedFileName,
 }) {
   // Step 1: Log in to the recipient's instance
-  login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
+  login({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+  });
 
-  // Step 2: Handle any share acceptance pop-ups and verify the file exists
+  // Step 2: Navigate to the Files app. The Remote share dialog only appears
+  // when the Files app is active, not on the Dashboard.
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+  // Step 3: Handle any share acceptance pop-ups and verify the file exists
   implementation.handleShareAcceptance(sharedFileName);
 }
 
@@ -248,7 +247,11 @@ export function shareViaNativeShareWith({
   implementation.ensureFileExists(sharedFileName);
 
   // Step 5: Create a federated share for the recipient
-  implementation.createShare(sharedFileName, recipientUsername, recipientUrl.replace(/^https?:\/\/|\/$/g, ''));
+  implementation.createShare(
+    sharedFileName,
+    recipientUsername,
+    recipientUrl.replace(/^https?:\/\/|\/$/g, "")
+  );
 }
 
 export function acceptNativeShareWithShare({
@@ -258,7 +261,11 @@ export function acceptNativeShareWithShare({
   sharedFileName,
 }) {
   // Step 1: Log in to the recipient's instance
-  login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
+  login({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+  });
 
   // Step 2: Handle any share acceptance pop-ups and verify the file exists
   implementation.handleShareAcceptance(sharedFileName);
@@ -289,7 +296,7 @@ export function shareViaFederatedLink({
   implementation.createAndSendShareLink(
     sharedFileName,
     recipientUsername,
-    recipientUrl.replace(/^https?:\/\/|\/$/g, '')
+    recipientUrl.replace(/^https?:\/\/|\/$/g, "")
   );
 }
 
@@ -304,11 +311,15 @@ export function acceptFederatedLinkShare({
   sharedFileName,
 }) {
   // Step 1: Log in to the recipient's instance
-  login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
+  login({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+  });
 
-  if (senderPlatform == 'owncloud') {
+  if (senderPlatform == "owncloud") {
     // Step 2: Read the share URL from file
-    cy.readFile('share-link-url.txt').then((shareUrl) => {
+    cy.readFile("share-link-url.txt").then((shareUrl) => {
       // Step 3: Construct the federated share URL
       const federatedShareUrl = general.constructFederatedShareUrl({
         shareUrl,
@@ -316,7 +327,7 @@ export function acceptFederatedLinkShare({
         recipientUrl,
         senderUsername,
         fileName: sharedFileName,
-        platform: recipientPlatform
+        platform: recipientPlatform,
       });
 
       cy.visit(federatedShareUrl);
@@ -341,15 +352,15 @@ export function buildFederatedShareDetails({
   recipientUrl,
   sharedFileName,
   senderUsername,
-  senderUrl
+  senderUrl,
 }) {
   return {
     shareWith: `${recipientUsername}@${recipientUrl}`,
     fileName: sharedFileName,
     owner: `${senderUsername}@${senderUrl}/`,
     sender: `${senderUsername}@${senderUrl}/`,
-    shareType: 'user',
-    resourceType: 'file',
-    protocol: 'webdav'
+    shareType: "user",
+    resourceType: "file",
+    protocol: "webdav",
   };
 }

@@ -6,6 +6,7 @@
  */
 
 export const revaBasedPlatforms = new Set(['nextcloud', 'owncloud', 'cernbox']);
+export const revaBasedWayfPlatforms = new Set(['cernbox']);
 export const usernameContactPlatforms = new Set(['nextcloud', 'owncloud']);
 
 /**

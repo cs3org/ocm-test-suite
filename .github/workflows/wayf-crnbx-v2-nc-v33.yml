@@ -1,0 +1,14 @@
+name: OCM Test Wayf Cernbox v2 to Nextcloud v33
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          wayf
+      sender_platform:   cernbox
+      sender_version:    v2
+      receiver_platform: nextcloud
+      receiver_version:  v33

@@ -1,0 +1,12 @@
+name: OCM Test Login Nextcloud v33
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          login
+      sender_platform:   nextcloud
+      sender_version:    v33

@@ -1,0 +1,12 @@
+name: OCM Test Login Cernbox v2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          login
+      sender_platform:   cernbox
+      sender_version:    v2

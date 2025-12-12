@@ -69,6 +69,24 @@ yq_get() { yq e "$1" "$rules_file"; }
 # turn YAML seq into bash array
 to_array() { mapfile -t "$1"; }
 
+# Get versions for a platform in a specific scenario.
+# Checks scenario-specific version overrides first, falls back to global platforms.
+get_versions_for_scenario() {
+    local scenario="$1"
+    local platform="$2"
+    
+    # Try scenario-specific versions first
+    local scenario_versions
+    scenario_versions=$(yq_get ".scenarios.${scenario}.versions.${platform}[]" 2>/dev/null)
+    
+    if [[ -n "$scenario_versions" ]]; then
+        echo "$scenario_versions"
+    else
+        # Fall back to global platform versions
+        yq_get ".platforms.${platform}[]"
+    fi
+}
+
 # write a YAML map-in-flow-style:  { key: val, key2: val2 }
 flow_map() {
     local sep=""
@@ -109,7 +127,7 @@ main() {
                 [[ "${INCLUDE[*]}" == "*" ]] && INCLUDE=("${PLATFORM_NAMES[@]}")
 
                 for plat in "${INCLUDE[@]}"; do
-                    to_array VERS < <(yq_get ".platforms.${plat}[]")
+                    to_array VERS < <(get_versions_for_scenario "login" "${plat}")
                     for ver in "${VERS[@]}"; do
                         echo "  - $(flow_map platform ${plat} version ${ver})"
                     done
@@ -126,8 +144,8 @@ main() {
 
                     for sp in "${SENDERS[@]}"; do
                         for rp in "${RECEIVERS[@]}"; do
-                            to_array SP_VERS < <(yq_get ".platforms.${sp}[]")
-                            to_array RP_VERS < <(yq_get ".platforms.${rp}[]")
+                            to_array SP_VERS < <(get_versions_for_scenario "${scen}" "${sp}")
+                            to_array RP_VERS < <(get_versions_for_scenario "${scen}" "${rp}")
 
                             for sv in "${SP_VERS[@]}"; do
                                 for rv in "${RP_VERS[@]}"; do

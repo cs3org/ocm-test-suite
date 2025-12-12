@@ -133,8 +133,17 @@ main() {
     setup "$@"
 
     # Create EFSS containers
-    #                # id   # username    # password       # image                  # tag
-    create_nextcloud 1      "einstein"    "relativity"     pondersource/nextcloud   "${EFSS_PLATFORM_1_VERSION}"
+    # For v33, use DockyPody nextcloud-contacts image via create_nextcloud_wayf
+    # For legacy versions (v27-v32), use standard pondersource/nextcloud image
+    if [[ "${EFSS_PLATFORM_1_VERSION}" == "v33" ]]; then
+        # Nextcloud v33 via DockyPody nextcloud-contacts image
+        #                        # id   # username    # password       # image                                                   # tag
+        create_nextcloud_wayf    1      "einstein"    "relativity"     "ghcr.io/mahdibaghbani/containers/nextcloud-contacts"    "v8.1.0-ocm-nc-master-debian"
+    else
+        # Legacy Nextcloud versions via pondersource images
+        #                # id   # username    # password       # image                  # tag
+        create_nextcloud 1      "einstein"    "relativity"     pondersource/nextcloud   "${EFSS_PLATFORM_1_VERSION}"
+    fi
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev "https://nextcloud1.docker (username: einstein, password: relativity)" ""

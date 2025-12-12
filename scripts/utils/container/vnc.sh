@@ -29,6 +29,11 @@ create_vnc() {
 
     run_quietly_if_ci echo "Deleting VNC instance …"
 
+    if ! docker ps -a --format '{{.Names}}' | grep -qx "${vnc}"; then
+        run_quietly_if_ci echo "VNC container ${vnc} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${vnc}" || true
 

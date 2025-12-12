@@ -67,6 +67,11 @@ delete_cypress() {
 
     run_quietly_if_ci echo "Deleting Cypress instance …"
 
+    if ! docker ps -a --format '{{.Names}}' | grep -qx "${cp}"; then
+        run_quietly_if_ci echo "Cypress container ${cp} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${cp}" || true
 

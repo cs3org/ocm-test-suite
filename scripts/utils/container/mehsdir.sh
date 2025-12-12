@@ -21,6 +21,11 @@ delete_meshdir() {
 
     run_quietly_if_ci echo "Deleting Meshdir instance …"
 
+    if ! docker ps -a --format '{{.Names}}' | grep -qx "${md}"; then
+        run_quietly_if_ci echo "Meshdir container ${md} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${md}" || true
 

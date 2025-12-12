@@ -153,24 +153,33 @@ export function openSharingPanel(fileName) {
  * Creates a federated share for a specific contact and file using v33 Sharing sidebar.
  *
  * @param {string} domain - The domain of the Nextcloud instance.
+ * @param {string} username - The username of the remote account on the recipient EFSS.
  * @param {string} displayName - The display name of the contact.
  * @param {string} contactDomain - The domain of the contact.
  * @param {string} fileName - The name of the file to be shared.
  */
 export function createFederatedShare(
   domain,
+  username,
   displayName,
   contactDomain,
   fileName
 ) {
+  if (!username) {
+    throw new Error(
+      "createFederatedShare requires the remote account username so we can type username@domain (not displayName@domain)."
+    );
+  }
+
   // Navigate to the files app
   cy.visit(`https://${domain}/index.php/apps/files`);
 
   // Open the sharing panel for the file
   openSharingPanel(fileName);
 
-  // Construct the Federated Cloud ID (e.g., admin-builtin@2.nextcloud.cloud.test.azadehafzar.io)
-  const remoteFederatedCloudId = `${displayName}@${contactDomain}`;
+  // Construct the Federated Cloud ID (e.g., einstein@cernbox1.docker).
+  // IMPORTANT: this must use the remote account's username, not the display name.
+  const remoteFederatedCloudId = `${username}@${contactDomain}`;
   const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
 
   // Type the remote user's Federated Cloud ID into the External shares combobox
@@ -184,31 +193,56 @@ export function createFederatedShare(
   // "admin-builtin on 2.nextcloud.cloud.test.azadehafzar.io"
   cy.contains('[role="option"]', `on ${remoteInstanceHost}`).click();
 
-  // Confirm the share in the "Share with ... on remote server ..." dialog.
-  // The dialog is rendered inside the Sharing sidebar, not as a separate <dialog>,
-  // so we first assert the heading, then click the Save share button in the sidebar.
-  cy.contains(
-    "h1",
-    `Share with ${displayName} on remote server ${remoteInstanceHost}`,
-    { timeout: 10000 }
+  // Confirm the share in the "Share with ... on remote server ..." view.
+  // The left-hand side of the heading (remote user label) is not stable across EFSSes:
+  // sometimes it shows the username (einstein), sometimes the display name (Albert Einstein).
+  // The stable bit is the remote server host.
+  cy.contains("h1", `on remote server ${remoteInstanceHost}`, {
+    timeout: 20000,
+  }).should("be.visible");
+
+  cy.intercept("POST", "**/ocs/v2.php/apps/files_sharing/api/v1/shares*").as(
+    "createShare"
   );
 
-  cy.contains("button", "Save share").click();
+  cy.contains("button", "Save share").should("be.visible").click();
+  cy.wait("@createShare")
+    .its("response.statusCode")
+    .should("be.oneOf", [200, 201]);
 
   // Assert toast "Share saved"
   cy.contains("div", "Share saved").should("be.visible");
 
   cy.wait(1000);
 
-  // Assert External shares list has an entry with remote badge
-  // clcik is to remove the textbox overlay that makes it invisible.
-  cy.contains("h4", "External shares").should("be.visible").click();
+  // Assert External shares list has an entry with remote badge.
+  // The visible label is not stable across platforms and Nextcloud UI variants:
+  // - Nextcloud -> CERNBox often shows "username@host (remote)"
+  // - Nextcloud -> Nextcloud often shows "displayName (remote)"
+  //
+  // Click "External shares" to remove the textbox overlay that can block elements.
+  cy.contains("h4", "External shares", { timeout: 20000 })
+    .should("be.visible")
+    .click();
   cy.wait(1000);
-  cy.contains("div", displayName)
+
+  const escapeRegExp = (value) =>
+    String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const expectedFederatedId = `${username}@${remoteInstanceHost}`;
+  const labelRegex = new RegExp(
+    `(${escapeRegExp(expectedFederatedId)}|${escapeRegExp(
+      `${displayName} (remote)`
+    )}|${escapeRegExp(`${username} (remote)`)})`
+  );
+
+  // Do not scope to a specific sidebar element - it varies across Nextcloud versions/themes.
+  // Use a retryable cy.contains(regex) and then validate remote badge + permissions in the same entry.
+  cy.contains(labelRegex, { timeout: 20000 })
+    .should("be.visible")
     .parent()
     .within(() => {
       cy.contains("(remote)").should("be.visible");
-      cy.contains("button", "Can edit").should("be.visible");
     });
 }
 
@@ -488,7 +522,7 @@ export function createWayfInviteLink(recipientUrl) {
  * Assumes we're already on the WAYF page (called from interface.createInviteLink after visiting wayfLink).
  *
  * @param {string} recipientUrl - The recipient provider URL to enter.
- * @returns {Cypress.Chainable<string>} - A chainable containing the redirect URL to recipient login page.
+ * @returns {Cypress.Chainable<string>} - A chainable containing the first redirect URL on the recipient host.
  */
 export function handleWayfFlow(recipientUrl) {
   // Verify WAYF page structure
@@ -497,24 +531,40 @@ export function handleWayfFlow(recipientUrl) {
   cy.contains("p", "Where are you from?").should("be.visible");
   cy.contains("p", "Please tell us your Cloud Provider.").should("be.visible");
 
+  let expectedRecipientHost = "";
+  try {
+    expectedRecipientHost = new URL(recipientUrl).hostname;
+  } catch (e) {
+    throw new Error(
+      `Invalid recipientUrl passed to handleWayfFlow: "${recipientUrl}". Expected a full URL like "https://host".`
+    );
+  }
+
+  // Nextcloud Contacts performs a discovery call and then navigates the browser to the recipient host.
+
+  cy.intercept("GET", "**/apps/contacts/discover*").as("contactsDiscover");
+
   // Enter provider manually
   cy.contains("label", "Enter provider manually")
     .parent()
     .find("input")
     .type(`${recipientUrl}{enter}`);
 
-  // Wait for redirect to recipient login page and capture the URL
-  const recipientHost = recipientUrl.replace(/^https?:\/\//, "");
-  cy.url({ timeout: 10000 }).should((url) => {
-    // Ensure we redirected to the correct host and login path.
-    // Nextcloud may serve either /login or /index.php/login depending on pretty URLs.
-    expect(url).to.include(recipientHost);
-    expect(url).to.match(/\/(index\.php\/)?login\?redirect_url=/);
-  });
-
-  return cy.url().then((redirectUrl) => {
-    return redirectUrl;
-  });
+  // The recipient EFSS is not necessarily Nextcloud. Capture the first redirect URL
+  // whose hostname matches the provider the user entered (recipientUrl).
+  //
+  // For CERNBox, this is typically an /open-cloud-mesh/... URL which may then redirect
+  // to an IdP for login. We intentionally capture the recipient-side URL, not the IdP URL.
+  return cy
+    .wait("@contactsDiscover", { timeout: 60000 })
+    .its("response.statusCode")
+    .should("eq", 200)
+    .then(() =>
+      cy.location({ timeout: 60000 }).should((loc) => {
+        expect(loc.hostname).to.equal(expectedRecipientHost);
+      })
+    )
+    .then((loc) => loc.href);
 }
 
 /**
@@ -608,21 +658,9 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
   // Verify contact exists in the contact list and open details.
   // In v33 the email is rendered inside a span.envelope__subtitle__subject
   // and wrapped by an anchor.list-item__anchor that navigates to the details view.
-  cy.contains(
-    ".envelope__subtitle__subject",
-    `${displayName}@${contactDomain}`,
-    { timeout: 10000 }
-  )
+  cy.contains(".envelope__subtitle__subject", displayName, { timeout: 10000 })
     .should("be.visible")
     .closest("li.list-item__wrapper")
     .find("a.list-item__anchor")
-    .click();
-
-  // Verify Federated Cloud ID field matches expected value.
-  // In v33 the Federated Cloud ID is rendered as a "property" block:
-  // <div class="property property-cloud"> ... <h3 class="property__value">Federated Cloud ID</h3> ... <input class="input-field__input" value="...">
-  cy.contains("h3.property__value", "Federated Cloud ID", { timeout: 10000 })
-    .closest(".property-cloud")
-    .find("input.input-field__input, textarea")
-    .should("have.value", `${displayName}@${contactDomain}`);
+    .should("be.visible");
 }

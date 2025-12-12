@@ -6,8 +6,8 @@
  */
 
 export const revaBasedPlatforms = new Set(['nextcloud', 'owncloud', 'cernbox']);
-export const revaBasedWayfPlatforms = new Set(['cernbox']);
-export const usernameContactPlatforms = new Set(['nextcloud', 'owncloud']);
+export const revaBasedWayfPlatforms = new Set(['']);
+export const usernameContactPlatforms = new Set(['nextcloud', 'owncloud', 'cernbox']);
 
 /**
  * Escapes special characters in a string to be used in a CSS selector.

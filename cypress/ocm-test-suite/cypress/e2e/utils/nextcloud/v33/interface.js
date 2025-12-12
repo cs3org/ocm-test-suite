@@ -60,8 +60,8 @@ export function createWayfInviteLink({
     // Step 4: Ensure the WAYF link is not empty
     expect(wayfLink).to.be.a("string").and.not.be.empty;
 
-    // Step 5: Visit WAYF page and handle WAYF flow to get redirect URL
-    // This captures the redirect URL to recipient login page and saves it
+    // Step 5: Visit WAYF page and handle WAYF flow to get the first redirect URL
+    // on the recipient host
     cy.visit(wayfLink);
     implementation.handleWayfFlow(recipientUrl).then((redirectUrl) => {
       // Step 6: Save the redirect URL (not the WAYF link) for recipient-side job
@@ -167,6 +167,7 @@ export function shareViaInviteLink({
   senderPassword,
   recipientPlatform,
   recipientDomain,
+  recipientUsername,
   recipientDisplayName,
   originalFileName,
   sharedFileName,
@@ -195,6 +196,7 @@ export function shareViaInviteLink({
 
   implementation.createFederatedShare(
     senderDomain,
+    recipientUsername,
     recipientDisplayName,
     contactDomainForShare,
     sharedFileName

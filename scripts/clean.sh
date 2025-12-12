@@ -203,6 +203,12 @@ main() {
                 is_wayf=true
             fi
 
+            # Singleton containers do not have -wayf variants. If the caller passes something like
+            # "idp-wayf", treat it as "idp".
+            if [[ "${is_wayf}" == true && ${SINGLETON[$token]+yes} ]]; then
+                is_wayf=false
+            fi
+
             local idx="" cname=""
 
             if [[ ${SINGLETON[$token]+yes} ]]; then
@@ -212,19 +218,7 @@ main() {
                 idx="${COUNTER[$token]}"
                 cname="${token}${idx}.docker"          # numbered
             fi
-
-            # 2. skip if container absent (check actual wayf container name if applicable)
-            local actual_cname="${cname}"
-            if [[ "${is_wayf}" == true ]]; then
-                # Wayf containers use -wayf suffix: nextcloud1-wayf.docker
-                actual_cname="${token}${idx}-wayf.docker"
-            fi
-            if ! docker ps -a --format '{{.Names}}' | grep -qx "${actual_cname}"; then
-                run_quietly_if_ci echo "Container ${actual_cname} not found - cleaning skipped."
-                continue
-            fi
-
-            # 3. reva or plain delete
+            # 2. reva or plain delete
             if [[ "${token}" =~ ^reva(.+)$ ]]; then
                 local inner_platform="${BASH_REMATCH[1]}"
                 if declare -f delete_reva >/dev/null; then

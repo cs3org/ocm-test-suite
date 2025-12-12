@@ -1,5 +1,6 @@
 // CERNBox
 import * as cernbox1 from './cernbox/v1/interface.js';
+import * as cernbox2 from './cernbox/v2/interface.js';
 // Nextcloud
 import * as nc27 from './nextcloud/v27/interface.js';
 import * as nc28 from './nextcloud/v28/interface.js';
@@ -37,6 +38,7 @@ function register(mod) {
 // One-liners — pull them up-front
 [
   cernbox1,
+  cernbox2,
   nc27,
   nc28,
   nc29,

@@ -20,10 +20,19 @@ prepare_environment() {
         # I (@MahdiBaghbani) should delete this, but the use of it is really needed on gitpod,
         # or in isolated dev envs, so there are env variables to disable this functionality.
 
-        # Build argument list for the new clean.sh
-        local clean_args=("no" "cypress" "meshdir" "firefox" "vnc" "idp" "${EFSS_PLATFORM_1}")
-        if [[ "${TEST_SCENARIO}" != "login" ]]; then
-            clean_args+=("reva${EFSS_PLATFORM_1}" "${EFSS_PLATFORM_2}" reva"${EFSS_PLATFORM_2}")
+        # Build argument list for clean.sh.
+        # WAYF scenarios use dedicated *-wayf containers. IdP remains a singleton idp.docker.
+        local clean_args=("no" "cypress" "meshdir" "firefox" "vnc")
+        if [[ "${TEST_SCENARIO}" == "wayf" ]]; then
+            clean_args+=("idp" "${EFSS_PLATFORM_1}-wayf")
+            if [[ "${TEST_SCENARIO}" != "login" ]]; then
+                clean_args+=("${EFSS_PLATFORM_2}-wayf")
+            fi
+        else
+            clean_args+=("idp" "${EFSS_PLATFORM_1}")
+            if [[ "${TEST_SCENARIO}" != "login" ]]; then
+                clean_args+=("reva${EFSS_PLATFORM_1}" "${EFSS_PLATFORM_2}" reva"${EFSS_PLATFORM_2}")
+            fi
         fi
 
         if [ -x "${ENV_ROOT}/scripts/clean.sh" ]; then

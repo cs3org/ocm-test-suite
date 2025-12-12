@@ -87,6 +87,7 @@ describe("WAYF federated sharing functionality for Nextcloud", () => {
       senderPassword,
       recipientPlatform,
       recipientDomain,
+      recipientUsername,
       recipientDisplayName,
       originalFileName,
       sharedFileName,

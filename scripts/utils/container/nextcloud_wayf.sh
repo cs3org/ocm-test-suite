@@ -143,6 +143,15 @@ delete_nextcloud_wayf() {
 
     run_quietly_if_ci echo "Deleting Nextcloud WAYF instance ${number} …"
 
+    local any_present="false"
+    if docker ps -a --format '{{.Names}}' | grep -qx "${nc}"; then any_present="true"; fi
+    if docker ps -a --format '{{.Names}}' | grep -qx "${db}"; then any_present="true"; fi
+    if docker ps -a --format '{{.Names}}' | grep -qx "${redis}"; then any_present="true"; fi
+    if [[ "${any_present}" != "true" ]]; then
+        run_quietly_if_ci echo "Nextcloud WAYF instance ${number} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${nc}" "${db}" "${redis}" || true
 

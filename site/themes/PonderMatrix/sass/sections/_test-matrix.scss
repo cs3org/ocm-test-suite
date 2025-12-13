@@ -355,6 +355,18 @@
                         }
                     }
 
+                    &.wayf-tests {
+                        border-color: #14b8a6;
+                        .platform-icon {
+                            background: rgba(20, 184, 166, 0.1);
+                            i { color: #14b8a6; }
+                        }
+                        &:hover {
+                            background: rgba(20, 184, 166, 0.02);
+                            .download-icon { background: #14b8a6; }
+                        }
+                    }
+
                     &:hover .download-icon {
                         color: white;
                     }

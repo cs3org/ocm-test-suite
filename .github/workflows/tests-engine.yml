@@ -2,7 +2,7 @@ name: OCM Test Suite Engine
 on:
   workflow_call:
     inputs:
-      # login | share-link | share-with | invite-link
+      # login | share-link | share-with | invite-link | wayf
       scenario:              { type: string, required: true }
       sender_platform:       { type: string, required: true }
       sender_version:        { type: string, required: true }

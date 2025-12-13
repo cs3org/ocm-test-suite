@@ -41,11 +41,21 @@ export const config = {
             sources: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)'],
             targets: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)'],
             workflowPrefix: 'invite-link-'
+        },
+        {
+            id: 'wayf-tests',
+            title: 'WAYF Directory Service Tests',
+            icon: 'address-book',
+            sources: ['Nextcloud v33', 'CERNBox v2'],
+            targets: ['Nextcloud v33', 'CERNBox v2'],
+            workflowPrefix: 'wayf-'
         }
     ],
     platformMap: {
         'Nextcloud v27.1.11': 'nc-v27',
         'Nextcloud v28.0.14': 'nc-v28',
+        'Nextcloud v33': 'nc-v33',
+        'CERNBox v2': 'crnbx-v2',
         'oCIS v5.0.9': 'ocis-v5',
         'OcmStub v1.0.0': 'os-v1',
         'ownCloud v10.15.0': 'oc-v10',

@@ -1,5 +1,6 @@
 # List every platform only once
 platforms:
+  # CERNBox v1 versions available globally; v2 is login-only via per-scenario override
   cernbox: [v1.29.0]
   nextcloud: [v27.1.11, v28.0.14, v29.0.16, v30.0.11, v31.0.5, v32.0.0]
   # ScienceMesh flavour
@@ -15,6 +16,12 @@ platforms:
 # Declarative rules telling the generator how to build permutations
 scenarios:
   login:
+    # Per-scenario version overrides: extends versions for login only
+    # - Nextcloud v33 uses DockyPody nextcloud-contacts image
+    # - CERNBox v2 uses DockyPody GHCR v2 stack (idp, cernbox-revad, cernbox-web)
+    versions:
+      nextcloud: [v27.1.11, v28.0.14, v29.0.16, v30.0.11, v31.0.5, v32.0.0, v33]
+      cernbox: [v1.29.0, v2]
     # *: every platform + every version
     include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, seafile]
 
@@ -49,3 +56,19 @@ scenarios:
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
       - sender: [owncloud-sm]
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
+  
+  # WAYF (Where Are You From) Directory Service mediated invite flows
+  # Uses per-scenario version scoping to introduce NC v33 and CB v2 for WAYF only
+  # without expanding other scenarios. The versions map overrides global platform
+  # versions for this scenario; other scenarios continue using platforms.* versions.
+  wayf:
+    # Per-scenario version overrides (takes precedence over platforms.*)
+    versions:
+      nextcloud: [v33]
+      cernbox: [v2]
+    # Explicit four combinations for Nextcloud v33 and CERNBox v2
+    include:
+      - sender: [nextcloud]
+        receiver: [nextcloud, cernbox]
+      - sender: [cernbox]
+        receiver: [nextcloud, cernbox]

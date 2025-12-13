@@ -704,6 +704,7 @@ create_category_bundles() {
         ["share-link"]="share-link-"
         ["share-with"]="share-with-"
         ["sciencemesh"]="invite-"
+        ["wayf"]="wayf-"
     )
 
     for category in "${!categories[@]}"; do
@@ -990,8 +991,9 @@ main() {
             .github/workflows/share-link-*.yml
             .github/workflows/share-with-*.yml
             .github/workflows/invite-link-*.yml
+            .github/workflows/wayf-*.yml
         )
-        shopt -u extglob
+        shopt -u nullglob
         # Basename‐only
         for i in "${!WORKFLOW_LIST[@]}"; do
             WORKFLOW_LIST[$i]=$(basename "${WORKFLOW_LIST[$i]}")
@@ -1015,6 +1017,7 @@ main() {
     declare -a login_files=()
     declare -a share_files=()
     declare -a invite_files=()
+    declare -a wayf_files=()
 
     for wf in "${workflow_files[@]}"; do
         if [[ "$wf" =~ ^login- ]]; then
@@ -1023,6 +1026,8 @@ main() {
             share_files+=("$wf")
         elif [[ "$wf" =~ ^invite- ]]; then
             invite_files+=("$wf")
+        elif [[ "$wf" =~ ^wayf- ]]; then
+            wayf_files+=("$wf")
         fi
     done
 
@@ -1041,10 +1046,16 @@ main() {
         info "  - $wf"
     done
 
+    info "WAYF workflows (${#wayf_files[@]}):"
+    for wf in "${wayf_files[@]}"; do
+        info "  - $wf"
+    done
+
     # Count of expected workflow types
     login_count=0
     share_count=0
     invite_count=0
+    wayf_count=0
 
     info "Found ${#workflow_files[@]} relevant workflows"
 
@@ -1064,6 +1075,10 @@ main() {
             invite_count=$((invite_count + 1))
             info "Processing invite workflow: $workflow"
             ;;
+        wayf-*)
+            wayf_count=$((wayf_count + 1))
+            info "Processing wayf workflow: $workflow"
+            ;;
         *)
             warn "Unexpected workflow pattern found: $workflow"
             continue
@@ -1078,12 +1093,13 @@ main() {
     done
 
     # Verify we processed the expected number of workflows
-    total=$((login_count + share_count + invite_count))
+    total=$((login_count + share_count + invite_count + wayf_count))
 
     info "=== Workflow Count Summary ==="
     info "Login workflows:  $login_count"
     info "Share workflows:  $share_count"
     info "Invite workflows: $invite_count"
+    info "WAYF workflows:   $wayf_count"
     info "Total processed:  $total / ${#workflow_files[@]}"
 
     if ((total < ${#workflow_files[@]})); then
@@ -1113,6 +1129,7 @@ main() {
     info "- Login workflows: $login_count"
     info "- Share workflows: $share_count"
     info "- Invite workflows: $invite_count"
+    info "- WAYF workflows: $wayf_count"
 
     # Add disk usage information
     local artifacts_size

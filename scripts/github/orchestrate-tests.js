@@ -171,6 +171,7 @@ async function triggerWorkflow(github, context, workflow) {
  * - share-with-nc-v28-os-v1.yml { testType: 'share-with', sender: 'nc v28', receiver: 'os v1' }
  * - invite-link-nc-sm-v27-nc-sm-v27.yml { testType: 'invite-link', sender: 'nc sm v27', receiver: 'nc sm v27' }
  * - invite-link-ocis-v7-oc-sm-v10.yml { testType: 'invite-link', sender: 'ocis v7', receiver: 'oc sm v10' }
+ * - wayf-nc-v33-crnbx-v2.yml { testType: 'wayf', sender: 'nc v33', receiver: 'crnbx v2' }
  */
 function parseWorkflowName(name) {
   const base = name.replace(/\.ya?ml$/, '');
@@ -183,6 +184,39 @@ function parseWorkflowName(name) {
       testType: 'login',
       sender: label,
       receiver: label,
+      name
+    };
+  } else if (parts[0] === 'wayf') {
+    // wayf-nc-v33-crnbx-v2 pattern
+    let i = 1;
+    const senderTokens = [];
+    const receiverTokens = [];
+
+    // accumulate sender until we hit a "vNN" token
+    while (i < parts.length && !/^v\d+/.test(parts[i])) {
+      senderTokens.push(parts[i++]);
+    }
+    // include the version token itself
+    if (i < parts.length && /^v\d+/.test(parts[i])) {
+      senderTokens.push(parts[i++]);
+    } else {
+      throw new Error(`Cannot find sender version in ${name}`);
+    }
+
+    // now the rest is receiver, up through its version token
+    while (i < parts.length && !/^v\d+/.test(parts[i])) {
+      receiverTokens.push(parts[i++]);
+    }
+    if (i < parts.length && /^v\d+/.test(parts[i])) {
+      receiverTokens.push(parts[i++]);
+    } else {
+      throw new Error(`Cannot find receiver version in ${name}`);
+    }
+
+    return {
+      testType: 'wayf',
+      sender: senderTokens.join(' '),
+      receiver: receiverTokens.join(' '),
       name
     };
   } else {
@@ -326,7 +360,7 @@ module.exports = async function orchestrateTests(github, context, core) {
 
     // Overview
     .addRaw('## Overview\n')
-    .addRaw('This matrix shows the compatibility status of **login**, **share-with**, **share-link** and **invite-link** flows across all supported platform versions.\n'
+    .addRaw('This matrix shows the compatibility status of **login**, **share-with**, **share-link**, **invite-link**, and **wayf** flows across all supported platform versions.\n'
       + 'Each cell is the outcome of an automated end-to-end test for a specific **sender to receiver** combination.\n\n')
 
     // Legend

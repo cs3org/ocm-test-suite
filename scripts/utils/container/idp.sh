@@ -17,6 +17,11 @@ delete_idp() {
 
     run_quietly_if_ci echo "Deleting IdP instance …"
 
+    if ! docker ps -a --format '{{.Names}}' | grep -qx "${idp}"; then
+        run_quietly_if_ci echo "IdP container ${idp} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${idp}" || true
 
@@ -34,7 +39,7 @@ delete_idp() {
     # Remove any named volumes we discovered
     if [[ -n "${volumes}" ]]; then
         run_quietly_if_ci echo "Removing volumes: ${volumes}"
-        run_quietly_if_ci docker volume rm -f ${volumes} || true
+        run_quietly_if_ci docker volume rm -f ${volumes} >/dev/null || true
     fi
 
     run_quietly_if_ci echo "IdP removed."

@@ -47,7 +47,7 @@ jobs:
       - name: Collect test workflows
         id: collect
         run: |
-          list=$(ls .github/workflows | grep -E '^(login|share-(link|with)|invite-link).*\.ya?ml$' \
+          list=$(ls .github/workflows | grep -E '^(login|share-(link|with)|invite-link|wayf).*\.ya?ml$' \
                   | paste -sd "," -)
           echo "matrix=${list}" >> "$GITHUB_OUTPUT"
 

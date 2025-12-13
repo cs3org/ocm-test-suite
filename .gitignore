@@ -37,3 +37,4 @@ cypress/ocm-test-suite/cypress/videos/*
 cypress/ocm-test-suite/cypress/screenshots/*
 cypress/ocm-test-suite/share-link-url.txt
 cypress/ocm-test-suite/invite-link-*.txt
+cypress/ocm-test-suite/wayf-*.txt

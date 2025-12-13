@@ -1,0 +1,14 @@
+name: OCM Test Wayf Nextcloud v33 to Nextcloud v33
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          wayf
+      sender_platform:   nextcloud
+      sender_version:    v33
+      receiver_platform: nextcloud
+      receiver_version:  v33

@@ -4,12 +4,14 @@
 
 login:
   - { platform: cernbox, version: v1.29.0 }
+  - { platform: cernbox, version: v2 }
   - { platform: nextcloud, version: v27.1.11 }
   - { platform: nextcloud, version: v28.0.14 }
   - { platform: nextcloud, version: v29.0.16 }
   - { platform: nextcloud, version: v30.0.11 }
   - { platform: nextcloud, version: v31.0.5 }
   - { platform: nextcloud, version: v32.0.0 }
+  - { platform: nextcloud, version: v33 }
   - { platform: ocis, version: v5.0.9 }
   - { platform: ocis, version: v7.1.2 }
   - { platform: opencloud, version: v2.3.0 }
@@ -178,3 +180,9 @@ invite-link:
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: ocis, version: v7.1.2 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
+
+wayf:
+  - { sender: { platform: nextcloud, version: v33 }, receiver: { platform: nextcloud, version: v33 } }
+  - { sender: { platform: nextcloud, version: v33 }, receiver: { platform: cernbox, version: v2 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: nextcloud, version: v33 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: cernbox, version: v2 } }

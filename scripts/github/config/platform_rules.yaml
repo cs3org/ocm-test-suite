@@ -1,7 +1,7 @@
 # List every platform only once
 platforms:
-  # CERNBox v1 versions available globally; v2 is login-only via per-scenario override
-  cernbox: [v1.29.0]
+  # CERNBox v2 only (v1 has been removed)
+  cernbox: [v2]
   nextcloud: [v27.1.11, v28.0.14, v29.0.16, v30.0.11, v31.0.5, v32.0.0]
   # ScienceMesh flavour
   nextcloud-sm: [v27.1.11-sm]
@@ -21,7 +21,7 @@ scenarios:
     # - CERNBox v2 uses DockyPody GHCR v2 stack (idp, cernbox-revad, cernbox-web)
     versions:
       nextcloud: [v27.1.11, v28.0.14, v29.0.16, v30.0.11, v31.0.5, v32.0.0, v33]
-      cernbox: [v1.29.0, v2]
+      cernbox: [v2]
     # *: every platform + every version
     include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, seafile]
 

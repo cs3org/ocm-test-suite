@@ -3,7 +3,6 @@
 # -----------------------------------------------------------------
 
 login:
-  - { platform: cernbox, version: v1.29.0 }
   - { platform: cernbox, version: v2 }
   - { platform: nextcloud, version: v27.1.11 }
   - { platform: nextcloud, version: v28.0.14 }
@@ -144,20 +143,20 @@ share-with:
   - { sender: { platform: seafile, version: v11.0.13 }, receiver: { platform: seafile, version: v11.0.13 } }
 
 invite-link:
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: cernbox, version: v1.29.0 } }
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: ocis, version: v5.0.9 } }
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: ocis, version: v7.1.2 } }
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: opencloud, version: v2.3.0 } }
-  - { sender: { platform: cernbox, version: v1.29.0 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: cernbox, version: v1.29.0 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: cernbox, version: v2 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: ocis, version: v5.0.9 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: ocis, version: v7.1.2 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: opencloud, version: v2.3.0 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
+  - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: ocis, version: v5.0.9 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: ocis, version: v7.1.2 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: ocis, version: v5.0.9 }, receiver: { platform: cernbox, version: v1.29.0 } }
-  - { sender: { platform: ocis, version: v7.1.2 }, receiver: { platform: cernbox, version: v1.29.0 } }
+  - { sender: { platform: ocis, version: v5.0.9 }, receiver: { platform: cernbox, version: v2 } }
+  - { sender: { platform: ocis, version: v7.1.2 }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: ocis, version: v5.0.9 }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: ocis, version: v7.1.2 }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: ocis, version: v5.0.9 }, receiver: { platform: ocis, version: v5.0.9 } }
@@ -168,13 +167,13 @@ invite-link:
   - { sender: { platform: ocis, version: v7.1.2 }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: ocis, version: v5.0.9 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
   - { sender: { platform: ocis, version: v7.1.2 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: cernbox, version: v1.29.0 } }
+  - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: ocis, version: v5.0.9 } }
   - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: ocis, version: v7.1.2 } }
   - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: opencloud, version: v2.3.0 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: cernbox, version: v1.29.0 } }
+  - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: ocis, version: v5.0.9 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: ocis, version: v7.1.2 } }

@@ -1,4 +1,4 @@
-name: OCM Test Invite link Opencloud v2.3.0 to Cernbox v1.29.0
+name: OCM Test Invite link Ocis v5.0.9 to Cernbox v2
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/tests-engine.yml
     with:
       scenario:          invite-link
-      sender_platform:   opencloud
-      sender_version:    v2.3.0
+      sender_platform:   ocis
+      sender_version:    v5.0.9
       receiver_platform: cernbox
-      receiver_version:  v1.29.0
+      receiver_version:  v2

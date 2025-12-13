@@ -1,4 +1,4 @@
-name: OCM Test Invite link Ocis v7.1.2 to Cernbox v1.29.0
+name: OCM Test Invite link Nextcloud-sm v27.1.11-sm to Cernbox v2
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/tests-engine.yml
     with:
       scenario:          invite-link
-      sender_platform:   ocis
-      sender_version:    v7.1.2
+      sender_platform:   nextcloud-sm
+      sender_version:    v27.1.11-sm
       receiver_platform: cernbox
-      receiver_version:  v1.29.0
+      receiver_version:  v2

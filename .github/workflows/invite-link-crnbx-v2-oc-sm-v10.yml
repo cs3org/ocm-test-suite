@@ -1,4 +1,4 @@
-name: OCM Test Invite link Cernbox v1.29.0 to Opencloud v2.3.0
+name: OCM Test Invite link Cernbox v2 to Owncloud-sm v10.15.0-sm
 
 on:
   workflow_dispatch:
@@ -9,6 +9,6 @@ jobs:
     with:
       scenario:          invite-link
       sender_platform:   cernbox
-      sender_version:    v1.29.0
-      receiver_platform: opencloud
-      receiver_version:  v2.3.0
+      sender_version:    v2
+      receiver_platform: owncloud-sm
+      receiver_version:  v10.15.0-sm

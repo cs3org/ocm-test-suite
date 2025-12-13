@@ -13,12 +13,12 @@
 # Usage:
 #   ./cernbox-nextcloud.sh [EFSS_PLATFORM_1_VERSION] [EFSS_PLATFORM_2_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
 # Arguments:
-#   EFSS_PLATFORM_1_VERSION : Version of CERNBox (default: "v1.29.0").
+#   EFSS_PLATFORM_1_VERSION : Version of CERNBox (default: "v2").
 #   EFSS_PLATFORM_2_VERSION : Version of Nextcloud (default: "v27.1.11-sm").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM        : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 # Example:
-#   ./cernbox-nextcloud.sh v1.29.0 v27.1.11-sm ci electron
+#   ./cernbox-nextcloud.sh v2 v27.1.11-sm ci electron
 # -----------------------------------------------------------------------------------
 
 # Exit immediately if a command exits with a non-zero status,
@@ -30,7 +30,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------------
 
 # Default versions
-DEFAULT_EFSS_1_VERSION="v1.29.0"
+DEFAULT_EFSS_1_VERSION="v2"
 DEFAULT_EFSS_2_VERSION="v27.1.11-sm"
 
 # -----------------------------------------------------------------------------------
@@ -111,13 +111,21 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    # Create IdP container
-    #                           # image                     # tag
-    create_idp_keycloak         pondersource/keycloak       latest
+    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
+    local cernbox_revad_tag=mahdi_fix_localhome-development
+    local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
+    local cernbox_web_tag=testing
+    local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
+    local cernbox_idp_tag=latest
+
+    # Create IdP container for CERNBox v2
+    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
     
-    # Create EFSS containers
-    #                 # id    # ui image              # ui tag        # reva image                    # reva tag
-    create_cernbox    1       pondersource/cernbox    latest          pondersource/revad-cernbox      "${EFSS_PLATFORM_1_VERSION}"
+    # Create CERNBox v2 container (sender)
+    #                 # id    # revad image             # revad tag              # web image               # web tag
+    create_cernbox    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
+    
+    # Create Nextcloud container (receiver)
     create_nextcloud  1       "michiel"               "dejong"        pondersource/nextcloud          "${EFSS_PLATFORM_2_VERSION}"
     
     # Create Reva containers with disabled app configs

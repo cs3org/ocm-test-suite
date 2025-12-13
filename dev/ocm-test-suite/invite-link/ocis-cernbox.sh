@@ -14,11 +14,11 @@
 #   ./ocis-cernbox.sh [EFSS_PLATFORM_1_VERSION] [EFSS_PLATFORM_2_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
 # Arguments:
 #   EFSS_PLATFORM_1_VERSION : Version of oCIS (default: "v5.0.9").
-#   EFSS_PLATFORM_2_VERSION : Version of CERNBox (default: "v1.29.0").
+#   EFSS_PLATFORM_2_VERSION : Version of CERNBox (default: "v2").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM        : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 # Example:
-#   ./ocis-cernbox.sh v5.0.9 v1.29.0 ci electron
+#   ./ocis-cernbox.sh v5.0.9 v2 ci electron
 # -----------------------------------------------------------------------------------
 
 # Exit immediately if a command exits with a non-zero status,
@@ -31,7 +31,7 @@ set -euo pipefail
 
 # Default versions
 DEFAULT_EFSS_1_VERSION="v5.0.9"
-DEFAULT_EFSS_2_VERSION="v1.29.0"
+DEFAULT_EFSS_2_VERSION="v2"
 
 # -----------------------------------------------------------------------------------
 # Function: resolve_script_dir
@@ -111,17 +111,25 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    # Create IdP container
-    #                           # image                     # tag
-    create_idp_keycloak         pondersource/keycloak       latest
+    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
+    local cernbox_revad_tag=mahdi_fix_localhome-development
+    local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
+    local cernbox_web_tag=testing
+    local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
+    local cernbox_idp_tag=latest
+
+    # Create IdP container for CERNBox v2
+    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
     # Configure OCM providers for oCIS
-    prepare_ocis_environment "ocis1.docker,ocis1.docker,dav/" "revacernbox1.docker,cernbox1.docker,dav/"
+    prepare_ocis_environment "ocis1.docker,ocis1.docker,dav/" "cernbox1-revad-gateway.docker,cernbox1.docker,dav/"
     
-    # Create EFSS containers
+    # Create oCIS container (sender)
     create_ocis     1       owncloud/ocis          "${EFSS_PLATFORM_1_VERSION}"
-    #               # id    # ui image              # ui tag        # reva image                    # reva tag
-    create_cernbox  1       pondersource/cernbox    latest          pondersource/revad-cernbox      "${EFSS_PLATFORM_2_VERSION}"
+    
+    # Create CERNBox v2 container (receiver)
+    #               # id    # revad image             # revad tag              # web image               # web tag
+    create_cernbox  1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
     
     # Start Mesh Directory
     create_meshdir pondersource/ocmstub v1.0.0

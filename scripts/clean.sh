@@ -209,6 +209,14 @@ main() {
                 is_wayf=false
             fi
 
+            # CERNBox cleanup token mapping: both 'cernbox' and 'cernbox-wayf' use the same
+            # canonical delete_cernbox helper (which handles v2 multi-Reva teardown).
+            # This allows the v2 migration to remove the _wayf suffix from container helpers
+            # while maintaining backwards compatibility with existing cleanup token flows.
+            if [[ "${token}" == "cernbox" && "${is_wayf}" == true ]]; then
+                is_wayf=false
+            fi
+
             local idx="" cname=""
 
             if [[ ${SINGLETON[$token]+yes} ]]; then

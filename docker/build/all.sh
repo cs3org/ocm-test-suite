@@ -360,14 +360,6 @@ main() {
             DEFAULT \
             "${build_args}"
 
-        # Revad CERNBox
-        build_docker_image \
-            revad-cernbox.Dockerfile \
-            pondersource/revad-cernbox \
-            "${tags}" \
-            DEFAULT \
-            "${build_args}"
-
         # Revad ScienceMesh
         build_docker_image \
             revad.Dockerfile \
@@ -377,8 +369,8 @@ main() {
             "${build_args}"
     done
 
-    # CERNBox Web
-    build_docker_image cernbox.Dockerfile           pondersource/cernbox            "v1.0.0 latest"             DEFAULT
+    # Note: CERNBox v1 images (pondersource/cernbox, pondersource/revad-cernbox) removed.
+    # CERNBox v2 uses GHCR images instead.
 
     # Keycloak Versions
     # The first element in this array is considered the "latest".

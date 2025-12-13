@@ -93,17 +93,15 @@ for i in "${!reva_versions[@]}"; do
     # If this is the first element (index 0), also push "latest" tag
     if [[ "$i" -eq 0 ]]; then
         run_quietly_if_ci docker push "pondersource/revad-base:latest"
-        run_quietly_if_ci docker push "pondersource/revad-cernbox:latest"
         run_quietly_if_ci docker push "pondersource/revad:latest"
     fi
 
     run_quietly_if_ci docker push "pondersource/revad-base:${version}"
-    run_quietly_if_ci docker push "pondersource/revad-cernbox:${version}"
     run_quietly_if_ci docker push "pondersource/revad:${version}"
 done
 
-docker push pondersource/cernbox:latest
-docker push pondersource/cernbox:v1.0.0
+# Note: CERNBox v1 images (pondersource/cernbox, pondersource/revad-cernbox) removed.
+# CERNBox v2 uses GHCR images instead.
 
 keycloak_versions=("26.2.4")
 for i in "${!keycloak_versions[@]}"; do

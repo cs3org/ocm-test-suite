@@ -15,7 +15,7 @@
 #   ./cernbox.sh [EFSS_PLATFORM_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
 
 # Arguments:
-#   EFSS_PLATFORM_VERSION : Version of the EFSS platform (default: "v1.29.0").
+#   EFSS_PLATFORM_VERSION : Version of the EFSS platform (default: "v2").
 #   SCRIPT_MODE          : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM     : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 
@@ -25,7 +25,7 @@
 #   - Ensure that the necessary scripts (e.g., init scripts) and configurations exist.
 
 # Example:
-#   ./cernbox.sh v1.29.0 ci electron
+#   ./cernbox.sh v2 ci electron
 
 # -----------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------------
 
 # Default versions
-DEFAULT_EFSS_1_VERSION="v1.29.0"
+DEFAULT_EFSS_1_VERSION="v2"
 # For login tests, we don't need a second platform version
 DEFAULT_EFSS_2_VERSION=""
 
@@ -131,34 +131,20 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    # Create EFSS containers
-    # For v2, use DockyPody GHCR v2 stack via create_cernbox_wayf
-    # For v1 versions, use legacy Keycloak + pondersource images
-    if [[ "${EFSS_PLATFORM_1_VERSION}" == "v2" ]]; then
-        # CERNBox v2 via DockyPody GHCR images
-        local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
-        local cernbox_revad_tag=mahdi_fix_localhome-development
-        local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
-        local cernbox_web_tag=testing
-        local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
-        local cernbox_idp_tag=latest
-        
-        # Create IdP container for CERNBox v2
-        create_idp_wayf "${cernbox_idp_image}" "${cernbox_idp_tag}"
-        
-        # Create CERNBox v2 container
-        #                      # id    # revad image             # revad tag              # web image               # web tag
-        create_cernbox_wayf    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
-    else
-        # Legacy CERNBox v1 stack with Keycloak
-        # Create IdP container
-        #                           # image                     # tag
-        create_idp_keycloak         pondersource/keycloak       latest
-
-        # Create EFSS containers
-        #               # id    # ui image              # ui tag        # reva image                    # reva tag
-        create_cernbox  1       pondersource/cernbox    latest          pondersource/revad-cernbox      "${EFSS_PLATFORM_1_VERSION}"
-    fi
+    # Create EFSS containers - CERNBox v2 only
+    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
+    local cernbox_revad_tag=mahdi_fix_localhome-development
+    local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
+    local cernbox_web_tag=testing
+    local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
+    local cernbox_idp_tag=latest
+    
+    # Create IdP container for CERNBox v2
+    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
+    
+    # Create CERNBox v2 container
+    #                 # id    # revad image             # revad tag              # web image               # web tag
+    create_cernbox    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev "https://cernbox1.docker (username: einstein, password: relativity)" ""

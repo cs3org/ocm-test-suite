@@ -1,3 +1,4 @@
+import * as general from "../../general.js";
 import * as implementation from "./implementation.js";
 
 export const platform = "cernbox";
@@ -23,15 +24,25 @@ export function createInviteLink({
   // Keep interface as the orchestrator (v1 style): login first, then perform UI flow.
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
   implementation.openScienceMeshInvitations();
-  implementation.createInviteLink({
-    senderUrl,
-    senderDomain,
-    senderUsername,
-    senderPassword,
-    recipientPlatform,
-    recipientDomain,
-    inviteLinkFileName,
-  });
+
+  // Treat plain Nextcloud/ownCloud as legacy receivers and others as token-based ScienceMesh peers.
+  if (recipientPlatform === "nextcloud" || recipientPlatform === "owncloud") {
+    implementation
+      .createLegacyInviteLink(recipientDomain, senderDomain)
+      .then((legacyUrl) => {
+        cy.writeFile(inviteLinkFileName, legacyUrl);
+      });
+  } else {
+    implementation.createInviteLink({
+      senderUrl,
+      senderDomain,
+      senderUsername,
+      senderPassword,
+      recipientPlatform,
+      recipientDomain,
+      inviteLinkFileName,
+    });
+  }
 }
 
 export function acceptInviteLink({
@@ -45,15 +56,35 @@ export function acceptInviteLink({
   inviteLinkFileName,
 }) {
   login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
-  implementation.acceptInviteLink({
-    senderDomain,
-    senderPlatform,
-    senderUsername,
-    senderDisplayName,
-    recipientUrl,
-    recipientUsername,
-    recipientPassword,
-    inviteLinkFileName,
+
+  cy.readFile(inviteLinkFileName).then((rawToken) => {
+    const token = String(rawToken).trim();
+
+    // Normalize sender domain to a bare host for token encoding
+    const senderHost = (() => {
+      try {
+        const url = new URL(senderDomain.startsWith("http") ? senderDomain : `https://${senderDomain}`);
+        return url.hostname;
+      } catch (_e) {
+        return senderDomain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      }
+    })();
+
+    let normalizedToken = token;
+    if (!general.isBase64(token)) {
+      normalizedToken = general.encodeBase64(`${token}@${senderHost}`);
+    }
+
+    implementation.acceptInviteLink({
+      token: normalizedToken,
+      senderDomain,
+      senderPlatform,
+      senderUsername,
+      senderDisplayName,
+      recipientUrl,
+      recipientUsername,
+      recipientPassword,
+    });
   });
 }
 

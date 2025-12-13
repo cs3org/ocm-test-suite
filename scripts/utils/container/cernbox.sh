@@ -99,7 +99,9 @@ _create_cernbox_revad_service() {
     run_docker_container --detach --network="${DOCKER_NETWORK}" \
         --name="${name}" \
         -e "REVAD_CONTAINER_MODE=${mode}" \
+        -e "SSL_CERT_DIR=/etc/ssl/certs:/certificate-authority" \
         -v "${json_volume}:/var/tmp/reva" \
+        -v "${TLS_CA_DIR}:/certificate-authority:ro" \
         "$@" \
         "${image}:${tag}" || error_exit "Failed to start CERNBox Reva service ${name}."
 

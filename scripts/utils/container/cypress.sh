@@ -4,6 +4,8 @@
 create_cypress_dev() {
     run_quietly_if_ci echo "Starting Cypress container..."
 
+    sleep 15
+
     run_docker_container --detach \
         --network="${DOCKER_NETWORK}" \
         --name="cypress.docker" \
@@ -25,6 +27,8 @@ create_cypress_ci() {
     if [[ -z "$cypress_spec" ]]; then
         error_exit "No Cypress spec provided. Usage: create_cypress_ci <spec-path>"
     fi
+
+    sleep 15
 
     run_quietly_if_ci echo "Running Cypress tests using spec: $cypress_spec"
 

@@ -15,8 +15,8 @@ describe('Invite link federated sharing via ScienceMesh functionality for CERNBo
   // Shared variables to avoid repetition and improve maintainability
   const senderPlatform = Cypress.env('EFSS_PLATFORM_1') ?? 'cernbox';
   const recipientPlatform = Cypress.env('EFSS_PLATFORM_2') ?? 'cernbox';
-  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v1';
-  const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v1';
+  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v2';
+  const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v2';
   const senderUrl = Cypress.env('CERNBOX1_URL') || 'https://cernbox1.docker';
   const recipientUrl = Cypress.env('CERNBOX2_URL') || 'https://cernbox2.docker';
   const senderUsername = Cypress.env('CERNBOX1_USERNAME') || 'einstein';
@@ -84,17 +84,17 @@ describe('Invite link federated sharing via ScienceMesh functionality for CERNBo
    * 3. Navigate to the Files app
    * 4. Share the file with the recipient
    */
-  // it('Send ScienceMesh share <file> from CERNBox to CERNBox', () => {
-  //   senderUtils.shareViaInviteLink({
-  //     senderUrl,
-  //     senderUsername,
-  //     senderPassword,
-  //     sharedFileName,
-  //     sharedFileContent,
-  //     recipientUsername,
-  //     recipientDisplayName,
-  //   });
-  // });
+  it('Send ScienceMesh share <file> from CERNBox to CERNBox', () => {
+    senderUtils.shareViaInviteLink({
+      senderUrl,
+      senderUsername,
+      senderPassword,
+      sharedFileName,
+      sharedFileContent,
+      recipientUsername,
+      recipientDisplayName,
+    });
+  });
 
   /**
    * Test case: Receiving and verifying the ScienceMesh share on the recipient's side.
@@ -104,14 +104,14 @@ describe('Invite link federated sharing via ScienceMesh functionality for CERNBo
    * 3. Reload the page to refresh the view
    * 4. Verify the share details are correct
    */
-  // it('Receive ScienceMesh share <file> from CERNBox to CERNBox', () => {
-  //   recipientUtils.acceptInviteLinkShare({
-  //     senderDisplayName,
-  //     recipientUrl,
-  //     recipientUsername,
-  //     recipientPassword,
-  //     recipientDisplayName,
-  //     sharedFileName,
-  //   });
-  // });
+  it('Receive ScienceMesh share <file> from CERNBox to CERNBox', () => {
+    recipientUtils.acceptInviteLinkShare({
+      senderDisplayName,
+      recipientUrl,
+      recipientUsername,
+      recipientPassword,
+      recipientDisplayName,
+      sharedFileName,
+    });
+  });
 });

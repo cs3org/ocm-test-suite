@@ -281,7 +281,34 @@ export function createInviteLink({
   recipientDomain,
   inviteLinkFileName,
 }) {
-  throw new Error("cernbox/v2 createInviteLink is not implemented yet");
+  // Assumes we are already logged in and on /open-cloud-mesh/invitations
+  cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+  cy.contains("h2", "Invite users to federate").should("be.visible");
+
+  // Generate invitation in ScienceMesh
+  cy.contains("button", "Generate invitation").click();
+  cy.contains("h2", "Generate new invitation").should("be.visible");
+
+  cy.contains("label, div", "Add a description (optional)")
+    .parent()
+    .find("textarea, input")
+    .clear()
+    .type("Invite-link test invite", { delay: 10 });
+
+  cy.contains('[role="dialog"] button', "Generate").click();
+
+  // Wait for table to update
+  cy.wait(1000);
+
+  // Extract the token from the first row in the invitations table
+  cy.get("table tbody tr")
+    .first()
+    .should("be.visible")
+    .invoke("attr", "data-item-id")
+    .then((token) => {
+      expect(token).to.be.a("string").and.not.be.empty;
+      cy.writeFile(inviteLinkFileName, token);
+    });
 }
 
 export function acceptInviteLink({
@@ -294,7 +321,50 @@ export function acceptInviteLink({
   recipientPassword,
   inviteLinkFileName,
 }) {
-  throw new Error("cernbox/v2 acceptInviteLink is not implemented yet");
+  // Read the invite token from file
+  cy.readFile(inviteLinkFileName).then((token) => {
+    expect(token).to.be.a("string").and.not.be.empty;
+
+    // Navigate to the invitations page
+    openScienceMeshInvitations();
+
+    // Wait for the page to load
+    cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+    cy.contains("h2", "Accept Invitation").should("be.visible");
+
+    // Enter the token
+    cy.contains("label, div", "Enter invite token")
+      .parent()
+      .find("input, textarea")
+      .clear()
+      .type(token, { delay: 10 })
+      .should("have.value", token);
+
+    // Enter the provider domain
+    cy.contains("label, div", "Enter provider domain manually")
+      .parent()
+      .find("input, textarea")
+      .clear()
+      .type(senderDomain, { delay: 10 });
+
+    // Click accept button
+    cy.contains("button", "Accept").should("not.be.disabled").click();
+
+    // Wait for acceptance confirmation
+    cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+
+    // Verify the federated connection appears in the table
+    const expectedName = senderDisplayName || senderUsername || "";
+
+    cy.contains("table tr", senderDomain, { timeout: 10000 })
+      .should("be.visible")
+      .within(() => {
+        if (expectedName) {
+          cy.contains("td", expectedName);
+        }
+        cy.contains("td", senderDomain);
+      });
+  });
 }
 
 export function createWayfInviteUrl() {

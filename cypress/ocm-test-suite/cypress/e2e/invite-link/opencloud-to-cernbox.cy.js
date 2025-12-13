@@ -16,7 +16,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
   const senderPlatform = Cypress.env('EFSS_PLATFORM_1') ?? 'opencloud';
   const recipientPlatform = Cypress.env('EFSS_PLATFORM_2') ?? 'cernbox';
   const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v2';
-  const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v1';
+  const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v2';
   const senderUrl = Cypress.env('OPENCLOUD1_URL') || 'https://opencloud1.docker';
   const recipientUrl = Cypress.env('CERNBOX1_URL') || 'https://cernbox1.docker';
   const senderUsername = Cypress.env('OPENCLOUD1_USERNAME') || 'alan';
@@ -84,17 +84,17 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 3. Navigate to the Files app
    * 4. Share the file with the recipient
    */
-  // it('Send ScienceMesh share <file> from Opencloud to CERNBox', () => {
-  //   senderUtils.shareViaInviteLink({
-  //     senderUrl,
-  //     senderUsername,
-  //     senderPassword,
-  //     sharedFileName,
-  //     sharedFileContent,
-  //     recipientUsername,
-  //     recipientDisplayName,
-  //   });
-  // });
+  it('Send ScienceMesh share <file> from Opencloud to CERNBox', () => {
+    senderUtils.shareViaInviteLink({
+      senderUrl,
+      senderUsername,
+      senderPassword,
+      sharedFileName,
+      sharedFileContent,
+      recipientUsername,
+      recipientDisplayName,
+    });
+  });
 
   /**
    * Test case: Receiving and verifying the ScienceMesh share on CERNBox side.
@@ -104,12 +104,12 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 3. Navigate to the correct section
    * 4. Verify the shared file exists
    */
-  // it('Receive ScienceMesh share <file> from Opencloud to CERNBox', () => {
-  //   recipientUtils.acceptInviteLinkShare({
-  //     recipientUrl,
-  //     recipientUsername,
-  //     recipientPassword,
-  //     sharedFileName,
-  //   });
-  // });
+  it('Receive ScienceMesh share <file> from Opencloud to CERNBox', () => {
+    recipientUtils.acceptInviteLinkShare({
+      recipientUrl,
+      recipientUsername,
+      recipientPassword,
+      sharedFileName,
+    });
+  });
 });

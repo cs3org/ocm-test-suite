@@ -15,7 +15,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
   // Shared variables to avoid repetition and improve maintainability
   const senderPlatform = Cypress.env('EFSS_PLATFORM_1') ?? 'cernbox';
   const recipientPlatform = Cypress.env('EFSS_PLATFORM_2') ?? 'nextcloud';
-  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v1';
+  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v2';
   const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v27';
   const senderUrl = Cypress.env('CERNBOX1_URL') || 'https://cernbox1.docker';
   const recipientUrl = Cypress.env('NEXTCLOUD1_URL') || 'https://nextcloud1.docker';
@@ -85,17 +85,17 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
    * 3. Navigate to the Files app
    * 4. Share the file with the recipient
    */
-  // it('Send ScienceMesh share <file> from CERNBox to Nextcloud', () => {
-  //   senderUtils.shareViaInviteLink({
-  //     senderUrl,
-  //     senderUsername,
-  //     senderPassword,
-  //     sharedFileName,
-  //     sharedFileContent,
-  //     recipientUsername,
-  //     recipientDisplayName,
-  //   });
-  // });
+  it('Send ScienceMesh share <file> from CERNBox to Nextcloud', () => {
+    senderUtils.shareViaInviteLink({
+      senderUrl,
+      senderUsername,
+      senderPassword,
+      sharedFileName,
+      sharedFileContent,
+      recipientUsername,
+      recipientDisplayName,
+    });
+  });
 
   /**
    * Test case: Receiving and verifying the ScienceMesh share on Nextcloud side.
@@ -105,12 +105,12 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
    * 3. Navigate to the correct section
    * 4. Verify the shared file exists
    */
-  // it('Receive ScienceMesh share <file> from CERNBox to Nextcloud', () => {
-  //   recipientUtils.acceptInviteLinkShare({
-  //     recipientUrl,
-  //     recipientUsername,
-  //     recipientPassword,
-  //     sharedFileName,
-  //   });
-  // });
+  it('Receive ScienceMesh share <file> from CERNBox to Nextcloud', () => {
+    recipientUtils.acceptInviteLinkShare({
+      recipientUrl,
+      recipientUsername,
+      recipientPassword,
+      sharedFileName,
+    });
+  });
 });

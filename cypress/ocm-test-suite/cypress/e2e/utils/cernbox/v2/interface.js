@@ -22,6 +22,7 @@ export function createInviteLink({
 }) {
   // Keep interface as the orchestrator (v1 style): login first, then perform UI flow.
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
+  implementation.openScienceMeshInvitations();
   implementation.createInviteLink({
     senderUrl,
     senderDomain,
@@ -43,6 +44,7 @@ export function acceptInviteLink({
   recipientPassword,
   inviteLinkFileName,
 }) {
+  login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
   implementation.acceptInviteLink({
     senderDomain,
     senderPlatform,

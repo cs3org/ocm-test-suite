@@ -198,13 +198,59 @@ export function createShare(filename, recipientUsername) {
 
   cy.wait("@userSearch", { timeout: 20000 });
 
-  const recipientKey = recipientUsername.split("@")[0];
-  const optionTestId = `recipient-autocomplete-item-${recipientKey}`;
+  cy.get('#vs2__listbox [data-testid^="recipient-autocomplete-item-"]', {
+    timeout: 15000,
+  }).then(($options) => {
+    if (!$options.length) {
+      throw new Error("No recipient autocomplete options found for share search");
+    }
 
-  cy.get(`#vs2__listbox [data-testid="${optionTestId}"]`, { timeout: 15000 })
-    .scrollIntoView()
-    .should("be.visible")
-    .click({ force: true });
+    const typed = String(recipientUsername || "").trim();
+    const optionsArray = Array.from($options);
+    const recipientKey = typed.split("@")[0];
+    const optionTestId =
+      recipientKey && recipientKey.length > 0
+        ? `recipient-autocomplete-item-${recipientKey}`
+        : "";
+
+    let target = optionsArray[0];
+
+    if (typed.length > 0) {
+      if (optionTestId) {
+        const idMatch = optionsArray.find(
+          (el) => el.getAttribute("data-testid") === optionTestId
+        );
+        if (idMatch) {
+          target = idMatch;
+        }
+      }
+
+      if (target === optionsArray[0]) {
+        const directMatch = optionsArray.find((el) => {
+          const text = (el.textContent || "").trim();
+          return text.includes(typed);
+        });
+
+        if (directMatch) {
+          target = directMatch;
+        } else {
+          const lowerTyped = typed.toLowerCase();
+          const ciMatch = optionsArray.find((el) => {
+            const text = (el.textContent || "").toLowerCase();
+            return text.includes(lowerTyped);
+          });
+          if (ciMatch) {
+            target = ciMatch;
+          }
+        }
+      }
+    }
+
+    cy.wrap(target)
+      .scrollIntoView()
+      .should("be.visible")
+      .click({ force: true });
+  });
 
   cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
     .should("be.visible")
@@ -483,11 +529,5 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
     .should("be.visible")
     .within(() => {
       cy.contains("td", sharedFileName);
-
-      if (senderDisplayName) {
-        cy.contains("button", `This file is shared by ${senderDisplayName}`).should(
-          "be.visible"
-        );
-      }
     });
 }

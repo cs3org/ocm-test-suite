@@ -5,51 +5,72 @@ run_docker_container() {
     run_quietly_if_ci docker run "$@" || error_exit "Failed to start Docker container: $*"
 }
 
+# Build argument list for clean.sh based on scenario and platforms.
+# This helper uses TEST_SCENARIO, EFSS_PLATFORM_1, EFSS_PLATFORM_2 and their
+# versions to construct the high level cleanup tokens that scripts/clean.sh
+# understands. Only nextcloud and owncloud (including -sm variants) get
+# ScienceMesh Reva sidecars; CERNBox, OCIS, and OpenCloud never receive
+# reva<platform> tokens.
+build_clean_args() {
+    # Baseline tokens: no terminal clear, and singleton support containers.
+    CLEAN_ARGS=("no" "cypress" "meshdir" "firefox" "vnc")
+
+    local uses_wayf_containers="false"
+    if [[ "${TEST_SCENARIO}" == "wayf" ]]; then
+        uses_wayf_containers="true"
+    elif [[ "${TEST_SCENARIO}" == "login" ]]; then
+        # Login v33 (nextcloud) and v2 (cernbox) use WAYF style containers.
+        if [[ "${EFSS_PLATFORM_1}" == "nextcloud" && "${EFSS_PLATFORM_1_VERSION}" == "v33" ]]; then
+            uses_wayf_containers="true"
+        elif [[ "${EFSS_PLATFORM_1}" == "cernbox" && "${EFSS_PLATFORM_1_VERSION}" == "v2" ]]; then
+            uses_wayf_containers="true"
+        fi
+    fi
+
+    if [[ "${uses_wayf_containers}" == "true" ]]; then
+        CLEAN_ARGS+=("idp")
+        if [[ "${TEST_SCENARIO}" == "login" ]]; then
+            CLEAN_ARGS+=("${EFSS_PLATFORM_1}-wayf")
+        else
+            CLEAN_ARGS+=("${EFSS_PLATFORM_1}-wayf")
+            CLEAN_ARGS+=("${EFSS_PLATFORM_2}-wayf")
+        fi
+        return 0
+    fi
+
+    # Non WAYF scenarios: use canonical platform tokens and Reva sidecars
+    # only for nextcloud/owncloud (including -sm variants).
+    CLEAN_ARGS+=("idp" "${EFSS_PLATFORM_1}")
+
+    if [[ "${TEST_SCENARIO}" != "login" ]]; then
+        CLEAN_ARGS+=("${EFSS_PLATFORM_2}")
+
+        local base1="${EFSS_PLATFORM_1%%-sm*}"
+        local base2="${EFSS_PLATFORM_2%%-sm*}"
+
+        if [[ "${base1}" == "nextcloud" || "${base1}" == "owncloud" ]]; then
+            CLEAN_ARGS+=("reva${EFSS_PLATFORM_1}")
+        fi
+
+        if [[ "${base2}" == "nextcloud" || "${base2}" == "owncloud" ]]; then
+            CLEAN_ARGS+=("reva${EFSS_PLATFORM_2}")
+        fi
+    fi
+}
+
 # Prepare Docker environment (network, cleanup)
 prepare_environment() {
-    # Prepare temporary directories and copy necessary files
+    # Prepare temporary directories
     remove_directory "${TEMP_DIR}"
     mkdir -p "${TEMP_DIR}"
 
     # Skip cleanup when NO_CLEANING=true
     if [[ "${NO_CLEANING}" != "true" ]]; then
-        # Clean up previous resources (if the cleanup script is available)
-        # WARNING: this is probably going to make real mess of your system and 
-        # cause tremendous pain on ci jobs based on docker, since it will NUKE
-        # everything related to docker and WIPE it clean.
-        # I (@MahdiBaghbani) should delete this, but the use of it is really needed on gitpod,
-        # or in isolated dev envs, so there are env variables to disable this functionality.
-
-        # Build argument list for clean.sh.
-        # WAYF scenarios use dedicated *-wayf containers. IdP remains a singleton idp.docker.
-        # Login v33 (nextcloud) and v2 (cernbox) also use *-wayf containers.
-        local clean_args=("no" "cypress" "meshdir" "firefox" "vnc")
-        local uses_wayf_containers="false"
-        if [[ "${TEST_SCENARIO}" == "wayf" ]]; then
-            uses_wayf_containers="true"
-        elif [[ "${TEST_SCENARIO}" == "login" ]]; then
-            # Login v33 (nextcloud) and v2 (cernbox) use wayf containers
-            if [[ "${EFSS_PLATFORM_1}" == "nextcloud" && "${EFSS_PLATFORM_1_VERSION}" == "v33" ]]; then
-                uses_wayf_containers="true"
-            elif [[ "${EFSS_PLATFORM_1}" == "cernbox" && "${EFSS_PLATFORM_1_VERSION}" == "v2" ]]; then
-                uses_wayf_containers="true"
-            fi
-        fi
-        
-        if [[ "${uses_wayf_containers}" == "true" ]]; then
-            clean_args+=("idp" "${EFSS_PLATFORM_1}-wayf")
-            if [[ "${TEST_SCENARIO}" != "login" ]]; then
-                clean_args+=("${EFSS_PLATFORM_2}-wayf")
-            fi
-        else
-            clean_args+=("idp" "${EFSS_PLATFORM_1}")
-            if [[ "${TEST_SCENARIO}" != "login" ]]; then
-                clean_args+=("reva${EFSS_PLATFORM_1}" "${EFSS_PLATFORM_2}" reva"${EFSS_PLATFORM_2}")
-            fi
-        fi
+        # Clean up previous resources (if the cleanup script is available).
+        build_clean_args
 
         if [ -x "${ENV_ROOT}/scripts/clean.sh" ]; then
-            "${ENV_ROOT}/scripts/clean.sh" "${clean_args[@]}"
+            "${ENV_ROOT}/scripts/clean.sh" "${CLEAN_ARGS[@]}"
         else
             print_error "Cleanup script not found or not executable at '${ENV_ROOT}/scripts/clean.sh'. Continuing without cleanup."
         fi

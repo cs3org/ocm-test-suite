@@ -122,7 +122,7 @@ main() {
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
     # Configure OCM providers for Opencloud
-    prepare_opencloud_environment "cernbox1-revad-gateway.docker,cernbox1.docker,dav/" "opencloud1.docker,opencloud1.docker,dav/"
+    prepare_opencloud_environment "cernbox1.docker,cernbox1.docker,dav/" "opencloud1.docker,opencloud1.docker,dav/"
 
     # Create CERNBox v2 container (sender)
     #                 # id      # revad image             # revad tag              # web image               # web tag

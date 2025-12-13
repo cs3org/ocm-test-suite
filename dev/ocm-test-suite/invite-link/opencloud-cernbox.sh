@@ -122,7 +122,7 @@ main() {
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
     # Configure OCM providers for Opencloud
-    prepare_opencloud_environment "opencloud1.docker,opencloud1.docker,dav/" "cernbox1-revad-gateway.docker,cernbox1.docker,dav/"
+    prepare_opencloud_environment "opencloud1.docker,opencloud1.docker,dav/" "cernbox1.docker,cernbox1.docker,dav/"
     
     # Create OpenCloud container (sender)
     create_opencloud  1                                      opencloudeu/opencloud-rolling          "${EFSS_PLATFORM_1_VERSION}"

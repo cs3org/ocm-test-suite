@@ -122,7 +122,7 @@ main() {
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
     # Configure OCM providers for oCIS
-    prepare_ocis_environment "ocis1.docker,ocis1.docker,dav/" "cernbox1-revad-gateway.docker,cernbox1.docker,dav/"
+    prepare_ocis_environment "ocis1.docker,ocis1.docker,dav/" "cernbox1.docker,cernbox1.docker,dav/"
     
     # Create oCIS container (sender)
     create_ocis     1       owncloud/ocis          "${EFSS_PLATFORM_1_VERSION}"

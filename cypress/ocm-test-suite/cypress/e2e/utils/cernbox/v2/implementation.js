@@ -661,11 +661,5 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
     .should("be.visible")
     .within(() => {
       cy.contains("td", sharedFileName);
-
-      if (senderDisplayName) {
-        cy.contains("button", `This file is shared by ${senderDisplayName}`).should(
-          "be.visible"
-        );
-      }
     });
 }

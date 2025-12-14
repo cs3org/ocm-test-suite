@@ -7,29 +7,31 @@
  * @author Mohammad Mahdi Baghbani Pourvahid <mahdi@pondersource.com>
  */
 
-import {
-  getUtils
-} from '../utils/index.js';
+import { getUtils } from "../utils/index.js";
 
-describe('Invite link federated sharing via ScienceMesh functionality between Opencloud and Nextcloud', () => {
+describe("Invite link federated sharing via ScienceMesh functionality between Opencloud and Nextcloud", () => {
   // Shared variables to avoid repetition and improve maintainability
-  const senderPlatform = Cypress.env('EFSS_PLATFORM_1') ?? 'opencloud';
-  const recipientPlatform = Cypress.env('EFSS_PLATFORM_2') ?? 'nextcloud';
-  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v2';
-  const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v27';
-  const senderUrl = Cypress.env('OPENCLOUD1_URL') || 'https://opencloud1.docker';
-  const recipientUrl = Cypress.env('NEXTCLOUD1_URL') || 'https://nextcloud1.docker';
-  const senderUsername = Cypress.env('OPENCLOUD1_USERNAME') || 'alan';
-  const senderPassword = Cypress.env('OPENCLOUD1_PASSWORD') || 'demo';
-  const recipientUsername = Cypress.env('NEXTCLOUD1_USERNAME') || 'michiel';
-  const recipientPassword = Cypress.env('NEXTCLOUD1_PASSWORD') || 'dejong';
-  const senderDisplayName = Cypress.env('OPENCLOUD1_DISPLAY_NAME') || 'Alan Turing';
-  const recipientDisplayName = Cypress.env('NEXTCLOUD1_DISPLAY_NAME') || 'michiel';
-  const senderDomain = senderUrl.replace(/^https?:\/\/|\/$/g, '');
-  const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, '');
-  const inviteLinkFileName = 'invite-link-opencloud-nc.txt';
+  const senderPlatform = Cypress.env("EFSS_PLATFORM_1") ?? "opencloud";
+  const recipientPlatform = Cypress.env("EFSS_PLATFORM_2") ?? "nextcloud";
+  const senderVersion = Cypress.env("EFSS_PLATFORM_1_VERSION") ?? "v2";
+  const recipientVersion = Cypress.env("EFSS_PLATFORM_2_VERSION") ?? "v27";
+  const senderUrl =
+    Cypress.env("OPENCLOUD1_URL") || "https://opencloud1.docker";
+  const recipientUrl =
+    Cypress.env("NEXTCLOUD1_URL") || "https://nextcloud1.docker";
+  const senderUsername = Cypress.env("OPENCLOUD1_USERNAME") || "alan";
+  const senderPassword = Cypress.env("OPENCLOUD1_PASSWORD") || "demo";
+  const recipientUsername = Cypress.env("NEXTCLOUD1_USERNAME") || "michiel";
+  const recipientPassword = Cypress.env("NEXTCLOUD1_PASSWORD") || "dejong";
+  const senderDisplayName =
+    Cypress.env("OPENCLOUD1_DISPLAY_NAME") || "Alan Turing";
+  const recipientDisplayName =
+    Cypress.env("NEXTCLOUD1_DISPLAY_NAME") || "michiel";
+  const senderDomain = senderUrl.replace(/^https?:\/\/|\/$/g, "");
+  const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, "");
+  const inviteLinkFileName = "invite-link-opencloud-nc.txt";
   const sharedFileName = inviteLinkFileName;
-  const sharedFileContent = 'Hello World!';
+  const sharedFileContent = "Hello World!";
 
   // Get the right helper set for each side
   const senderUtils = getUtils(senderPlatform, senderVersion);
@@ -42,7 +44,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 2. Navigate to the ScienceMesh app
    * 3. Generate the invite token and save it to a file
    */
-  it('Send invitation from Opencloud to Nextcloud', () => {
+  it("Send invitation from Opencloud to Nextcloud", () => {
     senderUtils.createInviteLink({
       senderUrl,
       senderDomain,
@@ -63,7 +65,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 3. Accept the invitation
    * 4. Verify the federated contact is established
    */
-  it('Accept invitation from Opencloud to Nextcloud', () => {
+  it("Accept invitation from Opencloud to Nextcloud", () => {
     recipientUtils.acceptInviteLink({
       senderPlatform,
       senderDomain,
@@ -85,7 +87,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 3. Navigate to the Files app
    * 4. Share the file with the recipient
    */
-  it('Send ScienceMesh share <file> from Opencloud to Nextcloud', () => {
+  it("Send ScienceMesh share <file> from Opencloud to Nextcloud", () => {
     senderUtils.shareViaInviteLink({
       senderUrl,
       senderUsername,
@@ -105,7 +107,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between Op
    * 3. Navigate to the correct section
    * 4. Verify the shared file exists
    */
-  it('Receive ScienceMesh share <file> from Opencloud to Nextcloud', () => {
+  it("Receive ScienceMesh share <file> from Opencloud to Nextcloud", () => {
     recipientUtils.acceptInviteLinkShare({
       recipientUrl,
       recipientUsername,

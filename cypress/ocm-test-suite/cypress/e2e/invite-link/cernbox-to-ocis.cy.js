@@ -30,7 +30,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
   const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, '');
   const inviteLinkFileName = 'invite-link-nc-ocis.txt';
   const originalFileName = 'welcome.txt';
-  const sharedFileName = inviteLinkFileName;
+  const sharedFileName = 'invite-link-nc-ocis';
 
   // Get the right helper set for each side
   const senderUtils = getUtils(senderPlatform, senderVersion);

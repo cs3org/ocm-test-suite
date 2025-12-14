@@ -85,7 +85,7 @@ describe("Invite link federated sharing via ScienceMesh functionality between CE
    * 3. Navigate to the Files app
    * 4. Share the file with the recipient
    */
-  it("Send ScienceMesh share <file> from CERNBox to CERNBox", () => {
+  it("Send ScienceMesh share <file> from CERNBox to Opencloud", () => {
     senderUtils.shareViaInviteLink({
       senderUrl,
       senderUsername,

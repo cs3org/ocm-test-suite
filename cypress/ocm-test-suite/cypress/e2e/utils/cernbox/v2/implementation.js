@@ -177,34 +177,199 @@ function ensureShareSearchScope(scope) {
     });
 }
 
-export function createShare(filename, recipientUsername) {
+function normalizeIdentity(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+// Choose the best autocomplete option for a recipient using relaxed, case-insensitive matching.
+function findBestShareRecipientOption(optionsLike, {
+  username,
+  recipientDisplayName,
+}) {
+  const optionsArray = Array.from(optionsLike || []);
+
+  if (!optionsArray.length) {
+    throw new Error("No recipient autocomplete options found for share search");
+  }
+
+  const usernameNorm = normalizeIdentity(username);
+  const displayNorm = normalizeIdentity(recipientDisplayName);
+
+  const getTextNorm = (el) => normalizeIdentity(el.textContent || "");
+
+  const findByText = (predicate) =>
+    optionsArray.find((el) => {
+      const textNorm = getTextNorm(el);
+      return predicate(textNorm, el);
+    });
+
+  // Prefer a stable data-testid match based on the username local part if present.
+  if (usernameNorm) {
+    const localPart = username.split("@")[0] || "";
+    if (localPart) {
+      const expectedIdNorm = normalizeIdentity(
+        `recipient-autocomplete-item-${localPart}`
+      );
+      const idMatch = optionsArray.find((el) => {
+        const attr = el.getAttribute("data-testid") || "";
+        return normalizeIdentity(attr) === expectedIdNorm;
+      });
+      if (idMatch) return idMatch;
+    }
+  }
+
+  if (displayNorm) {
+    const exactDisplay = findByText((textNorm) => textNorm === displayNorm);
+    if (exactDisplay) return exactDisplay;
+  }
+
+  if (displayNorm) {
+    const containsDisplay = findByText((textNorm) =>
+      textNorm.includes(displayNorm)
+    );
+    if (containsDisplay) return containsDisplay;
+  }
+
+  if (usernameNorm) {
+    const exactUser = findByText((textNorm) => textNorm === usernameNorm);
+    if (exactUser) return exactUser;
+  }
+
+  if (usernameNorm) {
+    const containsUser = findByText((textNorm) =>
+      textNorm.includes(usernameNorm)
+    );
+    if (containsUser) return containsUser;
+  }
+
+  return optionsArray[0];
+}
+
+function selectShareRecipientFromAutocomplete({ username, recipientDisplayName }) {
+  cy.get('#vs2__listbox [data-testid^="recipient-autocomplete-item-"]', {
+    timeout: 15000,
+  }).then(($options) => {
+    const target = findBestShareRecipientOption($options, {
+      username,
+      recipientDisplayName,
+    });
+
+    cy.wrap(target)
+      .scrollIntoView()
+      .should("be.visible")
+      .click({ force: true });
+  });
+}
+
+function findBestShareCollaboratorRow(rowsLike, { username, recipientDisplayName }) {
+  const rowsArray = Array.from(rowsLike || []);
+
+  if (!rowsArray.length) {
+    throw new Error("No collaborators found after creating share");
+  }
+
+  const usernameNorm = normalizeIdentity(username);
+  const displayNorm = normalizeIdentity(recipientDisplayName);
+
+  const getTextNorm = (el) => normalizeIdentity(el.textContent || "");
+
+  const findBy = (predicate) =>
+    rowsArray.find((el) => {
+      const textNorm = getTextNorm(el);
+      return predicate(textNorm, el);
+    });
+
+  if (displayNorm) {
+    const exactDisplay = findBy((textNorm) => textNorm === displayNorm);
+    if (exactDisplay) return exactDisplay;
+  }
+
+  if (displayNorm) {
+    const containsDisplay = findBy((textNorm) =>
+      textNorm.includes(displayNorm)
+    );
+    if (containsDisplay) return containsDisplay;
+  }
+
+  if (usernameNorm) {
+    const exactUser = findBy((textNorm) => textNorm === usernameNorm);
+    if (exactUser) return exactUser;
+  }
+
+  if (usernameNorm) {
+    const containsUser = findBy((textNorm) =>
+      textNorm.includes(usernameNorm)
+    );
+    if (containsUser) return containsUser;
+  }
+
+  return rowsArray[0];
+}
+
+function verifyShareRecipientInCollaboratorsList({
+  username,
+  recipientDisplayName,
+}) {
+  cy.get('div[id="oc-files-sharing-sidebar"]').within(() => {
+    cy.get("#files-collaborators-list")
+      .should("be.visible")
+      .within(() => {
+        cy.get("li").then(($rows) => {
+          const row = findBestShareCollaboratorRow($rows, {
+            username,
+            recipientDisplayName,
+          });
+
+          cy.wrap(row)
+            .as("row")
+            .should("exist")
+            .within(() => {
+              const expectedNorms = [
+                normalizeIdentity(recipientDisplayName),
+                normalizeIdentity(username),
+              ].filter(Boolean);
+
+              if (expectedNorms.length) {
+                cy.wrap(row)
+                  .invoke("text")
+                  .then((text) => {
+                    const rowNorm = normalizeIdentity(text);
+                    const ok = expectedNorms.some((expected) =>
+                      rowNorm.includes(expected)
+                    );
+                    expect(ok).to.equal(true);
+                  });
+              }
+            });
+        });
+      });
+  });
+}
+
+export function createShare(filename, recipientUsername, recipientDisplayName) {
   triggerActionForFile(filename, "share");
 
   ensureShareSearchScope("External users");
 
-  cy.intercept({
-    times: 1,
-    method: "GET",
-    url: "**/graph/v1.0/users?*",
-  }).as("userSearch");
-
   cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
     .should("be.visible")
     .within(() => {
-      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 })
-        .clear()
-        .type(recipientUsername);
+      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 }).clear();
+      cy.intercept({
+        times: 1,
+        method: "GET",
+        url: "**/graph/v1.0/users?*",
+      }).as("userSearch");
+      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 }).type(
+        recipientUsername
+      );
+      cy.wait("@userSearch");
     });
 
-  cy.wait("@userSearch", { timeout: 20000 });
-
-  const recipientKey = recipientUsername.split("@")[0];
-  const optionTestId = `recipient-autocomplete-item-${recipientKey}`;
-
-  cy.get(`#vs2__listbox [data-testid="${optionTestId}"]`, { timeout: 15000 })
-    .scrollIntoView()
-    .should("be.visible")
-    .click({ force: true });
+  selectShareRecipientFromAutocomplete({
+    username: recipientUsername,
+    recipientDisplayName,
+  });
 
   cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
     .should("be.visible")
@@ -216,6 +381,13 @@ export function createShare(filename, recipientUsername) {
         .should("be.visible")
         .click({ force: true });
     });
+
+  cy.wait(1000);
+
+  verifyShareRecipientInCollaboratorsList({
+    username: recipientUsername,
+    recipientDisplayName,
+  });
 }
 
 export function loginCore({ url, username, password }) {

@@ -95,11 +95,12 @@ export function shareViaInviteLink({
   sharedFileName,
   sharedFileContent,
   recipientUsername,
+  recipientDisplayName,
 }) {
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
   implementation.openFilesPersonalView();
   implementation.createFolder(sharedFileName);
-  implementation.createShare(sharedFileName, recipientUsername);
+  implementation.createShare(sharedFileName, recipientUsername, recipientDisplayName);
 }
 
 export function acceptInviteLinkShare({

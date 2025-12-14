@@ -90,6 +90,7 @@ $desktop: 1200px;
         color: $hero-text-primary;
         line-height: 1.2;
         letter-spacing: -0.5px;
+        text-align: center;
 
         .gradient-text {
             background: linear-gradient(45deg, $hero-gradient-start, $hero-gradient-end);

@@ -49,8 +49,8 @@ export class ErrorHandler {
                 };
             case ErrorHandler.ERROR_TYPES.INITIALIZATION:
                 return {
-                    action: 'reload',
-                    message: 'Initialization failed. Please refresh the page.'
+                    action: 'notify',
+                    message: 'Initialization failed. Artifacts may not be available in local development.'
                 };
             default:
                 return {

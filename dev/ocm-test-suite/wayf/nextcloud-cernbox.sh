@@ -94,9 +94,9 @@ main() {
     # Cypress default for sender in nextcloud-to-cernbox is marie/radioactivity
     create_nextcloud_wayf 1 "marie" "radioactivity" "ghcr.io/mahdibaghbani/containers/nextcloud-contacts" "v8.1.0-ocm-nc-master-debian"
 
-    create_idp_wayf "${cernbox_idp_image}" "${cernbox_idp_tag}"
+    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
-    create_cernbox_wayf 1 \
+    create_cernbox 1 \
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 

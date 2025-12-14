@@ -127,17 +127,15 @@ for i in "${!reva_versions[@]}"; do
     # If this is the first element (index 0), also pull "latest" tag
     if [[ "$i" -eq 0 ]]; then
         run_quietly_if_ci docker pull "pondersource/revad-base:latest"
-        run_quietly_if_ci docker pull "pondersource/revad-cernbox:latest"
         run_quietly_if_ci docker pull "pondersource/revad:latest"
     fi
 
     run_quietly_if_ci docker pull "pondersource/revad-base:${version}"
-    run_quietly_if_ci docker pull "pondersource/revad-cernbox:${version}"
     run_quietly_if_ci docker pull "pondersource/revad:${version}"
 done
 
-docker pull pondersource/cernbox:latest
-docker pull pondersource/cernbox:v1.0.0
+# Note: CERNBox v1 images (pondersource/cernbox, pondersource/revad-cernbox) removed.
+# CERNBox v2 uses GHCR images pulled by docker/pull/ocm-test-suite/cernbox.sh instead.
 
 keycloak_versions=("26.2.4")
 for i in "${!keycloak_versions[@]}"; do

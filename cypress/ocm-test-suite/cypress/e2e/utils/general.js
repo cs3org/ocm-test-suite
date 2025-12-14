@@ -5,9 +5,9 @@
  * @author Mohammad Mahdi Baghbani Pourvahid <mahdi@pondersource.com>
  */
 
-export const revaBasedPlatforms = new Set(['nextcloud', 'owncloud', 'cernbox']);
-export const revaBasedWayfPlatforms = new Set(['']);
-export const usernameContactPlatforms = new Set(['nextcloud', 'owncloud', 'cernbox']);
+export const revaBasedPlatforms = new Set(["nextcloud", "owncloud"]);
+export const revaBasedWayfPlatforms = new Set([""]);
+export const usernameContactPlatforms = new Set(["nextcloud", "owncloud"]);
 
 /**
  * Escapes special characters in a string to be used in a CSS selector.
@@ -17,14 +17,14 @@ export const usernameContactPlatforms = new Set(['nextcloud', 'owncloud', 'cernb
  * @returns {string} - The escaped string safe for use in a CSS selector.
  */
 export function escapeCssSelector(selector) {
-    // Replace any character that is a CSS selector special character with its escaped version
-    return selector.replace(/([ !"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+  // Replace any character that is a CSS selector special character with its escaped version
+  return selector.replace(/([ !"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~])/g, "\\$1");
 }
 
 /**
  * Constructs a federated share URL based on the platform and provided parameters.
  * This function handles the URL construction for different platforms (Nextcloud, ownCloud).
- * 
+ *
  * @param {Object} params - The parameters needed to construct the URL
  * @param {string} params.shareUrl - The original share URL to extract token from
  * @param {string} params.senderUrl - The URL of the sender's instance
@@ -41,20 +41,24 @@ export function constructFederatedShareUrl(params) {
     recipientUrl,
     senderUsername,
     fileName,
-    platform
+    platform,
   } = params;
 
   // Extract token from the share URL
-  const token = shareUrl.replace(`${senderUrl}/s/`, '');
+  const token = shareUrl.replace(`${senderUrl}/s/`, "");
 
   // Clean up URLs by ensuring they use https and removing trailing slashes
-  const cleanSenderUrl = senderUrl.replace(/^https?:\/\//, 'https://').replace(/\/$/, '');
-  const cleanRecipientUrl = recipientUrl.replace(/^https?:\/\//, 'https://').replace(/\/$/, '');
+  const cleanSenderUrl = senderUrl
+    .replace(/^https?:\/\//, "https://")
+    .replace(/\/$/, "");
+  const cleanRecipientUrl = recipientUrl
+    .replace(/^https?:\/\//, "https://")
+    .replace(/\/$/, "");
 
   // Construct the URL based on the platform
-  if (platform === 'owncloud') {
+  if (platform === "owncloud") {
     return `${cleanRecipientUrl}/index.php/apps/files#remote=${cleanSenderUrl}&token=${token}&owner=${senderUsername}&ownerDisplayName=${senderUsername}&name=${fileName}&protected=0`;
-  } else if (platform === 'nextcloud') {
+  } else if (platform === "nextcloud") {
     return `${cleanRecipientUrl}/index.php/login?redirect_url=%252Findex.php%252Fapps%252Ffiles#remote=${cleanSenderUrl}&token=${token}&owner=${senderUsername}&ownerDisplayName=${senderUsername}&name=${fileName}&protected=0`;
   } else {
     throw new Error(`Unsupported platform: ${platform}`);
@@ -72,9 +76,7 @@ export function isBase64(str, { urlSafe = false } = {}) {
   if (typeof str !== "string" || str.length === 0 || str.length % 4 !== 0)
     return false;
 
-  const alphabet = urlSafe
-    ? "A-Za-z0-9-_"
-    : "A-Za-z0-9+/";
+  const alphabet = urlSafe ? "A-Za-z0-9-_" : "A-Za-z0-9+/";
 
   // syntax check
   const syntax = new RegExp(
@@ -87,7 +89,7 @@ export function isBase64(str, { urlSafe = false } = {}) {
     const bytes =
       typeof Buffer === "function"
         ? Buffer.from(str, "base64")
-        : Uint8Array.from(atob(str), c => c.charCodeAt(0));
+        : Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 
     // if decoding produced nothing, reject (e.g. "====")
     if (!bytes.length) return false;
@@ -98,9 +100,11 @@ export function isBase64(str, { urlSafe = false } = {}) {
         : btoa(String.fromCharCode(...bytes));
 
     // strip both variants for a fair match
-    const normalise = s =>
-      (urlSafe ? s.replace(/\+/g, "-").replace(/\//g, "_") : s)
-        .replace(/=+$/, "");
+    const normalise = (s) =>
+      (urlSafe ? s.replace(/\+/g, "-").replace(/\//g, "_") : s).replace(
+        /=+$/,
+        ""
+      );
 
     return normalise(str) === normalise(reencoded);
   } catch {
@@ -132,9 +136,7 @@ export function encodeBase64(input, { urlSafe = false } = {}) {
   const b64 =
     typeof Buffer !== "undefined"
       ? Buffer.from(bytes).toString("base64")
-      : btoa(
-          Array.from(bytes, b => String.fromCharCode(b)).join("")
-        );
+      : btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 
   // URL-safe tweak
   return urlSafe

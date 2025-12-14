@@ -177,79 +177,198 @@ function ensureShareSearchScope(scope) {
     });
 }
 
-export function createShare(filename, recipientUsername) {
-  triggerActionForFile(filename, "share");
+function normalizeIdentity(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
-  ensureShareSearchScope("External users");
+// Choose the best autocomplete option for a recipient using relaxed, case-insensitive matching.
+function findBestShareRecipientOption(optionsLike, {
+  username,
+  recipientDisplayName,
+}) {
+  const optionsArray = Array.from(optionsLike || []);
 
-  cy.intercept({
-    times: 1,
-    method: "GET",
-    url: "**/graph/v1.0/users?*",
-  }).as("userSearch");
+  if (!optionsArray.length) {
+    throw new Error("No recipient autocomplete options found for share search");
+  }
 
-  cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
-    .should("be.visible")
-    .within(() => {
-      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 })
-        .clear()
-        .type(recipientUsername);
+  const usernameNorm = normalizeIdentity(username);
+  const displayNorm = normalizeIdentity(recipientDisplayName);
+
+  const getTextNorm = (el) => normalizeIdentity(el.textContent || "");
+
+  const findByText = (predicate) =>
+    optionsArray.find((el) => {
+      const textNorm = getTextNorm(el);
+      return predicate(textNorm, el);
     });
 
-  cy.wait("@userSearch", { timeout: 20000 });
+  // Prefer a stable data-testid match based on the username local part if present.
+  if (usernameNorm) {
+    const localPart = username.split("@")[0] || "";
+    if (localPart) {
+      const expectedIdNorm = normalizeIdentity(
+        `recipient-autocomplete-item-${localPart}`
+      );
+      const idMatch = optionsArray.find((el) => {
+        const attr = el.getAttribute("data-testid") || "";
+        return normalizeIdentity(attr) === expectedIdNorm;
+      });
+      if (idMatch) return idMatch;
+    }
+  }
 
+  if (displayNorm) {
+    const exactDisplay = findByText((textNorm) => textNorm === displayNorm);
+    if (exactDisplay) return exactDisplay;
+  }
+
+  if (displayNorm) {
+    const containsDisplay = findByText((textNorm) =>
+      textNorm.includes(displayNorm)
+    );
+    if (containsDisplay) return containsDisplay;
+  }
+
+  if (usernameNorm) {
+    const exactUser = findByText((textNorm) => textNorm === usernameNorm);
+    if (exactUser) return exactUser;
+  }
+
+  if (usernameNorm) {
+    const containsUser = findByText((textNorm) =>
+      textNorm.includes(usernameNorm)
+    );
+    if (containsUser) return containsUser;
+  }
+
+  return optionsArray[0];
+}
+
+function selectShareRecipientFromAutocomplete({ username, recipientDisplayName }) {
   cy.get('#vs2__listbox [data-testid^="recipient-autocomplete-item-"]', {
     timeout: 15000,
   }).then(($options) => {
-    if (!$options.length) {
-      throw new Error("No recipient autocomplete options found for share search");
-    }
-
-    const typed = String(recipientUsername || "").trim();
-    const optionsArray = Array.from($options);
-    const recipientKey = typed.split("@")[0];
-    const optionTestId =
-      recipientKey && recipientKey.length > 0
-        ? `recipient-autocomplete-item-${recipientKey}`
-        : "";
-
-    let target = optionsArray[0];
-
-    if (typed.length > 0) {
-      if (optionTestId) {
-        const idMatch = optionsArray.find(
-          (el) => el.getAttribute("data-testid") === optionTestId
-        );
-        if (idMatch) {
-          target = idMatch;
-        }
-      }
-
-      if (target === optionsArray[0]) {
-        const directMatch = optionsArray.find((el) => {
-          const text = (el.textContent || "").trim();
-          return text.includes(typed);
-        });
-
-        if (directMatch) {
-          target = directMatch;
-        } else {
-          const lowerTyped = typed.toLowerCase();
-          const ciMatch = optionsArray.find((el) => {
-            const text = (el.textContent || "").toLowerCase();
-            return text.includes(lowerTyped);
-          });
-          if (ciMatch) {
-            target = ciMatch;
-          }
-        }
-      }
-    }
+    const target = findBestShareRecipientOption($options, {
+      username,
+      recipientDisplayName,
+    });
 
     cy.wrap(target)
       .scrollIntoView()
       .should("be.visible")
       .click({ force: true });
+  });
+}
+
+function findBestShareCollaboratorRow(rowsLike, { username, recipientDisplayName }) {
+  const rowsArray = Array.from(rowsLike || []);
+
+  if (!rowsArray.length) {
+    throw new Error("No collaborators found after creating share");
+  }
+
+  const usernameNorm = normalizeIdentity(username);
+  const displayNorm = normalizeIdentity(recipientDisplayName);
+
+  const getTextNorm = (el) => normalizeIdentity(el.textContent || "");
+
+  const findBy = (predicate) =>
+    rowsArray.find((el) => {
+      const textNorm = getTextNorm(el);
+      return predicate(textNorm, el);
+    });
+
+  if (displayNorm) {
+    const exactDisplay = findBy((textNorm) => textNorm === displayNorm);
+    if (exactDisplay) return exactDisplay;
+  }
+
+  if (displayNorm) {
+    const containsDisplay = findBy((textNorm) =>
+      textNorm.includes(displayNorm)
+    );
+    if (containsDisplay) return containsDisplay;
+  }
+
+  if (usernameNorm) {
+    const exactUser = findBy((textNorm) => textNorm === usernameNorm);
+    if (exactUser) return exactUser;
+  }
+
+  if (usernameNorm) {
+    const containsUser = findBy((textNorm) =>
+      textNorm.includes(usernameNorm)
+    );
+    if (containsUser) return containsUser;
+  }
+
+  return rowsArray[0];
+}
+
+function verifyShareRecipientInCollaboratorsList({
+  username,
+  recipientDisplayName,
+}) {
+  cy.get('div[id="oc-files-sharing-sidebar"]').within(() => {
+    cy.get("#files-collaborators-list")
+      .should("be.visible")
+      .within(() => {
+        cy.get("li").then(($rows) => {
+          const row = findBestShareCollaboratorRow($rows, {
+            username,
+            recipientDisplayName,
+          });
+
+          cy.wrap(row)
+            .as("row")
+            .should("exist")
+            .within(() => {
+              const expectedNorms = [
+                normalizeIdentity(recipientDisplayName),
+                normalizeIdentity(username),
+              ].filter(Boolean);
+
+              if (expectedNorms.length) {
+                cy.wrap(row)
+                  .invoke("text")
+                  .then((text) => {
+                    const rowNorm = normalizeIdentity(text);
+                    const ok = expectedNorms.some((expected) =>
+                      rowNorm.includes(expected)
+                    );
+                    expect(ok).to.equal(true);
+                  });
+              }
+            });
+        });
+      });
+  });
+}
+
+export function createShare(filename, recipientUsername, recipientDisplayName) {
+  triggerActionForFile(filename, "share");
+
+  ensureShareSearchScope("External users");
+
+  cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
+    .should("be.visible")
+    .within(() => {
+      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 }).clear();
+      cy.intercept({
+        times: 1,
+        method: "GET",
+        url: "**/graph/v1.0/users?*",
+      }).as("userSearch");
+      cy.get('input[id="files-share-invite-input"]', { timeout: 15000 }).type(
+        recipientUsername
+      );
+      cy.wait("@userSearch");
+    });
+
+  selectShareRecipientFromAutocomplete({
+    username: recipientUsername,
+    recipientDisplayName,
   });
 
   cy.get('div[id="oc-files-sharing-sidebar"]', { timeout: 15000 })
@@ -262,6 +381,13 @@ export function createShare(filename, recipientUsername) {
         .should("be.visible")
         .click({ force: true });
     });
+
+  cy.wait(1000);
+
+  verifyShareRecipientInCollaboratorsList({
+    username: recipientUsername,
+    recipientDisplayName,
+  });
 }
 
 export function loginCore({ url, username, password }) {
@@ -318,6 +444,38 @@ export function loginCore({ url, username, password }) {
     });
 }
 
+export function createInviteToken(description = "Invite-link test invite") {
+  // Assumes we are already logged in and on /open-cloud-mesh/invitations
+  cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+  cy.contains("h2", "Invite users to federate").should("be.visible");
+
+  // Generate invitation in ScienceMesh
+  cy.contains("button", "Generate invitation").click();
+  cy.contains("h2", "Generate new invitation").should("be.visible");
+
+  cy.contains("label, div", "Add a description (optional)")
+    .parent()
+    .find("textarea, input")
+    .clear()
+    .type(description, { delay: 10 });
+
+  cy.contains('[role="dialog"] button', "Generate").click();
+
+  // Wait for table to update
+  cy.wait(1000);
+
+  // Extract the token from the first row in the invitations table
+  return cy
+    .get("table tbody tr")
+    .first()
+    .should("be.visible")
+    .invoke("attr", "data-item-id")
+    .then((token) => {
+      expect(token).to.be.a("string").and.not.be.empty;
+      return token;
+    });
+}
+
 export function createInviteLink({
   senderUrl,
   senderDomain,
@@ -327,10 +485,22 @@ export function createInviteLink({
   recipientDomain,
   inviteLinkFileName,
 }) {
-  throw new Error("cernbox/v2 createInviteLink is not implemented yet");
+  // Assumes we are already logged in and on /open-cloud-mesh/invitations
+  createInviteToken("Invite-link test invite").then((token) => {
+    cy.writeFile(inviteLinkFileName, token);
+  });
+}
+
+export function createLegacyInviteLink(recipientDomain, senderDomain) {
+  // Generate a new ScienceMesh invite token and wrap it in a legacy accept URL
+  return createInviteToken("Invite-link legacy test invite").then((token) => {
+    const url = `https://${recipientDomain}/index.php/apps/sciencemesh/accept?token=${token}&providerDomain=${senderDomain}`;
+    return url;
+  });
 }
 
 export function acceptInviteLink({
+  token,
   senderDomain,
   senderPlatform,
   senderUsername,
@@ -338,9 +508,41 @@ export function acceptInviteLink({
   recipientUrl,
   recipientUsername,
   recipientPassword,
-  inviteLinkFileName,
 }) {
-  throw new Error("cernbox/v2 acceptInviteLink is not implemented yet");
+  expect(token).to.be.a("string").and.not.be.empty;
+
+  // Navigate to the invitations page
+  openScienceMeshInvitations();
+
+  // Wait for the page to load and tolerate minor wording/casing changes
+  cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+  cy.contains("h2", /Accept invitations?/i).should("be.visible");
+
+  // Enter the token
+  cy.contains("label, div", "Enter invite token")
+    .parent()
+    .find("input, textarea")
+    .clear()
+    .type(token, { delay: 10 })
+    .should("have.value", token);
+
+  // Click accept button
+  cy.contains("button", "Accept").should("not.be.disabled").click();
+
+  // Wait for acceptance confirmation
+  cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
+
+  // Verify the federated connection appears in the table
+  const expectedName = senderDisplayName || senderUsername || "";
+
+  cy.contains("table tr", senderDomain, { timeout: 10000 })
+    .should("be.visible")
+    .within(() => {
+      if (expectedName) {
+        cy.contains("td", expectedName);
+      }
+      cy.contains("td", senderDomain);
+    });
 }
 
 export function createWayfInviteUrl() {

@@ -138,7 +138,9 @@ docker_cleanup() {
 
 # -----------------------------------------------------------------------------------
 # Function: recreate_docker_network
-# Purpose: Removes and recreates a specified Docker network.
+# Purpose: Removes and recreates a specified Docker network. If network removal
+# fails because containers are still attached, attempt to clean those containers
+# via their delete_* helpers before retrying.
 # Arguments:
 #   $1 - Name of the Docker network to recreate
 # -----------------------------------------------------------------------------------
@@ -151,9 +153,84 @@ recreate_docker_network() {
 
     # Remove the Docker network if it exists
     if docker network inspect "${network_name}" >/dev/null 2>&1; then
-        docker network rm "${network_name}" >/dev/null 2>&1 || {
+        if ! docker network rm "${network_name}" >/dev/null 2>&1; then
             run_quietly_if_ci printf "Warning: Failed to remove Docker network: %s\n" "${network_name}" >&2
-        }
+
+            # Attempt to clean up containers attached to this network using
+            # their delete_* helpers so we do not get stuck on a half-broken
+            # test network.
+            local containers
+            containers="$(docker ps --format '{{.Names}}' --filter "network=${network_name}" 2>/dev/null || true)"
+
+            if [[ -n "${containers}" ]]; then
+                declare -A cleaned=()
+                local cname
+                for cname in ${containers}; do
+                    # Strip trailing .docker suffix if present
+                    local raw="${cname%.docker}"
+
+                    # Singletons: cypress, meshdir, firefox, vnc, idp
+                    case "${raw}" in
+                        cypress|meshdir|firefox|vnc|idp)
+                            local key="singleton:${raw}"
+                            if [[ -z "${cleaned[${key}]:-}" ]] && declare -f "delete_${raw}" >/dev/null; then
+                                "delete_${raw}"
+                                cleaned["${key}"]=1
+                            fi
+                            continue
+                            ;;
+                    esac
+
+                    # CERNBox multi Reva stack (web + revad services)
+                    if [[ "${raw}" =~ ^cernbox([0-9]+)(-revad-.*)?$ ]]; then
+                        local idx="${BASH_REMATCH[1]}"
+                        local key="cernbox:${idx}"
+                        if [[ -z "${cleaned[${key}]:-}" ]] && declare -f delete_cernbox >/dev/null; then
+                            delete_cernbox "${idx}"
+                            cleaned["${key}"]=1
+                        fi
+                        continue
+                    fi
+
+                    # ScienceMesh Reva sidecars: reva<platform><N>, e.g. revanextcloud1
+                    if [[ "${raw}" =~ ^reva([a-z]+)([0-9]+)$ ]]; then
+                        local plat="${BASH_REMATCH[1]}"
+                        local idx="${BASH_REMATCH[2]}"
+                        local key="reva:${plat}:${idx}"
+                        if [[ -z "${cleaned[${key}]:-}" ]] && declare -f delete_reva >/dev/null; then
+                            delete_reva "${plat}" "${idx}"
+                            cleaned["${key}"]=1
+                        fi
+                        continue
+                    fi
+
+                    # Primary EFSS and service containers: nextcloud1, owncloud1, seafile1, ocis1, opencloud1, ocmstub1, etc.
+                    if [[ "${raw}" =~ ^([a-z]+)([0-9]+)$ ]]; then
+                        local token="${BASH_REMATCH[1]}"
+                        local idx="${BASH_REMATCH[2]}"
+                        local key="efss:${token}:${idx}"
+                        local fn="delete_${token}"
+                        if [[ -z "${cleaned[${key}]:-}" ]] && declare -f "${fn}" >/dev/null; then
+                            "${fn}" "${idx}"
+                            cleaned["${key}"]=1
+                        else
+                            # Fall back to best-effort docker rm if we do not know this token
+                            run_quietly_if_ci docker rm -fv "${cname}" || true
+                        fi
+                        continue
+                    fi
+
+                    # Default fallback for any remaining containers on the network
+                    run_quietly_if_ci docker rm -fv "${cname}" || true
+                done
+            fi
+
+            # Retry network removal after targeted cleanup
+            if ! docker network rm "${network_name}" >/dev/null 2>&1; then
+                run_quietly_if_ci printf "Error: Forced cleanup could not remove Docker network: %s\n" "${network_name}" >&2
+                exit 1
+            fi
+        fi
     fi
 
     # Create the Docker network
@@ -209,6 +286,14 @@ main() {
                 is_wayf=false
             fi
 
+            # CERNBox cleanup token mapping: both 'cernbox' and 'cernbox-wayf' use the same
+            # canonical delete_cernbox helper (which handles v2 multi-Reva teardown).
+            # This allows the v2 migration to remove the _wayf suffix from container helpers
+            # while maintaining backwards compatibility with existing cleanup token flows.
+            if [[ "${token}" == "cernbox" && "${is_wayf}" == true ]]; then
+                is_wayf=false
+            fi
+
             local idx="" cname=""
 
             if [[ ${SINGLETON[$token]+yes} ]]; then
@@ -247,8 +332,9 @@ main() {
         # always specify platform names: ./scripts/clean.sh nextcloud-wayf cernbox-wayf
         echo "WARNING: Running Big Hammer mode - this will remove ALL containers except dev-stock!" >&2
         echo "For safe local testing, use: ./scripts/clean.sh <platform1> [platform2 ...]" >&2
-        stop_and_remove_docker_containers
-        docker_cleanup
+        # TODO(@MahdiBaghbani): this is dangerous and I've disabled it for safety
+        # stop_and_remove_docker_containers
+        # docker_cleanup
     fi
 
     # @MahdiBaghbani: Couldn't decide if this is necessary or not

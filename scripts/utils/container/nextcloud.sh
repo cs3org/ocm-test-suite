@@ -164,6 +164,19 @@ delete_nextcloud() {
 
     run_quietly_if_ci echo "Deleting Nextcloud instance ${number} …"
 
+    # If neither the app nor DB container exists, skip Docker operations and log softly.
+    local any_present="false"
+    if docker ps -a --format '{{.Names}}' | grep -qx "${nc}"; then
+        any_present="true"
+    fi
+    if docker ps -a --format '{{.Names}}' | grep -qx "${db}"; then
+        any_present="true"
+    fi
+    if [[ "${any_present}" != "true" ]]; then
+        run_quietly_if_ci echo "Nextcloud instance ${number} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${nc}" "${db}" || true
 

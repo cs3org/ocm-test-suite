@@ -91,13 +91,13 @@ main() {
     local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
     local cernbox_idp_tag=latest
 
-    create_idp_wayf "${cernbox_idp_image}" "${cernbox_idp_tag}"
+    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
-    create_cernbox_wayf 1 \
+    create_cernbox 1 \
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 
-    create_cernbox_wayf 2 \
+    create_cernbox 2 \
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 

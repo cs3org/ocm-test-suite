@@ -16,7 +16,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
   // Shared variables to avoid repetition and improve maintainability
   const senderPlatform = Cypress.env('EFSS_PLATFORM_1') ?? 'cernbox';
   const recipientPlatform = Cypress.env('EFSS_PLATFORM_2') ?? 'ocis';
-  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v1';
+  const senderVersion = Cypress.env('EFSS_PLATFORM_1_VERSION') ?? 'v2';
   const recipientVersion = Cypress.env('EFSS_PLATFORM_2_VERSION') ?? 'v5';
   const senderUrl = Cypress.env('CERNBOX1_URL') || 'https://cernbox1.docker';
   const recipientUrl = Cypress.env('OCIS1_URL') || 'https://ocis1.docker';
@@ -30,7 +30,7 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
   const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, '');
   const inviteLinkFileName = 'invite-link-nc-ocis.txt';
   const originalFileName = 'welcome.txt';
-  const sharedFileName = inviteLinkFileName;
+  const sharedFileName = 'invite-link-nc-ocis';
 
   // Get the right helper set for each side
   const senderUtils = getUtils(senderPlatform, senderVersion);
@@ -85,17 +85,17 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
    * 3. Rename the file for sharing
    * 4. Create the share for the recipient
    */
-  // it('Send ScienceMesh share <file> from CERNBox to oCIS', () => {
-  //   senderUtils.shareViaInviteLink({
-  //     senderUrl,
-  //     senderUsername,
-  //     senderPassword,
-  //     sharedFileName,
-  //     sharedFileContent,
-  //     recipientUsername,
-  //     recipientDisplayName,
-  //   });
-  // });
+  it('Send ScienceMesh share <file> from CERNBox to oCIS', () => {
+    senderUtils.shareViaInviteLink({
+      senderUrl,
+      senderUsername,
+      senderPassword,
+      sharedFileName,
+      sharedFileContent,
+      recipientUsername,
+      recipientDisplayName,
+    });
+  });
 
   /**
    * Test case: Receiving and verifying the ScienceMesh share on oCIS side.
@@ -104,14 +104,14 @@ describe('Invite link federated sharing via ScienceMesh functionality between CE
    * 2. Navigate to the Files app
    * 3. Verify the shared file exists
    */
-  // it('Receive ScienceMesh share <file> from CERNBox to oCIS', () => {
-  //   recipientUtils.acceptInviteLinkShare({
-  //     senderDisplayName,
-  //     recipientUrl,
-  //     recipientUsername,
-  //     recipientPassword,
-  //     recipientDisplayName,
-  //     sharedFileName,
-  //   });
-  // });
+  it('Receive ScienceMesh share <file> from CERNBox to oCIS', () => {
+    recipientUtils.acceptInviteLinkShare({
+      senderDisplayName,
+      recipientUrl,
+      recipientUsername,
+      recipientPassword,
+      recipientDisplayName,
+      sharedFileName,
+    });
+  });
 });

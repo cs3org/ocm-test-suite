@@ -1,4 +1,4 @@
-name: OCM Test Invite link Cernbox v1.29.0 to Ocis v7.1.2
+name: OCM Test Invite link Cernbox v2 to Ocis v5.0.9
 
 on:
   workflow_dispatch:
@@ -9,6 +9,6 @@ jobs:
     with:
       scenario:          invite-link
       sender_platform:   cernbox
-      sender_version:    v1.29.0
+      sender_version:    v2
       receiver_platform: ocis
-      receiver_version:  v7.1.2
+      receiver_version:  v5.0.9

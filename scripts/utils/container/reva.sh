@@ -72,6 +72,12 @@ delete_reva() {
 
     run_quietly_if_ci echo "Deleting Reva ScienceMesh reva${platform} instance ${number} …"
 
+    # If the container does not exist, skip Docker operations and log softly.
+    if ! docker ps -a --format '{{.Names}}' | grep -qx "${reva}"; then
+        run_quietly_if_ci echo "Reva ScienceMesh ${reva} not found - cleaning skipped."
+        return 0
+    fi
+
     # Stop containers if they exist (ignore errors if already gone/stopped)
     run_quietly_if_ci docker stop "${reva}" || true
 

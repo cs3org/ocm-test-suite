@@ -143,6 +143,49 @@ create_nextcloud_dev() {
 }
 
 # ------------------------------------------------------------------------------
+# Function: create_nextcloud_ci
+# Purpose: Creates a Nextcloud container for CI with source mount and HTTPS
+#
+# This function creates a Nextcloud container using the DockyPody nextcloud-base
+# image with the Nextcloud source code mounted from the host. Designed for CI
+# pipelines where the Nextcloud repo is checked out on the runner.
+#
+# Arguments:
+#   $1: Container number/ID
+#   $2: Admin username
+#   $3: Admin password
+#
+# Environment Variables Used:
+#   NEXTCLOUD_SOURCE_DIR: Host path to Nextcloud source (required)
+#   NEXTCLOUD_CI_IMAGE: DockyPody Nextcloud image (default: ghcr.io/mahdibaghbani/containers/nextcloud-base)
+#   NEXTCLOUD_CI_TAG: Image tag (default: latest)
+#
+# Example:
+#   NEXTCLOUD_SOURCE_DIR=/path/to/nextcloud create_nextcloud_ci 1 "admin" "password"
+# ------------------------------------------------------------------------------
+create_nextcloud_ci() {
+    local number="${1}"
+    local user="${2}"
+    local password="${3}"
+    local source_dir="${NEXTCLOUD_SOURCE_DIR:-}"
+    local image="${NEXTCLOUD_CI_IMAGE:-ghcr.io/mahdibaghbani/containers/nextcloud-base}"
+    local tag="${NEXTCLOUD_CI_TAG:-latest}"
+
+    if [[ -z "${source_dir}" ]]; then
+        error_exit "NEXTCLOUD_SOURCE_DIR must be set for CI mode"
+    fi
+
+    if [[ ! -d "${source_dir}" ]]; then
+        error_exit "NEXTCLOUD_SOURCE_DIR '${source_dir}' does not exist or is not a directory"
+    fi
+
+    local volume_args="-v ${source_dir}:/usr/src/nextcloud:ro"
+    local extra_env="-e NEXTCLOUD_HTTPS_MODE=https-only"
+
+    _create_nextcloud_base "${number}" "${user}" "${password}" "${image}" "${tag}" "${volume_args}" "${extra_env}" ""
+}
+
+# ------------------------------------------------------------------------------
 # Function: delete_nextcloud
 # Purpose : Stop and remove a Nextcloud + MariaDB pair (and their named volumes)
 #

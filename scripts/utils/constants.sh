@@ -28,6 +28,14 @@ REDIS_WAYF_HOST_PORT="6379"
 REDIS_WAYF_HOST_PASSWORD=""
 export VALKEY_WAYF_REPO VALKEY_WAYF_TAG REDIS_WAYF_HOST_PORT REDIS_WAYF_HOST_PASSWORD
 
+# Nextcloud CI Valkey/Redis configuration (for DockyPody-backed share-with flows)
+# Kept distinct from WAYF vars to allow independent tuning; defaults match WAYF for consistency
+VALKEY_NEXTCLOUD_REPO="valkey/valkey"
+VALKEY_NEXTCLOUD_TAG="9.0-alpine"
+REDIS_NEXTCLOUD_HOST_PORT="6379"
+REDIS_NEXTCLOUD_HOST_PASSWORD=""
+export VALKEY_NEXTCLOUD_REPO VALKEY_NEXTCLOUD_TAG REDIS_NEXTCLOUD_HOST_PORT REDIS_NEXTCLOUD_HOST_PASSWORD
+
 # Paths to required directories
 TEMP_DIR="${ENV_ROOT}/temp"
 TLS_CA_DIR="${ENV_ROOT}/docker/tls/certificate-authority"

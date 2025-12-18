@@ -126,6 +126,9 @@ _create_nextcloud_base_dockypody() {
     run_docker_container --detach --network="${DOCKER_NETWORK}" \
         --name="marianextcloud${number}.docker" \
         -e MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD}" \
+        -e MYSQL_DATABASE="${MYSQL_NEXTCLOUD_DATABASE}" \
+        -e MYSQL_USER="${MYSQL_NEXTCLOUD_USER}" \
+        -e MYSQL_PASSWORD="${MYSQL_NEXTCLOUD_PASSWORD}" \
         "${MARIADB_REPO}":"${MARIADB_TAG}" \
         --transaction-isolation=READ-COMMITTED \
         --log-bin=binlog \
@@ -159,9 +162,9 @@ _create_nextcloud_base_dockypody() {
         -e NEXTCLOUD_ADMIN_PASSWORD="${password}" \
         -e NEXTCLOUD_APACHE_LOGLEVEL="warn" \
         -e MYSQL_HOST="marianextcloud${number}.docker" \
-        -e MYSQL_DATABASE="efss" \
-        -e MYSQL_USER="root" \
-        -e MYSQL_PASSWORD="${MARIADB_ROOT_PASSWORD}" \
+        -e MYSQL_DATABASE="${MYSQL_NEXTCLOUD_DATABASE}" \
+        -e MYSQL_USER="${MYSQL_NEXTCLOUD_USER}" \
+        -e MYSQL_PASSWORD="${MYSQL_NEXTCLOUD_PASSWORD}" \
         -e REDIS_HOST="redisnextcloud${number}.docker" \
         -e REDIS_HOST_PORT="${REDIS_NEXTCLOUD_HOST_PORT}" \
         -e REDIS_HOST_PASSWORD="${REDIS_NEXTCLOUD_HOST_PASSWORD}" \

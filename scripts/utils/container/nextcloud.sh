@@ -253,7 +253,7 @@ create_nextcloud_dev() {
 #
 # Environment Variables Used:
 #   NEXTCLOUD_SOURCE_DIR: Host path to Nextcloud source (required)
-#   NEXTCLOUD_CI_IMAGE: DockyPody Nextcloud image (default: ghcr.io/mahdibaghbani/containers/nextcloud-base)
+#   NEXTCLOUD_CI_IMAGE: DockyPody Nextcloud image (default: ghcr.io/mahdibaghbani/containers/nextcloud:latest)
 #   NEXTCLOUD_CI_TAG: Image tag (default: latest)
 #
 # Example:
@@ -264,7 +264,7 @@ create_nextcloud_ci() {
     local user="${2}"
     local password="${3}"
     local source_dir="${NEXTCLOUD_SOURCE_DIR:-}"
-    local image="${NEXTCLOUD_CI_IMAGE:-ghcr.io/mahdibaghbani/containers/nextcloud-base}"
+    local image="${NEXTCLOUD_CI_IMAGE:-ghcr.io/mahdibaghbani/containers/nextcloud:latest}"
     local tag="${NEXTCLOUD_CI_TAG:-latest}"
 
     if [[ -z "${source_dir}" ]]; then

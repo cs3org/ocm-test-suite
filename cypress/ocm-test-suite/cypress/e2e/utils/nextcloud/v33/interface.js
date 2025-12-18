@@ -239,16 +239,22 @@ export function shareViaNativeShareWith({
   // Step 1: Log in to the sender's Nextcloud instance
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
 
-  // Step 2: Ensure the original file exists before renaming
+  // Step 2: Navigate to the Files app before interacting with the v33 files table
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+  // Step 3: Ensure the original file exists before renaming
   implementation.ensureFileExists(originalFileName);
 
-  // Step 3: Rename the file to prepare it for sharing
+  // Step 4: Rename the file to prepare it for sharing
   implementation.renameFile(originalFileName, sharedFileName);
 
-  // Step 4: Verify the file has been renamed
+  // Step 5: Verify the file has been renamed
   implementation.ensureFileExists(sharedFileName);
 
-  // Step 5: Create a federated share for the recipient
+  // Step 6: Create a federated share for the recipient
   implementation.createShare(
     sharedFileName,
     recipientUsername,
@@ -269,7 +275,13 @@ export function acceptNativeShareWithShare({
     password: recipientPassword,
   });
 
-  // Step 2: Handle any share acceptance pop-ups and verify the file exists
+  // Step 2: Navigate to the Files app so v33 table structure is present
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+  // Step 3: Handle any share acceptance pop-ups and verify the file exists
   implementation.handleShareAcceptance(sharedFileName);
 }
 

@@ -1,0 +1,14 @@
+name: OCM Test Invite link Ocmstub v1.0.0 to Ocmstub v1.0.0
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          invite-link
+      sender_platform:   ocmstub
+      sender_version:    v1.0.0
+      receiver_platform: ocmstub
+      receiver_version:  v1.0.0

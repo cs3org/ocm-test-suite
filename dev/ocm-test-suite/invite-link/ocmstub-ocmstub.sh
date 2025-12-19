@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 
 # -----------------------------------------------------------------------------------
-# Script to Test CERNBox to CERNBox OCM invite-link flow tests.
+# Script to Test OCMStub to OCMStub OCM invite-link flow tests.
 # Author: Mohammad Mahdi Baghbani Pourvahid <mahdi@pondersource.com>
 # -----------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------
 # Description:
 #   This script automates the setup and testing of EFSS (Enterprise File Synchronization and Sharing) platforms
-#   such as CERNBox, using Cypress, and Docker containers.
+#   such as OCMStub, using Cypress, and Docker containers.
 #   It supports both development and CI environments, with optional browser support.
 # Usage:
-#   ./cernbox-cernbox.sh [EFSS_PLATFORM_1_VERSION] [EFSS_PLATFORM_2_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
+#   ./ocmstub-ocmstub.sh [EFSS_PLATFORM_1_VERSION] [EFSS_PLATFORM_2_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
 # Arguments:
-#   EFSS_PLATFORM_1_VERSION : Version of the first EFSS platform (default: "v2").
-#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v2").
+#   EFSS_PLATFORM_1_VERSION : Version of the first EFSS platform (default: "v1.0.0").
+#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v1.0.0").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM        : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 # Example:
-#   ./cernbox-cernbox.sh v2 v2 ci electron
+#   ./ocmstub-ocmstub.sh v1.0.0 v1.0.0 ci electron
 # -----------------------------------------------------------------------------------
 
 # Exit immediately if a command exits with a non-zero status,
@@ -30,8 +30,8 @@ set -euo pipefail
 # -----------------------------------------------------------------------------------
 
 # Default versions
-DEFAULT_EFSS_1_VERSION="v2"
-DEFAULT_EFSS_2_VERSION="v2"
+DEFAULT_EFSS_1_VERSION="v1.0.0"
+DEFAULT_EFSS_2_VERSION="v1.0.0"
 
 # -----------------------------------------------------------------------------------
 # Function: resolve_script_dir
@@ -111,34 +111,18 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
-    local cernbox_revad_tag=mahdi_fix_localhome-development
-    local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
-    local cernbox_web_tag=testing
-    local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
-    local cernbox_idp_tag=latest
+    # Create EFSS containers
+    #                # id   # image                 # tag
+    create_ocmstub   1      pondersource/ocmstub    "${EFSS_PLATFORM_1_VERSION}"
+    create_ocmstub   2      pondersource/ocmstub    "${EFSS_PLATFORM_2_VERSION}"
 
-    # Create IdP container for CERNBox v2
-    create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
-
-    # Create CERNBox v2 containers
-    # In CI mode with REVA_BINARY_DIR set, use create_cernbox_ci for Reva override
-    if [ "${CI_ENVIRONMENT:-}" = "true" ] && [ -n "${REVA_BINARY_DIR:-}" ]; then
-        create_cernbox_ci 1
-        create_cernbox_ci 2
-    else
-        #                 # id    # revad image             # revad tag              # web image               # web tag
-        create_cernbox    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
-        create_cernbox    2       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
-    fi
-
-    # Start Mesh Directory
+    # Start Mesh Directory (OCM Stub acting as meshdir)
     create_meshdir pondersource/ocmstub v1.0.0
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \
-            "https://cernbox1.docker (username: einstein, password: relativity)" \
-            "https://cernbox2.docker (username: marie, password: radioactivity)"
+            "https://ocmstub1.docker/? (just click 'Log in')" \
+            "https://ocmstub2.docker/? (just click 'Log in')"
     else
         run_ci "${TEST_SCENARIO}" "${EFSS_PLATFORM_1}" "${EFSS_PLATFORM_2}"
     fi

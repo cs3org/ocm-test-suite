@@ -52,6 +52,9 @@ function register(mod) {
   sf11
 ].forEach(register);
 
+// Register version aliases for OCMStub (v1 -> v1.0.0)
+REGISTRY.get('ocmstub').set('v1.0.0', os1);
+
 /**
  * @param {string} platform  e.g. 'nextcloud'
  * @param {string|number} version e.g. 'v29'

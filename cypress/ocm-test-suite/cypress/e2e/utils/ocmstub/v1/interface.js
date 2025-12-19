@@ -9,6 +9,7 @@ import * as implementation from './implementation.js';
 
 export const platform = 'ocmstub';
 export const version = 'v1';
+export const versionAliases = ['v1.0.0'];
 
 export function login({ url }) {
   cy.visit(`${url}/?`);
@@ -22,6 +23,112 @@ export function login({ url }) {
   // Verify session activation
   cy.url({ timeout: 10000 }).should('match', /\/?session=active/);
 };
+
+/**
+ * Create an invite link from OCMStub (as inviter).
+ * Calls the /ocm/generate-invite-token endpoint to retrieve the token.
+ */
+export function createInviteLink({
+  senderUrl,
+  senderDomain,
+  senderUsername,
+  senderPassword,
+  recipientPlatform,
+  recipientDomain,
+  inviteLinkFileName,
+}) {
+  // Log in to OCMStub first
+  login({ url: senderUrl });
+
+  // Call the token generation endpoint and extract the token
+  cy.request({
+    method: 'GET',
+    url: `${senderUrl}/ocm/generate-invite-token`,
+    failOnStatusCode: true,
+  }).then((response) => {
+    expect(response.status).to.eq(200);
+    expect(response.body).to.have.property('token');
+    
+    const inviteToken = response.body.token;
+    cy.log(`Generated invite token: ${inviteToken}`);
+    
+    // Write the token to the file for the receiver to use
+    cy.writeFile(inviteLinkFileName, inviteToken);
+  });
+}
+
+/**
+ * Accept an invite link on OCMStub (as receiver).
+ * Navigates to /accept-invite with the token and providerDomain.
+ */
+export function acceptInviteLink({
+  senderDomain,
+  senderPlatform,
+  senderUsername,
+  senderDisplayName,
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  inviteLinkFileName,
+}) {
+  // Read the token from file
+  cy.readFile(inviteLinkFileName).then((rawToken) => {
+    const token = String(rawToken).trim();
+
+    // Navigate to OCMStub's accept-invite endpoint
+    const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, '');
+    const acceptUrl = `${recipientUrl}/accept-invite?token=${token}&providerDomain=${senderDomain}`;
+
+    cy.visit(acceptUrl);
+
+    // Verify successful acceptance
+    cy.contains('Invite Accepted', { timeout: 15000 }).should('be.visible');
+    cy.contains(senderDomain, { timeout: 10000 }).should('be.visible');
+  });
+}
+
+/**
+ * Share a file via the established invite-link contact.
+ * Uses the existing shareViaNativeShareWith mechanism.
+ */
+export function shareViaInviteLink({
+  senderUrl,
+  senderUsername,
+  senderPassword,
+  sharedFileName,
+  sharedFileContent,
+  recipientUsername,
+  recipientDisplayName,
+}) {
+  // OCMStub share-with is done via URL navigation
+  const recipientDomain = recipientDisplayName || recipientUsername;
+  // Build the share URL - OCMStub uses einstein as the hardcoded user
+  cy.visit(`${senderUrl}/shareWith?${recipientUsername}@${recipientDomain}`);
+
+  // Verify the confirmation message is displayed
+  cy.contains('yes shareWith', { timeout: 10000 }).should('be.visible');
+}
+
+/**
+ * Accept a share received via invite-link contact.
+ */
+export function acceptInviteLinkShare({
+  senderDisplayName,
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  recipientDisplayName,
+  sharedFileName,
+}) {
+  // Log in to OCMStub
+  login({ url: recipientUrl });
+
+  // Navigate to accept the share
+  cy.visit(`${recipientUrl}/acceptShare`);
+
+  // Verify share acceptance
+  cy.contains('yes acceptShare', { timeout: 10000 }).should('be.visible');
+}
 
 export function shareViaNativeShareWith({
   senderUrl,

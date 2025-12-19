@@ -47,7 +47,7 @@ scenarios:
   invite-link:
     include:
       - sender: [cernbox]
-        receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
+        receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm, ocmstub]
       - sender: [nextcloud-sm]
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
       - sender: [ocis]
@@ -56,6 +56,8 @@ scenarios:
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
       - sender: [owncloud-sm]
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
+      - sender: [ocmstub]
+        receiver: [cernbox, ocmstub]
   
   # WAYF (Where Are You From) Directory Service mediated invite flows
   # Uses per-scenario version scoping to introduce NC v33 and CB v2 for WAYF only

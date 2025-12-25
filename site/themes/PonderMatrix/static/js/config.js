@@ -58,6 +58,7 @@ export const config = {
         'CERNBox v2': 'crnbx-v2',
         'oCIS v5.0.9': 'ocis-v5',
         'OcmStub v1.0.0': 'os-v1',
+        'OcmStub v1.1.0': 'os-v1',
         'ownCloud v10.15.0': 'oc-v10',
         'Seafile v11.0.13': 'sf-v11',
         'Nextcloud v27.1.11 (ScienceMesh)': 'nc-sm-v27',

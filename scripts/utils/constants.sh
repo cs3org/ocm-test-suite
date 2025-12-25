@@ -20,6 +20,13 @@ MYSQL_WAYF_USER="nextcloud"
 MYSQL_WAYF_PASSWORD="nextcloudpassword"
 export MYSQL_WAYF_DATABASE MYSQL_WAYF_USER MYSQL_WAYF_PASSWORD
 
+# Nextcloud MySQL configuration for DockyPody-backed share-with flows (mirrors examples/nextcloud/env)
+# These values must stay in sync with the Nextcloud example env contract
+MYSQL_NEXTCLOUD_DATABASE="nextcloud"
+MYSQL_NEXTCLOUD_USER="nextcloud"
+MYSQL_NEXTCLOUD_PASSWORD="nextcloudpassword"
+export MYSQL_NEXTCLOUD_DATABASE MYSQL_NEXTCLOUD_USER MYSQL_NEXTCLOUD_PASSWORD
+
 # WAYF Valkey/Redis configuration (mirrors examples/nextcloud/env)
 # These values must stay in sync with the example docker-compose contract
 VALKEY_WAYF_REPO="valkey/valkey"
@@ -27,6 +34,14 @@ VALKEY_WAYF_TAG="9.0-alpine"
 REDIS_WAYF_HOST_PORT="6379"
 REDIS_WAYF_HOST_PASSWORD=""
 export VALKEY_WAYF_REPO VALKEY_WAYF_TAG REDIS_WAYF_HOST_PORT REDIS_WAYF_HOST_PASSWORD
+
+# Nextcloud CI Valkey/Redis configuration (for DockyPody-backed share-with flows)
+# Kept distinct from WAYF vars to allow independent tuning; defaults match WAYF for consistency
+VALKEY_NEXTCLOUD_REPO="valkey/valkey"
+VALKEY_NEXTCLOUD_TAG="9.0-alpine"
+REDIS_NEXTCLOUD_HOST_PORT="6379"
+REDIS_NEXTCLOUD_HOST_PASSWORD=""
+export VALKEY_NEXTCLOUD_REPO VALKEY_NEXTCLOUD_TAG REDIS_NEXTCLOUD_HOST_PORT REDIS_NEXTCLOUD_HOST_PASSWORD
 
 # Paths to required directories
 TEMP_DIR="${ENV_ROOT}/temp"

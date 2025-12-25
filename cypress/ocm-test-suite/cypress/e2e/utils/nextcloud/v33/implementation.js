@@ -304,36 +304,71 @@ export function handleShareAcceptance(
 }
 
 /**
- * Creates a share for a specific file and user using v33 Sharing sidebar.
+ * Creates a share for a specific file and user using the same v33 Sharing sidebar
+ * mechanics as federated/WAYF flows, but for native share-with scenarios.
+ *
+ * For Nextcloud v33, native share-with between instances is implemented as a
+ * remote/federated share, so this mirrors createFederatedShare:
+ *   - Go to Files app on the sender instance.
+ *   - Open sharing panel for the file.
+ *   - Type username@remoteHost into the External shares combobox.
+ *   - Confirm the remote host dialog and save the share.
  *
  * @param {string} fileName - The name of the file to be shared.
- * @param {string} username - The username of the recipient.
- * @param {string} domain - The domain of the recipient.
+ * @param {string} username - The username of the remote account on the recipient.
+ * @param {string} domain  - The domain/host of the recipient (e.g. "nextcloud2.docker").
  */
 export function createShare(fileName, username, domain) {
-  // Open the sharing panel for the specified file
-  openSharingPanel(fileName);
+  if (!username) {
+    throw new Error(
+      "createShare requires the remote account username so we can type username@domain (not displayName@domain)."
+    );
+  }
 
-  // Set up an intercept for the user search API request
-  cy.intercept("GET", "**/apps/files_sharing/api/v1/sharees?*").as(
-    "userSearch"
-  );
+  // Derive sender (local) host from current location and normalize remote host.
+  return cy.location().then((loc) => {
+    const localHost = loc.hostname || loc.host;
+    const contactDomain = String(domain).replace(/^https?:\/\/|\/$/g, "");
 
-  cy.get('[role="complementary"]').within(() => {
-    // Use Internal shares combobox for local users
-    cy.get('[role="combobox"][aria-label*="Search for internal recipients"]')
-      .clear()
-      .type(`${username}@${domain}`);
+    // Navigate to the Files app on the sender.
+    cy.visit(`https://${localHost}/index.php/apps/files`);
+
+    // Open the sharing panel for the file.
+    openSharingPanel(fileName);
+
+    const remoteFederatedCloudId = `${username}@${contactDomain}`;
+    const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
+
+    // Use the External shares combobox to type the Federated Cloud ID.
+    cy.get(
+      'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
+    )
+      .click()
+      .type(remoteFederatedCloudId);
+
+    // Select the host-based option (without mail icon) - e.g.,
+    // "username on nextcloud2.docker"
+    cy.contains('[role="option"]', `on ${remoteInstanceHost}`).click();
+
+    // Confirm the share in the "Share with ... on remote server ..." view.
+    cy.contains("h1", `on remote server ${remoteInstanceHost}`, {
+      timeout: 20000,
+    }).should("be.visible");
+
+    cy.intercept("POST", "**/ocs/v2.php/apps/files_sharing/api/v1/shares*").as(
+      "createShare"
+    );
+
+    cy.contains("button", "Save share").should("be.visible").click();
+    cy.wait("@createShare")
+      .its("response.statusCode")
+      .should("be.oneOf", [200, 201]);
+
+    // Assert toast "Share saved" for parity with federated flows.
+    cy.contains("div", "Share saved").should("be.visible");
+
+    cy.wait(1000);
   });
-
-  // Wait for the user search API request to complete
-  cy.wait("@userSearch");
-
-  // Select the correct user from the search results
-  cy.get(`[user="${username}"]`).should("be.visible").click();
-
-  // Click the "Save share" button to finalize the share
-  cy.get('[role="button"]').contains("Save share").should("be.visible").click();
 }
 
 /**

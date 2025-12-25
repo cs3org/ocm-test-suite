@@ -81,6 +81,101 @@ _create_nextcloud_base() {
 }
 
 # ------------------------------------------------------------------------------
+# Function: _create_nextcloud_base_dockypody
+# Purpose: DockyPody-native internal helper to create a Nextcloud container with
+#          MariaDB + Redis/Valkey backend, using the DockyPody nextcloud-base image.
+#
+# This helper is used by create_nextcloud_ci for CI flows where the Nextcloud source
+# is mounted from the host. It relies entirely on the DockyPody image's internal TLS
+# pipeline (/tls) and does not mount legacy OCM Test Suite TLS certificates.
+#
+# Long-term expectation: this will become the default Nextcloud helper once legacy
+# flows migrate to DockyPody images.
+#
+# Arguments:
+#   $1: Container number/ID
+#   $2: Admin username
+#   $3: Admin password
+#   $4: Docker image
+#   $5: Docker tag
+#   $6: Volume mount arguments (optional, format: "-v path:path")
+#   $7: Extra env values for the container (optional, format "-e env=value")
+#
+# Environment Variables Used:
+#   DOCKER_NETWORK: Network for container communication
+#   MARIADB_ROOT_PASSWORD: Root password for MariaDB
+#   MARIADB_REPO: MariaDB Docker image repository
+#   MARIADB_TAG: MariaDB Docker image tag
+#   VALKEY_NEXTCLOUD_REPO: Valkey Docker image repository
+#   VALKEY_NEXTCLOUD_TAG: Valkey Docker image tag
+#   REDIS_NEXTCLOUD_HOST_PORT: Redis port
+#   REDIS_NEXTCLOUD_HOST_PASSWORD: Redis password
+# ------------------------------------------------------------------------------
+_create_nextcloud_base_dockypody() {
+    local number="${1}"
+    local user="${2}"
+    local password="${3}"
+    local image="${4}"
+    local tag="${5}"
+    local volume_args="${6:-}"
+    local extra_env="${7:-}"
+
+    run_quietly_if_ci echo "Creating DockyPody Nextcloud instance ${number} with ${image}:${tag}"
+
+    # Start MariaDB container with optimized configuration
+    run_docker_container --detach --network="${DOCKER_NETWORK}" \
+        --name="marianextcloud${number}.docker" \
+        -e MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD}" \
+        -e MYSQL_DATABASE="${MYSQL_NEXTCLOUD_DATABASE}" \
+        -e MYSQL_USER="${MYSQL_NEXTCLOUD_USER}" \
+        -e MYSQL_PASSWORD="${MYSQL_NEXTCLOUD_PASSWORD}" \
+        "${MARIADB_REPO}":"${MARIADB_TAG}" \
+        --transaction-isolation=READ-COMMITTED \
+        --log-bin=binlog \
+        --binlog-format=ROW \
+        --innodb-file-per-table=1 \
+        --skip-innodb-read-only-compressed || error_exit "Failed to start MariaDB container for nextcloud ${number}."
+
+    # Ensure MariaDB is ready before proceeding
+    wait_for_port "marianextcloud${number}.docker" 3306
+
+    # Start Redis/Valkey container for caching
+    run_docker_container --detach --network="${DOCKER_NETWORK}" \
+        --name="redisnextcloud${number}.docker" \
+        "${VALKEY_NEXTCLOUD_REPO}":"${VALKEY_NEXTCLOUD_TAG}" || error_exit "Failed to start Valkey container for nextcloud ${number}."
+
+    # Start Nextcloud container with DockyPody configuration
+    # Uses --hostname to ensure Apache/Nextcloud see the correct hostname for TLS
+    # NEXTCLOUD_HTTPS_MODE=https-only enables HTTPS on port 443 via DockyPody TLS pipeline
+    # shellcheck disable=SC2086
+    run_docker_container --detach --network="${DOCKER_NETWORK}" \
+        --name="nextcloud${number}.docker" \
+        --hostname="nextcloud${number}.docker" \
+        --add-host "host.docker.internal:host-gateway" \
+        ${volume_args} \
+        -e HOST="nextcloud${number}" \
+        -e NEXTCLOUD_HOST="nextcloud${number}.docker" \
+        -e NEXTCLOUD_TRUSTED_DOMAINS="nextcloud${number}.docker" \
+        -e APACHE_SERVER_NAME="nextcloud${number}.docker" \
+        -e NEXTCLOUD_HTTPS_MODE="https-only" \
+        -e NEXTCLOUD_ADMIN_USER="${user}" \
+        -e NEXTCLOUD_ADMIN_PASSWORD="${password}" \
+        -e NEXTCLOUD_APACHE_LOGLEVEL="warn" \
+        -e MYSQL_HOST="marianextcloud${number}.docker" \
+        -e MYSQL_DATABASE="${MYSQL_NEXTCLOUD_DATABASE}" \
+        -e MYSQL_USER="${MYSQL_NEXTCLOUD_USER}" \
+        -e MYSQL_PASSWORD="${MYSQL_NEXTCLOUD_PASSWORD}" \
+        -e REDIS_HOST="redisnextcloud${number}.docker" \
+        -e REDIS_HOST_PORT="${REDIS_NEXTCLOUD_HOST_PORT}" \
+        -e REDIS_HOST_PASSWORD="${REDIS_NEXTCLOUD_HOST_PASSWORD}" \
+        ${extra_env} \
+        "${image}:${tag}" || error_exit "Failed to start Nextcloud container ${number}."
+
+    # Ensure Nextcloud is ready to accept HTTPS connections
+    run_quietly_if_ci wait_for_port "nextcloud${number}.docker" 443
+}
+
+# ------------------------------------------------------------------------------
 # Function: create_nextcloud
 # Purpose: Creates a standard Nextcloud container with MariaDB backend
 #
@@ -143,33 +238,81 @@ create_nextcloud_dev() {
 }
 
 # ------------------------------------------------------------------------------
-# Function: delete_nextcloud
-# Purpose : Stop and remove a Nextcloud + MariaDB pair (and their named volumes)
+# Function: create_nextcloud_ci
+# Purpose: Creates a Nextcloud container for CI with source mount and HTTPS
+#
+# This function creates a Nextcloud container using the DockyPody nextcloud-base
+# image with the Nextcloud source code mounted from the host. Designed for CI
+# pipelines where the Nextcloud repo is checked out on the runner.
+#
+# Uses _create_nextcloud_base_dockypody which provisions MariaDB + Redis + Nextcloud
+# with HTTPS enabled via NEXTCLOUD_HTTPS_MODE=https-only. The legacy IS_CI_IMAGE
+# path and /ci.sh clone-at-runtime mechanism are not used here.
 #
 # Arguments:
-#   $1  Container number/
+#   $1: Container number/ID
+#   $2: Admin username
+#   $3: Admin password
+#
+# Environment Variables Used:
+#   NEXTCLOUD_SOURCE_DIR: Host path to Nextcloud source (required)
+#   NEXTCLOUD_CI_IMAGE: DockyPody Nextcloud image (default: ghcr.io/mahdibaghbani/containers/nextcloud)
+#   NEXTCLOUD_CI_TAG: Image tag (default: latest)
 #
 # Example:
-#   delete_nextcloud 1       # removes nextcloud1.docker & marianextcloud1.docker
+#   NEXTCLOUD_SOURCE_DIR=/path/to/nextcloud create_nextcloud_ci 1 "admin" "password"
+# ------------------------------------------------------------------------------
+create_nextcloud_ci() {
+    local number="${1}"
+    local user="${2}"
+    local password="${3}"
+    local source_dir="${NEXTCLOUD_SOURCE_DIR:-}"
+    local image="${NEXTCLOUD_CI_IMAGE:-ghcr.io/mahdibaghbani/containers/nextcloud}"
+    local tag="${NEXTCLOUD_CI_TAG:-latest}"
+
+    if [[ -z "${source_dir}" ]]; then
+        error_exit "NEXTCLOUD_SOURCE_DIR must be set for CI mode"
+    fi
+
+    local volume_args="-v ${source_dir}:/usr/src/nextcloud:ro"
+
+    # HTTPS mode is enforced inside _create_nextcloud_base_dockypody, not passed externally
+    _create_nextcloud_base_dockypody "${number}" "${user}" "${password}" "${image}" "${tag}" "${volume_args}" ""
+}
+
+# ------------------------------------------------------------------------------
+# Function: delete_nextcloud
+# Purpose : Stop and remove a Nextcloud + MariaDB + Redis trio (and their named volumes)
+#
+# Arguments:
+#   $1  Container number
+#
+# Example:
+#   delete_nextcloud 1       # removes nextcloud1.docker, marianextcloud1.docker, redisnextcloud1.docker
 #
 # Notes:
 #   • Anonymous volumes are removed automatically with `docker rm -v`.
 #   • Named volumes are detected via `docker inspect` and removed explicitly.
 #   • Bind-mounts on the host are intentionally not touched.
+#   • Redis cleanup is conditional: legacy scenarios without Redis will not error.
 # ------------------------------------------------------------------------------
 delete_nextcloud() {
     local number="${1}"
     local nc="nextcloud${number}.docker"
     local db="marianextcloud${number}.docker"
+    local redis="redisnextcloud${number}.docker"
 
     run_quietly_if_ci echo "Deleting Nextcloud instance ${number} …"
 
-    # If neither the app nor DB container exists, skip Docker operations and log softly.
+    # If none of the containers exist, skip Docker operations and log softly.
     local any_present="false"
     if docker ps -a --format '{{.Names}}' | grep -qx "${nc}"; then
         any_present="true"
     fi
     if docker ps -a --format '{{.Names}}' | grep -qx "${db}"; then
+        any_present="true"
+    fi
+    if docker ps -a --format '{{.Names}}' | grep -qx "${redis}"; then
         any_present="true"
     fi
     if [[ "${any_present}" != "true" ]]; then
@@ -178,19 +321,22 @@ delete_nextcloud() {
     fi
 
     # Stop containers if they exist (ignore errors if already gone/stopped)
-    run_quietly_if_ci docker stop "${nc}" "${db}" || true
+    # Redis is included defensively; legacy scenarios without Redis will not error
+    run_quietly_if_ci docker stop "${nc}" "${db}" "${redis}" 2>/dev/null || true
 
-    # Collect any **named** volumes attached to either container
+    # Collect any **named** volumes attached to the containers
     local volumes
     volumes="$(
         {
             docker inspect -f '{{ range .Mounts }}{{ if eq .Type "volume" }}{{ .Name }} {{ end }}{{ end }}' "${nc}" 2>/dev/null || true
             docker inspect -f '{{ range .Mounts }}{{ if eq .Type "volume" }}{{ .Name }} {{ end }}{{ end }}' "${db}" 2>/dev/null || true
+            docker inspect -f '{{ range .Mounts }}{{ if eq .Type "volume" }}{{ .Name }} {{ end }}{{ end }}' "${redis}" 2>/dev/null || true
         } | xargs -r echo
     )"
 
     # Remove containers (+ anonymous volumes with -v)
-    run_quietly_if_ci docker rm -fv "${nc}" "${db}" || true
+    # Redis is included defensively; legacy scenarios without Redis will not error
+    run_quietly_if_ci docker rm -fv "${nc}" "${db}" "${redis}" 2>/dev/null || true
 
     # Remove any named volumes we discovered
     if [[ -n "${volumes}" ]]; then

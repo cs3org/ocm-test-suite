@@ -132,7 +132,7 @@ main() {
     create_cernbox  1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
     
     # Start Mesh Directory
-    create_meshdir pondersource/ocmstub v1.0.0
+    create_meshdir pondersource/ocmstub v1.1.0
     
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

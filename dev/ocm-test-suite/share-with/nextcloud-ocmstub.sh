@@ -131,10 +131,18 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    # Create EFSS containers
-    #                # id   # username    # password       # image                 # tag
-    create_nextcloud 1      "einstein"    "relativity"     pondersource/nextcloud  "${EFSS_PLATFORM_1_VERSION}"
-    create_ocmstub   1                                     pondersource/ocmstub    "${EFSS_PLATFORM_2_VERSION}"
+    if [ "${CI_ENVIRONMENT:-}" = "true" ]; then
+        # Create EFSS containers using DockyPody image with source mount
+        # NEXTCLOUD_SOURCE_DIR must be set to the host path of the checked-out Nextcloud repo
+        #                   # id   # username    # password
+        create_nextcloud_ci 1      "einstein"    "relativity"
+        create_ocmstub      1                                     pondersource/ocmstub    "${EFSS_PLATFORM_2_VERSION}"
+    else
+        # Create EFSS containers (dev mode with prebuilt images)
+        #                # id   # username    # password       # image                 # tag
+        create_nextcloud 1      "einstein"    "relativity"     pondersource/nextcloud  "${EFSS_PLATFORM_1_VERSION}"
+        create_ocmstub   1                                     pondersource/ocmstub    "${EFSS_PLATFORM_2_VERSION}"
+    fi
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

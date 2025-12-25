@@ -1,0 +1,14 @@
+name: OCM Test Invite link Cernbox v2 to Ocmstub v1.1.0
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          invite-link
+      sender_platform:   cernbox
+      sender_version:    v2
+      receiver_platform: ocmstub
+      receiver_version:  v1.1.0

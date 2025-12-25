@@ -132,7 +132,7 @@ main() {
     create_ocis       1       owncloud/ocis          "${EFSS_PLATFORM_2_VERSION}"
     
     # Start Mesh Directory
-    create_meshdir pondersource/ocmstub v1.0.0
+    create_meshdir pondersource/ocmstub v1.1.0
     
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

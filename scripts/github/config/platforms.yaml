@@ -149,7 +149,7 @@ invite-link:
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: ocis, version: v7.1.2 } }
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: ocmstub, version: v1.0.0 } }
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: ocmstub, version: v1.1.0 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: nextcloud-sm, version: v27.1.11-sm } }
   - { sender: { platform: nextcloud-sm, version: v27.1.11-sm }, receiver: { platform: ocis, version: v5.0.9 } }
@@ -180,8 +180,8 @@ invite-link:
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: ocis, version: v7.1.2 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: opencloud, version: v2.3.0 } }
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
-  - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: cernbox, version: v2 } }
-  - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: ocmstub, version: v1.0.0 } }
+  - { sender: { platform: ocmstub, version: v1.1.0 }, receiver: { platform: cernbox, version: v2 } }
+  - { sender: { platform: ocmstub, version: v1.1.0 }, receiver: { platform: ocmstub, version: v1.1.0 } }
 
 wayf:
   - { sender: { platform: nextcloud, version: v33 }, receiver: { platform: nextcloud, version: v33 } }

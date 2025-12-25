@@ -10,7 +10,7 @@ platforms:
   owncloud: [v10.15.0]
   # ScienceMesh flavour
   owncloud-sm: [v10.15.0-sm]
-  ocmstub: [v1.0.0]
+  ocmstub: [v1.0.0, v1.1.0]
   seafile: [v11.0.13]
 
 # Declarative rules telling the generator how to build permutations
@@ -22,10 +22,13 @@ scenarios:
     versions:
       nextcloud: [v27.1.11, v28.0.14, v29.0.16, v30.0.11, v31.0.5, v32.0.0, v33]
       cernbox: [v2]
+      ocmstub: [v1.0.0]
     # *: every platform + every version
     include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, seafile]
 
   share-link:
+    versions:
+      ocmstub: [v1.0.0]
     include:
       - sender: [nextcloud]
         receiver: [nextcloud, owncloud, ocmstub]
@@ -33,6 +36,8 @@ scenarios:
         receiver: [nextcloud, owncloud]
 
   share-with:
+    versions:
+      ocmstub: [v1.0.0]
     include:
       - sender: [nextcloud]
         receiver: [nextcloud, owncloud, ocmstub]
@@ -45,6 +50,8 @@ scenarios:
   
   # ScienceMesh and other kinds of invite link federations
   invite-link:
+    versions:
+      ocmstub: [v1.1.0]
     include:
       - sender: [cernbox]
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm, ocmstub]

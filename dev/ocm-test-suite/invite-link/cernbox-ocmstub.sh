@@ -31,7 +31,7 @@ set -euo pipefail
 
 # Default versions
 DEFAULT_EFSS_1_VERSION="v2"
-DEFAULT_EFSS_2_VERSION="v1.0.0"
+DEFAULT_EFSS_2_VERSION="v1.1.0"
 
 # -----------------------------------------------------------------------------------
 # Function: resolve_script_dir
@@ -135,7 +135,7 @@ main() {
     create_ocmstub   2      pondersource/ocmstub    "${EFSS_PLATFORM_2_VERSION}"
 
     # Start Mesh Directory
-    create_meshdir pondersource/ocmstub v1.0.0
+    create_meshdir pondersource/ocmstub v1.1.0
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

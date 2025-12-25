@@ -132,7 +132,7 @@ main() {
     create_opencloud  1         opencloudeu/opencloud-rolling                   "${EFSS_PLATFORM_2_VERSION}"
     
     # Start Mesh Directory
-    create_meshdir pondersource/ocmstub v1.0.0
+    create_meshdir pondersource/ocmstub v1.1.0
     
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

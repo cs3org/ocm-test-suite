@@ -5,24 +5,24 @@
  * @author Mohammad Mahdi Baghbani Pourvahid <mahdi@pondersource.com>
  */
 
-import * as implementation from './implementation.js';
+import * as implementation from "./implementation.js";
 
-export const platform = 'ocmstub';
-export const version = 'v1';
-export const versionAliases = ['v1.0.0'];
+export const platform = "ocmstub";
+export const version = "v1";
+export const versionAliases = ["v1.0.0", "v1.1.0"];
 
 export function login({ url }) {
   cy.visit(`${url}/?`);
 
   // Ensure the login button is visible
-  cy.get('input[value="Log in"]', { timeout: 10000 }).should('be.visible');
+  cy.get('input[value="Log in"]', { timeout: 10000 }).should("be.visible");
 
   // Perform login by clicking the button
   cy.get('input[value="Log in"]').click();
 
   // Verify session activation
-  cy.url({ timeout: 10000 }).should('match', /\/?session=active/);
-};
+  cy.url({ timeout: 10000 }).should("match", /\/?session=active/);
+}
 
 /**
  * Create an invite link from OCMStub (as inviter).
@@ -42,18 +42,21 @@ export function createInviteLink({
 
   // Call the token generation endpoint and extract the token
   cy.request({
-    method: 'GET',
+    method: "GET",
     url: `${senderUrl}/ocm/generate-invite-token`,
     failOnStatusCode: true,
   }).then((response) => {
     expect(response.status).to.eq(200);
-    expect(response.body).to.have.property('token');
-    
+    expect(response.body).to.have.property("token");
+
     const inviteToken = response.body.token;
     cy.log(`Generated invite token: ${inviteToken}`);
-    
+
     // Write the token to the file for the receiver to use
     cy.writeFile(inviteLinkFileName, inviteToken);
+
+    // ocm stub is super fast, we need time to see results in the UI
+    cy.wait(5000);
   });
 }
 
@@ -76,14 +79,20 @@ export function acceptInviteLink({
     const token = String(rawToken).trim();
 
     // Navigate to OCMStub's accept-invite endpoint
-    const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, '');
+    const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, "");
     const acceptUrl = `${recipientUrl}/accept-invite?token=${token}&providerDomain=${senderDomain}`;
 
     cy.visit(acceptUrl);
 
+    // ocm stub is super fast, we need time to see results in the UI
+    cy.wait(2500);
+
     // Verify successful acceptance
-    cy.contains('Invite Accepted', { timeout: 15000 }).should('be.visible');
-    cy.contains(senderDomain, { timeout: 10000 }).should('be.visible');
+    cy.contains("Invite Accepted", { timeout: 15000 }).should("be.visible");
+    cy.contains(senderDomain, { timeout: 10000 }).should("be.visible");
+
+    // ocm stub is super fast, we need time to see results in the UI
+    cy.wait(2500);
   });
 }
 
@@ -106,7 +115,10 @@ export function shareViaInviteLink({
   cy.visit(`${senderUrl}/shareWith?${recipientUsername}@${recipientDomain}`);
 
   // Verify the confirmation message is displayed
-  cy.contains('yes shareWith', { timeout: 10000 }).should('be.visible');
+  cy.contains("yes shareWith", { timeout: 10000 }).should("be.visible");
+
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
 }
 
 /**
@@ -123,11 +135,17 @@ export function acceptInviteLinkShare({
   // Log in to OCMStub
   login({ url: recipientUrl });
 
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
+
   // Navigate to accept the share
   cy.visit(`${recipientUrl}/acceptShare`);
 
   // Verify share acceptance
-  cy.contains('yes acceptShare', { timeout: 10000 }).should('be.visible');
+  cy.contains("yes acceptShare", { timeout: 10000 }).should("be.visible");
+
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
 }
 
 export function shareViaNativeShareWith({
@@ -137,11 +155,18 @@ export function shareViaNativeShareWith({
 }) {
   // Step 1: Navigate to the federated share link on OcmStub 1.0
   // Remove trailing slash and leading https or http from recipientUrl
-  cy.visit(`${senderUrl}/shareWith?${recipientUsername}@${recipientUrl.replace(/^https?:\/\/|\/$/g, '')}`);
+  cy.visit(
+    `${senderUrl}/shareWith?${recipientUsername}@${recipientUrl.replace(
+      /^https?:\/\/|\/$/g,
+      ""
+    )}`
+  );
 
   // Step 2: Verify the confirmation message is displayed
-  cy.contains('yes shareWith', { timeout: 10000 })
-    .should('be.visible')
+  cy.contains("yes shareWith", { timeout: 10000 }).should("be.visible");
+
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
 }
 
 export function acceptNativeShareWithShare({
@@ -166,6 +191,9 @@ export function acceptNativeShareWithShare({
     senderUrl,
     senderUtils,
   });
+
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
 }
 
 export function acceptFederatedLinkShare({
@@ -180,6 +208,9 @@ export function acceptFederatedLinkShare({
   // Step 1: Log in to the recipient's instance
   login({ url: recipientUrl });
 
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
+
   // Step 2: Handle share acceptance
   implementation.acceptShare({
     senderPlatform,
@@ -190,6 +221,9 @@ export function acceptFederatedLinkShare({
     senderUrl,
     senderUtils,
   });
+
+  // ocm stub is super fast, we need time to see results in the UI
+  cy.wait(5000);
 }
 
 /**
@@ -207,15 +241,18 @@ export function buildFederatedShareDetails({
   recipientUrl,
   sharedFileName,
   senderUsername,
-  senderUrl
+  senderUrl,
 }) {
   return {
-    shareWith: `${recipientUsername}@${recipientUrl.replace(/^https?:\/\/|\/$/g, '')}`,
+    shareWith: `${recipientUsername}@${recipientUrl.replace(
+      /^https?:\/\/|\/$/g,
+      ""
+    )}`,
     fileName: sharedFileName,
-    owner: `${senderUsername}@${senderUrl.replace(/^https?:\/\/|\/$/g, '')}`,
-    sender: `${senderUsername}@${senderUrl.replace(/^https?:\/\/|\/$/g, '')}`,
-    shareType: 'user',
-    resourceType: 'file',
-    protocol: 'webdav'
+    owner: `${senderUsername}@${senderUrl.replace(/^https?:\/\/|\/$/g, "")}`,
+    sender: `${senderUsername}@${senderUrl.replace(/^https?:\/\/|\/$/g, "")}`,
+    shareType: "user",
+    resourceType: "file",
+    protocol: "webdav",
   };
 }

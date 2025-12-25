@@ -27,7 +27,10 @@ describe("Invite link federated sharing via ScienceMesh functionality for OCMStu
   const senderDomain = senderUrl.replace(/^https?:\/\/|\/$/g, "");
   const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, "");
   const inviteLinkFileName = "invite-link-ocmstub-cernbox.txt";
-  const sharedFileName = "invite-link-ocmstub-cernbox";
+  // The OCM Stub always shares a fixed sample resource called "from-stub.txt".
+  // CERNBox receives and exposes the share under this name (see /ocm/shares logs),
+  // so the UI and tests must look for this concrete filename.
+  const sharedFileName = "from-stub.txt";
   const sharedFileContent = "Hello World!";
 
   // Get the right helper set for each side
@@ -111,4 +114,3 @@ describe("Invite link federated sharing via ScienceMesh functionality for OCMStu
     });
   });
 });
-

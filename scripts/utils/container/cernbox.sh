@@ -226,12 +226,6 @@ create_cernbox_ci() {
     if [[ -z "${reva_binary_dir}" ]]; then
         error_exit "REVA_BINARY_DIR must be set for CI mode"
     fi
-    if [[ ! -d "${reva_binary_dir}" ]]; then
-        error_exit "REVA_BINARY_DIR does not exist: ${reva_binary_dir}"
-    fi
-    if [[ ! -f "${reva_binary_dir}/revad" ]]; then
-        error_exit "REVA_BINARY_DIR does not contain 'revad' binary: ${reva_binary_dir}"
-    fi
 
     run_quietly_if_ci echo "Creating CERNBox CI instance ${number} with Reva override from: ${reva_binary_dir}"
 

@@ -125,7 +125,7 @@ main() {
     configure_sciencemesh "nextcloud" 2 "https://revanextcloud2.docker/" "shared-secret-1"  "https://meshdir.docker/meshdir" "invite-manager-endpoint"
     
     # Start Mesh Directory
-    create_meshdir pondersource/ocmstub v1.0.0
+    create_meshdir pondersource/ocmstub v1.1.0
     
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

@@ -178,6 +178,12 @@ _create_cernbox_web() {
 # ------------------------------------------------------------------------------
 
 # Create a complete CERNBox v2 instance (multi-Reva + web)
+# Arguments:
+#   1. number - Instance number (1 or 2)
+#   2. revad_image - Reva image repository
+#   3. revad_tag - Reva image tag
+#   4. web_image - Web frontend image repository
+#   5. web_tag - Web frontend image tag
 create_cernbox() {
     local number="${1:-}"
     local revad_image="${2:-}"
@@ -190,6 +196,56 @@ create_cernbox() {
     _cernbox_require_nonempty "${revad_tag}" "revad_tag"
     _cernbox_require_nonempty "${web_image}" "web_image"
     _cernbox_require_nonempty "${web_tag}" "web_tag"
+
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" ""
+}
+
+# Create a CERNBox v2 instance for CI with custom Reva binary override
+# This function is for vendor CI pipelines where the Reva source is built
+# from the current PR/branch and mounted into the containers.
+#
+# Arguments:
+#   1. number - Instance number (1 or 2)
+#
+# Environment Variables:
+#   REVA_BINARY_DIR - Host path to directory containing custom 'revad' binary (required)
+#   CERNBOX_REVAD_IMAGE - Reva image (default: ghcr.io/mahdibaghbani/containers/cernbox-revad)
+#   CERNBOX_REVAD_TAG - Reva tag (default: mahdi_fix_localhome-development)
+#   CERNBOX_WEB_IMAGE - Web image (default: ghcr.io/mahdibaghbani/containers/cernbox-web)
+#   CERNBOX_WEB_TAG - Web tag (default: testing)
+create_cernbox_ci() {
+    local number="${1:-}"
+    local reva_binary_dir="${REVA_BINARY_DIR:-}"
+    local revad_image="${CERNBOX_REVAD_IMAGE:-ghcr.io/mahdibaghbani/containers/cernbox-revad}"
+    local revad_tag="${CERNBOX_REVAD_TAG:-mahdi_fix_localhome-development}"
+    local web_image="${CERNBOX_WEB_IMAGE:-ghcr.io/mahdibaghbani/containers/cernbox-web}"
+    local web_tag="${CERNBOX_WEB_TAG:-testing}"
+
+    _cernbox_require_nonempty "${number}" "number"
+
+    if [[ -z "${reva_binary_dir}" ]]; then
+        error_exit "REVA_BINARY_DIR must be set for CI mode"
+    fi
+
+    run_quietly_if_ci echo "Creating CERNBox CI instance ${number} with Reva override from: ${reva_binary_dir}"
+
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "${reva_binary_dir}"
+}
+
+# Internal helper that creates the CERNBox instance with optional Reva override
+_create_cernbox_internal() {
+    local number="${1}"
+    local revad_image="${2}"
+    local revad_tag="${3}"
+    local web_image="${4}"
+    local web_tag="${5}"
+    local reva_override_dir="${6:-}"
+
+    # Build optional volume mount for Reva binary override
+    local -a reva_override_mount=()
+    if [[ -n "${reva_override_dir}" ]]; then
+        reva_override_mount=(-v "${reva_override_dir}:/revad-git/cmd:ro")
+    fi
 
     local domain="cernbox${number}.docker"
 
@@ -294,34 +350,34 @@ create_cernbox() {
 
     # Create all Reva services
     _create_cernbox_revad_service "${number}" "gateway" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}" "${gateway_env[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}" "${gateway_env[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-oidc" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}" "${authprovider_oidc_env[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}" "${authprovider_oidc_env[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-machine" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-ocmshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-publicshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "shareproviders" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}" "${shareproviders_env[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}" "${shareproviders_env[@]}"
 
     _create_cernbox_revad_service "${number}" "groupuserproviders" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "dataprovider-localhome" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "dataprovider-ocm" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "dataprovider-sciencemesh" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${revad_env_common[@]}"
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     # Create web frontend
     _create_cernbox_web "${number}" "${web_image}" "${web_tag}"

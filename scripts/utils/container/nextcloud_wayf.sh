@@ -33,7 +33,6 @@
 #   VALKEY_WAYF_TAG: Valkey Docker image tag for WAYF tests
 #   REDIS_WAYF_HOST_PORT: Redis port 
 #   REDIS_WAYF_HOST_PASSWORD: Redis password 
-#   TLS_CERT_DIR: Directory containing TLS certificates (e.g., nextcloud1.crt, nextcloud1.key)
 # ------------------------------------------------------------------------------
 _create_nextcloud_wayf_base() {
     local number="${1}"
@@ -70,7 +69,6 @@ _create_nextcloud_wayf_base() {
     # Start Nextcloud WAYF container with OCM Invites enabled
     # Container name includes -wayf suffix, but hostname is nextcloud${number}.docker for Cypress compatibility
     # Uses NEXTCLOUD_HTTPS_MODE=https-only to enable HTTPS on port 443 for WAYF tests
-    # Mounts TLS certificates for HTTPS support
     # MYSQL_* and CONTACTS_* env vars match examples/nextcloud - keep in sync when example changes
     run_docker_container --detach --network="${DOCKER_NETWORK}" \
         --name="nextcloud${number}-wayf.docker" \

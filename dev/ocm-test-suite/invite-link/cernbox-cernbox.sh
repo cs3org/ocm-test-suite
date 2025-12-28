@@ -120,13 +120,22 @@ main() {
 
     # Create IdP container for CERNBox v2
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
-    
-    # Create CERNBox v2 containers
-    #                 # id    # revad image             # revad tag              # web image               # web tag
-    create_cernbox    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
-    create_cernbox    2       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
 
-if [ "${SCRIPT_MODE}" = "dev" ]; then
+    # Create CERNBox v2 containers
+    # In CI mode with REVA_BINARY_DIR set, use create_cernbox_ci for Reva override
+    if [ "${CI_ENVIRONMENT:-}" = "true" ] && [ -n "${REVA_BINARY_DIR:-}" ]; then
+        create_cernbox_ci 1
+        create_cernbox_ci 2
+    else
+        #                 # id    # revad image             # revad tag              # web image               # web tag
+        create_cernbox    1       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
+        create_cernbox    2       "${cernbox_revad_image}"  "${cernbox_revad_tag}"   "${cernbox_web_image}"    "${cernbox_web_tag}"
+    fi
+
+    # Start Mesh Directory
+    create_meshdir pondersource/ocmstub v1.1.0
+
+    if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \
             "https://cernbox1.docker (username: einstein, password: relativity)" \
             "https://cernbox2.docker (username: marie, password: radioactivity)"

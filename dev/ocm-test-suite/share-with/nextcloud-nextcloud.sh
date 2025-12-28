@@ -132,10 +132,11 @@ main() {
     setup "$@"
 
     if [ "${CI_ENVIRONMENT:-}" = "true" ]; then
-        # Create EFSS containers
-        #                # id   # username    # password       # image                     # tag        # extra env
-        create_nextcloud 1      "einstein"    "relativity"     pondersource/nextcloud-ci   "latest"     "${SENDER_ENV}"     "true"
-        create_nextcloud 2      "michiel"     "dejong"         pondersource/nextcloud-ci   "latest"     "${RECEIVER_ENV}"   "true"
+        # Create EFSS containers using DockyPody image with source mount
+        # NEXTCLOUD_SOURCE_DIR must be set to the host path of the checked-out Nextcloud repo
+        #                   # id   # username    # password
+        create_nextcloud_ci 1      "einstein"    "relativity"
+        create_nextcloud_ci 2      "michiel"     "dejong"
     else
         # Create EFSS containers
         #                # id   # username    # password       # image                  # tag    

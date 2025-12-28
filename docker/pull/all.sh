@@ -108,7 +108,7 @@ run_quietly_if_ci echo "Pulling PonderSource-specific Docker images..."
 run_quietly_if_ci docker pull pondersource/dev-stock:latest
 run_quietly_if_ci docker pull pondersource/cypress:latest
 
-ocmstub_versions=("v1.0.0")
+ocmstub_versions=("v1.0.0" "v1.1.0")
 for i in "${!ocmstub_versions[@]}"; do
     version="${ocmstub_versions[i]}"
 

@@ -33,14 +33,14 @@ create_cypress_ci() {
     run_quietly_if_ci echo "Running Cypress tests using spec: $cypress_spec"
 
     if [ "${CI_ENVIRONMENT:-}" = "true" ]; then
-        # do not mount the ocm test suite files from the local filesystem, 
+        # do not mount the ocm test suite files from the local filesystem,
         # use the internal one provided by the image itself
         # only mount the videos and screenshots
         run_quietly_if_ci echo "Running Cypress without mounting test files from host system"
         docker run --network="${DOCKER_NETWORK}" \
             --name="cypress.docker" \
-            -e EFSS_PLATFORM_1_VERSION="${EFSS_PLATFORM_1_VERSION%%.*}" \
-            -e EFSS_PLATFORM_2_VERSION="${EFSS_PLATFORM_2_VERSION%%.*}" \
+            -e CYPRESS_EFSS_PLATFORM_1_VERSION="${EFSS_PLATFORM_1_VERSION%%.*}" \
+            -e CYPRESS_EFSS_PLATFORM_2_VERSION="${EFSS_PLATFORM_2_VERSION%%.*}" \
             -v "${ENV_ROOT}/cypress/screenshots:/ocm/cypress/screenshots" \
             -v "${ENV_ROOT}/cypress/videos:/ocm/cypress/videos" \
             -w /ocm \

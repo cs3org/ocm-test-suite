@@ -24,14 +24,22 @@ const REGISTRY = new Map();
 
 /**
  * Registers a util module (called at module-load time).
+ * Also registers any versionAliases exported by the module.
  */
 function register(mod) {
-  const { platform, version } = mod;
+  const { platform, version, versionAliases } = mod;
   if (!platform || !version)
     throw new Error('Util file must export { platform, version } metadata');
 
   if (!REGISTRY.has(platform)) REGISTRY.set(platform, new Map());
   REGISTRY.get(platform).set(String(version), mod);
+
+  // Register version aliases if provided
+  if (Array.isArray(versionAliases)) {
+    versionAliases.forEach(alias => {
+      REGISTRY.get(platform).set(String(alias), mod);
+    });
+  }
 }
 
 // One-liners — pull them up-front

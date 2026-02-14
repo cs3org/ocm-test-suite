@@ -135,13 +135,17 @@ export function acceptInviteLinkShare({
 // ---------------------------------------------------------------------------
 
 /**
- * Create an invite and write the WAYF URL (on the sender's host) to a file.
- * Uses the API to obtain the raw token needed for the WAYF URL.
+ * Create an invite, visit the sender's WAYF page, discover the recipient
+ * provider, and capture the redirect URL (on the recipient's domain).
+ * Writes the redirect URL to file for the recipient to consume.
+ *
+ * All browser activity stays on the sender's origin -- no cross-origin.
  */
 export function createWayfInviteLink({
   senderUrl,
   senderUsername,
   senderPassword,
+  recipientUrl,
   inviteLinkFileName,
 }) {
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
@@ -153,13 +157,16 @@ export function createWayfInviteLink({
   }).then((res) => {
     expect(res.status).to.eq(201);
     const wayfUrl = `${senderUrl}/ui/wayf?token=${res.body.token}`;
-    cy.writeFile(inviteLinkFileName, wayfUrl);
+
+    implementation.captureWayfRedirectUrl(wayfUrl, recipientUrl).then((redirectUrl) => {
+      cy.writeFile(inviteLinkFileName, redirectUrl);
+    });
   });
 }
 
 /**
- * Read the WAYF URL from file, log in on the recipient, visit the sender's
- * WAYF page, discover the recipient's provider, and accept the invite.
+ * Read the redirect URL from file (on the recipient's own domain),
+ * log in on the recipient, and accept the WAYF invite. No cross-origin.
  */
 export function acceptWayfInviteLink({
   recipientUrl,
@@ -168,12 +175,11 @@ export function acceptWayfInviteLink({
   inviteLinkFileName,
 }) {
   cy.readFile(inviteLinkFileName).then((raw) => {
-    const wayfUrl = String(raw).trim();
+    const redirectUrl = String(raw).trim();
+    expect(redirectUrl).to.be.a('string').and.not.be.empty;
 
-    // Login on recipient first so the session cookie exists when the browser
-    // is redirected to the recipient's accept-invite page after WAYF discovery.
     implementation.doLogin(recipientUrl, recipientUsername, recipientPassword);
-    implementation.doWayfDiscoverAndAccept(wayfUrl, recipientUrl);
+    implementation.acceptWayfInvite(redirectUrl);
   });
 }
 

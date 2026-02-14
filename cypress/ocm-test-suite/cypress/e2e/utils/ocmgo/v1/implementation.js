@@ -57,8 +57,8 @@ export function acceptShareInInbox(url, sharedFileName) {
 export function createInvite(url) {
   cy.visit(`${url}/ui/outgoing`);
   cy.get('#invite-create-btn', { timeout: 10000 }).should('be.visible').click();
-  cy.get('#invite-string', { timeout: 10000 }).should('be.visible');
-  return cy.get('#invite-string').invoke('text').then((text) => text.trim());
+  cy.get('#invite-string', { timeout: 10000 }).should('be.visible').and('not.have.value', '');
+  return cy.get('#invite-string').invoke('val').then((val) => val.trim());
 }
 
 /**
@@ -87,23 +87,50 @@ export function importAndAcceptInvite(url, inviteString) {
 }
 
 /**
- * WAYF flow: visit the sender's WAYF page, discover the recipient's provider,
- * and accept the invite on the resulting accept-invite page.
+ * WAYF discovery on the sender's domain. Visits the WAYF page, enters the
+ * recipient URL, discovers the provider, and extracts the redirect URL from
+ * the page's JavaScript context without navigating away.
  *
- * Call doLogin on the recipient BEFORE this so the session cookie is available
- * when the browser is redirected to the recipient's accept-invite page.
+ * Returns a Cypress chainable resolving to the redirect URL (recipient domain).
  */
-export function doWayfDiscoverAndAccept(wayfUrl, recipientUrl) {
+export function captureWayfRedirectUrl(wayfUrl, recipientUrl) {
   cy.visit(wayfUrl);
-
-  // Enter recipient provider for discovery
   cy.get('#manual-url', { timeout: 10000 }).should('be.visible').clear().type(recipientUrl);
   cy.get('#discover-btn').click();
+  cy.get('#discover-result .provider-item', { timeout: 15000 }).first().should('be.visible');
 
-  // Wait for the discovered provider item and click it (triggers redirect)
-  cy.get('#discover-result .provider-item', { timeout: 15000 }).first().click();
+  // Derive token and providerDomain from the WAYF URL itself (the template
+  // renders them as block-scoped const, not window properties).
+  const wayfParsed = new URL(wayfUrl);
+  const token = wayfParsed.searchParams.get('token');
+  const providerDomain = wayfParsed.host;
 
-  // Now on the recipient's accept-invite page
+  // Extract the inviteAcceptDialog base URL from the discovered provider item's
+  // onclick attribute, then build the full redirect URL without navigating.
+  return cy.window().then((win) => {
+    const item = win.document.querySelector('#discover-result .provider-item');
+    const onclick = item.getAttribute('onclick') || '';
+    const match = onclick.match(/redirectToProvider\('([^']+)'\)/);
+    expect(match).to.not.be.null;
+
+    const dialog = match[1];
+    const sep = dialog.includes('?') ? '&' : '?';
+    const url = dialog + sep +
+      'token=' + encodeURIComponent(token) +
+      '&providerDomain=' + encodeURIComponent(providerDomain);
+    expect(url).to.include('/ui/accept-invite');
+    return url;
+  });
+}
+
+/**
+ * Accept a WAYF invite on the recipient's domain. Visits the redirect URL
+ * (which is on the recipient's own domain) and clicks accept.
+ *
+ * Call doLogin on the recipient BEFORE this so the session cookie is available.
+ */
+export function acceptWayfInvite(redirectUrl) {
+  cy.visit(redirectUrl);
   cy.url({ timeout: 15000 }).should('include', '/ui/accept-invite');
   cy.get('#accept-btn', { timeout: 10000 }).should('be.visible').click();
   cy.get('#success-msg', { timeout: 10000 }).should('be.visible');

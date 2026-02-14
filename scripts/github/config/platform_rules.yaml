@@ -11,6 +11,7 @@ platforms:
   # ScienceMesh flavour
   owncloud-sm: [v10.15.0-sm]
   ocmstub: [v1.0.0, v1.1.0]
+  ocmgo: [v1.0.0]
   seafile: [v11.0.13]
 
 # Declarative rules telling the generator how to build permutations
@@ -24,7 +25,7 @@ scenarios:
       cernbox: [v2]
       ocmstub: [v1.0.0]
     # *: every platform + every version
-    include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, seafile]
+    include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, ocmgo, seafile]
 
   share-link:
     versions:
@@ -45,6 +46,8 @@ scenarios:
         receiver: [nextcloud, owncloud, ocmstub]
       - sender: [ocmstub]
         receiver: [nextcloud, owncloud, ocmstub]
+      - sender: [ocmgo]
+        receiver: [ocmgo]
       - sender: [seafile]
         receiver: [seafile]
   

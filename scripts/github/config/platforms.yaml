@@ -16,6 +16,7 @@ login:
   - { platform: opencloud, version: v2.3.0 }
   - { platform: owncloud, version: v10.15.0 }
   - { platform: ocmstub, version: v1.0.0 }
+  - { platform: ocmgo, version: v1.0.0 }
   - { platform: seafile, version: v11.0.13 }
 
 share-link:
@@ -140,6 +141,7 @@ share-with:
   - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: nextcloud, version: v32.0.0 } }
   - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: owncloud, version: v10.15.0 } }
   - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: ocmstub, version: v1.0.0 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }
   - { sender: { platform: seafile, version: v11.0.13 }, receiver: { platform: seafile, version: v11.0.13 } }
 
 invite-link:

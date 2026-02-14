@@ -8,7 +8,7 @@ import * as implementation from './implementation.js';
 
 export const platform = 'ocmgo';
 export const version = 'v1';
-export const versionAliases = ['v1.0.0', 'v1.0.0-local'];
+export const versionAliases = ['v1.0.0'];
 
 // ---------------------------------------------------------------------------
 // Login

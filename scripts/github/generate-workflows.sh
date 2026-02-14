@@ -75,6 +75,7 @@ abbr_platform() {
     ocis)           printf "ocis"   ;;
     opencloud)      printf "opcl"   ;;
     ocmstub)        printf "os"     ;;
+    ocmgo)          printf "ocmgo"  ;;
     seafile)        printf "sf"     ;;
     *)              printf "%s" "${1:0:2}" ;;
   esac

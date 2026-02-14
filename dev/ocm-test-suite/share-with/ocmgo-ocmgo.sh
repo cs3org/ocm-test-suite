@@ -15,8 +15,8 @@
 #   ./ocmgo-ocmgo.sh [EFSS_PLATFORM_1_VERSION] [EFSS_PLATFORM_2_VERSION] [SCRIPT_MODE] [BROWSER_PLATFORM]
 
 # Arguments:
-#   EFSS_PLATFORM_1_VERSION : Version of the first EFSS platform (default: "v1.0.0-local").
-#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v1.0.0-local").
+#   EFSS_PLATFORM_1_VERSION : Version of the first EFSS platform (default: "v1.0.0").
+#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v1.0.0").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM        : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 
@@ -26,7 +26,7 @@
 #   - Ensure that the necessary scripts (e.g., init scripts) and configurations exist.
 
 # Example:
-#   ./ocmgo-ocmgo.sh v1.0.0-local v1.0.0-local ci electron
+#   ./ocmgo-ocmgo.sh v1.0.0 v1.0.0 ci electron
 
 # -----------------------------------------------------------------------------------
 
@@ -39,8 +39,8 @@ set -euo pipefail
 # -----------------------------------------------------------------------------------
 
 # Default versions
-DEFAULT_EFSS_1_VERSION="v1.0.0-local"
-DEFAULT_EFSS_2_VERSION="v1.0.0-local"
+DEFAULT_EFSS_1_VERSION="v1.0.0"
+DEFAULT_EFSS_2_VERSION="v1.0.0"
 
 # -----------------------------------------------------------------------------------
 # Function: resolve_script_dir

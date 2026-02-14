@@ -13,6 +13,7 @@ export const config = {
                 'Nextcloud v28.0.14',
                 'oCIS v5.0.9',
                 'OcmStub v1.0.0',
+                'OCM-Go v1.0.0',
                 'ownCloud v10.15.0',
                 'Seafile v11.0.13'
             ],
@@ -30,8 +31,8 @@ export const config = {
             id: 'share-with-tests',
             title: 'Direct User Sharing Tests',
             icon: 'user-friends',
-            sources: ['Nextcloud v27.1.11', 'Nextcloud v28.0.14', 'OcmStub v1.0.0', 'ownCloud v10.15.0', 'Seafile v11.0.13'],
-            targets: ['Nextcloud v27.1.11', 'Nextcloud v28.0.14', 'OcmStub v1.0.0', 'ownCloud v10.15.0', 'Seafile v11.0.13'],
+            sources: ['Nextcloud v27.1.11', 'Nextcloud v28.0.14', 'OcmStub v1.0.0', 'OCM-Go v1.0.0', 'ownCloud v10.15.0', 'Seafile v11.0.13'],
+            targets: ['Nextcloud v27.1.11', 'Nextcloud v28.0.14', 'OcmStub v1.0.0', 'OCM-Go v1.0.0', 'ownCloud v10.15.0', 'Seafile v11.0.13'],
             workflowPrefix: 'share-with-'
         },
         {
@@ -59,6 +60,7 @@ export const config = {
         'oCIS v5.0.9': 'ocis-v5',
         'OcmStub v1.0.0': 'os-v1',
         'OcmStub v1.1.0': 'os-v1',
+        'OCM-Go v1.0.0': 'ocmgo-v1',
         'ownCloud v10.15.0': 'oc-v10',
         'Seafile v11.0.13': 'sf-v11',
         'Nextcloud v27.1.11 (ScienceMesh)': 'nc-sm-v27',

@@ -16,7 +16,7 @@
 
 # Arguments:
 #   EFSS_PLATFORM_1_VERSION : Version of the first EFSS platform (default: "v27.1.11").
-#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v1.0.0-local").
+#   EFSS_PLATFORM_2_VERSION : Version of the second EFSS platform (default: "v1.0.0").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.
 #   BROWSER_PLATFORM        : Browser platform (default: "electron"). Options: chrome, edge, firefox, electron.
 
@@ -26,7 +26,7 @@
 #   - Ensure that the necessary scripts (e.g., init scripts) and configurations exist.
 
 # Example:
-#   ./nextcloud-ocmgo.sh v27.1.11 v1.0.0-local ci electron
+#   ./nextcloud-ocmgo.sh v27.1.11 v1.0.0 ci electron
 
 # -----------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ set -euo pipefail
 
 # Default versions
 DEFAULT_EFSS_1_VERSION="v27.1.11"
-DEFAULT_EFSS_2_VERSION="v1.0.0-local"
+DEFAULT_EFSS_2_VERSION="v1.0.0"
 
 # -----------------------------------------------------------------------------------
 # Function: resolve_script_dir

@@ -39,16 +39,16 @@ export const config = {
             id: 'sciencemesh-tests',
             title: 'ScienceMesh Federation Tests',
             icon: 'network-wired',
-            sources: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)'],
-            targets: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)'],
+            sources: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)', 'OCM-Go v1.0.0'],
+            targets: ['Nextcloud v27.1.11 (ScienceMesh)', 'oCIS v5.0.9', 'ownCloud v10.15.0 (ScienceMesh)', 'OCM-Go v1.0.0'],
             workflowPrefix: 'invite-link-'
         },
         {
             id: 'wayf-tests',
             title: 'WAYF Directory Service Tests',
             icon: 'address-book',
-            sources: ['Nextcloud v33', 'CERNBox v2'],
-            targets: ['Nextcloud v33', 'CERNBox v2'],
+            sources: ['Nextcloud v33', 'CERNBox v2', 'OCM-Go v1.0.0'],
+            targets: ['Nextcloud v33', 'CERNBox v2', 'OCM-Go v1.0.0'],
             workflowPrefix: 'wayf-'
         }
     ],

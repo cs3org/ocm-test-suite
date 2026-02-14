@@ -142,6 +142,18 @@ share-with:
   - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: owncloud, version: v10.15.0 } }
   - { sender: { platform: ocmstub, version: v1.0.0 }, receiver: { platform: ocmstub, version: v1.0.0 } }
   - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v27.1.11 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v28.0.14 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v29.0.16 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v30.0.11 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v31.0.5 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: nextcloud, version: v32.0.0 } }
+  - { sender: { platform: nextcloud, version: v27.1.11 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: nextcloud, version: v28.0.14 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: nextcloud, version: v29.0.16 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: nextcloud, version: v30.0.11 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: nextcloud, version: v31.0.5 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+  - { sender: { platform: nextcloud, version: v32.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }
   - { sender: { platform: seafile, version: v11.0.13 }, receiver: { platform: seafile, version: v11.0.13 } }
 
 invite-link:
@@ -184,9 +196,11 @@ invite-link:
   - { sender: { platform: owncloud-sm, version: v10.15.0-sm }, receiver: { platform: owncloud-sm, version: v10.15.0-sm } }
   - { sender: { platform: ocmstub, version: v1.1.0 }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: ocmstub, version: v1.1.0 }, receiver: { platform: ocmstub, version: v1.1.0 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }
 
 wayf:
   - { sender: { platform: nextcloud, version: v33 }, receiver: { platform: nextcloud, version: v33 } }
   - { sender: { platform: nextcloud, version: v33 }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: nextcloud, version: v33 } }
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: cernbox, version: v2 } }
+  - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }

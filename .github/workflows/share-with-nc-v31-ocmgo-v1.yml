@@ -1,0 +1,14 @@
+name: OCM Test Share with Nextcloud v31.0.5 to Ocmgo v1.0.0
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          share-with
+      sender_platform:   nextcloud
+      sender_version:    v31.0.5
+      receiver_platform: ocmgo
+      receiver_version:  v1.0.0

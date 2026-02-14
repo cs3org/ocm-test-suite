@@ -47,6 +47,8 @@ scenarios:
       - sender: [ocmstub]
         receiver: [nextcloud, owncloud, ocmstub]
       - sender: [ocmgo]
+        receiver: [ocmgo, nextcloud]
+      - sender: [nextcloud]
         receiver: [ocmgo]
       - sender: [seafile]
         receiver: [seafile]
@@ -68,6 +70,8 @@ scenarios:
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
       - sender: [ocmstub]
         receiver: [cernbox, ocmstub]
+      - sender: [ocmgo]
+        receiver: [ocmgo]
   
   # WAYF (Where Are You From) Directory Service mediated invite flows
   # Uses per-scenario version scoping to introduce NC v33 and CB v2 for WAYF only
@@ -84,3 +88,5 @@ scenarios:
         receiver: [nextcloud, cernbox]
       - sender: [cernbox]
         receiver: [nextcloud, cernbox]
+      - sender: [ocmgo]
+        receiver: [ocmgo]

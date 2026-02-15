@@ -113,8 +113,8 @@ main() {
 
     # Create EFSS containers
     #              # id   # username    # password        # image              # tag
-    create_ocmgo   1      "marie"       "radioactivity"   opencloudmesh-go     "${EFSS_PLATFORM_1_VERSION}"
-    create_ocmgo   2      "einstein"    "relativity"      opencloudmesh-go     "${EFSS_PLATFORM_2_VERSION}"
+    create_ocmgo   1      "marie"       "radioactivity"   "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_1_VERSION}"
+    create_ocmgo   2      "einstein"    "relativity"      "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_2_VERSION}"
 
     # No meshdir needed: OCM-Go handles invitations natively via its built-in invite API.
 

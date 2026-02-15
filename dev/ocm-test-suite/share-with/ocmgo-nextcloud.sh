@@ -134,13 +134,13 @@ main() {
     if [ "${CI_ENVIRONMENT:-}" = "true" ]; then
         # Create EFSS containers (CI mode: nextcloud uses source-mounted DockyPody image)
         #              # id   # username   # password        # image              # tag
-        create_ocmgo   1      "marie"      "radioactivity"   opencloudmesh-go     "${EFSS_PLATFORM_1_VERSION}"
+        create_ocmgo   1      "marie"      "radioactivity"   "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_1_VERSION}"
         #                   # id   # username    # password
         create_nextcloud_ci 1      "einstein"    "relativity"
     else
         # Create EFSS containers (dev mode with prebuilt images)
         #              # id   # username   # password        # image              # tag
-        create_ocmgo   1      "marie"      "radioactivity"   opencloudmesh-go     "${EFSS_PLATFORM_1_VERSION}"
+        create_ocmgo   1      "marie"      "radioactivity"   "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_1_VERSION}"
         create_nextcloud 1     "einstein"   "relativity"      pondersource/nextcloud  "${EFSS_PLATFORM_2_VERSION}"
     fi
 

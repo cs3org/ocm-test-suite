@@ -114,8 +114,8 @@ main() {
     # Create EFSS containers (regular create_ocmgo, no WAYF-specific variant needed).
     # OCM-Go handles WAYF natively through its built-in /ui/wayf endpoint.
     #              # id   # username    # password        # image              # tag
-    create_ocmgo   1      "marie"       "radioactivity"   opencloudmesh-go     "${EFSS_PLATFORM_1_VERSION}"
-    create_ocmgo   2      "einstein"    "relativity"      opencloudmesh-go     "${EFSS_PLATFORM_2_VERSION}"
+    create_ocmgo   1      "marie"       "radioactivity"   "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_1_VERSION}"
+    create_ocmgo   2      "einstein"    "relativity"      "ghcr.io/mahdibaghbani/containers/opencloudmesh-go"     "${EFSS_PLATFORM_2_VERSION}"
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

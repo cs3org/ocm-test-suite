@@ -11,6 +11,7 @@ platforms:
   # ScienceMesh flavour
   owncloud-sm: [v10.15.0-sm]
   ocmstub: [v1.0.0, v1.1.0]
+  ocmgo: [v1.0.0]
   seafile: [v11.0.13]
 
 # Declarative rules telling the generator how to build permutations
@@ -24,7 +25,7 @@ scenarios:
       cernbox: [v2]
       ocmstub: [v1.0.0]
     # *: every platform + every version
-    include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, seafile]
+    include: [cernbox, nextcloud, ocis, opencloud, owncloud, ocmstub, ocmgo, seafile]
 
   share-link:
     versions:
@@ -45,6 +46,10 @@ scenarios:
         receiver: [nextcloud, owncloud, ocmstub]
       - sender: [ocmstub]
         receiver: [nextcloud, owncloud, ocmstub]
+      - sender: [ocmgo]
+        receiver: [ocmgo, nextcloud]
+      - sender: [nextcloud]
+        receiver: [ocmgo]
       - sender: [seafile]
         receiver: [seafile]
   
@@ -65,6 +70,8 @@ scenarios:
         receiver: [cernbox, nextcloud-sm, ocis, opencloud, owncloud-sm]
       - sender: [ocmstub]
         receiver: [cernbox, ocmstub]
+      - sender: [ocmgo]
+        receiver: [ocmgo]
   
   # WAYF (Where Are You From) Directory Service mediated invite flows
   # Uses per-scenario version scoping to introduce NC v33 and CB v2 for WAYF only
@@ -81,3 +88,5 @@ scenarios:
         receiver: [nextcloud, cernbox]
       - sender: [cernbox]
         receiver: [nextcloud, cernbox]
+      - sender: [ocmgo]
+        receiver: [ocmgo]

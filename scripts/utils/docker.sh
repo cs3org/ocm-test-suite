@@ -29,11 +29,19 @@ build_clean_args() {
 
     if [[ "${uses_wayf_containers}" == "true" ]]; then
         CLEAN_ARGS+=("idp")
+
+        # ocmgo has no WAYF-specific container or delete helper;
+        # always use the plain platform token.
+        local p1_token="${EFSS_PLATFORM_1}-wayf"
+        [[ "${EFSS_PLATFORM_1}" == "ocmgo" ]] && p1_token="${EFSS_PLATFORM_1}"
+
         if [[ "${TEST_SCENARIO}" == "login" ]]; then
-            CLEAN_ARGS+=("${EFSS_PLATFORM_1}-wayf")
+            CLEAN_ARGS+=("${p1_token}")
         else
-            CLEAN_ARGS+=("${EFSS_PLATFORM_1}-wayf")
-            CLEAN_ARGS+=("${EFSS_PLATFORM_2}-wayf")
+            local p2_token="${EFSS_PLATFORM_2}-wayf"
+            [[ "${EFSS_PLATFORM_2}" == "ocmgo" ]] && p2_token="${EFSS_PLATFORM_2}"
+            CLEAN_ARGS+=("${p1_token}")
+            CLEAN_ARGS+=("${p2_token}")
         fi
         return 0
     fi

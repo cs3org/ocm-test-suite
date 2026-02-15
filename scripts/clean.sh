@@ -321,6 +321,15 @@ main() {
                 fi
                 if declare -f "${fn}" >/dev/null; then
                     [[ -n "${idx}" ]] && "${fn}" "${idx}" || "${fn}"
+                elif [[ "${is_wayf}" == true ]]; then
+                    # No WAYF-specific delete helper; fall back to the plain
+                    # variant so containers are always cleaned up.
+                    local fallback_fn="delete_${token}"
+                    if declare -f "${fallback_fn}" >/dev/null; then
+                        [[ -n "${idx}" ]] && "${fallback_fn}" "${idx}" || "${fallback_fn}"
+                    else
+                        run_quietly_if_ci printf "Warning: no %s or %s function found - cleaning skipped.\n" "${fn}" "${fallback_fn}" >&2
+                    fi
                 else
                     run_quietly_if_ci printf "Warning: no %s function found - cleaning skipped.\n" "${fn}" >&2
                 fi

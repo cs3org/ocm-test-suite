@@ -1,0 +1,12 @@
+name: OCM Test Login Ocmgo v1.0.0
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-test-engine:
+    uses: ./.github/workflows/tests-engine.yml
+    with:
+      scenario:          login
+      sender_platform:   ocmgo
+      sender_version:    v1.0.0

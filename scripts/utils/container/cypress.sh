@@ -10,6 +10,8 @@ create_cypress_dev() {
         --network="${DOCKER_NETWORK}" \
         --name="cypress.docker" \
         -e DISPLAY="vnc.docker:0.0" \
+        -e CYPRESS_EFSS_PLATFORM_1="${EFSS_PLATFORM_1}" \
+        -e CYPRESS_EFSS_PLATFORM_2="${EFSS_PLATFORM_2}" \
         -e CYPRESS_EFSS_PLATFORM_1_VERSION="${EFSS_PLATFORM_1_VERSION%%.*}" \
         -e CYPRESS_EFSS_PLATFORM_2_VERSION="${EFSS_PLATFORM_2_VERSION%%.*}" \
         -v "${ENV_ROOT}/cypress/ocm-test-suite:/ocm" \
@@ -39,6 +41,8 @@ create_cypress_ci() {
         run_quietly_if_ci echo "Running Cypress without mounting test files from host system"
         docker run --network="${DOCKER_NETWORK}" \
             --name="cypress.docker" \
+            -e EFSS_PLATFORM_1="${EFSS_PLATFORM_1}" \
+            -e EFSS_PLATFORM_2="${EFSS_PLATFORM_2}" \
             -e CYPRESS_EFSS_PLATFORM_1_VERSION="${EFSS_PLATFORM_1_VERSION%%.*}" \
             -e CYPRESS_EFSS_PLATFORM_2_VERSION="${EFSS_PLATFORM_2_VERSION%%.*}" \
             -v "${ENV_ROOT}/cypress/screenshots:/ocm/cypress/screenshots" \
@@ -54,6 +58,8 @@ create_cypress_ci() {
         run_quietly_if_ci echo "Running Cypress with mounting test files from host system"
         docker run --network="${DOCKER_NETWORK}" \
             --name="cypress.docker" \
+            -e CYPRESS_EFSS_PLATFORM_1="${EFSS_PLATFORM_1}" \
+            -e CYPRESS_EFSS_PLATFORM_2="${EFSS_PLATFORM_2}" \
             -e CYPRESS_EFSS_PLATFORM_1_VERSION="${EFSS_PLATFORM_1_VERSION%%.*}" \
             -e CYPRESS_EFSS_PLATFORM_2_VERSION="${EFSS_PLATFORM_2_VERSION%%.*}" \
             -v "${ENV_ROOT}/cypress/ocm-test-suite:/ocm" \

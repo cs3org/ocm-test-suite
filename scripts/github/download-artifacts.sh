@@ -493,6 +493,7 @@ create_platform_bundles() {
         ["sciencemesh"]="sm"
         ["seafile"]="sf"
         ["ocis"]="ocis"
+        ["ocmgo"]="ocmgo"
         ["cernbox"]="cb"
     )
 

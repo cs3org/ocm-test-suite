@@ -42,6 +42,7 @@ const PLATFORM_NAMES = {
   'ocis': 'oCIS',
   'opcl': 'OpenCloud',
   'os': 'OCM Stub',
+  'ocmgo': 'OCM-Go',
   'sf': 'Seafile'
 };
 

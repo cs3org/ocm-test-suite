@@ -24,8 +24,6 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
   const recipientPassword = Cypress.env("NEXTCLOUD1_PASSWORD") || "dejong";
   const senderDisplayName =
     Cypress.env("CERNBOX1_DISPLAY_NAME") || "Albert Einstein";
-  const recipientDisplayName =
-    Cypress.env("NEXTCLOUD1_DISPLAY_NAME") || "michiel";
   const senderDomain = senderUrl.replace(/^https?:\/\/|\/$/g, "");
   const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, "");
 
@@ -36,6 +34,10 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
 
   const senderUtils = getUtils(senderPlatform, senderVersion);
   const recipientUtils = getUtils(recipientPlatform, recipientVersion);
+
+  before(() => {
+    Cypress.env("codeFlowVerified", null);
+  });
 
   it("CERNBox creates WAYF invite and captures Nextcloud redirect URL", () => {
     senderUtils.createWayfInviteLink({
@@ -62,7 +64,7 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
     });
   });
 
-  it("CERNBox shares file with code-flow requirement", () => {
+  it("CERNBox shares deterministic file for code-flow topology", () => {
     senderUtils.shareViaCodeFlow({
       senderUrl,
       senderUsername,
@@ -70,7 +72,6 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
       sharedFileName,
       sharedFileContent,
       recipientUsername,
-      recipientDisplayName,
     });
   });
 
@@ -83,7 +84,7 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
     });
   });
 
-  it("Nextcloud verifies file content via WebDAV byte read", () => {
+  it("Nextcloud verifies file content and renders evidence", () => {
     recipientUtils.verifyCodeFlowContentRead({
       recipientUrl,
       recipientUsername,
@@ -91,9 +92,6 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
       sharedFileName,
       expectedContent: sharedFileContent,
     });
-  });
-
-  it("Render code-flow evidence for video", () => {
     recipientUtils.renderCodeFlowEvidence({
       sharedFileName,
       expectedContent: sharedFileContent,

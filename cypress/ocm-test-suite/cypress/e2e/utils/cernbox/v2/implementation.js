@@ -664,26 +664,55 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
     });
 }
 
-export function createFileViaWebDAV({ url, username, password, fileName, fileContent }) {
-  const davUrl = `${url}/remote.php/dav/files/${username}/${fileName}`;
-  cy.request({
-    method: "PUT",
-    url: davUrl,
-    headers: {
-      "Content-Type": "text/plain",
-    },
-    auth: { user: username, pass: password },
-    body: fileContent,
-    failOnStatusCode: false,
-  }).then((response) => {
-    expect(response.status).to.be.oneOf([201, 204]);
-  });
+function buildWebDAVFileUrl(url, username, fileName) {
+  const encodedUsername = encodeURIComponent(username);
+  const encodedFileName = fileName
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
 
-  cy.reload(true);
-  cy.wait(1000);
-  cy.get(`[data-test-resource-name="${CSS.escape(fileName)}"]`, {
-    timeout: 20000,
-  })
-    .scrollIntoView()
-    .should("be.visible");
+  return `${url}/remote.php/dav/files/${encodedUsername}/${encodedFileName}`;
+}
+
+export function createFileViaWebDAV({ url, username, password, fileName, fileContent }) {
+  const davUrl = buildWebDAVFileUrl(url, username, fileName);
+
+  cy.url({ timeout: 15000 }).should("include", "/files/");
+
+  const putFile = (useBasicAuth = false) =>
+    cy
+      .request({
+        method: "PUT",
+        url: davUrl,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        ...(useBasicAuth ? { auth: { user: username, pass: password } } : {}),
+        body: fileContent,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if ([201, 204].includes(response.status)) {
+          return response;
+        }
+
+        if (!useBasicAuth && [401, 403].includes(response.status)) {
+          // Prefer the logged-in browser session first, but fall back to DAV
+          // credentials if this deployment does not accept session auth for PUT.
+          return putFile(true);
+        }
+
+        throw new Error(
+          `WebDAV file creation failed for "${fileName}" with HTTP ${response.status}`
+        );
+      });
+
+  return putFile().then(() => {
+    cy.reload(true);
+    cy.get(`[data-test-resource-name="${CSS.escape(fileName)}"]`, {
+      timeout: 20000,
+    })
+      .scrollIntoView()
+      .should("be.visible");
+  });
 }

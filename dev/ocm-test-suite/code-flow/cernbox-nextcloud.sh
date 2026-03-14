@@ -84,8 +84,8 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
-    local cernbox_revad_tag=mahdi_fix_localhome-development
+    local cernbox_revad_image=cernbox-revad
+    local cernbox_revad_tag=local-ocm-code-flow-development
     local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
     local cernbox_web_tag=testing
     local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
@@ -97,8 +97,10 @@ main() {
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 
-    # Cypress default for recipient in cernbox-to-nextcloud is michiel/dejong
-    create_nextcloud_wayf 1 "michiel" "dejong" "ghcr.io/mahdibaghbani/containers/nextcloud-contacts" "v8.1.0-ocm-nc-master-debian"
+    # Code-flow uses its own scenario wrapper to keep setup and cleanup
+    # semantics separate from WAYF even though the current container wiring
+    # is intentionally identical.
+    create_nextcloud_code_flow 1 "michiel" "dejong" "nextcloud-contacts" "local-ocm-code-flow-debian"
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

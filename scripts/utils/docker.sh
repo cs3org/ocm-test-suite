@@ -15,31 +15,46 @@ build_clean_args() {
     # Baseline tokens: no terminal clear, and singleton support containers.
     CLEAN_ARGS=("no" "cypress" "meshdir" "firefox" "vnc")
 
-    local uses_wayf_containers="false"
+    local scenario_suffix=""
     if [[ "${TEST_SCENARIO}" == "wayf" ]]; then
-        uses_wayf_containers="true"
+        scenario_suffix="wayf"
+    elif [[ "${TEST_SCENARIO}" == "code-flow" ]]; then
+        scenario_suffix="code-flow"
     elif [[ "${TEST_SCENARIO}" == "login" ]]; then
         # Login v33 (nextcloud) and v2 (cernbox) use WAYF style containers.
         if [[ "${EFSS_PLATFORM_1}" == "nextcloud" && "${EFSS_PLATFORM_1_VERSION}" == "v33" ]]; then
-            uses_wayf_containers="true"
+            scenario_suffix="wayf"
         elif [[ "${EFSS_PLATFORM_1}" == "cernbox" && "${EFSS_PLATFORM_1_VERSION}" == "v2" ]]; then
-            uses_wayf_containers="true"
+            scenario_suffix="wayf"
         fi
     fi
 
-    if [[ "${uses_wayf_containers}" == "true" ]]; then
+    if [[ -n "${scenario_suffix}" ]]; then
         CLEAN_ARGS+=("idp")
 
-        # ocmgo has no WAYF-specific container or delete helper;
-        # always use the plain platform token.
-        local p1_token="${EFSS_PLATFORM_1}-wayf"
-        [[ "${EFSS_PLATFORM_1}" == "ocmgo" ]] && p1_token="${EFSS_PLATFORM_1}"
+        local p1_token="${EFSS_PLATFORM_1}"
+        local p2_token="${EFSS_PLATFORM_2}"
+
+        if [[ "${scenario_suffix}" == "wayf" ]]; then
+            # ocmgo has no WAYF-specific container or delete helper;
+            # always use the plain platform token.
+            p1_token="${EFSS_PLATFORM_1}-wayf"
+            [[ "${EFSS_PLATFORM_1}" == "ocmgo" ]] && p1_token="${EFSS_PLATFORM_1}"
+        elif [[ "${scenario_suffix}" == "code-flow" ]]; then
+            # Only the Nextcloud recipient topology is split into a dedicated
+            # code-flow container stack. CERNBox keeps its canonical helper.
+            [[ "${EFSS_PLATFORM_1}" == "nextcloud" ]] && p1_token="${EFSS_PLATFORM_1}-code-flow"
+        fi
 
         if [[ "${TEST_SCENARIO}" == "login" ]]; then
             CLEAN_ARGS+=("${p1_token}")
         else
-            local p2_token="${EFSS_PLATFORM_2}-wayf"
-            [[ "${EFSS_PLATFORM_2}" == "ocmgo" ]] && p2_token="${EFSS_PLATFORM_2}"
+            if [[ "${scenario_suffix}" == "wayf" ]]; then
+                p2_token="${EFSS_PLATFORM_2}-wayf"
+                [[ "${EFSS_PLATFORM_2}" == "ocmgo" ]] && p2_token="${EFSS_PLATFORM_2}"
+            elif [[ "${scenario_suffix}" == "code-flow" ]]; then
+                [[ "${EFSS_PLATFORM_2}" == "nextcloud" ]] && p2_token="${EFSS_PLATFORM_2}-code-flow"
+            fi
             CLEAN_ARGS+=("${p1_token}")
             CLEAN_ARGS+=("${p2_token}")
         fi

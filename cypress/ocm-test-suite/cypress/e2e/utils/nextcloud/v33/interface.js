@@ -412,19 +412,33 @@ export function verifyCodeFlowContentRead({
     password: recipientPassword,
   });
 
-  implementation.verifyContentViaWebDAV({
-    url: recipientUrl,
-    username: recipientUsername,
-    password: recipientPassword,
-    fileName: sharedFileName,
-    expectedContent,
-  });
+  return implementation
+    .verifyContentViaWebDAV({
+      url: recipientUrl,
+      username: recipientUsername,
+      password: recipientPassword,
+      fileName: sharedFileName,
+      expectedContent,
+    })
+    .then(() => {
+      Cypress.env("codeFlowVerified", {
+        sharedFileName,
+        expectedContent,
+      });
+    });
 }
 
 export function renderCodeFlowEvidence({
   sharedFileName,
   expectedContent,
 }) {
+  const verifiedState = Cypress.env("codeFlowVerified");
+
+  expect(verifiedState, "code-flow verification state").to.deep.equal({
+    sharedFileName,
+    expectedContent,
+  });
+
   implementation.renderEvidence({
     title: "OCM M6 Code-Flow Proof: PASS",
     detail:

@@ -142,7 +142,6 @@ export function shareViaCodeFlow({
   sharedFileName,
   sharedFileContent,
   recipientUsername,
-  recipientDisplayName,
 }) {
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
   implementation.openFilesPersonalView();
@@ -153,7 +152,7 @@ export function shareViaCodeFlow({
     fileName: sharedFileName,
     fileContent: sharedFileContent,
   });
-  implementation.createShare(sharedFileName, recipientUsername, recipientDisplayName);
+  implementation.createShare(sharedFileName, recipientUsername);
 }
 
 export function acceptWayfInviteLink({

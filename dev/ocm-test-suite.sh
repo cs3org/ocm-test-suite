@@ -7,7 +7,7 @@
 
 # Description:
 #   This script automates EFSS (Enterprise File Synchronization and Sharing) OCM (Open Cloud Mesh) test suite case execution.
-#   It supports operations such as login, share-with, share-link, invite-link, and wayf for platforms like
+#   It supports operations such as login, share-with, share-link, invite-link, wayf, and code-flow for platforms like
 #   Nextcloud, ownCloud, Seafile, and others.
 
 # Usage:
@@ -16,7 +16,7 @@
 
 # Arguments:
 #   TEST_CASE               : Test case to execute (default: "login").
-#                             Options: login, share-with, share-link, invite-link, wayf.
+#                             Options: login, share-with, share-link, invite-link, wayf, code-flow.
 #   EFSS_PLATFORM_1         : Primary EFSS platform (default: "nextcloud").
 #   EFSS_PLATFORM_1_VERSION : Version of the primary EFSS platform (default: "v27.1.11").
 #   SCRIPT_MODE             : Script mode (default: "dev"). Options: dev, ci.

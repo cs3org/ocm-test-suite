@@ -700,23 +700,65 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
     .should("be.visible");
 }
 
+function buildWebDAVFileUrl(url, username, fileName) {
+  const encodedUsername = encodeURIComponent(username);
+  const encodedFileName = fileName
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  return `${url}/remote.php/dav/files/${encodedUsername}/${encodedFileName}`;
+}
+
 export function verifyContentViaWebDAV({
   url,
   username,
   password,
   fileName,
   expectedContent,
+  maxAttempts = 5,
+  retryDelayMs = 2000,
 }) {
-  const davUrl = `${url}/remote.php/dav/files/${username}/${fileName}`;
-  cy.request({
-    method: "GET",
-    url: davUrl,
-    auth: { user: username, pass: password },
-    failOnStatusCode: false,
-  }).then((response) => {
-    expect(response.status).to.eq(200);
-    expect(response.body).to.eq(expectedContent);
-  });
+  const davUrl = buildWebDAVFileUrl(url, username, fileName);
+
+  const requestContent = (attempt = 1, useBasicAuth = false) =>
+    cy
+      .request({
+        method: "GET",
+        url: davUrl,
+        ...(useBasicAuth ? { auth: { user: username, pass: password } } : {}),
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (response.status === 200) {
+          expect(response.body).to.eq(expectedContent);
+          return response;
+        }
+
+        if (!useBasicAuth && [401, 403].includes(response.status)) {
+          // Prefer the logged-in browser session first, but fall back to DAV
+          // credentials if the deployment keeps DAV auth separate.
+          return requestContent(attempt, true);
+        }
+
+        const retryableStatuses = [404, 423];
+        if (!retryableStatuses.includes(response.status)) {
+          throw new Error(
+            `WebDAV content read failed for "${fileName}" with HTTP ${response.status}`
+          );
+        }
+
+        if (attempt >= maxAttempts) {
+          throw new Error(
+            `WebDAV content read failed for "${fileName}" after ${attempt} attempts (last HTTP ${response.status})`
+          );
+        }
+
+        cy.wait(retryDelayMs);
+        return requestContent(attempt + 1, useBasicAuth);
+      });
+
+  return requestContent();
 }
 
 export function renderEvidence({ title, detail }) {

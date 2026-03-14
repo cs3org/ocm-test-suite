@@ -90,6 +90,12 @@ main() {
     local cernbox_web_tag=testing
     local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
     local cernbox_idp_tag=latest
+    local nextcloud_image=nextcloud-contacts
+    local nextcloud_tag=local-ocm-code-flow-debian
+
+    # TODO: This is intentionally hardcoded for the current local code-flow
+    # validation loop. Revert these image names/tags once the published
+    # code-flow images are ready and we switch the scenario back to that path.
 
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
@@ -100,7 +106,7 @@ main() {
     # Code-flow uses its own scenario wrapper to keep setup and cleanup
     # semantics separate from WAYF even though the current container wiring
     # is intentionally identical.
-    create_nextcloud_code_flow 1 "michiel" "dejong" "nextcloud-contacts" "local-ocm-code-flow-debian"
+    create_nextcloud_code_flow 1 "michiel" "dejong" "${nextcloud_image}" "${nextcloud_tag}"
 
     if [ "${SCRIPT_MODE}" = "dev" ]; then
         run_dev \

@@ -421,10 +421,10 @@ export function verifyCodeFlowContentRead({
       expectedContent,
     })
     .then(() => {
-      Cypress.env("codeFlowVerified", {
+      return {
         sharedFileName,
         expectedContent,
-      });
+      };
     });
 }
 
@@ -432,13 +432,6 @@ export function renderCodeFlowEvidence({
   sharedFileName,
   expectedContent,
 }) {
-  const verifiedState = Cypress.env("codeFlowVerified");
-
-  expect(verifiedState, "code-flow verification state").to.deep.equal({
-    sharedFileName,
-    expectedContent,
-  });
-
   implementation.renderEvidence({
     title: "OCM M6 Code-Flow Proof: PASS",
     detail:

@@ -494,7 +494,7 @@ create_platform_bundles() {
         ["seafile"]="sf"
         ["ocis"]="ocis"
         ["ocmgo"]="ocmgo"
-        ["cernbox"]="cb"
+        ["cernbox"]="crnbx"
     )
 
     for platform in "${!platforms[@]}"; do
@@ -551,7 +551,9 @@ create_test_type_bundles() {
     ensure_directory "$base_dir" "bundle" || return 1
 
     # Define test types
-    declare -a types=("login" "share" "invite" "code-flow")
+    # Keep code-flow under the site category bundle only, so
+    # ocm-tests-code-flow.zip has one stable owner and is not overwritten later.
+    declare -a types=("login" "share" "invite")
 
     for type in "${types[@]}"; do
         debug "=== Test Type Bundle Debug ==="

@@ -35,10 +35,6 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
   const senderUtils = getUtils(senderPlatform, senderVersion);
   const recipientUtils = getUtils(recipientPlatform, recipientVersion);
 
-  before(() => {
-    Cypress.env("codeFlowVerified", null);
-  });
-
   it("CERNBox creates WAYF invite and captures Nextcloud redirect URL", () => {
     senderUtils.createWayfInviteLink({
       senderUrl,
@@ -85,16 +81,17 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
   });
 
   it("Nextcloud verifies file content and renders evidence", () => {
-    recipientUtils.verifyCodeFlowContentRead({
+    return recipientUtils.verifyCodeFlowContentRead({
       recipientUrl,
       recipientUsername,
       recipientPassword,
       sharedFileName,
       expectedContent: sharedFileContent,
-    });
-    recipientUtils.renderCodeFlowEvidence({
-      sharedFileName,
-      expectedContent: sharedFileContent,
+    }).then(({ sharedFileName: verifiedFileName, expectedContent }) => {
+      recipientUtils.renderCodeFlowEvidence({
+        sharedFileName: verifiedFileName,
+        expectedContent,
+      });
     });
   });
 });

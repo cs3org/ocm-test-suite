@@ -181,6 +181,9 @@ export class TestOverlay {
             case 'invite':
                 categoryTitle = 'ScienceMesh Federation Test';
                 break;
+            case 'code':
+                categoryTitle = parts[1] === 'flow' ? 'Code-Flow Remote Access Test' : 'Test';
+                break;
             default:
                 categoryTitle = 'Test';
         }
@@ -248,8 +251,9 @@ export class TestOverlay {
             return `${categoryTitle}: ${fullSourcePlatform} ➜ ${fullTargetPlatform}`;
         }
 
-        // For other tests (share-link and share-with)
-        const platformParts = parts.slice(prefix === 'share' ? 2 : 1);
+        // For other tests (share-link, share-with, code-flow, wayf)
+        const skipCount = (prefix === 'share' || prefix === 'code') ? 2 : 1;
+        const platformParts = parts.slice(skipCount);
         const midPoint = Math.floor(platformParts.length / 2);
         const sourcePlatform = platformParts.slice(0, midPoint).join('-');
         const targetPlatform = platformParts.slice(midPoint).join('-');

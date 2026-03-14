@@ -551,7 +551,7 @@ create_test_type_bundles() {
     ensure_directory "$base_dir" "bundle" || return 1
 
     # Define test types
-    declare -a types=("login" "share" "invite")
+    declare -a types=("login" "share" "invite" "code-flow")
 
     for type in "${types[@]}"; do
         debug "=== Test Type Bundle Debug ==="
@@ -706,6 +706,7 @@ create_category_bundles() {
         ["share-with"]="share-with-"
         ["sciencemesh"]="invite-"
         ["wayf"]="wayf-"
+        ["code-flow"]="code-flow-"
     )
 
     for category in "${!categories[@]}"; do
@@ -993,6 +994,7 @@ main() {
             .github/workflows/share-with-*.yml
             .github/workflows/invite-link-*.yml
             .github/workflows/wayf-*.yml
+            .github/workflows/code-flow-*.yml
         )
         shopt -u nullglob
         # Basename‐only
@@ -1019,6 +1021,7 @@ main() {
     declare -a share_files=()
     declare -a invite_files=()
     declare -a wayf_files=()
+    declare -a code_flow_files=()
 
     for wf in "${workflow_files[@]}"; do
         if [[ "$wf" =~ ^login- ]]; then
@@ -1029,6 +1032,8 @@ main() {
             invite_files+=("$wf")
         elif [[ "$wf" =~ ^wayf- ]]; then
             wayf_files+=("$wf")
+        elif [[ "$wf" =~ ^code-flow- ]]; then
+            code_flow_files+=("$wf")
         fi
     done
 
@@ -1052,11 +1057,17 @@ main() {
         info "  - $wf"
     done
 
+    info "Code-flow workflows (${#code_flow_files[@]}):"
+    for wf in "${code_flow_files[@]}"; do
+        info "  - $wf"
+    done
+
     # Count of expected workflow types
     login_count=0
     share_count=0
     invite_count=0
     wayf_count=0
+    code_flow_count=0
 
     info "Found ${#workflow_files[@]} relevant workflows"
 
@@ -1080,6 +1091,10 @@ main() {
             wayf_count=$((wayf_count + 1))
             info "Processing wayf workflow: $workflow"
             ;;
+        code-flow-*)
+            code_flow_count=$((code_flow_count + 1))
+            info "Processing code-flow workflow: $workflow"
+            ;;
         *)
             warn "Unexpected workflow pattern found: $workflow"
             continue
@@ -1094,14 +1109,15 @@ main() {
     done
 
     # Verify we processed the expected number of workflows
-    total=$((login_count + share_count + invite_count + wayf_count))
+    total=$((login_count + share_count + invite_count + wayf_count + code_flow_count))
 
     info "=== Workflow Count Summary ==="
-    info "Login workflows:  $login_count"
-    info "Share workflows:  $share_count"
-    info "Invite workflows: $invite_count"
-    info "WAYF workflows:   $wayf_count"
-    info "Total processed:  $total / ${#workflow_files[@]}"
+    info "Login workflows:     $login_count"
+    info "Share workflows:     $share_count"
+    info "Invite workflows:    $invite_count"
+    info "WAYF workflows:      $wayf_count"
+    info "Code-flow workflows: $code_flow_count"
+    info "Total processed:     $total / ${#workflow_files[@]}"
 
     if ((total < ${#workflow_files[@]})); then
         warn "Not every workflow produced artifacts - continuing anyway."
@@ -1127,10 +1143,11 @@ main() {
     # Add summary at the end
     info "=== Final Summary ==="
     info "Total workflows processed: $total"
-    info "- Login workflows: $login_count"
-    info "- Share workflows: $share_count"
-    info "- Invite workflows: $invite_count"
-    info "- WAYF workflows: $wayf_count"
+    info "- Login workflows:     $login_count"
+    info "- Share workflows:     $share_count"
+    info "- Invite workflows:    $invite_count"
+    info "- WAYF workflows:      $wayf_count"
+    info "- Code-flow workflows: $code_flow_count"
 
     # Add disk usage information
     local artifacts_size

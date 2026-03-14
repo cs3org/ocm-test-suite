@@ -204,3 +204,6 @@ wayf:
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: nextcloud, version: v33 } }
   - { sender: { platform: cernbox, version: v2 }, receiver: { platform: cernbox, version: v2 } }
   - { sender: { platform: ocmgo, version: v1.0.0 }, receiver: { platform: ocmgo, version: v1.0.0 } }
+
+code-flow:
+  - { sender: { platform: cernbox, version: v2 }, receiver: { platform: nextcloud, version: v33 } }

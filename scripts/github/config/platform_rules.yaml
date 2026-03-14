@@ -90,3 +90,12 @@ scenarios:
         receiver: [nextcloud, cernbox]
       - sender: [ocmgo]
         receiver: [ocmgo]
+
+  # Code-flow token exchange: OCM-STA M6 proof pair
+  code-flow:
+    versions:
+      nextcloud: [v33]
+      cernbox: [v2]
+    include:
+      - sender: [cernbox]
+        receiver: [nextcloud]

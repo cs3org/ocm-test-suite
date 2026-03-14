@@ -378,3 +378,57 @@ export function buildFederatedShareDetails({
     protocol: "webdav",
   };
 }
+
+export function acceptCodeFlowShare({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  sharedFileName,
+}) {
+  login({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+  });
+
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+  implementation.handleShareAcceptance(sharedFileName);
+}
+
+export function verifyCodeFlowContentRead({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  sharedFileName,
+  expectedContent,
+}) {
+  implementation.loginCore({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+  });
+
+  implementation.verifyContentViaWebDAV({
+    url: recipientUrl,
+    username: recipientUsername,
+    password: recipientPassword,
+    fileName: sharedFileName,
+    expectedContent,
+  });
+}
+
+export function renderCodeFlowEvidence({
+  sharedFileName,
+  expectedContent,
+}) {
+  implementation.renderEvidence({
+    title: "OCM M6 Code-Flow Proof: PASS",
+    detail:
+      `File "${sharedFileName}" content verified via WebDAV byte read. ` +
+      `Expected: "${expectedContent}"`,
+  });
+}

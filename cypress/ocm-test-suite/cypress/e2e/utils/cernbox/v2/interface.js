@@ -135,6 +135,27 @@ export function createWayfInviteLink({
   });
 }
 
+export function shareViaCodeFlow({
+  senderUrl,
+  senderUsername,
+  senderPassword,
+  sharedFileName,
+  sharedFileContent,
+  recipientUsername,
+  recipientDisplayName,
+}) {
+  login({ url: senderUrl, username: senderUsername, password: senderPassword });
+  implementation.openFilesPersonalView();
+  implementation.createFileViaWebDAV({
+    url: senderUrl,
+    username: senderUsername,
+    password: senderPassword,
+    fileName: sharedFileName,
+    fileContent: sharedFileContent,
+  });
+  implementation.createShare(sharedFileName, recipientUsername, recipientDisplayName);
+}
+
 export function acceptWayfInviteLink({
   senderPlatform,
   senderDomain,

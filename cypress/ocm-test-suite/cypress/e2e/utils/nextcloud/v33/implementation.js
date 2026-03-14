@@ -699,3 +699,39 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
     .find("a.list-item__anchor")
     .should("be.visible");
 }
+
+export function verifyContentViaWebDAV({
+  url,
+  username,
+  password,
+  fileName,
+  expectedContent,
+}) {
+  const davUrl = `${url}/remote.php/dav/files/${username}/${fileName}`;
+  cy.request({
+    method: "GET",
+    url: davUrl,
+    auth: { user: username, pass: password },
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.status).to.eq(200);
+    expect(response.body).to.eq(expectedContent);
+  });
+}
+
+export function renderEvidence({ title, detail }) {
+  cy.document().then((doc) => {
+    const overlay = doc.createElement("div");
+    overlay.setAttribute(
+      "style",
+      "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;" +
+        "background:#1a7f37;color:#fff;font-family:monospace;text-align:center;"
+    );
+    overlay.innerHTML =
+      `<h1 style="font-size:2.5rem;margin-bottom:1rem;">${title}</h1>` +
+      `<p style="font-size:1.25rem;opacity:0.9;">${detail}</p>`;
+    doc.body.appendChild(overlay);
+  });
+  cy.wait(5000);
+}

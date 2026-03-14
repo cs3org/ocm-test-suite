@@ -663,3 +663,27 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
       cy.contains("td", sharedFileName);
     });
 }
+
+export function createFileViaWebDAV({ url, username, password, fileName, fileContent }) {
+  const davUrl = `${url}/remote.php/dav/files/${username}/${fileName}`;
+  cy.request({
+    method: "PUT",
+    url: davUrl,
+    headers: {
+      "Content-Type": "text/plain",
+    },
+    auth: { user: username, pass: password },
+    body: fileContent,
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.status).to.be.oneOf([201, 204]);
+  });
+
+  cy.reload(true);
+  cy.wait(1000);
+  cy.get(`[data-test-resource-name="${CSS.escape(fileName)}"]`, {
+    timeout: 20000,
+  })
+    .scrollIntoView()
+    .should("be.visible");
+}

@@ -247,6 +247,35 @@ handle_wayf() {
 }
 
 # -----------------------------------------------------------------------------------
+# Function: handle_code_flow
+# Purpose: Handle the "code-flow" test case.
+# Arguments:
+#   $1 - EFSS platform 1.
+#   $2 - EFSS platform 1 version.
+#   $3 - EFSS platform 2.
+#   $4 - EFSS platform 2 version.
+#   $5 - Script mode.
+#   $6 - Browser platform.
+# -----------------------------------------------------------------------------------
+handle_code_flow() {
+    local platform1="${1}"
+    local version1="${2}"
+    local platform2="${3}"
+    local version2="${4}"
+    local mode="${5}"
+    local browser="${6}"
+    local script_path="${ENV_ROOT}/dev/ocm-test-suite/code-flow/${platform1}-${platform2}.sh"
+
+    # Check for unsupported combinations.
+    if [[ "${platform1}-${platform2}" =~ ^(nextcloud-seafile|owncloud-seafile|seafile-nextcloud|seafile-owncloud)$ ]]; then
+        print_error "Combination '${platform1}-${platform2}' is not supported for 'code-flow' test case."
+        exit 1
+    else
+        run_test_script "${script_path}" "${version1}" "${version2}" "${mode}" "${browser}"
+    fi
+}
+
+# -----------------------------------------------------------------------------------
 # Function: main
 # Purpose: Main function to manage the flow of the script.
 # -----------------------------------------------------------------------------------
@@ -265,10 +294,10 @@ main() {
 
     # Validate test case.
     case "${test_case}" in
-    "login" | "share-with" | "share-link" | "invite-link" | "wayf") ;;
+    "login" | "share-with" | "share-link" | "invite-link" | "wayf" | "code-flow") ;;
 
     *)
-        error_exit "Unknown test case: '${test_case}'. Valid options are: login, share-with, share-link, invite-link, wayf."
+        error_exit "Unknown test case: '${test_case}'. Valid options are: login, share-with, share-link, invite-link, wayf, code-flow."
         ;;
     esac
 
@@ -288,6 +317,9 @@ main() {
         ;;
     "wayf")
         handle_wayf "${efss_platform_1}" "${efss_platform_1_version}" "${efss_platform_2}" "${efss_platform_2_version}" "${script_mode}" "${browser_platform}"
+        ;;
+    "code-flow")
+        handle_code_flow "${efss_platform_1}" "${efss_platform_1_version}" "${efss_platform_2}" "${efss_platform_2_version}" "${script_mode}" "${browser_platform}"
         ;;
     esac
 }

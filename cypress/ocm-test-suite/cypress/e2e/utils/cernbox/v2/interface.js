@@ -145,13 +145,14 @@ export function shareViaCodeFlow({
 }) {
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
   implementation.openFilesPersonalView();
-  implementation.createFileViaWebDAV({
-    url: senderUrl,
-    username: senderUsername,
-    password: senderPassword,
-    fileName: sharedFileName,
-    fileContent: sharedFileContent,
-  });
+
+  implementation.createTextFile(sharedFileName, sharedFileContent);
+
+  // CERNBox leaves the user in the editor after save, so jump back to Files
+  // before looking for the row we want to share.
+  implementation.openFilesApp();
+  implementation.openFilesPersonalView();
+
   implementation.createShare(sharedFileName, recipientUsername);
 }
 

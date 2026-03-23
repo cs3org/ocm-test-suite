@@ -58,6 +58,8 @@ _cernbox_revad_grpc_port_for_mode() {
     authprovider-publicshares) echo "9160" ;;
     authprovider-machine) echo "9166" ;;
     authprovider-ocmshares) echo "9278" ;;
+    authprovider-ocmsharecode) echo "9280" ;;
+    authprovider-ocmexchangedtoken) echo "9282" ;;
     *) error_exit "Unknown REVAD_CONTAINER_MODE: ${mode}" ;;
     esac
 }
@@ -79,6 +81,14 @@ _cernbox_default_idp_url() {
 
 _cernbox_default_ocm_directory_service_urls() {
     echo "${CERNBOX_OCM_DIRECTORY_SERVICE_URLS:-https://surfdrive.surf.nl/index.php/s/d0bE1k3P1WHReTq/download}"
+}
+
+_cernbox_default_ocm_timeout() {
+    echo "${CERNBOX_OCM_TIMEOUT:-10}"
+}
+
+_cernbox_default_ocm_client_insecure() {
+    echo "${CERNBOX_OCM_CLIENT_INSECURE:-false}"
 }
 
 _create_cernbox_revad_service() {
@@ -256,6 +266,10 @@ _create_cernbox_internal() {
 
     local ocm_directory_service_urls
     ocm_directory_service_urls="$(_cernbox_default_ocm_directory_service_urls)"
+    local ocm_timeout
+    ocm_timeout="$(_cernbox_default_ocm_timeout)"
+    local ocm_client_insecure
+    ocm_client_insecure="$(_cernbox_default_ocm_client_insecure)"
 
     local meshdir_domain="meshdir.docker"
     local meshdir_url=""
@@ -273,6 +287,10 @@ _create_cernbox_internal() {
     authprovider_machine_host="$(_cernbox_revad_container_name "${number}" "authprovider-machine")"
     local authprovider_ocmshares_host
     authprovider_ocmshares_host="$(_cernbox_revad_container_name "${number}" "authprovider-ocmshares")"
+    local authprovider_ocmsharecode_host
+    authprovider_ocmsharecode_host="$(_cernbox_revad_container_name "${number}" "authprovider-ocmsharecode")"
+    local authprovider_ocmexchangedtoken_host
+    authprovider_ocmexchangedtoken_host="$(_cernbox_revad_container_name "${number}" "authprovider-ocmexchangedtoken")"
     local authprovider_publicshares_host
     authprovider_publicshares_host="$(_cernbox_revad_container_name "${number}" "authprovider-publicshares")"
     local shareproviders_host
@@ -307,6 +325,10 @@ _create_cernbox_internal() {
         -e "REVAD_AUTHPROVIDER_MACHINE_GRPC_PORT=9166"
         -e "REVAD_AUTHPROVIDER_OCMSHARES_HOST=${authprovider_ocmshares_host}"
         -e "REVAD_AUTHPROVIDER_OCMSHARES_GRPC_PORT=9278"
+        -e "REVAD_AUTHPROVIDER_OCMSHARECODE_HOST=${authprovider_ocmsharecode_host}"
+        -e "REVAD_AUTHPROVIDER_OCMSHARECODE_GRPC_PORT=9280"
+        -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_HOST=${authprovider_ocmexchangedtoken_host}"
+        -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_GRPC_PORT=9282"
         -e "REVAD_AUTHPROVIDER_PUBLICSHARES_HOST=${authprovider_publicshares_host}"
         -e "REVAD_AUTHPROVIDER_PUBLICSHARES_GRPC_PORT=9160"
         -e "REVAD_SHAREPROVIDERS_HOST=${shareproviders_host}"
@@ -325,6 +347,9 @@ _create_cernbox_internal() {
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_PORT=80"
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_PROTOCOL=http"
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_GRPC_PORT=9147"
+        -e "OCM_ENABLE_CODE_FLOW=true"
+        -e "OCM_TIMEOUT=${ocm_timeout}"
+        -e "OCM_CLIENT_INSECURE=${ocm_client_insecure}"
     )
 
     local -a gateway_env=(
@@ -359,6 +384,12 @@ _create_cernbox_internal() {
         "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-ocmshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
+
+    _create_cernbox_revad_service "${number}" "authprovider-ocmsharecode" "${revad_image}" "${revad_tag}" "${json_volume}" \
+        "${reva_override_mount[@]}" "${revad_env_common[@]}"
+
+    _create_cernbox_revad_service "${number}" "authprovider-ocmexchangedtoken" "${revad_image}" "${revad_tag}" "${json_volume}" \
         "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
     _create_cernbox_revad_service "${number}" "authprovider-publicshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
@@ -401,6 +432,8 @@ delete_cernbox() {
         "authprovider-oidc"
         "authprovider-machine"
         "authprovider-ocmshares"
+        "authprovider-ocmsharecode"
+        "authprovider-ocmexchangedtoken"
         "authprovider-publicshares"
         "shareproviders"
         "groupuserproviders"

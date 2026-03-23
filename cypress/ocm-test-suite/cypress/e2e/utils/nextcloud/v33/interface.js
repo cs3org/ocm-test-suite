@@ -106,8 +106,12 @@ export function acceptWayfInviteLink({
   recipientPassword,
   inviteLinkFileName,
 }) {
-  const flagReva = general.revaBasedWayfPlatforms.has(senderPlatform);
   const flagUsername = general.usernameContactPlatforms.has(senderPlatform);
+  const expectedContactSubtitle = general.getExpectedFederatedContactSubtitle({
+    senderPlatform,
+    senderDomain,
+    senderUsername,
+  });
 
   // Step 1: Load the redirect URL from the saved file (saved by createWayfInviteLink after WAYF flow)
   cy.readFile(inviteLinkFileName).then((redirectUrl) => {
@@ -132,7 +136,7 @@ export function acceptWayfInviteLink({
     implementation.verifyFederatedContact(
       recipientDomain,
       flagUsername ? senderUsername : senderDisplayName,
-      flagReva ? `reva${senderDomain}` : senderDomain
+      expectedContactSubtitle
     );
   });
 }

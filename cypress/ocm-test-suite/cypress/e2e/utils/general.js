@@ -10,6 +10,33 @@ export const revaBasedWayfPlatforms = new Set([""]);
 export const usernameContactPlatforms = new Set(["nextcloud", "owncloud"]);
 
 /**
+ * Returns the visible subtitle Nextcloud Contacts is expected to render for a
+ * federated contact row. This is intentionally UI-facing data, not the raw OCM
+ * provider host.
+ *
+ * @param {Object} params
+ * @param {string} params.senderPlatform
+ * @param {string} params.senderDomain
+ * @param {string} params.senderUsername
+ * @returns {string}
+ */
+export function getExpectedFederatedContactSubtitle({
+  senderPlatform,
+  senderDomain,
+  senderUsername,
+}) {
+  if (senderPlatform === "cernbox") {
+    return Cypress.env("CERNBOX1_EMAIL") || `${senderUsername}@cern.ch`;
+  }
+
+  if (revaBasedWayfPlatforms.has(senderPlatform)) {
+    return `reva${senderDomain}`;
+  }
+
+  return senderDomain;
+}
+
+/**
  * Escapes special characters in a string to be used in a CSS selector.
  * This is necessary because file names may contain characters that have special meanings in CSS selectors.
  *

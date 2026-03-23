@@ -693,12 +693,16 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
   const normalizeContactText = (value) =>
     String(value || "").trim().toLowerCase();
   const expectedName = normalizeContactText(displayName);
-  const expectedDomain = normalizeContactText(contactDomain);
+  const expectedSubtitleOrDomain = normalizeContactText(contactDomain);
+  const useExactSubtitleMatch = expectedSubtitleOrDomain.includes("@");
 
-  // In v33 the visible contact name lives in .list-item-content__name while
-  // .envelope__subtitle__subject usually holds the email or username. Match the
-  // name row first, then allow the full row text as a fallback for mixed renderings.
-  cy.get("li.list-item__wrapper", { timeout: 10000 }).then(($rows) => {
+  // ContactsListItem.vue renders:
+  // - display name in .list-item-content__name
+  // - email/phone in .envelope__subtitle__subject
+  // Match that structure directly instead of broad row-text scans.
+  cy.get(".contacts-list .contacts-list__item-wrapper li.list-item__wrapper", {
+    timeout: 10000,
+  }).then(($rows) => {
     const rows = Array.from($rows || []);
     const matchedRow = rows.find((row) => {
       const nameText = normalizeContactText(
@@ -707,14 +711,16 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
       const subtitleText = normalizeContactText(
         row.querySelector(".envelope__subtitle__subject")?.textContent
       );
-      const rowText = normalizeContactText(row.textContent);
 
-      return (
-        nameText === expectedName ||
-        subtitleText === expectedName ||
-        rowText.includes(expectedName)
-      );
+      if (nameText !== expectedName) return false;
+      if (!expectedSubtitleOrDomain) return true;
+      if (useExactSubtitleMatch) return subtitleText === expectedSubtitleOrDomain;
+      return subtitleText.includes(expectedSubtitleOrDomain);
     });
+
+    const normalizedSubtitleText = normalizeContactText(
+      matchedRow?.querySelector(".envelope__subtitle__subject")?.textContent
+    );
 
     expect(matchedRow, `contact row for "${displayName}"`).to.exist;
 
@@ -722,21 +728,15 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
       .should("be.visible")
       .within(() => {
         cy.get("a.list-item__anchor").should("be.visible");
-
-        if (expectedDomain) {
-          cy.root()
-            .invoke("text")
-            .then((text) => {
-              const normalizedRowText = normalizeContactText(text);
-
-              // Some contacts render the provider host directly while others only
-              // show the inviter identity. Keep the assertion soft enough for both.
-              if (normalizedRowText.includes(expectedDomain)) {
-                expect(normalizedRowText).to.include(expectedDomain);
-              }
-            });
-        }
       });
+
+    if (expectedSubtitleOrDomain) {
+      if (useExactSubtitleMatch) {
+        expect(normalizedSubtitleText).to.eq(expectedSubtitleOrDomain);
+      } else if (normalizedSubtitleText.includes(expectedSubtitleOrDomain)) {
+        expect(normalizedSubtitleText).to.include(expectedSubtitleOrDomain);
+      }
+    }
   });
 }
 

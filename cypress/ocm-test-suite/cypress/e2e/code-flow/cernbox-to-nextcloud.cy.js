@@ -2,9 +2,9 @@
  * @fileoverview
  * Cypress code-flow test: CERNBox v2 sender -> Nextcloud v33 recipient.
  *
- * Proves OCM M6 token-exchange by creating a file with known content on
- * the sender, sharing it with must-exchange-token (server-side), accepting
- * on the recipient, reading back exact bytes via WebDAV, and rendering
+ * Covers OCM code-flow by creating a file with known content on the sender,
+ * sharing it with must-exchange-token (server-side), accepting it on the
+ * recipient, downloading it through the Nextcloud Files UI, and rendering
  * final evidence in the Cypress video.
  */
 
@@ -27,10 +27,8 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
   const senderDomain = senderUrl.replace(/^https?:\/\/|\/$/g, "");
   const recipientDomain = recipientUrl.replace(/^https?:\/\/|\/$/g, "");
 
-  const inviteLinkFileName = "code-flow-cernbox-nc.txt";
-  const testId = Date.now();
-  const sharedFileName = `ocm-m6-proof-${testId}.txt`;
-  const sharedFileContent = `ocm-m6-proof-${testId}`;
+  const flowSlug = "code-flow-cernbox-nc";
+  const inviteLinkFileName = `${flowSlug}.txt`;
 
   const senderUtils = getUtils(senderPlatform, senderVersion);
   const recipientUtils = getUtils(recipientPlatform, recipientVersion);
@@ -60,38 +58,38 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
     });
   });
 
-  it("CERNBox shares deterministic file for code-flow topology", () => {
+  it("CERNBox sends OCM code-flow share to Nextcloud", () => {
     senderUtils.shareViaCodeFlow({
       senderUrl,
       senderUsername,
       senderPassword,
-      sharedFileName,
-      sharedFileContent,
+      flowSlug,
       recipientUsername,
     });
   });
 
-  it("Nextcloud accepts code-flow share", () => {
+  it("Nextcloud accepts OCM code-flow share from CERNBox", () => {
     recipientUtils.acceptCodeFlowShare({
       recipientUrl,
       recipientUsername,
       recipientPassword,
-      sharedFileName,
+      flowSlug,
     });
   });
 
-  it("Nextcloud verifies file content and renders evidence", () => {
-    return recipientUtils.verifyCodeFlowContentRead({
-      recipientUrl,
-      recipientUsername,
-      recipientPassword,
-      sharedFileName,
-      expectedContent: sharedFileContent,
-    }).then(({ sharedFileName: verifiedFileName, expectedContent }) => {
-      recipientUtils.renderCodeFlowEvidence({
-        sharedFileName: verifiedFileName,
-        expectedContent,
+  it("Nextcloud downloads OCM code-flow file from CERNBox", () => {
+    return recipientUtils
+      .verifyCodeFlowDownloadedContent({
+        recipientUrl,
+        recipientUsername,
+        recipientPassword,
+        flowSlug,
+      })
+      .then(({ sharedFileName: verifiedFileName, expectedContent }) => {
+        recipientUtils.renderCodeFlowEvidence({
+          sharedFileName: verifiedFileName,
+          expectedContent,
+        });
       });
-    });
   });
 });

@@ -387,49 +387,54 @@ export function acceptCodeFlowShare({
   recipientUrl,
   recipientUsername,
   recipientPassword,
-  sharedFileName,
+  flowSlug,
 }) {
-  login({
-    url: recipientUrl,
-    username: recipientUsername,
-    password: recipientPassword,
-  });
-
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.get('a[href*="/apps/files/"]').click();
-  });
-  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
-
-  implementation.handleShareAcceptance(sharedFileName);
-}
-
-export function verifyCodeFlowContentRead({
-  recipientUrl,
-  recipientUsername,
-  recipientPassword,
-  sharedFileName,
-  expectedContent,
-}) {
-  implementation.loginCore({
-    url: recipientUrl,
-    username: recipientUsername,
-    password: recipientPassword,
-  });
-
-  return implementation
-    .verifyContentViaWebDAV({
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  cy.readFile(sharedFileInfoFileName).then(({ sharedFileName }) => {
+    login({
       url: recipientUrl,
       username: recipientUsername,
       password: recipientPassword,
-      fileName: sharedFileName,
-      expectedContent,
-    })
-    .then(() => {
-      return {
-        sharedFileName,
-        expectedContent,
-      };
     });
+
+    cy.get('nav[aria-label="Applications menu"]').within(() => {
+      cy.get('a[href*="/apps/files/"]').click();
+    });
+    cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+    implementation.handleShareAcceptance(sharedFileName);
+  });
+}
+
+export function verifyCodeFlowDownloadedContent({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  flowSlug,
+}) {
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  return cy.readFile(sharedFileInfoFileName).then(({ sharedFileName, sharedFileContent }) => {
+    implementation.loginCore({
+      url: recipientUrl,
+      username: recipientUsername,
+      password: recipientPassword,
+    });
+
+    cy.get('nav[aria-label="Applications menu"]').within(() => {
+      cy.get('a[href*="/apps/files/"]').click();
+    });
+    cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+    return implementation
+      .downloadFileAndVerifyContent({
+        fileName: sharedFileName,
+        expectedContent: sharedFileContent,
+      })
+      .then(() => ({
+        sharedFileName,
+        expectedContent: sharedFileContent,
+      }));
+  });
 }
 
 export function renderCodeFlowEvidence({
@@ -437,9 +442,9 @@ export function renderCodeFlowEvidence({
   expectedContent,
 }) {
   implementation.renderEvidence({
-    title: "OCM M6 Code-Flow Proof: PASS",
+    title: "OCM Code-Flow: PASS",
     detail:
-      `File "${sharedFileName}" content verified via WebDAV byte read. ` +
+      `File "${sharedFileName}" content verified via Files UI download. ` +
       `Expected: "${expectedContent}"`,
   });
 }

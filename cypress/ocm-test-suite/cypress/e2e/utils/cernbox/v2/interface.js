@@ -139,12 +139,22 @@ export function shareViaCodeFlow({
   senderUrl,
   senderUsername,
   senderPassword,
-  sharedFileName,
-  sharedFileContent,
+  flowSlug,
   recipientUsername,
 }) {
+  const testId = Date.now();
+  const sharedFileContent =
+    "This is being developed without the Internet and there is an air raid going on";
+  const sharedFileName = `${flowSlug}-${testId}.txt`;
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
   implementation.openFilesPersonalView();
+
+  cy.writeFile(sharedFileInfoFileName, {
+    sharedFileName,
+    sharedFileContent,
+  });
 
   implementation.createTextFile(sharedFileName, sharedFileContent);
 

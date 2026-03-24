@@ -143,7 +143,7 @@ export function shareViaCodeFlow({
   recipientUsername,
 }) {
   const testId = Date.now();
-  const sharedFileContent =
+  const expectedContent =
     "This is being developed without the Internet and there is an air raid going on";
   const sharedFileName = `${flowSlug}-${testId}.txt`;
   const sharedFileInfoFileName = `${flowSlug}-file.json`;
@@ -153,10 +153,10 @@ export function shareViaCodeFlow({
 
   cy.writeFile(sharedFileInfoFileName, {
     sharedFileName,
-    sharedFileContent,
+    expectedContent,
   });
 
-  implementation.createTextFile(sharedFileName, sharedFileContent);
+  implementation.createTextFile(sharedFileName, expectedContent);
 
   // CERNBox leaves the user in the editor after save, so jump back to Files
   // before looking for the row we want to share.

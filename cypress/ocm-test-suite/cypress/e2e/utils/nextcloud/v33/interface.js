@@ -406,14 +406,14 @@ export function acceptCodeFlowShare({
   });
 }
 
-export function verifyCodeFlowDownloadedContent({
+export function verifyCodeFlowContentRead({
   recipientUrl,
   recipientUsername,
   recipientPassword,
   flowSlug,
 }) {
   const sharedFileInfoFileName = `${flowSlug}-file.json`;
-  return cy.readFile(sharedFileInfoFileName).then(({ sharedFileName, sharedFileContent }) => {
+  return cy.readFile(sharedFileInfoFileName).then(({ sharedFileName, expectedContent }) => {
     implementation.loginCore({
       url: recipientUrl,
       username: recipientUsername,
@@ -428,13 +428,17 @@ export function verifyCodeFlowDownloadedContent({
     return implementation
       .downloadFileAndVerifyContent({
         fileName: sharedFileName,
-        expectedContent: sharedFileContent,
+        expectedContent,
       })
       .then(() => ({
         sharedFileName,
-        expectedContent: sharedFileContent,
+        expectedContent,
       }));
   });
+}
+
+export function verifyCodeFlowDownloadedContent(args) {
+  return verifyCodeFlowContentRead(args);
 }
 
 export function renderCodeFlowEvidence({

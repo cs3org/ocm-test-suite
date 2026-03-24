@@ -79,7 +79,7 @@ describe("Code-flow federated sharing: CERNBox to Nextcloud", () => {
 
   it("Nextcloud downloads OCM code-flow file from CERNBox", () => {
     return recipientUtils
-      .verifyCodeFlowDownloadedContent({
+      .verifyCodeFlowContentRead({
         recipientUrl,
         recipientUsername,
         recipientPassword,

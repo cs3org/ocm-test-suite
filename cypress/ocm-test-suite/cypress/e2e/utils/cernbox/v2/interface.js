@@ -222,19 +222,35 @@ export function verifyCodeFlowContentRead({
     implementation.verifySharedWithMe({ sharedFileName });
     implementation.ensureSameTabEditorNavigation();
 
-    cy.get(`[data-test-resource-name="${CSS.escape(sharedFileName)}"]`, {
+    const resourceSelector = `[data-test-resource-name="${CSS.escape(sharedFileName)}"]`;
+
+    cy.get(resourceSelector, {
       timeout: 20000,
     })
       .scrollIntoView()
       .should("be.visible")
-      .click({ force: true });
+      .then(($resource) => {
+        const $link = $resource.is("a") ? $resource : $resource.closest("a");
+
+        if ($link.length > 0) {
+          cy.wrap($link)
+            .invoke("removeAttr", "target")
+            .click({ force: true });
+          return;
+        }
+
+        cy.wrap($resource).click({ force: true });
+      });
 
     return cy
-      .get("#text-editor #text-editor-container .cm-content", { timeout: 20000 })
+      .get("#text-editor #text-editor-container .cm-line", { timeout: 20000 })
       .should("be.visible")
-      .invoke("prop", "innerText")
-      .then((rawText) => {
-        const normalized = String(rawText).replace(/\r\n/g, "\n").replace(/\n$/, "");
+      .then(($lines) => {
+        const normalized = Array.from($lines, (line) =>
+          String(line.textContent || "").replace(/\r\n/g, "\n")
+        )
+          .join("\n")
+          .replace(/\n$/, "");
         expect(normalized).to.equal(expectedContent);
         return { sharedFileName, expectedContent };
       });

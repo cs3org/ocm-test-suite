@@ -35,12 +35,15 @@ export class TestOverlay {
                             <div class="test-overlay__video-container">
                                 <div class="test-overlay__video-wrapper">
                                     <video controls preload="none">
-                                        <source type="video/webm" src="">
+                                        <source type="video/mp4" src="">
                                     </video>
                                     <div class="test-overlay__video-loading">
                                         <div class="spinner"></div>
                                         <span>Loading test recording...</span>
                                     </div>
+                                </div>
+                                <div class="test-overlay__video-error" role="status" aria-live="polite">
+                                    Failed to load video recording
                                 </div>
                             </div>
 
@@ -122,6 +125,10 @@ export class TestOverlay {
         const video = this.overlay.querySelector('video');
         const source = video.querySelector('source');
         const videoContainer = this.overlay.querySelector('.test-overlay__video-container');
+        const downloadLink = this.overlay.querySelector('.test-overlay__download');
+        const fullscreenButton = this.overlay.querySelector('.test-overlay__fullscreen');
+
+        this.resetVideoPresentation();
 
         if (videoUrl) {
             // Check if thumbnail exists before setting it
@@ -137,6 +144,7 @@ export class TestOverlay {
             }
 
             // Set video source
+            source.type = 'video/mp4';
             source.src = videoUrl;
             video.load();
 
@@ -144,13 +152,12 @@ export class TestOverlay {
             this.showVideoLoading();
 
             // Set up download link
-            const downloadLink = this.overlay.querySelector('.test-overlay__download');
             downloadLink.href = videoUrl;
             downloadLink.style.display = 'flex';
         } else {
             videoContainer.style.display = 'none';
-            this.overlay.querySelector('.test-overlay__download').style.display = 'none';
-            this.overlay.querySelector('.test-overlay__fullscreen').style.display = 'none';
+            downloadLink.style.display = 'none';
+            fullscreenButton.style.display = 'none';
         }
 
         // Show status
@@ -268,12 +275,16 @@ export class TestOverlay {
     hide() {
         document.body.classList.remove('overlay-active');
         this.overlay.classList.remove('active');
+        this.hideVideoLoading();
         const video = this.overlay.querySelector('video');
         if (video) {
             video.pause();
             video.currentTime = 0;
             video.removeAttribute('poster');
-            video.querySelector('source').removeAttribute('src');
+            const source = video.querySelector('source');
+            if (source) {
+                source.removeAttribute('src');
+            }
             video.load();
         }
     }
@@ -293,8 +304,55 @@ export class TestOverlay {
     }
 
     handleVideoError() {
-        const videoContainer = this.overlay.querySelector('.test-overlay__video-container');
-        videoContainer.innerHTML = '<p class="test-overlay__error">Failed to load video recording</p>';
+        const video = this.overlay.querySelector('video');
+        const videoWrapper = this.overlay.querySelector('.test-overlay__video-wrapper');
+        const videoError = this.overlay.querySelector('.test-overlay__video-error');
+
+        this.hideVideoLoading();
+
+        if (video) {
+            video.pause();
+        }
+
+        if (videoWrapper) {
+            videoWrapper.style.display = 'none';
+        }
+
+        if (videoError) {
+            videoError.style.display = 'flex';
+        }
+
         this.overlay.querySelector('.test-overlay__download').style.display = 'none';
+        this.overlay.querySelector('.test-overlay__fullscreen').style.display = 'none';
     }
-} 
+
+    resetVideoPresentation() {
+        const videoContainer = this.overlay.querySelector('.test-overlay__video-container');
+        const videoWrapper = this.overlay.querySelector('.test-overlay__video-wrapper');
+        const videoError = this.overlay.querySelector('.test-overlay__video-error');
+        const downloadLink = this.overlay.querySelector('.test-overlay__download');
+        const fullscreenButton = this.overlay.querySelector('.test-overlay__fullscreen');
+
+        if (videoContainer) {
+            videoContainer.style.display = 'block';
+        }
+
+        if (videoWrapper) {
+            videoWrapper.style.display = 'block';
+        }
+
+        if (videoError) {
+            videoError.style.display = 'none';
+        }
+
+        if (downloadLink) {
+            downloadLink.style.display = 'flex';
+        }
+
+        if (fullscreenButton) {
+            fullscreenButton.style.display = 'flex';
+        }
+
+        this.hideVideoLoading();
+    }
+}

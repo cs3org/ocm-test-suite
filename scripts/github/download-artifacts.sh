@@ -15,6 +15,7 @@ readonly ARTIFACTS_DIR="site/static/artifacts"
 readonly IMAGES_DIR="site/static/images"
 readonly LOG_FILE="/tmp/artifact-download-$(date +%Y%m%d-%H%M%S).log"
 declare -a TEMP_DIRS=()
+declare -a TEMP_FILES=()
 
 # Enhanced logging functions
 log() {
@@ -79,6 +80,12 @@ cleanup() {
         if [[ -d "$dir" ]]; then
             rm -rf "$dir"
             debug "Removed temporary directory: $dir"
+        fi
+    done
+    for file in "${TEMP_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            rm -f "$file"
+            debug "Removed temporary file: $file"
         fi
     done
     if [[ $exit_code -ne 0 ]]; then
@@ -183,11 +190,17 @@ fetch_workflow_artifacts() {
     fi
 
     # Get run ID and additional information
-    local run_id run_status run_conclusion
+    local run_id run_status run_conclusion run_head_sha
     run_id=$(echo "$runs_json" | jq -r '.id')
     run_status=$(echo "$runs_json" | jq -r '.status')
     run_conclusion=$(echo "$runs_json" | jq -r '.conclusion')
+    run_head_sha=$(echo "$runs_json" | jq -r '.head_sha // ""')
     info "Found run ID: $run_id (Status: $run_status, Conclusion: $run_conclusion) for commit ${COMMIT_SHA}"
+
+    if ! cache_workflow_status "$workflow" "$run_id" "$run_status" "$run_conclusion" "$run_head_sha"; then
+        error "Failed to cache selected run status for workflow $workflow"
+        return 1
+    fi
 
     # Get artifacts with count information
     local artifacts_json artifact_count
@@ -294,22 +307,37 @@ fetch_workflow_artifacts() {
     return 0
 }
 
-# Fetches workflow status
-fetch_workflow_status() {
+# Cache the run status that produced the downloaded artifacts so
+# workflow-status.json stays aligned with the published recordings.
+cache_workflow_status() {
     local workflow="$1"
-    local status_json
+    local run_id="$2"
+    local run_status="$3"
+    local run_conclusion="$4"
+    local run_head_sha="$5"
 
-    status_json=$(gh api "repos/cs3org/ocm-test-suite/actions/workflows/$workflow/runs?branch=main&per_page=1" \
-        --jq '{
-            name: .workflow_runs[0].name,
-            status: .workflow_runs[0].status,
-            conclusion: .workflow_runs[0].conclusion
-        }') || {
-        error "Failed to fetch status for workflow $workflow"
+    if [[ -z "${WORKFLOW_STATUS_CACHE:-}" ]]; then
+        error "WORKFLOW_STATUS_CACHE is not initialized"
         return 1
-    }
+    fi
 
-    echo "$status_json"
+    jq \
+        --arg workflow "$workflow" \
+        --arg run_id "$run_id" \
+        --arg run_status "$run_status" \
+        --arg run_conclusion "$run_conclusion" \
+        --arg run_head_sha "$run_head_sha" \
+        '. + {
+            ($workflow): {
+                name: $workflow,
+                run_id: $run_id,
+                status: $run_status,
+                conclusion: $run_conclusion,
+                head_sha: $run_head_sha
+            }
+        }' \
+        "$WORKFLOW_STATUS_CACHE" >"${WORKFLOW_STATUS_CACHE}.tmp" &&
+        mv "${WORKFLOW_STATUS_CACHE}.tmp" "$WORKFLOW_STATUS_CACHE"
 }
 
 # Generates two key files:
@@ -331,13 +359,15 @@ generate_manifest() {
 
     # Process each workflow type
     for workflow in "${workflow_files[@]}"; do
-        # Get workflow status
+        # Reuse the status captured from the same run whose artifacts we downloaded.
         local status
-        status=$(fetch_workflow_status "$workflow")
+        status=$(jq --arg workflow "$workflow" -c '.[$workflow] // empty' "$WORKFLOW_STATUS_CACHE")
         if [[ -n "$status" ]]; then
             jq --arg name "$workflow" --argjson status "$status" \
                 '. + {($name): $status}' "$temp_status_file" >"${temp_status_file}.tmp" &&
                 mv "${temp_status_file}.tmp" "$temp_status_file"
+        else
+            warn "No cached status found for workflow $workflow"
         fi
 
         # Get workflow artifacts
@@ -977,6 +1007,10 @@ main() {
         export COMMIT_SHA
         info "Using commit SHA: ${COMMIT_SHA}"
     fi
+
+    WORKFLOW_STATUS_CACHE=$(mktemp)
+    TEMP_FILES+=("$WORKFLOW_STATUS_CACHE")
+    echo "{}" >"$WORKFLOW_STATUS_CACHE"
 
     info "Downloading artifacts for commit: ${COMMIT_SHA}"
 

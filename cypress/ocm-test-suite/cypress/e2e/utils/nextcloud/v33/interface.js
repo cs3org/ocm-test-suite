@@ -207,6 +207,67 @@ export function shareViaInviteLink({
   );
 }
 
+export function shareViaCodeFlow({
+  senderUrl,
+  senderUsername,
+  senderPassword,
+  senderDomain,
+  recipientUsername,
+  recipientDisplayName,
+  recipientDomain,
+  flowSlug,
+}) {
+  const testId = Date.now();
+  const sharedFileName = `${flowSlug}-${testId}.txt`;
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  const davFileUrl =
+    `${senderUrl.replace(/\/$/, "")}/remote.php/dav/files/` +
+    `${encodeURIComponent(senderUsername)}/welcome.txt`;
+
+  login({ url: senderUrl, username: senderUsername, password: senderPassword });
+
+  cy.get('nav[aria-label="Applications menu"]').within(() => {
+    cy.get('a[href*="/apps/files/"]').click();
+  });
+  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+
+  implementation.ensureFileExists("welcome.txt");
+
+  cy.request({
+    method: "GET",
+    url: davFileUrl,
+    failOnStatusCode: false,
+  }).then(({ status, body }) => {
+    if (status === 401 || status === 403) {
+      throw new Error(
+        `Nextcloud v33 code-flow sender DAV GET returned ${status}. ` +
+          "Stop and re-debug session-cookie DAV access instead of adding auth fallbacks."
+      );
+    }
+
+    expect(status, "Nextcloud v33 sender DAV GET status").to.eq(200);
+    expect(body, "Nextcloud v33 sender DAV body").to.be.a("string");
+
+    const expectedContent = body;
+
+    implementation.renameFile("welcome.txt", sharedFileName);
+    implementation.ensureFileExists(sharedFileName);
+
+    cy.writeFile(sharedFileInfoFileName, {
+      sharedFileName,
+      expectedContent,
+    });
+
+    implementation.createFederatedShare(
+      senderDomain,
+      recipientUsername,
+      recipientDisplayName,
+      recipientDomain,
+      sharedFileName
+    );
+  });
+}
+
 export function acceptInviteLinkShare({
   recipientUrl,
   recipientUsername,

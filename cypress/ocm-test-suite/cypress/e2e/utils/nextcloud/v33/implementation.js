@@ -143,10 +143,20 @@ export function openSharingPanel(fileName) {
   // Assert that the Sharing sidebar is open and the Sharing tab/panel is visible.
   cy.contains('[role="tab"]', "Sharing", { timeout: 20000 }).should("exist");
   cy.contains("h4", "Internal shares").should("be.visible");
-  cy.contains("h4", "External shares").should("be.visible");
-  cy.get(
-    'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-  ).should("be.visible");
+  getExternalShareCombobox();
+}
+
+function getExternalShareCombobox() {
+  // The Files sidebar is fixed-position and can clip the external share input
+  // until its section is scrolled into view.
+  return cy
+    .contains("h4", "External shares", { timeout: 20000 })
+    .should("be.visible")
+    .closest("section")
+    .scrollIntoView()
+    .find('.sharing-search__input input[role="combobox"]')
+    .scrollIntoView()
+    .should("be.visible");
 }
 
 /**
@@ -183,11 +193,7 @@ export function createFederatedShare(
   const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
 
   // Type the remote user's Federated Cloud ID into the External shares combobox
-  cy.get(
-    'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-  )
-    .click()
-    .type(remoteFederatedCloudId);
+  getExternalShareCombobox().click().type(remoteFederatedCloudId);
 
   // Select the host-based option (without mail icon) - e.g.,
   // "admin-builtin on 2.nextcloud.cloud.test.azadehafzar.io"
@@ -340,11 +346,7 @@ export function createShare(fileName, username, domain) {
     const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
 
     // Use the External shares combobox to type the Federated Cloud ID.
-    cy.get(
-      'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-    )
-      .click()
-      .type(remoteFederatedCloudId);
+    getExternalShareCombobox().click().type(remoteFederatedCloudId);
 
     // Select the host-based option (without mail icon) - e.g.,
     // "username on nextcloud2.docker"

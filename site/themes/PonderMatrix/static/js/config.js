@@ -55,8 +55,8 @@ export const config = {
             id: 'code-flow-tests',
             title: 'Code-Flow Remote Access Tests',
             icon: 'exchange-alt',
-            sources: ['CERNBox v2'],
-            targets: ['Nextcloud v33'],
+            sources: ['Nextcloud v33', 'CERNBox v2'],
+            targets: ['Nextcloud v33', 'CERNBox v2'],
             workflowPrefix: 'code-flow-'
         }
     ],

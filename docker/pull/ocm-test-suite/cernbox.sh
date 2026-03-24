@@ -11,5 +11,6 @@ docker pull pondersource/cypress:latest
 # CERNBox v2 stack from DockyPody GHCR
 docker pull ghcr.io/mahdibaghbani/containers/idp:latest
 docker pull ghcr.io/mahdibaghbani/containers/cernbox-revad:mahdi_fix_localhome-development
+docker pull ghcr.io/mahdibaghbani/containers/cernbox-revad:sta-ocm-m6-development
 docker pull ghcr.io/mahdibaghbani/containers/cernbox-web:testing
 

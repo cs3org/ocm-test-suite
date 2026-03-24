@@ -16,11 +16,11 @@
 #   $1: Container number/ID
 #   $2: Admin username
 #   $3: Admin password
-#   $4: Docker image (e.g., "nextcloud-contacts")
-#   $5: Docker tag (e.g., "local-ocm-code-flow-debian")
+#   $4: Docker image (e.g., "ghcr.io/mahdibaghbani/containers/nextcloud-contacts")
+#   $5: Docker tag (e.g., "sta-ocm-m6-debian")
 #
 # Example:
-#   create_nextcloud_code_flow 1 "einstein" "relativity" "nextcloud-contacts" "local-ocm-code-flow-debian"
+#   create_nextcloud_code_flow 1 "einstein" "relativity" "ghcr.io/mahdibaghbani/containers/nextcloud-contacts" "sta-ocm-m6-debian"
 # ------------------------------------------------------------------------------
 create_nextcloud_code_flow() {
     _create_nextcloud_contacts_ocm_base "code-flow" "code-flow" "${1}" "${2}" "${3}" "${4}" "${5}"

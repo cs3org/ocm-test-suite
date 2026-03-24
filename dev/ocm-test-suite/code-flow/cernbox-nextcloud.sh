@@ -84,18 +84,17 @@ main() {
     initialize_environment "../../.."
     setup "$@"
 
-    local cernbox_revad_image=cernbox-revad
-    local cernbox_revad_tag=local-ocm-code-flow-development
+    local cernbox_revad_image=ghcr.io/mahdibaghbani/containers/cernbox-revad
+    local cernbox_revad_tag=sta-ocm-m6-development
     local cernbox_web_image=ghcr.io/mahdibaghbani/containers/cernbox-web
     local cernbox_web_tag=testing
     local cernbox_idp_image=ghcr.io/mahdibaghbani/containers/idp
     local cernbox_idp_tag=latest
-    local nextcloud_image=nextcloud-contacts
-    local nextcloud_tag=local-ocm-code-flow-debian
+    local nextcloud_image=ghcr.io/mahdibaghbani/containers/nextcloud-contacts
+    local nextcloud_tag=sta-ocm-m6-debian
 
-    # TODO: This is intentionally hardcoded for the current local code-flow
-    # validation loop. Revert these image names/tags once the published
-    # code-flow images are ready and we switch the scenario back to that path.
+    # Code-flow stays on the temporary milestone image line until those
+    # Reva and Nextcloud-side changes land on their upstream default branches.
 
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 

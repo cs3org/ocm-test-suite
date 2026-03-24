@@ -163,7 +163,7 @@ export function openFilesApp() {
   cy.url({ timeout: 15000 }).should("include", "/files/");
 }
 
-function ensureSameTabEditorNavigation() {
+export function ensureSameTabEditorNavigation() {
   cy.window().then((win) => {
     if (win.__agentSameTabEditorPatchApplied) return;
 
@@ -744,4 +744,21 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
     .within(() => {
       cy.contains("td", sharedFileName);
     });
+}
+
+export function renderEvidence({ title, detail }) {
+  cy.document().then((doc) => {
+    const overlay = doc.createElement("div");
+    overlay.setAttribute(
+      "style",
+      "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;" +
+        "background:#1a7f37;color:#fff;font-family:monospace;text-align:center;"
+    );
+    overlay.innerHTML =
+      `<h1 style="font-size:2.5rem;margin-bottom:1rem;">${title}</h1>` +
+      `<p style="font-size:1.25rem;opacity:0.9;">${detail}</p>`;
+    doc.body.appendChild(overlay);
+  });
+  cy.wait(5000);
 }

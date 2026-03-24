@@ -190,3 +190,65 @@ export function acceptWayfInviteLink({
     });
   });
 }
+
+export function acceptCodeFlowShare({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  flowSlug,
+}) {
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  cy.readFile(sharedFileInfoFileName).then(({ sharedFileName }) => {
+    login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
+    implementation.openSharesWithMe();
+    implementation.verifySharedWithMe({ sharedFileName });
+  });
+}
+
+export function verifyCodeFlowContentRead({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  flowSlug,
+}) {
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  return cy.readFile(sharedFileInfoFileName).then(({ sharedFileName, expectedContent }) => {
+    implementation.loginCore({
+      url: recipientUrl,
+      username: recipientUsername,
+      password: recipientPassword,
+    });
+    implementation.openSharesWithMe();
+    implementation.verifySharedWithMe({ sharedFileName });
+    implementation.ensureSameTabEditorNavigation();
+
+    cy.get(`[data-test-resource-name="${CSS.escape(sharedFileName)}"]`, {
+      timeout: 20000,
+    })
+      .scrollIntoView()
+      .should("be.visible")
+      .click({ force: true });
+
+    return cy
+      .get("#text-editor #text-editor-container .cm-content", { timeout: 20000 })
+      .should("be.visible")
+      .invoke("prop", "innerText")
+      .then((rawText) => {
+        const normalized = String(rawText).replace(/\r\n/g, "\n").replace(/\n$/, "");
+        expect(normalized).to.equal(expectedContent);
+        return { sharedFileName, expectedContent };
+      });
+  });
+}
+
+export function renderCodeFlowEvidence({
+  sharedFileName,
+  expectedContent,
+}) {
+  implementation.renderEvidence({
+    title: "OCM Code-Flow: PASS",
+    detail:
+      `File "${sharedFileName}" content verified via CERNBox editor readback. ` +
+      `Expected: "${expectedContent}"`,
+  });
+}

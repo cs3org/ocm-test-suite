@@ -246,12 +246,23 @@ export function verifyCodeFlowContentRead({
       .get("#text-editor #text-editor-container .cm-line", { timeout: 20000 })
       .should("be.visible")
       .then(($lines) => {
-        const normalized = Array.from($lines, (line) =>
+        const normalizeEditorComparableText = (value) =>
+          String(value || "")
+            .replace(/\r\n/g, "\n")
+            // The editor view can collapse trailing blank lines even when the
+            // stored file still ends with them, so compare without terminal
+            // newline runs.
+            .replace(/\n+$/, "");
+
+        const normalized = normalizeEditorComparableText(
+          Array.from($lines, (line) =>
           String(line.textContent || "").replace(/\r\n/g, "\n")
         )
-          .join("\n")
-          .replace(/\n$/, "");
-        expect(normalized).to.equal(expectedContent);
+            .join("\n")
+        );
+        expect(normalized).to.equal(
+          normalizeEditorComparableText(expectedContent)
+        );
         return { sharedFileName, expectedContent };
       });
   });

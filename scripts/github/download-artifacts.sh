@@ -171,19 +171,45 @@ fetch_workflow_artifacts() {
     info "Processing workflow: $workflow_name"
     start_timer
 
-    # Get the latest run for this workflow
-    local runs_json
+    # Fetch once and select locally. Piping gh --jq through head is brittle
+    # when multiple runs exist for the same commit.
+    local runs_json matching_run_count
     debug "Fetching workflow runs for $workflow_name"
-    runs_json=$(gh api "repos/cs3org/ocm-test-suite/actions/workflows/$workflow/runs?per_page=20" \
-        --jq ".workflow_runs[] | select(.head_sha == \"${COMMIT_SHA}\" or .head_sha == \"${COMMIT_SHA:0:7}\")" | head -n 1) || {
+    runs_json=$(gh api "repos/cs3org/ocm-test-suite/actions/workflows/$workflow/runs?per_page=20") || {
         error "Failed to fetch runs for workflow $workflow"
+        return 1
+    }
+
+    matching_run_count=$(jq -r \
+        --arg sha "${COMMIT_SHA}" \
+        --arg short_sha "${COMMIT_SHA:0:7}" \
+        '[.workflow_runs[]
+          | select((.head_sha // "") == $sha or (.head_sha // "") == $short_sha)]
+         | length' <<<"$runs_json") || {
+        error "Failed to filter runs for workflow $workflow"
+        return 1
+    }
+
+    if [[ "$matching_run_count" -gt 1 ]]; then
+        warn "Found $matching_run_count runs for workflow $workflow matching commit ${COMMIT_SHA}; selecting the newest one"
+    fi
+
+    runs_json=$(jq -c \
+        --arg sha "${COMMIT_SHA}" \
+        --arg short_sha "${COMMIT_SHA:0:7}" \
+        '[.workflow_runs[]
+          | select((.head_sha // "") == $sha or (.head_sha // "") == $short_sha)]
+         | sort_by(.created_at // "")
+         | reverse
+         | .[0] // empty' <<<"$runs_json") || {
+        error "Failed to select run for workflow $workflow"
         return 1
     }
 
     if [[ -z "$runs_json" ]]; then
         warn "No runs found for workflow $workflow with commit ${COMMIT_SHA}, trying latest run instead"
         runs_json=$(gh api "repos/cs3org/ocm-test-suite/actions/workflows/$workflow/runs?per_page=1" \
-            --jq ".workflow_runs[0]") || {
+            --jq ".workflow_runs[0] // empty") || {
             error "Failed to fetch latest run for workflow $workflow"
             return 1
         }

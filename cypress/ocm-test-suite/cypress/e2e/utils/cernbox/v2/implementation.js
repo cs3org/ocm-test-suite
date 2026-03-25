@@ -186,10 +186,19 @@ export function ensureSameTabEditorNavigation() {
 }
 
 // OC Web can render the text editor through different DOM shapes depending on
-// the active editor widget. Keep reads and writes aligned on the same fallback
-// surface list instead of hard-coding one editor-specific subtree.
+// the active editor widget. Use one selector family, but keep separate helpers
+// for "must exist now" sender typing and "may still be loading" receiver reads.
 const textEditorSurfaceSelector =
   'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]';
+
+export function getRequiredVisibleTextEditorSurface() {
+  return cy
+    .get(textEditorSurfaceSelector, { timeout: 20000 })
+    .filter(":visible")
+    .first()
+    .scrollIntoView()
+    .should("be.visible");
+}
 
 export function getVisibleTextEditorSurface() {
   return cy.get("body", { timeout: 20000 }).then(($body) => {
@@ -259,7 +268,7 @@ export function createTextFile(filename, data) {
         .click({ force: true });
     });
 
-  getVisibleTextEditorSurface().focus().type(data, { delay: 100 });
+  getRequiredVisibleTextEditorSurface().focus().type(data, { delay: 100 });
 
   cy.get('button[id="app-save-action"]', { timeout: 15000 })
     .as("saveBtn")

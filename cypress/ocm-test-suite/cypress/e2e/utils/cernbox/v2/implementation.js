@@ -157,6 +157,88 @@ export function openScienceMeshInvitations() {
   cy.url({ timeout: 15000 }).should("include", "/open-cloud-mesh/invitations");
 }
 
+export function openFilesApp() {
+  getApplicationSwitcher();
+  getApplication("files");
+  cy.url({ timeout: 15000 }).should("include", "/files/");
+}
+
+export function ensureSameTabEditorNavigation() {
+  cy.window().then((win) => {
+    if (win.__agentSameTabEditorPatchApplied) return;
+
+    const originalOpen =
+      typeof win.open === "function" ? win.open.bind(win) : () => null;
+
+    cy.stub(win, "open")
+      .callsFake((url, target, features) => {
+        if (typeof url === "string" && url.length > 0 && target === "_blank") {
+          win.location.href = url;
+          return null;
+        }
+
+        return originalOpen(url, target, features);
+      })
+      .as("agentWindowOpen");
+
+    win.__agentSameTabEditorPatchApplied = true;
+  });
+}
+
+export function createTextFile(filename, data) {
+  ensureSameTabEditorNavigation();
+  openNewFileMenu();
+
+  cy.get('div[id="new-file-menu-drop"]', { timeout: 15000 })
+    .scrollIntoView()
+    .should("be.visible")
+    .find("span")
+    .contains("Plain text file")
+    .parent()
+    .click({ force: true });
+
+  cy.get('div[class="oc-modal-background"]', { timeout: 15000 })
+    .scrollIntoView()
+    .should("be.visible")
+    .within(() => {
+      cy.get('input[id^="oc-textinput"]', { timeout: 15000 })
+        .clear()
+        .type(filename)
+        .should("have.value", filename);
+
+      cy.get("button")
+        .contains("Create")
+        .scrollIntoView()
+        .should("be.visible")
+        .click({ force: true });
+    });
+
+  cy.location("href").then((href) => {
+    cy.document().then((doc) => {
+      const editorSelector =
+        'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]';
+    });
+  });
+
+  cy.get(
+    'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]',
+    { timeout: 20000 }
+  )
+    .scrollIntoView()
+    .should("be.visible")
+    .focus()
+    .type(data, { delay: 100 });
+
+  cy.get('button[id="app-save-action"]', { timeout: 15000 })
+    .as("saveBtn")
+    .scrollIntoView()
+    .should("be.visible")
+    .should("be.enabled")
+    .click({ force: true });
+
+  cy.get("@saveBtn").should("be.disabled");
+}
+
 // Ensure the share search is scoped to the wanted directory before typing.
 // CERNBox/OC Web can render this as a pill dropdown or as an "Internal" mode button.
 function ensureShareSearchScope(scope) {
@@ -246,7 +328,7 @@ function findBestShareRecipientOption(optionsLike, {
 }
 
 function selectShareRecipientFromAutocomplete({ username, recipientDisplayName }) {
-  cy.get('#vs2__listbox [data-testid^="recipient-autocomplete-item-"]', {
+  cy.get('ul[role="listbox"] [data-testid^="recipient-autocomplete-item-"]', {
     timeout: 15000,
   }).then(($options) => {
     const target = findBestShareRecipientOption($options, {
@@ -662,4 +744,21 @@ export function verifySharedWithMe({ senderDisplayName, sharedFileName }) {
     .within(() => {
       cy.contains("td", sharedFileName);
     });
+}
+
+export function renderEvidence({ title, detail }) {
+  cy.document().then((doc) => {
+    const overlay = doc.createElement("div");
+    overlay.setAttribute(
+      "style",
+      "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;" +
+        "background:#1a7f37;color:#fff;font-family:monospace;text-align:center;"
+    );
+    overlay.innerHTML =
+      `<h1 style="font-size:2.5rem;margin-bottom:1rem;">${title}</h1>` +
+      `<p style="font-size:1.25rem;opacity:0.9;">${detail}</p>`;
+    doc.body.appendChild(overlay);
+  });
+  cy.wait(5000);
 }

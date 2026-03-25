@@ -13,6 +13,7 @@ if [[ "${EFSS_PLATFORM_VERSION}" == "v33" ]]; then
   docker pull valkey/valkey:9.0-alpine
   docker pull pondersource/cypress:latest
   docker pull ghcr.io/mahdibaghbani/containers/nextcloud-contacts:v8.1.0-ocm-nc-master-debian
+  docker pull ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6-debian
 else
   # Legacy versions (v27-v32) use standard pondersource images
   docker pull mariadb:11.4.2

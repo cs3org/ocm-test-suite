@@ -187,6 +187,36 @@ function parseWorkflowName(name) {
       receiver: label,
       name
     };
+  } else if (parts[0] === 'code' && parts[1] === 'flow') {
+    // code-flow-crnbx-v2-nc-v33 pattern (same structure as wayf)
+    let i = 2;
+    const senderTokens = [];
+    const receiverTokens = [];
+
+    while (i < parts.length && !/^v\d+/.test(parts[i])) {
+      senderTokens.push(parts[i++]);
+    }
+    if (i < parts.length && /^v\d+/.test(parts[i])) {
+      senderTokens.push(parts[i++]);
+    } else {
+      throw new Error(`Cannot find sender version in ${name}`);
+    }
+
+    while (i < parts.length && !/^v\d+/.test(parts[i])) {
+      receiverTokens.push(parts[i++]);
+    }
+    if (i < parts.length && /^v\d+/.test(parts[i])) {
+      receiverTokens.push(parts[i++]);
+    } else {
+      throw new Error(`Cannot find receiver version in ${name}`);
+    }
+
+    return {
+      testType: 'code-flow',
+      sender: senderTokens.join(' '),
+      receiver: receiverTokens.join(' '),
+      name
+    };
   } else if (parts[0] === 'wayf') {
     // wayf-nc-v33-crnbx-v2 pattern
     let i = 1;
@@ -361,7 +391,7 @@ module.exports = async function orchestrateTests(github, context, core) {
 
     // Overview
     .addRaw('## Overview\n')
-    .addRaw('This matrix shows the compatibility status of **login**, **share-with**, **share-link**, **invite-link**, and **wayf** flows across all supported platform versions.\n'
+    .addRaw('This matrix shows the compatibility status of **login**, **share-with**, **share-link**, **invite-link**, **wayf**, and **code-flow** flows across all supported platform versions.\n'
       + 'Each cell is the outcome of an automated end-to-end test for a specific **sender to receiver** combination.\n\n')
 
     // Legend

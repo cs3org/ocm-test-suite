@@ -143,10 +143,20 @@ export function openSharingPanel(fileName) {
   // Assert that the Sharing sidebar is open and the Sharing tab/panel is visible.
   cy.contains('[role="tab"]', "Sharing", { timeout: 20000 }).should("exist");
   cy.contains("h4", "Internal shares").should("be.visible");
-  cy.contains("h4", "External shares").should("be.visible");
-  cy.get(
-    'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-  ).should("be.visible");
+  getExternalShareCombobox();
+}
+
+function getExternalShareCombobox() {
+  // The Files sidebar is fixed-position and can clip the external share input
+  // until its section is scrolled into view.
+  return cy
+    .contains("h4", "External shares", { timeout: 20000 })
+    .should("be.visible")
+    .closest("section")
+    .scrollIntoView()
+    .find('.sharing-search__input input[role="combobox"]')
+    .scrollIntoView()
+    .should("be.visible");
 }
 
 /**
@@ -183,11 +193,7 @@ export function createFederatedShare(
   const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
 
   // Type the remote user's Federated Cloud ID into the External shares combobox
-  cy.get(
-    'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-  )
-    .click()
-    .type(remoteFederatedCloudId);
+  getExternalShareCombobox().click().type(remoteFederatedCloudId);
 
   // Select the host-based option (without mail icon) - e.g.,
   // "admin-builtin on 2.nextcloud.cloud.test.azadehafzar.io"
@@ -340,11 +346,7 @@ export function createShare(fileName, username, domain) {
     const remoteInstanceHost = contactDomain.replace(/^https?:\/\//, "");
 
     // Use the External shares combobox to type the Federated Cloud ID.
-    cy.get(
-      'input[role="combobox"][placeholder*="Type an email or federated cloud ID"]'
-    )
-      .click()
-      .type(remoteFederatedCloudId);
+    getExternalShareCombobox().click().type(remoteFederatedCloudId);
 
     // Select the host-based option (without mail icon) - e.g.,
     // "username on nextcloud2.docker"
@@ -690,12 +692,87 @@ export function verifyFederatedContact(domain, displayName, contactDomain) {
   // Close navigation again so the contact list is fully visible.
   navigationPaneClose();
 
-  // Verify contact exists in the contact list and open details.
-  // In v33 the email is rendered inside a span.envelope__subtitle__subject
-  // and wrapped by an anchor.list-item__anchor that navigates to the details view.
-  cy.contains(".envelope__subtitle__subject", displayName, { timeout: 10000 })
-    .should("be.visible")
-    .closest("li.list-item__wrapper")
-    .find("a.list-item__anchor")
-    .should("be.visible");
+  const normalizeContactText = (value) =>
+    String(value || "").trim().toLowerCase();
+  const expectedName = normalizeContactText(displayName);
+  const expectedSubtitleOrDomain = normalizeContactText(contactDomain);
+  const useExactSubtitleMatch = expectedSubtitleOrDomain.includes("@");
+
+  // ContactsListItem.vue renders:
+  // - display name in .list-item-content__name
+  // - email/phone in .envelope__subtitle__subject
+  // Match that structure directly instead of broad row-text scans.
+  cy.get(".contacts-list .contacts-list__item-wrapper li.list-item__wrapper", {
+    timeout: 10000,
+  }).then(($rows) => {
+    const rows = Array.from($rows || []);
+    const matchedRow = rows.find((row) => {
+      const nameText = normalizeContactText(
+        row.querySelector(".list-item-content__name")?.textContent
+      );
+      const subtitleText = normalizeContactText(
+        row.querySelector(".envelope__subtitle__subject")?.textContent
+      );
+
+      if (nameText !== expectedName) return false;
+      if (!expectedSubtitleOrDomain) return true;
+      if (useExactSubtitleMatch) return subtitleText === expectedSubtitleOrDomain;
+      return subtitleText.includes(expectedSubtitleOrDomain);
+    });
+
+    const normalizedSubtitleText = normalizeContactText(
+      matchedRow?.querySelector(".envelope__subtitle__subject")?.textContent
+    );
+
+    expect(matchedRow, `contact row for "${displayName}"`).to.exist;
+
+    cy.wrap(matchedRow)
+      .should("be.visible")
+      .within(() => {
+        cy.get("a.list-item__anchor").should("be.visible");
+      });
+
+    if (expectedSubtitleOrDomain) {
+      if (useExactSubtitleMatch) {
+        expect(normalizedSubtitleText).to.eq(expectedSubtitleOrDomain);
+      } else if (normalizedSubtitleText.includes(expectedSubtitleOrDomain)) {
+        expect(normalizedSubtitleText).to.include(expectedSubtitleOrDomain);
+      }
+    }
+  });
+}
+
+function downloadPathFor(fileName) {
+  return `cypress/downloads/${fileName}`;
+}
+
+export function downloadFileAndVerifyContent({ fileName, expectedContent }) {
+  ensureFileExists(fileName).then(($row) => {
+    cy.wrap($row)
+      .find('[data-cy-files-list-row-name-link]')
+      .first()
+      .should("be.visible")
+      .click({ force: true });
+  });
+
+  return cy
+    .readFile(downloadPathFor(fileName), { timeout: 30000 })
+    .should("eq", expectedContent);
+}
+
+export function renderEvidence({ title, detail }) {
+  cy.document().then((doc) => {
+    const overlay = doc.createElement("div");
+    overlay.setAttribute(
+      "style",
+      "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;" +
+        "background:#1a7f37;color:#fff;font-family:monospace;text-align:center;"
+    );
+    overlay.innerHTML =
+      `<h1 style="font-size:2.5rem;margin-bottom:1rem;">${title}</h1>` +
+      `<p style="font-size:1.25rem;opacity:0.9;">${detail}</p>`;
+    doc.body.appendChild(overlay);
+  });
+  cy.wait(5000);
 }

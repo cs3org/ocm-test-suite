@@ -135,6 +135,37 @@ export function createWayfInviteLink({
   });
 }
 
+export function shareViaCodeFlow({
+  senderUrl,
+  senderUsername,
+  senderPassword,
+  flowSlug,
+  recipientUsername,
+}) {
+  const testId = Date.now();
+  const expectedContent =
+    "This is being developed without the Internet and there is an air raid going on";
+  const sharedFileName = `${flowSlug}-${testId}.txt`;
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+
+  login({ url: senderUrl, username: senderUsername, password: senderPassword });
+  implementation.openFilesPersonalView();
+
+  cy.writeFile(sharedFileInfoFileName, {
+    sharedFileName,
+    expectedContent,
+  });
+
+  implementation.createTextFile(sharedFileName, expectedContent);
+
+  // CERNBox leaves the user in the editor after save, so jump back to Files
+  // before looking for the row we want to share.
+  implementation.openFilesApp();
+  implementation.openFilesPersonalView();
+
+  implementation.createShare(sharedFileName, recipientUsername);
+}
+
 export function acceptWayfInviteLink({
   senderPlatform,
   senderDomain,
@@ -157,5 +188,94 @@ export function acceptWayfInviteLink({
       senderDisplayName,
       redirectUrl,
     });
+  });
+}
+
+export function acceptCodeFlowShare({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  flowSlug,
+}) {
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  cy.readFile(sharedFileInfoFileName).then(({ sharedFileName }) => {
+    login({ url: recipientUrl, username: recipientUsername, password: recipientPassword });
+    implementation.openSharesWithMe();
+    implementation.verifySharedWithMe({ sharedFileName });
+  });
+}
+
+export function verifyCodeFlowContentRead({
+  recipientUrl,
+  recipientUsername,
+  recipientPassword,
+  flowSlug,
+}) {
+  const sharedFileInfoFileName = `${flowSlug}-file.json`;
+  return cy.readFile(sharedFileInfoFileName).then(({ sharedFileName, expectedContent }) => {
+    implementation.loginCore({
+      url: recipientUrl,
+      username: recipientUsername,
+      password: recipientPassword,
+    });
+    implementation.openSharesWithMe();
+    implementation.verifySharedWithMe({ sharedFileName });
+    implementation.ensureSameTabEditorNavigation();
+
+    const resourceSelector = `[data-test-resource-name="${CSS.escape(sharedFileName)}"]`;
+
+    cy.get(resourceSelector, {
+      timeout: 20000,
+    })
+      .scrollIntoView()
+      .should("be.visible")
+      .then(($resource) => {
+        const $link = $resource.is("a") ? $resource : $resource.closest("a");
+
+        if ($link.length > 0) {
+          cy.wrap($link)
+            .invoke("removeAttr", "target")
+            .click({ force: true });
+          return;
+        }
+
+        cy.wrap($resource).click({ force: true });
+      });
+
+    return cy
+      .get("#text-editor #text-editor-container .cm-line", { timeout: 20000 })
+      .should("be.visible")
+      .then(($lines) => {
+        const normalizeEditorComparableText = (value) =>
+          String(value || "")
+            .replace(/\r\n/g, "\n")
+            // The editor view can collapse trailing blank lines even when the
+            // stored file still ends with them, so compare without terminal
+            // newline runs.
+            .replace(/\n+$/, "");
+
+        const normalized = normalizeEditorComparableText(
+          Array.from($lines, (line) =>
+          String(line.textContent || "").replace(/\r\n/g, "\n")
+        )
+            .join("\n")
+        );
+        expect(normalized).to.equal(
+          normalizeEditorComparableText(expectedContent)
+        );
+        return { sharedFileName, expectedContent };
+      });
+  });
+}
+
+export function renderCodeFlowEvidence({
+  sharedFileName,
+  expectedContent,
+}) {
+  implementation.renderEvidence({
+    title: "OCM Code-Flow: PASS",
+    detail:
+      `File "${sharedFileName}" content verified via CERNBox editor readback. ` +
+      `Expected: "${expectedContent}"`,
   });
 }

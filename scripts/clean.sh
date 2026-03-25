@@ -271,27 +271,30 @@ main() {
         for raw in "${platforms[@]}"; do
             # 1. Normalize token
             # Drop "-sm" plus trailing digits, e.g. owncloud-sm -> owncloud
-            # Drop "-wayf" suffix for wayf containers, e.g. nextcloud-wayf -> nextcloud (but keep wayf flag)
+            # Drop "-wayf" or "-code-flow" suffix for scenario-specific
+            # containers, e.g. nextcloud-wayf -> nextcloud.
             # revaowncloud-sm -> revaowncloud
             local token="${raw%%-sm*}"
-            local is_wayf=false
+            local scenario_suffix=""
             if [[ "${raw}" == *-wayf ]]; then
                 token="${raw%%-wayf*}"
-                is_wayf=true
+                scenario_suffix="wayf"
+            elif [[ "${raw}" == *-code-flow ]]; then
+                token="${raw%%-code-flow*}"
+                scenario_suffix="code_flow"
             fi
 
-            # Singleton containers do not have -wayf variants. If the caller passes something like
-            # "idp-wayf", treat it as "idp".
-            if [[ "${is_wayf}" == true && ${SINGLETON[$token]+yes} ]]; then
-                is_wayf=false
+            # Singleton containers do not have scenario-specific variants. If
+            # the caller passes something like "idp-wayf", treat it as "idp".
+            if [[ -n "${scenario_suffix}" && ${SINGLETON[$token]+yes} ]]; then
+                scenario_suffix=""
             fi
 
-            # CERNBox cleanup token mapping: both 'cernbox' and 'cernbox-wayf' use the same
-            # canonical delete_cernbox helper (which handles v2 multi-Reva teardown).
-            # This allows the v2 migration to remove the _wayf suffix from container helpers
-            # while maintaining backwards compatibility with existing cleanup token flows.
-            if [[ "${token}" == "cernbox" && "${is_wayf}" == true ]]; then
-                is_wayf=false
+            # CERNBox cleanup token mapping: both 'cernbox-wayf' and
+            # 'cernbox-code-flow' use the same canonical delete_cernbox helper
+            # (which handles v2 multi-Reva teardown).
+            if [[ "${token}" == "cernbox" && -n "${scenario_suffix}" ]]; then
+                scenario_suffix=""
             fi
 
             local idx="" cname=""
@@ -312,18 +315,19 @@ main() {
                     run_quietly_if_ci printf "Warning: delete_reva function not present - cleaning skipped.\n" >&2
                 fi
             else
-                # For wayf containers, use delete_${token}_wayf function
                 local fn
-                if [[ "${is_wayf}" == true ]]; then
+                if [[ "${scenario_suffix}" == "wayf" ]]; then
                     fn="delete_${token}_wayf"
+                elif [[ "${scenario_suffix}" == "code_flow" ]]; then
+                    fn="delete_${token}_code_flow"
                 else
                     fn="delete_${token}"
                 fi
                 if declare -f "${fn}" >/dev/null; then
                     [[ -n "${idx}" ]] && "${fn}" "${idx}" || "${fn}"
-                elif [[ "${is_wayf}" == true ]]; then
-                    # No WAYF-specific delete helper; fall back to the plain
-                    # variant so containers are always cleaned up.
+                elif [[ -n "${scenario_suffix}" ]]; then
+                    # No scenario-specific delete helper; fall back to the
+                    # plain variant so containers are always cleaned up.
                     local fallback_fn="delete_${token}"
                     if declare -f "${fallback_fn}" >/dev/null; then
                         [[ -n "${idx}" ]] && "${fallback_fn}" "${idx}" || "${fallback_fn}"

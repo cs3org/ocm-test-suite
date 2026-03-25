@@ -216,6 +216,19 @@
         }
     }
 
+    &__video-error {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-height: 360px;
+        padding: 2rem;
+        background: #202124;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
     &__info-panel {
         display: flex;
         flex-direction: column;

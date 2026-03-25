@@ -367,6 +367,18 @@
                         }
                     }
 
+                    &.code-flow-tests {
+                        border-color: #f59e0b;
+                        .platform-icon {
+                            background: rgba(245, 158, 11, 0.1);
+                            i { color: #f59e0b; }
+                        }
+                        &:hover {
+                            background: rgba(245, 158, 11, 0.02);
+                            .download-icon { background: #f59e0b; }
+                        }
+                    }
+
                     &:hover .download-icon {
                         color: white;
                     }

@@ -90,3 +90,14 @@ scenarios:
         receiver: [nextcloud, cernbox]
       - sender: [ocmgo]
         receiver: [ocmgo]
+
+  # Code-flow token exchange: OCM-STA M6 full 2x2 matrix
+  code-flow:
+    versions:
+      nextcloud: [v33]
+      cernbox: [v2]
+    include:
+      - sender: [nextcloud]
+        receiver: [nextcloud, cernbox]
+      - sender: [cernbox]
+        receiver: [nextcloud, cernbox]

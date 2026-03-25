@@ -50,6 +50,14 @@ export const config = {
             sources: ['Nextcloud v33', 'CERNBox v2', 'OCM-Go v1.0.0'],
             targets: ['Nextcloud v33', 'CERNBox v2', 'OCM-Go v1.0.0'],
             workflowPrefix: 'wayf-'
+        },
+        {
+            id: 'code-flow-tests',
+            title: 'Code-Flow Remote Access Tests',
+            icon: 'exchange-alt',
+            sources: ['Nextcloud v33', 'CERNBox v2'],
+            targets: ['Nextcloud v33', 'CERNBox v2'],
+            workflowPrefix: 'code-flow-'
         }
     ],
     platformMap: {

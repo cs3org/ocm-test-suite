@@ -96,11 +96,11 @@ main() {
 
     create_idp "${cernbox_idp_image}" "${cernbox_idp_tag}"
 
-    create_cernbox 1 \
+    create_cernbox_code_flow 1 \
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 
-    create_cernbox 2 \
+    create_cernbox_code_flow 2 \
         "${cernbox_revad_image}" "${cernbox_revad_tag}" \
         "${cernbox_web_image}" "${cernbox_web_tag}"
 

@@ -207,7 +207,30 @@ create_cernbox() {
     _cernbox_require_nonempty "${web_image}" "web_image"
     _cernbox_require_nonempty "${web_tag}" "web_tag"
 
-    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" ""
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "" "false"
+}
+
+# Create a CERNBox v2 instance with code-flow-specific Reva topology enabled
+# Arguments:
+#   1. number - Instance number (1 or 2)
+#   2. revad_image - Reva image repository
+#   3. revad_tag - Reva image tag
+#   4. web_image - Web frontend image repository
+#   5. web_tag - Web frontend image tag
+create_cernbox_code_flow() {
+    local number="${1:-}"
+    local revad_image="${2:-}"
+    local revad_tag="${3:-}"
+    local web_image="${4:-}"
+    local web_tag="${5:-}"
+
+    _cernbox_require_nonempty "${number}" "number"
+    _cernbox_require_nonempty "${revad_image}" "revad_image"
+    _cernbox_require_nonempty "${revad_tag}" "revad_tag"
+    _cernbox_require_nonempty "${web_image}" "web_image"
+    _cernbox_require_nonempty "${web_tag}" "web_tag"
+
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "" "true"
 }
 
 # Create a CERNBox v2 instance for CI with custom Reva binary override
@@ -239,7 +262,31 @@ create_cernbox_ci() {
 
     run_quietly_if_ci echo "Creating CERNBox CI instance ${number} with Reva override from: ${reva_binary_dir}"
 
-    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "${reva_binary_dir}"
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "${reva_binary_dir}" "false"
+}
+
+# Create a CERNBox v2 instance for CI with custom Reva binary override and
+# code-flow-specific Reva topology enabled.
+#
+# Arguments:
+#   1. number - Instance number (1 or 2)
+create_cernbox_code_flow_ci() {
+    local number="${1:-}"
+    local reva_binary_dir="${REVA_BINARY_DIR:-}"
+    local revad_image="${CERNBOX_REVAD_IMAGE:-ghcr.io/mahdibaghbani/containers/cernbox-revad}"
+    local revad_tag="${CERNBOX_REVAD_TAG:-mahdi_fix_localhome-development}"
+    local web_image="${CERNBOX_WEB_IMAGE:-ghcr.io/mahdibaghbani/containers/cernbox-web}"
+    local web_tag="${CERNBOX_WEB_TAG:-testing}"
+
+    _cernbox_require_nonempty "${number}" "number"
+
+    if [[ -z "${reva_binary_dir}" ]]; then
+        error_exit "REVA_BINARY_DIR must be set for CI mode"
+    fi
+
+    run_quietly_if_ci echo "Creating CERNBox CI code-flow instance ${number} with Reva override from: ${reva_binary_dir}"
+
+    _create_cernbox_internal "${number}" "${revad_image}" "${revad_tag}" "${web_image}" "${web_tag}" "${reva_binary_dir}" "true"
 }
 
 # Internal helper that creates the CERNBox instance with optional Reva override
@@ -250,6 +297,7 @@ _create_cernbox_internal() {
     local web_image="${4}"
     local web_tag="${5}"
     local reva_override_dir="${6:-}"
+    local enable_code_flow="${7:-false}"
 
     # Build optional volume mount for Reva binary override
     local -a reva_override_mount=()
@@ -325,10 +373,6 @@ _create_cernbox_internal() {
         -e "REVAD_AUTHPROVIDER_MACHINE_GRPC_PORT=9166"
         -e "REVAD_AUTHPROVIDER_OCMSHARES_HOST=${authprovider_ocmshares_host}"
         -e "REVAD_AUTHPROVIDER_OCMSHARES_GRPC_PORT=9278"
-        -e "REVAD_AUTHPROVIDER_OCMSHARECODE_HOST=${authprovider_ocmsharecode_host}"
-        -e "REVAD_AUTHPROVIDER_OCMSHARECODE_GRPC_PORT=9280"
-        -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_HOST=${authprovider_ocmexchangedtoken_host}"
-        -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_GRPC_PORT=9282"
         -e "REVAD_AUTHPROVIDER_PUBLICSHARES_HOST=${authprovider_publicshares_host}"
         -e "REVAD_AUTHPROVIDER_PUBLICSHARES_GRPC_PORT=9160"
         -e "REVAD_SHAREPROVIDERS_HOST=${shareproviders_host}"
@@ -347,10 +391,21 @@ _create_cernbox_internal() {
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_PORT=80"
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_PROTOCOL=http"
         -e "REVAD_DATAPROVIDER_SCIENCEMESH_GRPC_PORT=9147"
-        -e "OCM_ENABLE_CODE_FLOW=true"
         -e "OCM_TIMEOUT=${ocm_timeout}"
         -e "OCM_CLIENT_INSECURE=${ocm_client_insecure}"
     )
+
+    if [[ "${enable_code_flow}" == "true" ]]; then
+        revad_env_common+=(
+            -e "REVAD_AUTHPROVIDER_OCMSHARECODE_HOST=${authprovider_ocmsharecode_host}"
+            -e "REVAD_AUTHPROVIDER_OCMSHARECODE_GRPC_PORT=9280"
+            -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_HOST=${authprovider_ocmexchangedtoken_host}"
+            -e "REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_GRPC_PORT=9282"
+            -e "OCM_ENABLE_CODE_FLOW=true"
+        )
+    else
+        revad_env_common+=(-e "OCM_ENABLE_CODE_FLOW=false")
+    fi
 
     local -a gateway_env=(
         -e "WEB_DOMAIN=${domain}"
@@ -386,11 +441,13 @@ _create_cernbox_internal() {
     _create_cernbox_revad_service "${number}" "authprovider-ocmshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
         "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
-    _create_cernbox_revad_service "${number}" "authprovider-ocmsharecode" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${reva_override_mount[@]}" "${revad_env_common[@]}"
+    if [[ "${enable_code_flow}" == "true" ]]; then
+        _create_cernbox_revad_service "${number}" "authprovider-ocmsharecode" "${revad_image}" "${revad_tag}" "${json_volume}" \
+            "${reva_override_mount[@]}" "${revad_env_common[@]}"
 
-    _create_cernbox_revad_service "${number}" "authprovider-ocmexchangedtoken" "${revad_image}" "${revad_tag}" "${json_volume}" \
-        "${reva_override_mount[@]}" "${revad_env_common[@]}"
+        _create_cernbox_revad_service "${number}" "authprovider-ocmexchangedtoken" "${revad_image}" "${revad_tag}" "${json_volume}" \
+            "${reva_override_mount[@]}" "${revad_env_common[@]}"
+    fi
 
     _create_cernbox_revad_service "${number}" "authprovider-publicshares" "${revad_image}" "${revad_tag}" "${json_volume}" \
         "${reva_override_mount[@]}" "${revad_env_common[@]}"

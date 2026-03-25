@@ -103,6 +103,34 @@ _create_nextcloud_contacts_ocm_base() {
 
     # Ensure Nextcloud is ready to accept connections
     run_quietly_if_ci wait_for_port "nextcloud${number}-${scenario_suffix}.docker" 443
+    _stabilize_nextcloud_contacts_ocm_base "nextcloud${number}-${scenario_suffix}.docker"
+}
+
+# ------------------------------------------------------------------------------
+# Function: _stabilize_nextcloud_contacts_ocm_base
+# Purpose: Apply deterministic post-install defaults to Nextcloud test
+#          containers so scenario flows do not depend on a flaky dashboard
+#          landing page.
+# ------------------------------------------------------------------------------
+_stabilize_nextcloud_contacts_ocm_base() {
+    local container="${1}"
+    local max_retries=30
+    local try=1
+
+    run_quietly_if_ci echo "Configuring stable default app for ${container}"
+    until [ "$try" -gt "$max_retries" ]; do
+        if docker exec --user www-data "${container}" \
+            php /var/www/html/occ config:system:set defaultapp --value="files" >/dev/null 2>&1; then
+            run_quietly_if_ci echo "Default app set to files for ${container}."
+            return 0
+        fi
+
+        run_quietly_if_ci echo "Nextcloud occ not ready in ${container}. Retrying..."
+        try=$((try + 1))
+        sleep 2
+    done
+
+    error_exit "Failed to configure default app for ${container}."
 }
 
 # ------------------------------------------------------------------------------

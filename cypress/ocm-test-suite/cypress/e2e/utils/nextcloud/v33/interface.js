@@ -18,8 +18,9 @@ export const version = "v33";
 
 /**
  * Login to Nextcloud and navigate to the files app.
- * Extends the core login functionality by verifying the dashboard and navigating to the files app.
- * Uses v33 Applications menu for navigation instead of v27 header nav.
+ * Extends the core login functionality by verifying the authenticated landing
+ * page and Applications menu. The test containers set Files as the default app
+ * to avoid unrelated dashboard/theme flakes from poisoning OCM scenarios.
  *
  * @param {string} url - The URL of the Nextcloud instance.
  * @param {string} username - The username for login.
@@ -27,9 +28,7 @@ export const version = "v33";
  */
 export function login({ url, username, password }) {
   implementation.loginCore({ url, username, password });
-
-  // Verify dashboard visibility
-  cy.url({ timeout: 10000 }).should("match", /apps\/dashboard(\/|$)/);
+  implementation.ensureFilesAppActive();
 }
 
 /**
@@ -179,10 +178,7 @@ export function shareViaInviteLink({
   // Step 1: Log in to the sender's Nextcloud instance
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
 
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.get('a[href*="/apps/files/"]').click();
-  });
-  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+  implementation.ensureFilesAppActive();
 
   // Step 2: Ensure the original file exists before renaming
   implementation.ensureFileExists(originalFileName);
@@ -226,10 +222,7 @@ export function shareViaCodeFlow({
 
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
 
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.get('a[href*="/apps/files/"]').click();
-  });
-  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+  implementation.ensureFilesAppActive();
 
   implementation.ensureFileExists("welcome.txt");
 
@@ -283,10 +276,7 @@ export function acceptInviteLinkShare({
 
   // Step 2: Navigate to the Files app. The Remote share dialog only appears
   // when the Files app is active, not on the Dashboard.
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.get('a[href*="/apps/files/"]').click();
-  });
-  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+  implementation.ensureFilesAppActive();
 
   // Step 3: Handle any share acceptance pop-ups and verify the file exists
   implementation.handleShareAcceptance(sharedFileName);
@@ -305,10 +295,7 @@ export function shareViaNativeShareWith({
   login({ url: senderUrl, username: senderUsername, password: senderPassword });
 
   // Step 2: Navigate to the Files app before interacting with the v33 files table
-  cy.get('nav[aria-label="Applications menu"]').within(() => {
-    cy.get('a[href*="/apps/files/"]').click();
-  });
-  cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+  implementation.ensureFilesAppActive();
 
   // Step 3: Ensure the original file exists before renaming
   implementation.ensureFileExists(originalFileName);
@@ -458,10 +445,7 @@ export function acceptCodeFlowShare({
       password: recipientPassword,
     });
 
-    cy.get('nav[aria-label="Applications menu"]').within(() => {
-      cy.get('a[href*="/apps/files/"]').click();
-    });
-    cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+    implementation.ensureFilesAppActive();
 
     implementation.handleShareAcceptance(sharedFileName);
   });
@@ -481,10 +465,7 @@ export function verifyCodeFlowContentRead({
       password: recipientPassword,
     });
 
-    cy.get('nav[aria-label="Applications menu"]').within(() => {
-      cy.get('a[href*="/apps/files/"]').click();
-    });
-    cy.url({ timeout: 10000 }).should("match", /apps\/files\/?/);
+    implementation.ensureFilesAppActive();
 
     return implementation
       .downloadFileAndVerifyContent({

@@ -83,6 +83,27 @@ export function ensureFileExists(
 }
 
 /**
+ * Ensure the Files app is active without forcing a menu click when we already
+ * landed there. This keeps remote-share acceptance modals from blocking an
+ * unnecessary app-switch action right after login.
+ */
+export function ensureFilesAppActive() {
+  return cy.location("pathname", { timeout: 10000 }).then((pathname) => {
+    if (/\/apps\/files(\/|$)/.test(pathname)) {
+      return cy.url({ timeout: 10000 }).should("match", /\/apps\/files(\/|$)/);
+    }
+
+    cy.get('nav[aria-label="Applications menu"]', { timeout: 10000 })
+      .should("exist")
+      .within(() => {
+        cy.get('a[href*="/apps/files/"]').first().click({ force: true });
+      });
+
+    return cy.url({ timeout: 10000 }).should("match", /\/apps\/files(\/|$)/);
+  });
+}
+
+/**
  * Renames a file using v33 table structure and Actions menu.
  *
  * @param {string} fileName - The current name of the file.

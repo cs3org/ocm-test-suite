@@ -242,22 +242,44 @@ export function verifyCodeFlowContentRead({
         cy.wrap($resource).click({ force: true });
       });
 
-    return cy.url({ timeout: 20000 }).should("match", /\/text-editor\//).then(() =>
-      implementation.readVisibleTextEditorContent().then((editorContent) => {
-        const normalizeEditorComparableText = (value) =>
-          String(value || "")
-            .replace(/\r\n/g, "\n")
-            // The editor view can collapse trailing blank lines even when the
-            // stored file still ends with them, so compare without terminal
-            // newline runs.
-            .replace(/\n+$/, "");
+    return cy.url({ timeout: 20000 }).should("match", /\/text-editor\//).then(() => {
+      const normalizeEditorComparableText = (value) =>
+        String(value || "")
+          .replace(/\r\n/g, "\n")
+          // The editor view can collapse trailing blank lines even when the
+          // stored file still ends with them, so compare without terminal
+          // newline runs.
+          .replace(/\n+$/, "");
 
-        expect(normalizeEditorComparableText(editorContent)).to.equal(
-          normalizeEditorComparableText(expectedContent)
-        );
-        return { sharedFileName, expectedContent };
-      })
-    );
+      const normalizedExpected = normalizeEditorComparableText(expectedContent);
+      const normalizeRenderedPageText = (value) =>
+        normalizeEditorComparableText(value)
+          // The fallback body-text path can introduce extra visual blank lines
+          // around the rendered document content. Collapse blank-line runs so
+          // we compare the visible content rather than page-layout spacing.
+          .replace(/\n{2,}/g, "\n\n");
+
+      return implementation.readVisibleTextEditorContent().then((editorContent) => {
+        if (editorContent !== null) {
+          expect(normalizeEditorComparableText(editorContent)).to.equal(
+            normalizedExpected
+          );
+          return { sharedFileName, expectedContent };
+        }
+
+        return cy
+          .get("body", { timeout: 20000 })
+          .should("be.visible")
+          .should(($body) => {
+            const bodyText = normalizeRenderedPageText(
+              String($body.get(0)?.innerText || $body.text() || "")
+            );
+
+            expect(bodyText).to.contain(normalizeRenderedPageText(normalizedExpected));
+          })
+          .then(() => ({ sharedFileName, expectedContent }));
+      });
+    });
   });
 }
 

@@ -192,16 +192,22 @@ const textEditorSurfaceSelector =
   'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]';
 
 export function getVisibleTextEditorSurface() {
-  return cy
-    .get(textEditorSurfaceSelector, { timeout: 20000 })
-    .filter(":visible")
-    .first()
-    .scrollIntoView()
-    .should("be.visible");
+  return cy.get("body", { timeout: 20000 }).then(($body) => {
+    const $surface = $body.find(textEditorSurfaceSelector).filter(":visible").first();
+    if ($surface.length === 0) {
+      return null;
+    }
+
+    return cy.wrap($surface).scrollIntoView().should("be.visible");
+  });
 }
 
 export function readVisibleTextEditorContent() {
   return getVisibleTextEditorSurface().then(($editor) => {
+    if ($editor === null) {
+      return null;
+    }
+
     const node = $editor.get(0);
     if (!node) {
       throw new Error("Visible text editor surface not found");

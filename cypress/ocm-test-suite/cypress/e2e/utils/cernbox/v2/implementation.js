@@ -185,6 +185,46 @@ export function ensureSameTabEditorNavigation() {
   });
 }
 
+// OC Web can render the text editor through different DOM shapes depending on
+// the active editor widget. Keep reads and writes aligned on the same fallback
+// surface list instead of hard-coding one editor-specific subtree.
+const textEditorSurfaceSelector =
+  'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]';
+
+export function getVisibleTextEditorSurface() {
+  return cy
+    .get(textEditorSurfaceSelector, { timeout: 20000 })
+    .filter(":visible")
+    .first()
+    .scrollIntoView()
+    .should("be.visible");
+}
+
+export function readVisibleTextEditorContent() {
+  return getVisibleTextEditorSurface().then(($editor) => {
+    const node = $editor.get(0);
+    if (!node) {
+      throw new Error("Visible text editor surface not found");
+    }
+
+    const lineNodes = $editor.find(".cm-line:visible");
+    if (lineNodes.length > 0) {
+      return Array.from(lineNodes, (line) =>
+        String(line.textContent || "").replace(/\r\n/g, "\n")
+      ).join("\n");
+    }
+
+    const tagName = String(node.tagName || "").toUpperCase();
+    if (tagName === "TEXTAREA" || tagName === "INPUT") {
+      return String(node.value || "").replace(/\r\n/g, "\n");
+    }
+
+    return String(node.innerText || node.textContent || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\u200B/g, "");
+  });
+}
+
 export function createTextFile(filename, data) {
   ensureSameTabEditorNavigation();
   openNewFileMenu();
@@ -213,21 +253,7 @@ export function createTextFile(filename, data) {
         .click({ force: true });
     });
 
-  cy.location("href").then((href) => {
-    cy.document().then((doc) => {
-      const editorSelector =
-        'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]';
-    });
-  });
-
-  cy.get(
-    'div[role="textbox"], #text-editor .cm-content, #text-editor-container textarea, #text-editor [contenteditable="true"]',
-    { timeout: 20000 }
-  )
-    .scrollIntoView()
-    .should("be.visible")
-    .focus()
-    .type(data, { delay: 100 });
+  getVisibleTextEditorSurface().focus().type(data, { delay: 100 });
 
   cy.get('button[id="app-save-action"]', { timeout: 15000 })
     .as("saveBtn")

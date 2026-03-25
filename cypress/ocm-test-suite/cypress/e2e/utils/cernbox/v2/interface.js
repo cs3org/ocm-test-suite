@@ -242,10 +242,8 @@ export function verifyCodeFlowContentRead({
         cy.wrap($resource).click({ force: true });
       });
 
-    return cy
-      .get("#text-editor #text-editor-container .cm-line", { timeout: 20000 })
-      .should("be.visible")
-      .then(($lines) => {
+    return cy.url({ timeout: 20000 }).should("match", /\/text-editor\//).then(() =>
+      implementation.readVisibleTextEditorContent().then((editorContent) => {
         const normalizeEditorComparableText = (value) =>
           String(value || "")
             .replace(/\r\n/g, "\n")
@@ -254,17 +252,12 @@ export function verifyCodeFlowContentRead({
             // newline runs.
             .replace(/\n+$/, "");
 
-        const normalized = normalizeEditorComparableText(
-          Array.from($lines, (line) =>
-          String(line.textContent || "").replace(/\r\n/g, "\n")
-        )
-            .join("\n")
-        );
-        expect(normalized).to.equal(
+        expect(normalizeEditorComparableText(editorContent)).to.equal(
           normalizeEditorComparableText(expectedContent)
         );
         return { sharedFileName, expectedContent };
-      });
+      })
+    );
   });
 }
 

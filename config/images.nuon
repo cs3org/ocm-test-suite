@@ -1,0 +1,30 @@
+{
+  "platforms": {
+    "nextcloud": {
+      "v33": {
+        "default": "nextcloud:v33.0.2",
+        "override_env": "OCMTS_NEXTCLOUD_IMAGE"
+      }
+    }
+  },
+  "cypress": {
+    "ci": {
+      "default": "cypress:v1.0.0-ci",
+      "override_env": "OCMTS_CYPRESS_CI_IMAGE"
+    },
+    "dev": {
+      "default": "cypress:v1.0.0-dev",
+      "override_env": "OCMTS_CYPRESS_DEV_IMAGE"
+    }
+  },
+  "helpers": {
+    "mariadb": {
+      "default": "mariadb:11.8",
+      "override_env": "OCMTS_MARIADB_IMAGE"
+    },
+    "valkey": {
+      "default": "valkey/valkey:9.0-alpine",
+      "override_env": "OCMTS_VALKEY_IMAGE"
+    }
+  }
+}

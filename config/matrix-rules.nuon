@@ -1,0 +1,13 @@
+{
+  "scenarios": {
+    "login": {
+      "browsers": ["chrome"],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "receiver": null,
+      "mitm": false
+    }
+  }
+}

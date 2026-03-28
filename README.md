@@ -39,7 +39,13 @@ Default layout:
 - `artifacts/<artifact_name>/<execution_id>/`
   - `compose/` rendered compose inputs
   - `cypress/` screenshots, videos, downloads
-  - `docker/` compose logs (when enabled)
+  - `docker/logs/` docker compose logs and runner output
+    - `cypress-run.log` stdout+stderr from `docker compose run --rm cypress`
+      (captured by both `services up run` and `test run`).
+    - `platform.log`, `platform-db.log`, `platform-cache.log` collected by
+      `services up run` before teardown, or by
+      `nu scripts/ocmts.nu artifacts collect --include-logs ...` while the stack
+      is still up.
   - `meta/` cell/run/result metadata and suite envelope outputs
 
 ## Image overrides
@@ -78,3 +84,4 @@ For manual overrides, keep using `nextcloud_username` and
 ## Slice 1
 
 The first proof slice is `login__nextcloud-v33` and runs without MITM.
+There are no MITM logs for the login slice.

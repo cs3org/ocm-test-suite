@@ -12,6 +12,7 @@ export def init-artifact-dirs [artifact_name: string, execution_id: string] {
     mkdir ($base | path join "cypress" "screenshots")
     mkdir ($base | path join "cypress" "videos")
     mkdir ($base | path join "cypress" "downloads")
+    mkdir ($base | path join "docker" "logs")
     mkdir ($base | path join "meta")
     $base
 }

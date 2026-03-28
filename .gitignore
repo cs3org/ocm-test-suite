@@ -1,4 +1,4 @@
-artifacts/
+/artifacts/
 .DS_Store
 *.swp
 *.swo

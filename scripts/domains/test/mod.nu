@@ -33,6 +33,15 @@ def main [] {
     print "  --record is not accepted here: the runner-ci.yml overlay is"
     print "  pre-rendered by 'services up'. To record video, pass --record"
     print "  to 'services up run' or 'services up' instead."
+    print ""
+    print "  'test run' does NOT tear down services after the test pass."
+    print "  Platform service logs (platform container stdout/stderr) are"
+    print "  NOT collected automatically by 'test run'. Only the Cypress"
+    print "  container output is captured. If you need platform logs,"
+    print "  run the following while the stack is still up:"
+    print "    nu scripts/ocmts.nu artifacts collect --include-logs ..."
+    print "  Platform log collection is otherwise tied to the teardown"
+    print "  path ('services up run') which calls 'services down'."
 }
 
 def "main run" [
@@ -116,9 +125,45 @@ def "main run" [
     }
 
     print $"Running tests for ($cell.cell_id) [execution_id=($exec_id)]..."
-    # Empty catch so output streams live; exit code captured via LAST_EXIT_CODE.
-    try { ^docker compose ...$f_args -p $stack_id run --rm cypress } catch { }
+    # We always tee cypress output to cypress-run.log here because the
+    # `docker compose run --rm cypress` container is removed on exit and
+    # its logs are not accessible after the fact via `docker logs`. Platform
+    # service logs (the long-lived platform container) are NOT captured here;
+    # they are collected either by the teardown path ('services up run' ->
+    # 'services down') or by an explicit 'artifacts collect --include-logs'.
+    # Wrap docker compose run with bash+tee to capture stdout+stderr while
+    # preserving the Cypress exit code exactly via ${PIPESTATUS[0]}.
+    let logs_dir = ($artifacts_base | path join "docker" "logs")
+    if not ($logs_dir | path exists) {
+        try { mkdir $logs_dir } catch {|e| print $"WARNING: could not create log dir: ($e.msg)" }
+    }
+    let cypress_log = ($logs_dir | path join "cypress-run.log")
+    let tee_script = 'set -o pipefail; log="$1"; shift; "$@" 2>&1 | tee "$log"; exit ${PIPESTATUS[0]}'
+    try {
+        ^bash -c $tee_script -- $cypress_log docker compose ...$f_args -p $stack_id run --rm cypress
+    } catch { }
     let cypress_exit = $env.LAST_EXIT_CODE
+
+    # Verify cypress log was written; warn if missing or empty.
+    # Best-effort: must not throw or change exit code.
+    try {
+        let log_missing_or_empty = if not ($cypress_log | path exists) {
+            true
+        } else {
+            let log_size = (ls $cypress_log | first | get size)
+            $log_size == 0b
+        }
+        if $log_missing_or_empty {
+            let warn_msg = $"WARNING: cypress-run.log missing or empty: ($cypress_log)"
+            print $warn_msg
+            try { mkdir ($artifacts_base | path join "meta") } catch { }
+            try {
+                $warn_msg | save --force ($artifacts_base | path join "meta/cypress-run-warning.txt")
+            } catch {|se| print $"WARNING: could not write cypress-run-warning.txt: ($se.msg)" }
+        }
+    } catch {|e|
+        print $"WARNING: could not check cypress-run.log: ($e.msg)"
+    }
 
     let finished_at = (utc-now)
     let status = if $cypress_exit == 0 { "passed" } else { "failed" }

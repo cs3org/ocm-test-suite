@@ -1,7 +1,7 @@
 # Services domain: docker compose lifecycle management.
 
 use ../../lib/cell.nu [compute-cell validate-cell-rules]
-use ../../lib/images.nu [resolve-images]
+use ../../lib/images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/execution-id.nu [new-execution-id execution-artifacts-path execution-temp-path]
 use ../../lib/actors.nu [validate-actor-config]
 use ../../lib/compose-render.nu [write-compose-overlays]
@@ -20,6 +20,9 @@ use ../../lib/artifacts-init.nu [
 ]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/docker-logs.nu [collect-service-logs]
+use ../../lib/mitm-summary.nu [summarize-mitm-flows]
+use ../../lib/mitm-peers.nu [write-mitm-peers]
+use ../../lib/mitm-ocm-summary.nu [write-ocm-mitm-summaries]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu services <verb> [flags]"
@@ -129,15 +132,13 @@ def overwrite-cleanup-failed [
 def write-active-files [
     artifacts_base: string,
     base_yml: string,
+    base_overlay_fnames: list<string>,
     runner_fname: string = "",
 ] {
     let art_inputs = ($artifacts_base | path join "compose" "inputs")
-    let base_files = [
-        $base_yml
-        ($art_inputs | path join "exec.yml")
-        ($art_inputs | path join "platform.yml")
-        ($art_inputs | path join "helpers.yml")
-    ]
+    let base_files = ([$base_yml] | append (
+        $base_overlay_fnames | each {|f| $art_inputs | path join $f}
+    ))
     let active_files = if ($runner_fname | is-empty) {
         $base_files
     } else {
@@ -154,12 +155,25 @@ def setup-run-context [
     sender_version: string,
     browser: string,
     record_video: bool,
+    receiver_platform: string = "",
+    receiver_version: string = "",
 ] {
     let root = get-ocmts-root
-    validate-cell-rules $scenario $sender_platform $sender_version $browser
-    validate-actor-config $scenario $root $sender_platform
-    let cell = (compute-cell $scenario $sender_platform $sender_version $browser)
+    (validate-cell-rules
+        $scenario $sender_platform $sender_version $browser
+        $receiver_platform $receiver_version)
+    (validate-actor-config $scenario $root $sender_platform $receiver_platform)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version $browser
+        $receiver_platform $receiver_version)
     let images = (resolve-images $sender_platform $sender_version)
+    let receiver_image = if $cell.is_two_party {
+        resolve-receiver-image $receiver_platform $receiver_version
+    } else { "" }
+    let mitmproxy_image = if $cell.is_two_party {
+        resolve-mitmproxy-image
+    } else { "" }
+
     let execution_id = (new-execution-id)
     let artifacts_base = (init-artifact-dirs $cell.artifact_name $execution_id)
 
@@ -171,11 +185,19 @@ def setup-run-context [
         $images.mariadb $images.valkey
         $spec_entrypoint $browser $record_video
         $root $artifacts_base
+        $receiver_platform $receiver_image $mitmproxy_image
     )
 
     let started_at = (utc-now)
 
-    ($cell | insert execution_id $execution_id | insert images $images)
+    # Extend images record with receiver/mitmproxy when two-party.
+    let images_full = if $cell.is_two_party {
+        $images | insert receiver_platform $receiver_image | insert mitmproxy $mitmproxy_image
+    } else {
+        $images
+    }
+
+    ($cell | insert execution_id $execution_id | insert images $images_full)
         | to json
         | save --force ($artifacts_base | path join "meta/cell.json")
 
@@ -188,13 +210,15 @@ def setup-run-context [
 
     {
         cell: $cell,
-        images: $images,
+        images: $images_full,
         execution_id: $execution_id,
         artifacts_base: $artifacts_base,
         started_at: $started_at,
         stack_id: $overlay.stack_id,
         compose_d: $overlay.compose_d,
         base_yml: $overlay.base_yml,
+        base_overlay_fnames: $overlay.base_overlay_fnames,
+        is_two_party: $overlay.is_two_party,
     }
 }
 
@@ -202,19 +226,20 @@ def "main up" [
     --scenario: string,
     --sender-platform: string,
     --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
     --browser: string = "chrome",
-    --record,
+    --no-video,
     --preserve-temp,
 ] {
-    let ctx = (setup-run-context $scenario $sender_platform $sender_version $browser $record)
-    let base_files = [
-        $ctx.base_yml
-        ($ctx.compose_d | path join "exec.yml")
-        ($ctx.compose_d | path join "platform.yml")
-        ($ctx.compose_d | path join "helpers.yml")
-    ]
+    let ctx = (setup-run-context
+        $scenario $sender_platform $sender_version $browser (not $no_video)
+        $receiver_platform $receiver_version)
+    let base_files = ([$ctx.base_yml] | append (
+        $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
+    ))
     let f_args = (build-f-args $base_files)
-    write-active-files $ctx.artifacts_base $ctx.base_yml
+    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
     try {
         (validate-compose-strict $base_files $ctx.stack_id
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml"))
@@ -229,9 +254,11 @@ def "main up" [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    # --wait blocks until platform (and its helper deps) reach healthy/started.
+    # --wait blocks until the platform services reach healthy/started.
+    # For two-party, wait for sender, receiver, and mitm.
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
     try {
-        ^docker compose ...$f_args -p $ctx.stack_id up -d --wait platform
+        ^docker compose ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -257,23 +284,24 @@ def "main up run" [
     --scenario: string,
     --sender-platform: string,
     --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
     --browser: string = "chrome",
-    --record,
+    --no-video,
     --preserve-temp,
     --keep-up,
 ] {
-    let ctx = (setup-run-context $scenario $sender_platform $sender_version $browser $record)
-    let base_files = [
-        $ctx.base_yml
-        ($ctx.compose_d | path join "exec.yml")
-        ($ctx.compose_d | path join "platform.yml")
-        ($ctx.compose_d | path join "helpers.yml")
-    ]
+    let ctx = (setup-run-context
+        $scenario $sender_platform $sender_version $browser (not $no_video)
+        $receiver_platform $receiver_version)
+    let base_files = ([$ctx.base_yml] | append (
+        $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
+    ))
     let f_args_base = (build-f-args $base_files)
     let run_files = ($base_files | append ($ctx.compose_d | path join "runner-ci.yml"))
     let f_args_run = (build-f-args $run_files)
     # Write base-only active files first; updated to runner-ci only after it validates.
-    write-active-files $ctx.artifacts_base $ctx.base_yml
+    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
 
     # Step 1: validate base file set strictly before touching Docker.
     try {
@@ -291,9 +319,10 @@ def "main up run" [
         error make {msg: $"Compose base validation failed: ($e.msg)"}
     }
 
-    # Bring up platform and helpers; --wait blocks until healthy/started.
+    # Bring up platform services; --wait blocks until healthy/started.
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
     try {
-        ^docker compose ...$f_args_base -p $ctx.stack_id up -d --wait platform
+        ^docker compose ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -311,6 +340,15 @@ def "main up run" [
         }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up platform failed: ($e.msg)"}
+    }
+
+    # Write peers.json before Cypress so it exists even if tests fail.
+    if $ctx.is_two_party {
+        try {
+            write-mitm-peers $ctx.artifacts_base $ctx.stack_id $ctx.cell
+        } catch {|e|
+            print $"WARNING: write-mitm-peers failed: ($e.msg)"
+        }
     }
 
     # Step 2: validate runner-ci file set strictly before running Cypress.
@@ -335,7 +373,7 @@ def "main up run" [
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
     }
     # runner-ci validated: now the runner overlay is about to be active.
-    write-active-files $ctx.artifacts_base $ctx.base_yml "runner-ci.yml"
+    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames "runner-ci.yml"
 
     print $"Running tests for ($ctx.cell.cell_id) [execution_id=($ctx.execution_id)]..."
     # Wrap docker compose run with bash+tee to capture stdout+stderr while
@@ -353,7 +391,6 @@ def "main up run" [
     let cypress_status = if $cypress_exit == 0 { "passed" } else { "failed" }
 
     # Verify cypress log was written; warn if missing or empty.
-    # Best-effort: must not throw or change exit code.
     try {
         let log_missing_or_empty = if not ($cypress_log | path exists) {
             true
@@ -373,11 +410,16 @@ def "main up run" [
         print $"WARNING: could not check cypress-run.log: ($e.msg)"
     }
 
-    # Collect platform service logs before tearing down while the stack is still up.
-    # Best-effort: any failure becomes a WARNING; does not affect teardown or exit code.
+    # Collect service logs before tearing down.
+    # For two-party: sender/receiver/mitm; for one-party: platform.
+    let log_services = if $ctx.is_two_party {
+        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache" "mitm"]
+    } else {
+        ["platform" "platform-db" "platform-cache"]
+    }
     try {
         let log_result = (collect-service-logs $ctx.artifacts_base $ctx.stack_id $run_files
-            ["platform" "platform-db" "platform-cache"])
+            $log_services)
         if not $log_result.ok {
             let failed_svcs = (
                 $log_result.services
@@ -400,20 +442,32 @@ def "main up run" [
         print $"WARNING: docker log collection threw an error: ($e.msg)"
     }
 
+    # Summarize MITM traffic flows for two-party runs.
+    if $ctx.is_two_party {
+        try {
+            summarize-mitm-flows $ctx.artifacts_base
+        } catch {|e|
+            print $"WARNING: MITM summary failed: ($e.msg)"
+        }
+    }
+
+    # Write OCM-aware MITM summaries for two-party runs.
+    if $ctx.is_two_party {
+        try {
+            write-ocm-mitm-summaries $ctx.artifacts_base
+        } catch {|e|
+            print $"WARNING: OCM MITM summary failed: ($e.msg)"
+        }
+    }
+
     mut down_err = null
     if not $keep_up {
         print "Tearing down services..."
         let art_inputs = ($ctx.artifacts_base | path join "compose" "inputs")
-        # Use only the files that were active during this run (no runner-dev).
-        let down_files = [
-            $ctx.base_yml
-            ($art_inputs | path join "exec.yml")
-            ($art_inputs | path join "platform.yml")
-            ($art_inputs | path join "helpers.yml")
-            ($art_inputs | path join "runner-ci.yml")
-        ]
+        let down_files = ([$ctx.base_yml] | append (
+            $ctx.base_overlay_fnames | each {|f| $art_inputs | path join $f}
+        ) | append ($art_inputs | path join "runner-ci.yml"))
         let f_args_down = (build-f-args $down_files)
-        # Validate before down; if it fails, skip compose down and record the error.
         let down_validate_err = (try {
             (validate-compose-strict $down_files $ctx.stack_id
                 ($ctx.artifacts_base | path join "compose" "compose.resolved.down.yml"))
@@ -437,7 +491,6 @@ def "main up run" [
     # Write metadata before cleanup so rm failure cannot skip the final record.
     let finished_at = (utc-now)
     if $down_err != null {
-        # Teardown failed: record cleanup failure, preserve Cypress outcome in error field.
         let down_fail_msg = $"cleanup/down failed: ($down_err)"
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
@@ -466,16 +519,18 @@ def "main up open" [
     --scenario: string,
     --sender-platform: string,
     --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
     --browser: string = "chrome",
+    --no-video,
     --preserve-temp,
 ] {
-    let ctx = (setup-run-context $scenario $sender_platform $sender_version $browser false)
-    let base_files = [
-        $ctx.base_yml
-        ($ctx.compose_d | path join "exec.yml")
-        ($ctx.compose_d | path join "platform.yml")
-        ($ctx.compose_d | path join "helpers.yml")
-    ]
+    let ctx = (setup-run-context
+        $scenario $sender_platform $sender_version $browser (not $no_video)
+        $receiver_platform $receiver_version)
+    let base_files = ([$ctx.base_yml] | append (
+        $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
+    ))
     let f_args_base = (build-f-args $base_files)
 
     try {
@@ -492,9 +547,10 @@ def "main up open" [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    # Start platform and its helper dependencies; wait for them to be ready.
+    # Start platform services and wait for them to be ready.
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
     try {
-        ^docker compose ...$f_args_base -p $ctx.stack_id up -d --wait platform
+        ^docker compose ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -512,7 +568,7 @@ def "main up open" [
         error make {msg: $"Failed to start platform services: ($e.msg)"}
     }
     # Platform is active: record the base-only file set before proceeding.
-    write-active-files $ctx.artifacts_base $ctx.base_yml
+    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
     print $"Stack up. execution_id=($ctx.execution_id) stack_id=($ctx.stack_id)"
 
     let dev_files = ($base_files | append ($ctx.compose_d | path join "runner-dev.yml"))
@@ -536,7 +592,7 @@ def "main up open" [
         error make {msg: $"Compose dev validation failed: ($e.msg)"}
     }
     # runner-dev validated: update active-files before starting cypress_dev.
-    write-active-files $ctx.artifacts_base $ctx.base_yml "runner-dev.yml"
+    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames "runner-dev.yml"
     # Start cypress_dev detached; the image runs the Kasm desktop startup.
     try {
         ^docker compose ...$f_args_dev -p $ctx.stack_id up -d cypress_dev
@@ -549,7 +605,6 @@ def "main up open" [
             $ctx.images --phase "cypress-dev-up" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
-        # Use dev_files so compose resolves all active services for teardown.
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"cypress_dev up failed: ($e.msg)"
@@ -559,7 +614,6 @@ def "main up open" [
     }
 
     # Must include the same -f args used at startup so compose resolves the service.
-    # Guarded: a port lookup failure before run.json is marked open would leave stale metadata.
     let port_result = (try {
         ^docker compose ...$f_args_dev -p $ctx.stack_id port cypress_dev 6901 | complete
     } catch {|e|
@@ -612,11 +666,15 @@ def "main down" [
     --scenario: string,
     --sender-platform: string,
     --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
     --execution-id: string = "",
     --preserve-temp,
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell $scenario $sender_platform $sender_version "chrome")
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {

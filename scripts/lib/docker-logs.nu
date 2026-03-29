@@ -49,25 +49,30 @@ export def collect-service-logs [
             let log_path = ($logs_dir | path join $"($svc).log")
             let err_path = ($logs_dir | path join $"($svc).err")
 
-            # Stream stdout/stderr directly to files - no Nu-memory buffering.
-            let launch_err = (try {
-                ^docker compose ...$f_args -p $stack_id logs --no-color --timestamps $svc out> $log_path err> $err_path
-                ""
+            # Use | complete so exit_code is reliable - out>/err> redirections
+            # reset LAST_EXIT_CODE to 0, making it untrustworthy.
+            let result = (try {
+                ^docker compose ...$f_args -p $stack_id logs --no-color --timestamps $svc | complete
             } catch {|e|
-                $e.msg
+                {exit_code: 1, stdout: "", stderr: $e.msg}
             })
-            let exit_code = $env.LAST_EXIT_CODE
 
-            if ($launch_err | is-empty) and ($exit_code == 0) {
+            if $result.exit_code == 0 {
+                $result.stdout | save --force $log_path
                 if ($err_path | path exists) { try { rm $err_path } catch { } }
                 {service: $svc, ok: true, path: $log_path}
             } else {
-                let err = if not ($launch_err | is-empty) {
-                    $launch_err
-                } else if (($err_path | path exists) and (not ((open --raw $err_path | str trim) | is-empty))) {
-                    open --raw $err_path | str trim
+                let stderr_text = ($result.stderr | str trim)
+                let err = if not ($stderr_text | is-empty) {
+                    $stderr_text
                 } else {
-                    $"docker compose logs exited ($exit_code)"
+                    $"docker compose logs exited ($result.exit_code)"
+                }
+                if not ($result.stdout | is-empty) {
+                    $result.stdout | save --force $log_path
+                }
+                if not ($stderr_text | is-empty) {
+                    $stderr_text | save --force $err_path
                 }
                 {service: $svc, ok: false, path: $log_path, error: $err}
             }

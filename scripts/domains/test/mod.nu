@@ -7,9 +7,10 @@ use ../../lib/execution-id.nu [execution-artifacts-path]
 use ../../lib/run-metadata.nu [write-terminal-run write-compact-result utc-now]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
-# Returns true if docker compose reports the platform service as running for the
-# given stack. Uses the captured active file list so no /tmp dependency.
-def stack-platform-running [f_args: list<string>, stack_id: string] {
+# Returns true if docker compose reports the primary platform service as running.
+# For one-party checks "platform"; for two-party checks "sender".
+def stack-platform-running [f_args: list<string>, stack_id: string, is_two_party: bool] {
+    let check_svc = if $is_two_party { "sender" } else { "platform" }
     let result = (try {
         ^docker compose ...$f_args -p $stack_id ps --status running --services | complete
     } catch {
@@ -19,7 +20,7 @@ def stack-platform-running [f_args: list<string>, stack_id: string] {
         false
     } else {
         let running = ($result.stdout | lines | each {|l| $l | str trim} | where {|l| not ($l | is-empty)})
-        "platform" in $running
+        $check_svc in $running
     }
 }
 
@@ -30,9 +31,11 @@ def main [] {
     print "  run   Run Cypress tests headless against an already-up stack"
     print ""
     print "Notes:"
-    print "  --record is not accepted here: the runner-ci.yml overlay is"
-    print "  pre-rendered by 'services up'. To record video, pass --record"
-    print "  to 'services up run' or 'services up' instead."
+    print "  Video recording is enabled by default. To opt out, pass --no-video"
+    print "  to 'services up', 'services up run', or 'services up open'."
+    print "  'test run' reuses the runner-ci.yml overlay pre-rendered by"
+    print "  'services up' / 'services up open', so the video setting is"
+    print "  inherited from that prior step."
     print ""
     print "  'test run' does NOT tear down services after the test pass."
     print "  Platform service logs (platform container stdout/stderr) are"
@@ -48,11 +51,15 @@ def "main run" [
     --scenario: string,
     --sender-platform: string,
     --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
     --browser: string = "chrome",
     --execution-id: string = "",
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell $scenario $sender_platform $sender_version $browser)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version $browser
+        $receiver_platform $receiver_version)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {
@@ -82,7 +89,7 @@ def "main run" [
     } else if not ($cur_status in $allowed_statuses) {
         error make {msg: $"Cannot run tests: execution ($exec_id) has unexpected status '($cur_status)'."}
     }
-    # For passed/failed reruns, verify the platform service is actually running.
+    # For passed/failed reruns, verify the primary service is actually running.
     if ($cur_status in ["passed" "failed"]) {
         let active_files_path = ($art_compose | path join "active-files.txt")
         if not ($active_files_path | path exists) {
@@ -90,7 +97,7 @@ def "main run" [
         }
         let check_files = (open --raw $active_files_path | lines | where {|l| not ($l | is-empty)})
         let check_f_args = ($check_files | each {|f| ["-f" $f]} | flatten)
-        if not (stack-platform-running $check_f_args $stack_id) {
+        if not (stack-platform-running $check_f_args $stack_id $cell.is_two_party) {
             error make {msg: $"Cannot rerun tests: execution ($exec_id) has status '($cur_status)' but platform service is not running. Run 'services down' then 'services up' for a new run."}
         }
     }
@@ -101,13 +108,27 @@ def "main run" [
     let images = ($cell_meta.images? | default null)
 
     # Use the durable artifact copies so this command works even after /tmp is cleared.
-    let run_files = [
-        $base_yml
-        ($inputs | path join "exec.yml")
-        ($inputs | path join "platform.yml")
-        ($inputs | path join "helpers.yml")
-        ($inputs | path join "runner-ci.yml")
-    ]
+    # Read base overlay fnames from active-files.txt if available, else fallback.
+    let active_files_path = ($art_compose | path join "active-files.txt")
+    let run_files = if ($active_files_path | path exists) {
+        # Reconstruct run_files: active-files (base) + runner-ci overlay from inputs.
+        let base_set = (open --raw $active_files_path | lines | where {|l| not ($l | is-empty)})
+        # Check if runner-ci is already included (stored when it was active).
+        let runner_ci_path = ($inputs | path join "runner-ci.yml")
+        if ($runner_ci_path | path exists) and not ($runner_ci_path in $base_set) {
+            $base_set | append $runner_ci_path
+        } else {
+            $base_set | append $runner_ci_path
+        }
+    } else {
+        [
+            $base_yml
+            ($inputs | path join "exec.yml")
+            ($inputs | path join "platform.yml")
+            ($inputs | path join "helpers.yml")
+            ($inputs | path join "runner-ci.yml")
+        ]
+    }
     let f_args = ($run_files | each {|f| ["-f" $f]} | flatten)
 
     # Validate runner-ci file set strictly before running Cypress.
@@ -125,14 +146,6 @@ def "main run" [
     }
 
     print $"Running tests for ($cell.cell_id) [execution_id=($exec_id)]..."
-    # We always tee cypress output to cypress-run.log here because the
-    # `docker compose run --rm cypress` container is removed on exit and
-    # its logs are not accessible after the fact via `docker logs`. Platform
-    # service logs (the long-lived platform container) are NOT captured here;
-    # they are collected either by the teardown path ('services up run' ->
-    # 'services down') or by an explicit 'artifacts collect --include-logs'.
-    # Wrap docker compose run with bash+tee to capture stdout+stderr while
-    # preserving the Cypress exit code exactly via ${PIPESTATUS[0]}.
     let logs_dir = ($artifacts_base | path join "docker" "logs")
     if not ($logs_dir | path exists) {
         try { mkdir $logs_dir } catch {|e| print $"WARNING: could not create log dir: ($e.msg)" }
@@ -145,7 +158,6 @@ def "main run" [
     let cypress_exit = $env.LAST_EXIT_CODE
 
     # Verify cypress log was written; warn if missing or empty.
-    # Best-effort: must not throw or change exit code.
     try {
         let log_missing_or_empty = if not ($cypress_log | path exists) {
             true

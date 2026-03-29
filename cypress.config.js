@@ -3,7 +3,35 @@
 
 const runtimeStore = new Map();
 
+function resolveBooleanEnv(value, defaultValue) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return defaultValue;
+  }
+
+  switch (String(value).trim().toLowerCase()) {
+    case "1":
+    case "true":
+    case "yes":
+    case "y":
+    case "on":
+      return true;
+    case "0":
+    case "false":
+    case "no":
+    case "n":
+    case "off":
+      return false;
+    default:
+      return defaultValue;
+  }
+}
+
 module.exports = {
+  video: resolveBooleanEnv(process.env.CYPRESS_video, true),
+  allowCypressEnv: false,
+  expose: {
+    receiver_baseUrl: process.env.CYPRESS_receiver_baseUrl,
+  },
   e2e: {
     specPattern: "cypress/e2e/**/*.cy.ts",
     supportFile: "cypress/support/e2e.ts",

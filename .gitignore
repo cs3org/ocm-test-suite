@@ -1,4 +1,8 @@
 /artifacts/
+/node_modules/
+__pycache__/
+*.py[cod]
+bun.lock
 .DS_Store
 *.swp
 *.swo

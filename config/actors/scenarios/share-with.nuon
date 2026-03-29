@@ -1,0 +1,10 @@
+{
+  "sender": {
+    "platform": "nextcloud",
+    "account": "michiel"
+  },
+  "receiver": {
+    "platform": "nextcloud",
+    "account": "marie"
+  }
+}

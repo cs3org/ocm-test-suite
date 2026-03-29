@@ -8,6 +8,18 @@
       },
       "receiver": null,
       "mitm": false
+    },
+    "share-with": {
+      "browsers": ["chrome"],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "mitm": true
     }
   }
 }

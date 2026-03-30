@@ -11,9 +11,10 @@ export function defineLoginScenarioCase(scenarioCase: ScenarioCase) {
     });
 
     it("visit / -> logs in and shows authenticated UI", () => {
-      const credentials = resolveActorCredentials(scenarioCase.actor);
-      scenarioCase.adapter.login(credentials);
-      scenarioCase.adapter.assertLoggedIn();
+      resolveActorCredentials(scenarioCase.actor).then((credentials) => {
+        scenarioCase.adapter.login(credentials);
+        scenarioCase.adapter.assertLoggedIn();
+      });
     });
   });
 }

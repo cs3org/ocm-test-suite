@@ -15,4 +15,20 @@ Cypress.on("uncaught:exception", (err) => {
   }
 });
 
+// Policy: do not use cy.origin().
+// avoid cross-origin flows by splitting sender/receiver into separate tests.
+// Enforce early so we do not drift into Cypress cross-origin experiment traps.
+try {
+  Cypress.Commands.overwrite("origin", () => {
+    throw new Error(
+      [
+        "cy.origin() is forbidden in repos/ots-rebooted.",
+        "Split cross-instance flows into separate tests (one origin per test) like legacy.",
+      ].join(" "),
+    );
+  });
+} catch {
+  // Ignore if this Cypress version has no origin command.
+}
+
 export {};

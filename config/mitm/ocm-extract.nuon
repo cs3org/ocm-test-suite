@@ -16,6 +16,18 @@
       "id": "notifications",
       "method": "POST",
       "path_prefix": "/ocm/notifications"
+    },
+    {
+      "id": "webdav",
+      "method": "PROPFIND",
+      "path_prefix": "/public.php/webdav/",
+      "source": "static-nextcloud-fallback"
+    },
+    {
+      "id": "webdav",
+      "method": "GET",
+      "path_prefix": "/public.php/webdav/",
+      "source": "static-nextcloud-fallback"
     }
   ],
   "headers": {

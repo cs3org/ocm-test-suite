@@ -3,8 +3,8 @@
 use ./execution-id.nu [validate-path-segment]
 use ./domain/core/ocmts-root.nu [get-ocmts-root]
 
-# Validate browser against the supported allowlist for the current image slice.
-# Only chrome is supported in the current images. Error message is readable.
+# Validate browser against the supported allowlist.
+# Only chrome is supported. Error message is readable.
 export def validate-browser [browser: string] {
     let allowed = ["chrome"]
     if not ($browser in $allowed) {

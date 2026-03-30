@@ -186,6 +186,7 @@ def setup-run-context [
         $spec_entrypoint $browser $record_video
         $root $artifacts_base
         $receiver_platform $receiver_image $mitmproxy_image
+        --cell-id $cell.cell_id
     )
 
     let started_at = (utc-now)

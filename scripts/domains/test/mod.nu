@@ -113,7 +113,7 @@ def "main run" [
     let run_files = if ($active_files_path | path exists) {
         # Reconstruct run_files: active-files (base) + runner-ci overlay from inputs.
         let base_set = (open --raw $active_files_path | lines | where {|l| not ($l | is-empty)})
-        # Check if runner-ci is already included (stored when it was active).
+        # Always append runner-ci.yml from inputs to the active file set.
         let runner_ci_path = ($inputs | path join "runner-ci.yml")
         if ($runner_ci_path | path exists) and not ($runner_ci_path in $base_set) {
             $base_set | append $runner_ci_path

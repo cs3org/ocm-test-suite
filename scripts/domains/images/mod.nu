@@ -43,7 +43,7 @@ def "main show" [
     }
 }
 
-# Resolve all image refs for a sender platform/version (login slice).
+# Resolve all image refs for a sender platform/version.
 def "main resolve" [
     --sender-platform: string,  # Sender platform (e.g. nextcloud)
     --sender-version: string,   # Platform version (e.g. v33)

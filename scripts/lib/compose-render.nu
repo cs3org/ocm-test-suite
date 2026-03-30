@@ -406,6 +406,7 @@ def write-two-party-overlays [
     record_video: bool,
     root: string,
     artifacts_base: string,
+    --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
     let svc = (open ($root | path join $"config/services/($sender_platform).nuon"))
@@ -495,6 +496,10 @@ def write-two-party-overlays [
         "      - OCMTS_MITM_TRAFFIC_PATH=/mitm/flows/traffic.jsonl"
         "      - OCMTS_MITM_SESSION_PATH=/mitm/flows/session.json"
         "      - OCMTS_MITM_REDACTION_REPORT_PATH=/mitm/redaction-report.json"
+        $"      - OCMTS_CELL_ID=($cell_id)"
+        $"      - OCMTS_FLOW_ID=($scenario)"
+        $"      - OCMTS_RUN_ID=($execution_id)"
+        $"      - OCMTS_EXECUTION_ID=($execution_id)"
         "    volumes:"
         $"      - ($artifacts_base)/mitm:/mitm"
         $"      - ($root)/scripts/lib/mitmproxy-jsonl.py:/ocmts/mitmproxy-jsonl.py:ro"
@@ -644,6 +649,7 @@ export def write-compose-overlays [
     receiver_platform: string = "",
     receiver_image_ref: string = "",
     mitmproxy_image: string = "",
+    --cell-id: string = "",
 ] {
     let is_two_party = (not ($receiver_platform | is-empty))
     if $is_two_party {
@@ -654,7 +660,8 @@ export def write-compose-overlays [
             $cypress_image $cypress_dev_image
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
-            $root $artifacts_base)
+            $root $artifacts_base
+            --cell-id $cell_id)
     } else {
         (write-one-party-overlays
             $scenario $sender_platform

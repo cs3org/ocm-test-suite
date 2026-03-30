@@ -1,5 +1,5 @@
 // Cypress config is intentionally JS (not TS) so it loads in minimal container
-// environments where Cypress is installed globally and no TS runtime is present.
+// environments without requiring a TS runtime.
 
 const runtimeStore = new Map();
 
@@ -44,14 +44,18 @@ module.exports = {
         },
         "runtime:set"(payload) {
           if (!payload || typeof payload.key !== "string") {
-            throw new Error("runtime:set requires { key: string, value: any }");
+            throw new Error(
+              "runtime:set requires a payload object with a string key and any value",
+            );
           }
           runtimeStore.set(payload.key, payload.value);
           return null;
         },
         "runtime:get"(payload) {
           if (!payload || typeof payload.key !== "string") {
-            throw new Error("runtime:get requires { key: string }");
+            throw new Error(
+              "runtime:get requires a payload object with a string key",
+            );
           }
           const value = runtimeStore.get(payload.key);
           return value === undefined ? null : value;

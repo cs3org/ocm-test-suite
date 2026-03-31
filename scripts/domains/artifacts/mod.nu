@@ -6,6 +6,7 @@ use ../../lib/execution-id.nu [validate-execution-id validate-artifact-name exec
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/docker-logs.nu [collect-service-logs]
+use ../../lib/services/compose-files.nu [read-active-compose-files]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu artifacts <verb> [flags]"
@@ -136,21 +137,8 @@ def "main collect" [
     }
 
     # Some or all logs are missing; attempt live collection.
-    # Resolve compose file list.
-    let art_inputs = ($base | path join "compose" "inputs")
     let base_yml = ($root | path join "config/compose/base.yml")
-    let active_files_path = ($base | path join "compose" "active-files.txt")
-    let compose_files = if ($active_files_path | path exists) {
-        open --raw $active_files_path | lines | where {|l| not ($l | is-empty)}
-    } else {
-        # Conservative base-only fallback matching services down behavior.
-        [
-            $base_yml
-            ($art_inputs | path join "exec.yml")
-            ($art_inputs | path join "platform.yml")
-            ($art_inputs | path join "helpers.yml")
-        ]
-    }
+    let compose_files = (read-active-compose-files $base $base_yml)
 
     # Optional: validate compose file set before collecting logs.
     let logs_resolved_path = ($base | path join "compose" "compose.resolved.logs.yml")

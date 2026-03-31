@@ -4,6 +4,14 @@ This repository is a greenfield rewrite workspace for the OCM test suite. It is
 intentionally built from scratch and does not carry over legacy harness
 structure or scripts.
 
+Legacy policy:
+
+- Legacy-first, clean rewrite is mandatory. Inspect the analogous legacy Cypress
+  spec and helpers first to learn stable sequence and selectors, then rewrite
+  into the reboot TypeScript contracts.
+- Legacy is reference material, not a code template. Do not copy the legacy
+  JavaScript layout or helper-bag architecture.
+
 ## CLI
 
 Run the CLI from the repository root:
@@ -63,6 +71,13 @@ than embedding `${ENV:-default}` expansions inside the config file.
 Note: if you find an early scaffold that still embeds `${ENV:-default}` strings,
 that is a transitional implementation detail, not the target contract shape.
 
+Toolchain source of truth:
+
+- The Cypress image (built and published from `repos/containers`) is the runtime
+  toolchain source of truth.
+- `package.json` here is allowed to exist as host editor and tooling metadata.
+- This repo does not require a lockfile solely because `package.json` exists.
+
 - `OCMTS_NEXTCLOUD_IMAGE`
 - `OCMTS_CYPRESS_CI_IMAGE`
 - `OCMTS_CYPRESS_DEV_IMAGE`
@@ -95,12 +110,12 @@ For manual overrides, pass the matching Cypress env keys (without the
 
 ## Slice 1
 
-The first proof slice is `login__nextcloud-v33` and runs without MITM.
-There are no MITM logs for the login slice.
+The first scenario is `login__nextcloud-v33` and runs without MITM.
+There are no MITM logs for the login scenario.
 
 ## Slice 2
 
-The next proof slice is `share-with__nextcloud-v33__nextcloud-v33` and is
+The next scenario is `share-with__nextcloud-v33__nextcloud-v33` and is
 MITM-backed by default. It runs a two-party topology (sender + receiver) and
 adds a `mitm/` artifact subtree, plus MITM service logs.
 
@@ -108,15 +123,43 @@ MITM flow artifacts:
 
 - `mitm/flows/traffic.jsonl` is written by the mitm service during the run.
 - `mitm/flows/session.json` is written at mitm shutdown.
-- `mitm/flows/traffic.summary.tsv` is generated at the end of `services up run`
-  (two-party only) as a compact summary for quick scanning.
+- Derived reports are generated at the end of `services up run` (two-party only)
+  under `mitm/reports/`:
+  - `01-01-traffic-overview.md`
+  - `01-02-traffic-overview.json`
+  - `02-01-ocm-endpoints.md`
+  - `02-02-ocm-endpoints.json`
+  - `03-01-ocm-details.md`
+  - `03-02-ocm-details.json`
+  - `03-03-ocm-details.tsv`
+  - `99-traffic-pretty.json`
+
+MITM evidence policy:
+
+- MITM output is test and development evidence.
+- Default policy is no redaction: preserve useful protocol and debug detail as
+  captured.
+- Do not describe this like production secret handling.
 
 ## Cypress policy: no cy.origin
 
 Do not use `cy.origin()` in this repo.
 
 Reason: OTS tests should avoid Cypress cross-origin mode and its restrictions.
-Legacy share-with splits sender and receiver work into separate tests (one
-origin per test). OTS follows the same shape.
+Multi-party OCM flows are represented as ordered scenario phases:
+
+- Keep sender and receiver work in separate ordered `it` blocks unless a future
+  explicit, flow-specific exception is approved.
+- CI must not shard within a spec at the individual `it` level, because those
+  ordered phases share server-side state.
+- Legacy `share-with` follows this pattern with two ordered `it` blocks: sender
+  shares, then receiver accepts.
 
 Enforcement: `cypress/support/e2e.ts` overwrites the `origin` command to throw.
+
+Exception policy:
+
+- `cy.origin()` stays forbidden by default.
+- Any exception must be explicit and flow-specific.
+- The only known legacy `cy.origin()` use is a deprecated ownCloud group flow
+  and must not be treated as a general pattern.

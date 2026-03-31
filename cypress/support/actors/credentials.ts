@@ -44,22 +44,20 @@ export function resolveActorCredentials(
 }
 
 function resolveEnvFirst(envKeys: string[]): Cypress.Chainable<string | undefined> {
-  const tryIndex = (index: number): Cypress.Chainable<string | undefined> => {
-    if (index >= envKeys.length) {
-      return cy.wrap(undefined, { log: false });
+  if (envKeys.length === 0) {
+    return cy.wrap<string | undefined>(undefined, { log: false });
+  }
+
+  return cy.env(envKeys).then((values) => {
+    for (const key of envKeys) {
+      const value = values[key];
+      if (value !== undefined && value !== null && String(value) !== "") {
+        return cy.wrap<string | undefined>(String(value), { log: false });
+      }
     }
 
-    const key = envKeys[index]!;
-    return cy.env(key).then((value) => {
-      if (value !== undefined && value !== null && String(value) !== "") {
-        return String(value);
-      }
-
-      return tryIndex(index + 1);
-    });
-  };
-
-  return tryIndex(0);
+    return cy.wrap<string | undefined>(undefined, { log: false });
+  });
 }
 
 function missingCredentialMessage(
@@ -71,7 +69,7 @@ function missingCredentialMessage(
   }
 
   const envKeys = lookup.envKeys
-    .map((key) => `cy.env("${key}")`)
+    .map((key) => `cy.env(["${key}"])`)
     .join(", ");
   return `${lookup.label} (${envKeys})`;
 }

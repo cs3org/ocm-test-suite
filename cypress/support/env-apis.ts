@@ -5,7 +5,7 @@ export {};
 declare global {
   namespace Cypress {
     interface Chainable<Subject = any> {
-      env(key: string): Chainable<unknown>;
+      env(keys: string[]): Chainable<Record<string, string | undefined>>;
     }
 
     interface CypressStatic {

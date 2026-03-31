@@ -108,6 +108,20 @@ environment injection:
 For manual overrides, pass the matching Cypress env keys (without the
 `CYPRESS_` prefix), for example `nextcloud_username` or `sender_username`.
 
+## Cypress v15 env access: cy.env and Cypress.expose
+
+This repo targets Cypress v15.10+ behavior for environment access.
+
+- `Cypress.env()` is intentionally disabled via `allowCypressEnv: false` in
+  `cypress.config.js`.
+- Use `cy.env([...])` to read injected environment values in tests. This is the
+  supported API for sensitive values such as credentials. The command is async
+  and yields a key -> value record.
+- Use `Cypress.expose(key)` for non-sensitive config that is safe to be visible
+  in the browser context. Values come from the `expose` map in
+  `cypress.config.js` (for example `receiver_baseUrl` is injected as
+  `CYPRESS_receiver_baseUrl` and read via `Cypress.expose("receiver_baseUrl")`).
+
 ## Slice 1
 
 The first scenario is `login__nextcloud-v33` and runs without MITM.

@@ -1,5 +1,5 @@
 # Shared run metadata writer.
-# run.json  = lifecycle/provenance SSOT
+# run.json  = lifecycle SSOT
 # result.json = compact terminal outcome projection
 #
 # Lifecycle statuses used in run.json:
@@ -29,6 +29,7 @@ export def write-prepared-run [
 ] {
     {
         schema_version: 1,
+        id: $execution_id,
         execution_id: $execution_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
@@ -57,6 +58,7 @@ export def write-terminal-run [
 ] {
     mut r = {
         schema_version: 1,
+        id: $execution_id,
         execution_id: $execution_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
@@ -117,6 +119,8 @@ export def write-compact-result [
 ] {
     {
         schema_version: 1,
+        id: $"result-($execution_id)",
+        run_id: $execution_id,
         execution_id: $execution_id,
         cell_id: $cell_id,
         exit_code: $exit_code,

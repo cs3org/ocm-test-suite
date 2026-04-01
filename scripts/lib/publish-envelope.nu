@@ -1,0 +1,455 @@
+# Emit publish envelope after a terminal run.
+# Writes meta/suite-manifest.v1.json, meta/summary.json, meta/summary.md.
+# Prompt 6 SSOT: stable IDs, observed state, mandatory execution_context,
+# evidence rows on result, indexes. Banned fields: backend, executor,
+# provenance, trust, publication_state, published_at.
+
+const REBOOT_FLOW_IDS = ["login" "share-with" "contact-token" "contact-wayf" "code-flow"]
+
+def now-utc [] {
+    date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
+}
+
+def flow-description [flow_id: string] {
+    match $flow_id {
+        "login" => "OCM login flow"
+        "share-with" => "OCM share-with flow"
+        "contact-token" => "OCM contact-token flow"
+        "contact-wayf" => "OCM contact-wayf flow"
+        "code-flow" => "OCM authorization code flow"
+        _ => $"OCM ($flow_id) flow"
+    }
+}
+
+def build-github-env [] {
+    mut gh = {}
+    let run_id = ($env.GITHUB_RUN_ID? | default "")
+    let run_attempt = ($env.GITHUB_RUN_ATTEMPT? | default "")
+    let workflow = ($env.GITHUB_WORKFLOW? | default "")
+    let job = ($env.GITHUB_JOB? | default "")
+    let sha = ($env.GITHUB_SHA? | default "")
+    let ref_val = ($env.GITHUB_REF? | default "")
+    let repository = ($env.GITHUB_REPOSITORY? | default "")
+    let actor = ($env.GITHUB_ACTOR? | default "")
+    let event_name = ($env.GITHUB_EVENT_NAME? | default "")
+    if not ($run_id | is-empty) { $gh = ($gh | upsert run_id $run_id) }
+    if not ($run_attempt | is-empty) { $gh = ($gh | upsert run_attempt $run_attempt) }
+    if not ($workflow | is-empty) { $gh = ($gh | upsert workflow $workflow) }
+    if not ($job | is-empty) { $gh = ($gh | upsert job $job) }
+    if not ($sha | is-empty) { $gh = ($gh | upsert sha $sha) }
+    if not ($ref_val | is-empty) { $gh = ($gh | upsert ref $ref_val) }
+    if not ($repository | is-empty) { $gh = ($gh | upsert repository $repository) }
+    if not ($actor | is-empty) { $gh = ($gh | upsert actor $actor) }
+    if not ($event_name | is-empty) { $gh = ($gh | upsert event_name $event_name) }
+    $gh
+}
+
+def detect-execution-context [] {
+    # ACT takes priority; GITHUB_ACTIONS signals real CI; else local.
+    #
+    # Detect act via ACT=true (case-insensitive). Treat other non-empty values
+    # as not-act to avoid surprising mis-detection.
+    let act_val = (($env.ACT? | default "") | str downcase | str trim)
+    let gha_val = (($env.GITHUB_ACTIONS? | default "") | str downcase | str trim)
+    let is_act = ($act_val == "true")
+    let is_gha = ($gha_val == "true")
+    if $is_act {
+        {kind: "github-actions-act", is_ci: true, is_act: true, github: (build-github-env)}
+    } else if $is_gha {
+        {kind: "github-actions", is_ci: true, is_act: false, github: (build-github-env)}
+    } else {
+        {kind: "local-shell", is_ci: false, is_act: false, github: {}}
+    }
+}
+
+# Classify a relative path into an evidence row.
+def path-to-row [rel: string] {
+    let kind = (if ($rel | str starts-with "docker/logs/") { "log"
+        } else if ($rel | str starts-with "cypress/screenshots/") { "screenshot"
+        } else if ($rel | str starts-with "cypress/videos/") { "video"
+        } else if ($rel | str starts-with "cypress/downloads/") { "download"
+        } else if ($rel | str starts-with "mitm/flows/") { "mitm-flow"
+        } else if ($rel | str starts-with "mitm/redaction") { "mitm-report"
+        } else if ($rel | str starts-with "mitm/reports/") { "mitm-report"
+        } else if ($rel | str starts-with "meta/") { "metadata"
+        } else { "" })
+    if ($kind | is-empty) {
+        error make {msg: $"Unsupported evidence kind for path: ($rel). Allowed kinds: metadata, log, screenshot, video, download, mitm-flow, mitm-report."}
+    }
+    let scope = (if ($rel | str starts-with "docker/") { "docker"
+        } else if ($rel | str starts-with "cypress/") { "cypress"
+        } else if ($rel | str starts-with "mitm/") { "mitm"
+        } else if ($rel | str starts-with "meta/") { "meta"
+        } else { "other" })
+    {
+        kind: $kind,
+        scope: $scope,
+        logical_name: ($rel | path basename),
+        path: $rel,
+        availability: "artifact",
+    }
+}
+
+# Collect evidence rows, MITM presence, and counts.
+def collect-evidence [base: string] {
+    let abs_base = ($base | path expand)
+    let prefix = $"($abs_base)/"
+    mut rels = []
+
+    for rel in ["meta/run.json" "meta/result.json"] {
+        if (($abs_base | path join $rel) | path exists) { $rels = ($rels | append $rel) }
+    }
+
+    let log_abs = (try { glob ($abs_base | path join "docker/logs/*.log") } catch { [] })
+    let log_rel = ($log_abs | each {|p| $p | str replace $prefix ""})
+    $rels = ($rels | append $log_rel)
+
+    let ss_abs = (try {
+        glob ($abs_base | path join "cypress/screenshots/**/*.png")
+    } catch { [] })
+    let ss_rel = ($ss_abs | each {|p| $p | str replace $prefix ""})
+
+    let vid_abs = (try {
+        glob ($abs_base | path join "cypress/videos/*.mp4")
+    } catch { [] })
+    let vid_rel = ($vid_abs | each {|p| $p | str replace $prefix ""})
+
+    let dl_abs = (try {
+        glob ($abs_base | path join "cypress/downloads/**/*")
+        | where {|p| ($p | path type) == "file"}
+    } catch { [] })
+    let dl_rel = ($dl_abs | each {|p| $p | str replace $prefix ""})
+
+    $rels = ($rels | append $ss_rel | append $vid_rel | append $dl_rel)
+
+    let mitm_candidates = [
+        "mitm/flows/traffic.jsonl"
+        "mitm/flows/session.json"
+        "mitm/redaction-report.json"
+        "mitm/reports/01-01-traffic-overview.md"
+        "mitm/reports/01-02-traffic-overview.json"
+        "mitm/reports/02-01-ocm-endpoints.md"
+        "mitm/reports/02-02-ocm-endpoints.json"
+        "mitm/reports/03-01-ocm-details.md"
+        "mitm/reports/03-02-ocm-details.json"
+        "mitm/reports/03-03-ocm-details.tsv"
+        "mitm/reports/99-traffic-pretty.json"
+    ]
+    let mitm_rel = ($mitm_candidates | where {|p|
+        ($abs_base | path join $p) | path exists
+    })
+    $rels = ($rels | append $mitm_rel)
+
+    let rows = ($rels | each {|r| path-to-row $r})
+
+    {
+        rows: $rows,
+        mitm_present: (not ($mitm_rel | is-empty)),
+        counts: {
+            total: ($rels | length),
+            docker_logs: ($log_rel | length),
+            cypress_screenshots: ($ss_rel | length),
+            cypress_videos: ($vid_rel | length),
+            cypress_downloads: ($dl_rel | length),
+            mitm_files: ($mitm_rel | length),
+        },
+    }
+}
+
+# Semantic consistency checks. Returns a list of error strings.
+# Cell and flow map entries must have an `id` field; cells must have `flow_id`.
+def consistency-errors [manifest: record] {
+    let runs = $manifest.runs
+    let results = $manifest.results
+    let cells = $manifest.cells
+    let flows = $manifest.flows
+    let idx = (
+        $manifest.indexes?
+        | default {}
+        | get --optional latest_terminal_result_by_cell
+        | default {}
+    )
+    let allowed_flow_ids = $REBOOT_FLOW_IDS
+
+    # Map key == embedded id field
+    let key_errors = (
+        ($runs | transpose k v
+            | where {|r| $r.k != $r.v.id}
+            | each {|r| $"run key '($r.k)' != run.id '($r.v.id)'"})
+        | append ($results | transpose k v
+            | where {|r| $r.k != $r.v.id}
+            | each {|r| $"result key '($r.k)' != result.id '($r.v.id)'"})
+        | append ($cells | transpose k v
+            | where {|r| $r.k != ($r.v.id? | default "")}
+            | each {|r| $"cell key '($r.k)' != cell.id '($r.v.id?)'"})
+        | append ($flows | transpose k v
+            | where {|r| $r.k != ($r.v.id? | default "")}
+            | each {|r| $"flow key '($r.k)' != flow.id '($r.v.id?)'"})
+    )
+
+    # run.cell_id resolves to cells
+    let run_cell_errors = ($runs | transpose k v | each {|row|
+        let run = $row.v
+        let cell_id = ($run.cell_id? | default "")
+        if ($cell_id | is-empty) {
+            [$"run '($run.id)': missing cell_id"]
+        } else if ($cells | get --optional $cell_id) == null {
+            [$"run '($run.id)': cell_id '($cell_id)' not in cells"]
+        } else {
+            []
+        }
+    } | flatten)
+
+    # Cross-reference checks from each result
+    let ref_errors = ($results | transpose k v | each {|row|
+        let res = $row.v
+        let run_id = ($res.run_id? | default "")
+        let cell_id = ($res.cell_id? | default "")
+        mut errs = []
+        if ($run_id | is-empty) {
+            $errs = ($errs | append $"result '($res.id)': missing run_id")
+        } else {
+            let run_ref = ($runs | get --optional $run_id)
+            if $run_ref == null {
+                $errs = ($errs | append $"result '($res.id)': run_id '($run_id)' not in runs")
+            } else if (($run_ref.cell_id? | default "") != $cell_id) {
+                $errs = ($errs | append $"result '($res.id)': cell_id mismatch with run '($run_id)'")
+            }
+        }
+        if ($cell_id | is-empty) {
+            $errs = ($errs | append $"result '($res.id)': missing cell_id")
+        } else {
+            let cell_ref = ($cells | get --optional $cell_id)
+            if $cell_ref == null {
+                $errs = ($errs | append $"result '($res.id)': cell_id '($cell_id)' not in cells")
+            } else {
+                let fid = ($cell_ref.flow_id? | default "")
+                if ($flows | get --optional $fid) == null {
+                    $errs = ($errs | append $"cell '($cell_id)': flow_id '($fid)' not in flows")
+                }
+                if not ($fid in $allowed_flow_ids) {
+                    $errs = ($errs | append $"cell '($cell_id)': flow_id '($fid)' not in allowed reboot flow ids")
+                }
+            }
+        }
+        $errs
+    } | flatten)
+
+    # Index integrity
+    let idx_errors = ($idx | transpose k v | each {|row|
+        let res_ref = ($results | get --optional $row.v)
+        if $res_ref == null {
+            [$"index: result '($row.v)' for cell '($row.k)' not in results"]
+        } else if (($res_ref.cell_id? | default "") != $row.k) {
+            [$"index: result '($row.v)' cell_id != indexed key '($row.k)'"]
+        } else {
+            []
+        }
+    } | flatten)
+
+    # Completed runs must have exactly one terminal result
+    let run_result_errors = ($runs | transpose k v | each {|row|
+        let run = $row.v
+        if ($run.lifecycle_status? | default "") == "completed" {
+            let count = ($results | transpose k v
+                | where {|r| ($r.v.run_id? | default "") == $run.id}
+                | length)
+            if $count != 1 {
+                [$"run '($run.id)': completed but has ($count) results \(expected 1\)"]
+            } else {
+                []
+            }
+        } else {
+            []
+        }
+    } | flatten)
+
+    ($key_errors | append $run_cell_errors | append $ref_errors | append $idx_errors | append $run_result_errors)
+}
+
+def build-summary-md [summary: record, ev_rows: list] {
+    let mitm_txt = if $summary.evidence.mitm_present { "present" } else { "not present" }
+    let ev_lines = if ($ev_rows | is-empty) {
+        "(none)"
+    } else {
+        $ev_rows | each {|r| $"- ($r.path)"} | str join "\n"
+    }
+    let warn_section = if ($summary.warnings | is-empty) {
+        ""
+    } else {
+        let lines = ($summary.warnings | each {|w| $"- ($w)"} | str join "\n")
+        $"\n## Warnings\n\n($lines)"
+    }
+    [
+        "# Cell Run Summary"
+        ""
+        $"- **Cell**: ($summary.cell_id)"
+        $"- **Artifact**: ($summary.artifact_name)"
+        $"- **Execution ID**: ($summary.execution_id)"
+        $"- **Status**: ($summary.status) \(exit ($summary.exit_code)\)"
+        $"- **Started**: ($summary.started_at)"
+        $"- **Finished**: ($summary.finished_at)"
+        $"- **Context**: ($summary.execution_context.kind)"
+        ""
+        "## Evidence"
+        ""
+        $"- Docker logs: ($summary.evidence.docker_logs_count)"
+        $"- Cypress screenshots: ($summary.evidence.cypress_screenshots_count)"
+        $"- Cypress videos: ($summary.evidence.cypress_videos_count)"
+        $"- Cypress downloads: ($summary.evidence.cypress_downloads_count)"
+        $"- MITM traffic: ($mitm_txt)"
+        ""
+        "## Evidence Paths"
+        ""
+        $ev_lines
+        $warn_section
+    ] | str join "\n"
+}
+
+# Emit suite-manifest.v1.json, summary.json, and summary.md into
+# <artifacts_base>/meta/. Reads meta/cell.json, meta/run.json,
+# meta/result.json. Throws on missing inputs, write failures, or
+# consistency errors (after writing outputs for debuggability).
+export def emit-publish-envelope [artifacts_base: string] {
+    let base = ($artifacts_base | str trim --right --char "/" | path expand)
+    let meta_dir = ($base | path join "meta")
+
+    let cell = (open ($meta_dir | path join "cell.json"))
+    let run = (open ($meta_dir | path join "run.json"))
+    let result = (open ($meta_dir | path join "result.json"))
+
+    let generated_at = (now-utc)
+    let ctx = (detect-execution-context)
+    let ev = (collect-evidence $base)
+
+    # Stable IDs (current proof-slice: run.id == execution_id)
+    let run_id = ($run.id? | default $run.execution_id)
+    let result_id = ($result.id? | default $"result-($result.execution_id)")
+    let result_run_id = ($result.run_id? | default $result.execution_id)
+
+    let flow_id = ($cell.flow_id? | default $cell.scenario)
+    # flow entry: id field is the map key; description for human readers
+    let flow_entry = {id: $flow_id, description: (flow-description $flow_id)}
+
+    # cell entry: id field is the map key
+    let cell_entry = {
+        id: $cell.cell_id,
+        flow_id: $flow_id,
+        artifact_name: $cell.artifact_name,
+        scenario: $cell.scenario,
+        sender_platform: $cell.sender_platform,
+        sender_version: $cell.sender_version,
+        receiver_platform: ($cell.receiver_platform? | default ""),
+        receiver_version: ($cell.receiver_version? | default ""),
+        browser: ($cell.browser? | default "chrome"),
+        is_two_party: ($cell.is_two_party? | default false),
+    }
+    let scenario_module = ($cell.scenario_module? | default "")
+    let cell_entry = if ($scenario_module | is-empty) {
+        $cell_entry
+    } else {
+        $cell_entry | upsert scenario_module $scenario_module
+    }
+
+    # failure_reason must be concrete and observed.
+    # Prefer run.error when present; otherwise, fall back to a summary derived
+    # from terminal status + exit_code for non-passing results.
+    let has_failure = (($result.exit_code | default 0) != 0) or (($result.status | default "") != "passed")
+    mut failure_reason = ($run.error? | default "")
+    if (($failure_reason | is-empty) and $has_failure) {
+        $failure_reason = $"status=($result.status) exit_code=($result.exit_code)"
+    }
+    let failure_reason_val = if ($failure_reason | is-empty) { null } else { $failure_reason }
+    mut run_entry = {
+        id: $run_id,
+        cell_id: $cell.cell_id,
+        execution_id: $run.execution_id,
+        attempt_number: 1,
+        retry_of_run_id: null,
+        superseded_by_run_id: null,
+        lifecycle_status: "completed",
+        started_at: ($run.started_at? | default ""),
+        finished_at: ($run.finished_at? | default ""),
+        stack_id: ($run.stack_id? | default ""),
+    }
+
+    # result entry: evidence rows live here
+    mut result_entry = {
+        id: $result_id,
+        run_id: $result_run_id,
+        cell_id: $cell.cell_id,
+        status: $result.status,
+        exit_code: $result.exit_code,
+        finished_at: $result.finished_at,
+        evidence: $ev.rows,
+    }
+    if $failure_reason_val != null {
+        $result_entry = ($result_entry | upsert failure_reason $failure_reason_val)
+    }
+
+    let manifest = {
+        schema_version: 1,
+        generated_at: $generated_at,
+        producer: {name: "ocmts", version: "0.1.0"},
+        execution_context: $ctx,
+        flows: {($flow_id): $flow_entry},
+        cells: {($cell.cell_id): $cell_entry},
+        runs: {($run_id): $run_entry},
+        results: {($result_id): $result_entry},
+        indexes: {
+            latest_terminal_result_by_cell: {($cell.cell_id): $result_id}
+        },
+    }
+
+    let errs = (consistency-errors $manifest)
+    let warnings = ($errs | each {|e| $"consistency: ($e)"})
+
+    # Write outputs (all three, even on consistency failure, for debuggability).
+    $manifest | to json --indent 2
+        | save --force ($meta_dir | path join "suite-manifest.v1.json")
+
+    let summary = {
+        cell_id: $cell.cell_id,
+        artifact_name: $cell.artifact_name,
+        execution_id: $run.execution_id,
+        status: $result.status,
+        exit_code: $result.exit_code,
+        started_at: ($run.started_at? | default ""),
+        finished_at: $result.finished_at,
+        execution_context: {
+            kind: $ctx.kind,
+            is_ci: $ctx.is_ci,
+            is_act: $ctx.is_act,
+        },
+        evidence: {
+            total_count: $ev.counts.total,
+            mitm_present: $ev.mitm_present,
+            docker_logs_count: $ev.counts.docker_logs,
+            cypress_screenshots_count: $ev.counts.cypress_screenshots,
+            cypress_videos_count: $ev.counts.cypress_videos,
+            cypress_downloads_count: $ev.counts.cypress_downloads,
+            mitm_files_count: $ev.counts.mitm_files,
+        },
+        warnings: $warnings,
+    }
+    $summary | to json --indent 2 | save --force ($meta_dir | path join "summary.json")
+
+    let md = (build-summary-md $summary $ev.rows)
+    $md | save --force ($meta_dir | path join "summary.md")
+
+    # Throw after writing so the files exist for debugging.
+    if not ($errs | is-empty) {
+        let msg = ($errs | str join "; ")
+        error make {msg: $"publish-envelope consistency errors: ($msg)"}
+    }
+}
+
+# Safe wrapper: calls emit-publish-envelope and logs any error as a warning.
+# Non-fatal; does not throw.
+export def publish-envelope-safe [artifacts_base: string] {
+    try {
+        emit-publish-envelope $artifacts_base
+    } catch {|e|
+        print $"WARNING: publish-envelope failed for ($artifacts_base): ($e.msg)"
+    }
+}

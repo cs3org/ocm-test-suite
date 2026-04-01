@@ -3,8 +3,8 @@
 # and copies them to artifacts/<name>/<execution_id>/compose/inputs/ for durable access.
 # Dispatches to topology-specific writers; see compose/ subdirectory for details.
 
-use ./compose/topology-one-party.nu [write-one-party-overlays]
 use ./compose/topology-two-party.nu [write-two-party-overlays]
+use ./compose/topology-one-party.nu [write-one-party-overlays]
 
 # Write all compose overlay fragments for one execution.
 # Dispatches to one-party or two-party path based on receiver_platform.
@@ -27,6 +27,7 @@ export def write-compose-overlays [
     receiver_platform: string = "",
     receiver_image_ref: string = "",
     mitmproxy_image: string = "",
+    flow_id: string = "",
     --cell-id: string = "",
 ] {
     let is_two_party = (not ($receiver_platform | is-empty))
@@ -39,6 +40,7 @@ export def write-compose-overlays [
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
+            $flow_id
             --cell-id $cell_id)
     } else {
         (write-one-party-overlays

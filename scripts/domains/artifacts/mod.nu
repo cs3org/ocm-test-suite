@@ -1,6 +1,6 @@
 # Artifacts domain: artifact inspection and log collection.
 
-use ../../lib/cell.nu [compute-cell]
+use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/execution-id.nu [validate-execution-id validate-artifact-name execution-artifacts-path]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
@@ -27,9 +27,12 @@ def "main list" [
     --receiver-version: string = "",
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version $flow_id)
     let safe_name = (validate-artifact-name $cell.artifact_name)
     let base = ($root | path join "artifacts" $safe_name)
     if not ($base | path exists) {
@@ -67,9 +70,12 @@ def "main show" [
     --execution-id: string = "",
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {
@@ -97,9 +103,12 @@ def "main collect" [
     --include-logs,
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {
@@ -193,9 +202,12 @@ def "main publish" [
         $artifacts_base
     } else {
         let root = get-ocmts-root
-        let cell = (compute-cell
+        let flow_id = (validate-cell-rules
             $scenario $sender_platform $sender_version "chrome"
             $receiver_platform $receiver_version)
+        let cell = (compute-cell
+            $scenario $sender_platform $sender_version "chrome"
+            $receiver_platform $receiver_version $flow_id)
         let exec_id = if ($execution_id | is-empty) {
             read-last-execution-id $cell.artifact_name
         } else {

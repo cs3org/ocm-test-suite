@@ -2,7 +2,6 @@
 
 use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
-use ../../lib/actors.nu [validate-actor-config]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [] {
@@ -22,6 +21,7 @@ def "main list" [--json] {
             $sc.browsers | each {|browser|
                 {
                     scenario: $scenario,
+                    flow_id: ($sc.flow_id? | default $scenario),
                     sender_platform: $sc.sender.platform,
                     sender_version: $ver,
                     receiver_platform: ($sc.receiver?.platform? | default ""),
@@ -30,6 +30,7 @@ def "main list" [--json] {
                     } else { "" }),
                     mitm: ($sc.mitm? | default false),
                     browser: $browser,
+                    enabled: ($sc.enabled? | default false),
                 }
             }
         } | flatten
@@ -51,13 +52,12 @@ def "main cell" [
     --json,                               # Output as JSON
 ] {
     let root = get-ocmts-root
-    (validate-cell-rules
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version)
-    (validate-actor-config $scenario $root $sender_platform $receiver_platform)
     let cell = (compute-cell
         $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version)
+        $receiver_platform $receiver_version $flow_id)
     let images = (resolve-images $sender_platform $sender_version)
     mut result = ($cell | insert images $images)
     if $cell.is_two_party {
@@ -68,6 +68,8 @@ def "main cell" [
     if $json {
         $result | to json
     } else {
+        print $"flow_id:           ($result.flow_id)"
+        print $"scenario_module:   ($result.scenario_module)"
         print $"cell_id:           ($result.cell_id)"
         print $"artifact_name:     ($result.artifact_name)"
         print $"browser:           ($result.browser)"

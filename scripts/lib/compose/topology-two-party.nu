@@ -111,9 +111,11 @@ export def write-two-party-overlays [
     record_video: bool,
     root: string,
     artifacts_base: string,
+    flow_id: string = "",
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
+    let effective_flow_id = if ($flow_id | is-empty) { $scenario } else { $flow_id }
     let svc = (open ($root | path join $"config/services/($sender_platform).nuon"))
     let helpers = ($svc.helpers? | default [])
 
@@ -196,7 +198,7 @@ export def write-two-party-overlays [
         "      - OCMTS_MITM_SESSION_PATH=/mitm/flows/session.json"
         "      - OCMTS_MITM_REDACTION_REPORT_PATH=/mitm/redaction-report.json"
         $"      - OCMTS_CELL_ID=($cell_id)"
-        $"      - OCMTS_FLOW_ID=($scenario)"
+        $"      - OCMTS_FLOW_ID=($effective_flow_id)"
         $"      - OCMTS_RUN_ID=($execution_id)"
         $"      - OCMTS_EXECUTION_ID=($execution_id)"
         "    volumes:"
@@ -325,3 +327,4 @@ export def write-two-party-overlays [
         is_two_party: true,
     }
 }
+

@@ -4,7 +4,7 @@
 # evidence rows on result, indexes. Banned fields: backend, executor,
 # provenance, trust, publication_state, published_at.
 
-const REBOOT_FLOW_IDS = ["login" "share-with" "contact-token" "contact-wayf" "code-flow"]
+use ./flow-ids.nu [PUBLIC_FLOW_IDS]
 
 def now-utc [] {
     date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
@@ -169,7 +169,6 @@ def consistency-errors [manifest: record] {
         | get --optional latest_terminal_result_by_cell
         | default {}
     )
-    let allowed_flow_ids = $REBOOT_FLOW_IDS
 
     # Map key == embedded id field
     let key_errors = (
@@ -227,8 +226,8 @@ def consistency-errors [manifest: record] {
                 if ($flows | get --optional $fid) == null {
                     $errs = ($errs | append $"cell '($cell_id)': flow_id '($fid)' not in flows")
                 }
-                if not ($fid in $allowed_flow_ids) {
-                    $errs = ($errs | append $"cell '($cell_id)': flow_id '($fid)' not in allowed reboot flow ids")
+                if not ($fid in $PUBLIC_FLOW_IDS) {
+                    $errs = ($errs | append $"cell '($cell_id)': flow_id '($fid)' not in public flow id allowlist")
                 }
             }
         }

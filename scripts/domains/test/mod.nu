@@ -1,6 +1,6 @@
 # Test domain: test execution against an already-up stack.
 
-use ../../lib/cell.nu [compute-cell]
+use ../../lib/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/execution-id.nu [execution-artifacts-path]
@@ -60,9 +60,13 @@ def "main run" [
     --verbose,     # Show all docker compose output; default is quiet mode
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell
+    assert-scenario-enabled $scenario
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version $browser
+        $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {

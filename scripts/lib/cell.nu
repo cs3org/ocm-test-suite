@@ -2,6 +2,24 @@
 
 use ./execution-id.nu [validate-path-segment]
 use ./domain/core/ocmts-root.nu [get-ocmts-root]
+use ./flow-ids.nu [PUBLIC_FLOW_IDS]
+
+# Error if scenario.enabled != true in config/matrix-rules.nuon.
+# Call from run entrypoints to reject placeholder scenarios early.
+# Does not affect matrix cell (which must work for all scenarios).
+export def assert-scenario-enabled [scenario: string] {
+    let root = get-ocmts-root
+    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let known_scenarios = ($rules.scenarios | columns)
+    if not ($scenario in $known_scenarios) {
+        error make {msg: $"Scenario '($scenario)' not in config/matrix-rules.nuon. Known: ($known_scenarios | str join ', ')"}
+    }
+    let sc = ($rules.scenarios | get $scenario)
+    let enabled = ($sc.enabled? | default false)
+    if not $enabled {
+        error make {msg: $"Scenario '($scenario)' is disabled \(enabled: false\). Placeholder scenarios cannot be run."}
+    }
+}
 
 # Validate browser against the supported allowlist.
 # Only chrome is supported. Error message is readable.
@@ -16,6 +34,9 @@ export def validate-browser [browser: string] {
 # Compute cell_id and artifact_name for one-party or two-party scenarios.
 # One-party (no receiver): cell_id = "login__nextcloud-v33"
 # Two-party (with receiver): cell_id = "share-with__nextcloud-v33__nextcloud-v33"
+# flow_id defaults to scenario when not supplied (e.g. main down path).
+# Emits: flow_id, scenario_module, scenario (compat alias), cell_id, artifact_name,
+#        participant fields, is_two_party, browser.
 export def compute-cell [
     scenario: string,
     sender_platform: string,
@@ -23,8 +44,11 @@ export def compute-cell [
     browser: string,
     receiver_platform: string = "",
     receiver_version: string = "",
+    flow_id: string = "",
 ] {
-    let s = (validate-path-segment $scenario "scenario")
+    let effective_flow_id = if ($flow_id | is-empty) { $scenario } else { $flow_id }
+    let fid = (validate-path-segment $effective_flow_id "flow_id")
+    let scenario_module = (validate-path-segment $scenario "scenario_module")
     let p = (validate-path-segment $sender_platform "sender_platform")
     let v = (validate-path-segment $sender_version "sender_version")
     let b = (validate-browser $browser)
@@ -33,9 +57,11 @@ export def compute-cell [
         let rp = (validate-path-segment $receiver_platform "receiver_platform")
         let rv = (validate-path-segment $receiver_version "receiver_version")
         {
-            cell_id: $"($s)__($p)-($v)__($rp)-($rv)",
-            artifact_name: $"cell-($s)-($p)-($v)-($rp)-($rv)",
-            scenario: $s,
+            flow_id: $fid,
+            scenario_module: $scenario_module,
+            scenario: $scenario_module,
+            cell_id: $"($fid)__($p)-($v)__($rp)-($rv)",
+            artifact_name: $"cell-($fid)-($p)-($v)-($rp)-($rv)",
             sender_platform: $p,
             sender_version: $v,
             receiver_platform: $rp,
@@ -45,9 +71,11 @@ export def compute-cell [
         }
     } else {
         {
-            cell_id: $"($s)__($p)-($v)",
-            artifact_name: $"cell-($s)-($p)-($v)",
-            scenario: $s,
+            flow_id: $fid,
+            scenario_module: $scenario_module,
+            scenario: $scenario_module,
+            cell_id: $"($fid)__($p)-($v)",
+            artifact_name: $"cell-($fid)-($p)-($v)",
             sender_platform: $p,
             sender_version: $v,
             receiver_platform: "",
@@ -61,6 +89,7 @@ export def compute-cell [
 # Validate cell inputs against config/matrix-rules.nuon.
 # Errors readably when scenario, browser, platform, or version is not in rules.
 # When scenario has a receiver in the matrix rules, also validates receiver_platform/version.
+# Returns the resolved flow_id for downstream use.
 export def validate-cell-rules [
     scenario: string,
     sender_platform: string,
@@ -76,6 +105,14 @@ export def validate-cell-rules [
         error make {msg: $"Scenario '($scenario)' not in config/matrix-rules.nuon. Known: ($known_scenarios | str join ', ')"}
     }
     let sc = ($rules.scenarios | get $scenario)
+
+    # Resolve and validate flow_id.
+    let flow_id = ($sc.flow_id? | default $scenario)
+    validate-path-segment $flow_id "flow_id"
+    if not ($flow_id in $PUBLIC_FLOW_IDS) {
+        error make {msg: $"flow_id '($flow_id)' not in public flow id allowlist: ($PUBLIC_FLOW_IDS | str join ', ')"}
+    }
+
     let known_browsers = $sc.browsers
     if not ($browser in $known_browsers) {
         error make {msg: $"Browser '($browser)' not valid for scenario '($scenario)'. Known: ($known_browsers | str join ', ')"}
@@ -105,4 +142,6 @@ export def validate-cell-rules [
             error make {msg: $"Receiver version '($receiver_version)' not in matrix for '($scenario)'/'($receiver_platform)'. Known: ($known_recv_versions | str join ', ')"}
         }
     }
+
+    $flow_id
 }

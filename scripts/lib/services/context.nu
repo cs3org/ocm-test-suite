@@ -1,7 +1,7 @@
 # Shared run context setup: validate, compute cell, create dirs, render overlays,
 # write initial metadata.
 
-use ../cell.nu [compute-cell validate-cell-rules]
+use ../cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
 use ../images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../execution-id.nu [new-execution-id]
 use ../actors.nu [validate-actor-config]
@@ -22,13 +22,14 @@ export def setup-run-context [
     receiver_version: string = "",
 ] {
     let root = get-ocmts-root
-    (validate-cell-rules
+    assert-scenario-enabled $scenario
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version)
     (validate-actor-config $scenario $root $sender_platform $receiver_platform)
     let cell = (compute-cell
         $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version)
+        $receiver_platform $receiver_version $flow_id)
     let images = (resolve-images $sender_platform $sender_version)
     let receiver_image = if $cell.is_two_party {
         resolve-receiver-image $receiver_platform $receiver_version
@@ -40,7 +41,7 @@ export def setup-run-context [
     let execution_id = (new-execution-id)
     let artifacts_base = (init-artifact-dirs $cell.artifact_name $execution_id)
 
-    let spec_entrypoint = $"cypress/e2e/($scenario)/index.cy.ts"
+    let spec_entrypoint = $"cypress/e2e/($cell.scenario_module)/index.cy.ts"
     let overlay = (write-compose-overlays
         $scenario $sender_platform
         $cell.artifact_name $execution_id
@@ -49,6 +50,7 @@ export def setup-run-context [
         $spec_entrypoint $browser $record_video
         $root $artifacts_base
         $receiver_platform $receiver_image $mitmproxy_image
+        $cell.flow_id
         --cell-id $cell.cell_id
     )
 

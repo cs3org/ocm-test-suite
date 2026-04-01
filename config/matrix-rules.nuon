@@ -1,6 +1,8 @@
 {
   "scenarios": {
     "login": {
+      "enabled": true,
+      "flow_id": "login",
       "browsers": ["chrome"],
       "sender": {
         "platform": "nextcloud",
@@ -10,6 +12,50 @@
       "mitm": false
     },
     "share-with": {
+      "enabled": true,
+      "flow_id": "share-with",
+      "browsers": ["chrome"],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "mitm": true
+    },
+    "contact-token": {
+      "enabled": false,
+      "flow_id": "contact-token",
+      "browsers": ["chrome"],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "mitm": true
+    },
+    "contact-wayf": {
+      "enabled": false,
+      "flow_id": "contact-wayf",
+      "browsers": ["chrome"],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": ["v33"]
+      },
+      "mitm": true
+    },
+    "code-flow": {
+      "enabled": false,
+      "flow_id": "code-flow",
       "browsers": ["chrome"],
       "sender": {
         "platform": "nextcloud",

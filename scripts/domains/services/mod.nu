@@ -8,7 +8,7 @@ use ../../lib/run-metadata.nu [
     utc-now
 ]
 use ../../lib/execution-id.nu [execution-artifacts-path]
-use ../../lib/cell.nu [compute-cell]
+use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/mitm-peers.nu [write-mitm-peers]
@@ -410,9 +410,12 @@ def "main down" [
     --preserve-temp,
 ] {
     let root = get-ocmts-root
-    let cell = (compute-cell
+    let flow_id = (validate-cell-rules
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
+    let cell = (compute-cell
+        $scenario $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.artifact_name
     } else {

@@ -1,5 +1,5 @@
 {
-  "name": "ots-rebooted",
+  "name": "ocm-test-suite",
   "private": true,
   "devDependencies": {
     "cypress": "15.14.1",

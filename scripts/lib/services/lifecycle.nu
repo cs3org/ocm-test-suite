@@ -4,6 +4,7 @@ use ./compose-files.nu [build-f-args]
 use ../compose-validate.nu [validate-compose-strict]
 use ../execution-id.nu [execution-temp-path]
 use ../run-metadata.nu [write-terminal-run write-compact-result utc-now]
+use ../publish-envelope.nu [publish-envelope-safe]
 
 # Remove /tmp/ocmts/<execution_id> when not preserving temp.
 export def cleanup-temp [execution_id: string, preserve_temp: bool] {
@@ -81,6 +82,7 @@ export def overwrite-cleanup-failed [
         $ctx.images --phase "compose-down" --fail-error $combined)
     (write-compact-result $ctx.artifacts_base $ctx.execution_id
         $ctx.cell.cell_id "cleanup-failed" 1 $cf_at)
+    publish-envelope-safe $ctx.artifacts_base
     cleanup-temp $ctx.execution_id $preserve_temp
     error make {msg: $combined}
 }

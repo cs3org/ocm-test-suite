@@ -7,6 +7,7 @@ use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/docker-logs.nu [collect-service-logs]
 use ../../lib/services/compose-files.nu [read-active-compose-files]
+use ../../lib/publish-envelope.nu [emit-publish-envelope]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu artifacts <verb> [flags]"
@@ -15,6 +16,7 @@ def main [] {
     print "  list     List artifact runs for a cell"
     print "  show     Show metadata for a run"
     print "  collect  Collect artifacts for a run (use --include-logs for docker logs)"
+    print "  publish  Regenerate suite-manifest.v1.json, summary.json, summary.md"
 }
 
 def "main list" [
@@ -172,4 +174,41 @@ def "main collect" [
             error make {msg: "Log collection failed for one or more services. See output above."}
         }
     }
+}
+
+# Regenerate suite-manifest.v1.json, summary.json, summary.md for a run.
+# Pass --artifacts-base with the full path to the execution artifact root,
+# e.g. artifacts/<artifact_name>/<execution_id>.
+def "main publish" [
+    --artifacts-base: string,
+    --scenario: string = "",
+    --sender-platform: string = "",
+    --sender-version: string = "",
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
+    --execution-id: string = "",
+] {
+    # If --artifacts-base is given, use it directly.
+    let base = if not ($artifacts_base | is-empty) {
+        $artifacts_base
+    } else {
+        let root = get-ocmts-root
+        let cell = (compute-cell
+            $scenario $sender_platform $sender_version "chrome"
+            $receiver_platform $receiver_version)
+        let exec_id = if ($execution_id | is-empty) {
+            read-last-execution-id $cell.artifact_name
+        } else {
+            $execution_id
+        }
+        execution-artifacts-path $root $cell.artifact_name $exec_id
+    }
+    if not ($base | path exists) {
+        error make {msg: $"Artifacts base not found: ($base)"}
+    }
+    emit-publish-envelope $base
+    print $"Published envelope for ($base)"
+    print $"  meta/suite-manifest.v1.json"
+    print $"  meta/summary.json"
+    print $"  meta/summary.md"
 }

@@ -24,6 +24,7 @@ use ../../lib/services/lifecycle.nu [
     do-compose-up
     do-compose-down
 ]
+use ../../lib/publish-envelope.nu [publish-envelope-safe emit-publish-envelope]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu services <verb> [flags]"
@@ -66,6 +67,7 @@ def "main up" [
             $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
@@ -85,6 +87,7 @@ def "main up" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up failed: ($e.msg)"}
     }
@@ -128,6 +131,7 @@ def "main up run" [
             $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose base validation failed: ($e.msg)"}
     }
@@ -151,6 +155,7 @@ def "main up run" [
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($up_err.msg)"
             }
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up platform failed: ($up_err.msg)"}
     }
@@ -182,6 +187,7 @@ def "main up run" [
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"runner-ci validation failed: ($e.msg)"
             }
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
     }
@@ -228,6 +234,7 @@ def "main up run" [
             --fail-error $"($down_fail_msg) [cypress: status=($cypress_status) exit=($cypress_exit)]")
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "cleanup-failed" 1 $finished_at)
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $down_fail_msg}
     }
@@ -238,6 +245,7 @@ def "main up run" [
         $ctx.images)
     (write-compact-result $ctx.artifacts_base $ctx.execution_id
         $ctx.cell.cell_id $cypress_status $cypress_exit $finished_at)
+    emit-publish-envelope $ctx.artifacts_base
     cleanup-temp $ctx.execution_id $preserve_temp
     print $"Done. status=($cypress_status) execution_id=($ctx.execution_id)"
     print $"Artifacts: ($ctx.artifacts_base)"
@@ -273,6 +281,7 @@ def "main up open" [
             $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
@@ -292,6 +301,7 @@ def "main up open" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Failed to start platform services: ($e.msg)"}
     }
@@ -315,6 +325,7 @@ def "main up open" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"dev validation failed: ($e.msg)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose dev validation failed: ($e.msg)"}
     }
@@ -334,6 +345,7 @@ def "main up open" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"cypress_dev up failed: ($e.msg)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Failed to start cypress_dev: ($e.msg)"}
     }
@@ -360,6 +372,7 @@ def "main up open" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"cypress_dev port lookup failed: ($port_err)"}
     }
@@ -378,6 +391,7 @@ def "main up open" [
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"cypress_dev port lookup returned invalid port: ($port_err)"}
     }

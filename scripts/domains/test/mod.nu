@@ -5,6 +5,7 @@ use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/execution-id.nu [execution-artifacts-path]
 use ../../lib/run-metadata.nu [write-terminal-run write-compact-result utc-now]
+use ../../lib/publish-envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/compose-files.nu [build-f-args build-run-files]
@@ -119,6 +120,7 @@ def "main run" [
             $images --phase "compose-validate-runner-ci" --fail-error $e.msg)
         (write-compact-result $artifacts_base $exec_id
             $cell.cell_id "infra-failed" 1 $finished_at)
+        publish-envelope-safe $artifacts_base
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
     }
 
@@ -134,6 +136,7 @@ def "main run" [
         $images)
     (write-compact-result $artifacts_base $exec_id
         $cell.cell_id $status $cypress_exit $finished_at)
+    emit-publish-envelope $artifacts_base
 
     exit $cypress_exit
 }

@@ -15,7 +15,7 @@ export def collect-run-artifacts [
     let log_services = if $is_two_party {
         ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache" "mitm"]
     } else {
-        ["platform" "platform-db" "platform-cache"]
+        ["sender" "sender-db" "sender-cache"]
     }
 
     try {

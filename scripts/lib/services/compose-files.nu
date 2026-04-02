@@ -55,3 +55,9 @@ export def build-run-files [
     let base_set = (read-active-compose-files $artifacts_base $base_yml)
     $base_set | append ($inputs | path join "runner-ci.yml")
 }
+
+# Return the stack.env path from compose inputs if it exists; empty string otherwise.
+export def read-compose-env-file [artifacts_base: string] {
+    let p = ($artifacts_base | path join "compose" "inputs" "stack.env")
+    if ($p | path exists) { $p } else { "" }
+}

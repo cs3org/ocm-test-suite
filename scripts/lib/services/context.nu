@@ -83,5 +83,6 @@ export def setup-run-context [
         base_yml: $overlay.base_yml,
         base_overlay_fnames: $overlay.base_overlay_fnames,
         is_two_party: $overlay.is_two_party,
+        env_file: $overlay.env_file,
     }
 }

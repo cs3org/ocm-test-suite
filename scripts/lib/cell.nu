@@ -35,7 +35,10 @@ export def validate-browser [browser: string] {
 # One-party (no receiver): cell_id = "login__nextcloud-v33"
 # Two-party (with receiver): cell_id = "share-with__nextcloud-v33__nextcloud-v33"
 # flow_id defaults to scenario when not supplied (e.g. main down path).
-# Emits: flow_id, scenario_module, scenario (compat alias), cell_id, artifact_name,
+# scenario_module is derived from effective_flow_id so Cypress module selection
+# follows the flow, not the scenario key. scenario is the raw scenario key for
+# UI and manifest use.
+# Emits: flow_id, scenario_module, scenario, cell_id, artifact_name,
 #        participant fields, is_two_party, browser.
 export def compute-cell [
     scenario: string,
@@ -48,7 +51,8 @@ export def compute-cell [
 ] {
     let effective_flow_id = if ($flow_id | is-empty) { $scenario } else { $flow_id }
     let fid = (validate-path-segment $effective_flow_id "flow_id")
-    let scenario_module = (validate-path-segment $scenario "scenario_module")
+    let scenario_module = $fid
+    let sc_key = (validate-path-segment $scenario "scenario")
     let p = (validate-path-segment $sender_platform "sender_platform")
     let v = (validate-path-segment $sender_version "sender_version")
     let b = (validate-browser $browser)
@@ -59,7 +63,7 @@ export def compute-cell [
         {
             flow_id: $fid,
             scenario_module: $scenario_module,
-            scenario: $scenario_module,
+            scenario: $sc_key,
             cell_id: $"($fid)__($p)-($v)__($rp)-($rv)",
             artifact_name: $"cell-($fid)-($p)-($v)-($rp)-($rv)",
             sender_platform: $p,
@@ -73,7 +77,7 @@ export def compute-cell [
         {
             flow_id: $fid,
             scenario_module: $scenario_module,
-            scenario: $scenario_module,
+            scenario: $sc_key,
             cell_id: $"($fid)__($p)-($v)",
             artifact_name: $"cell-($fid)-($p)-($v)",
             sender_platform: $p,

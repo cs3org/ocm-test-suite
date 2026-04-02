@@ -12,6 +12,7 @@ export def run-cypress-ci [
     f_args: list<string>,
     stack_id: string,
     verbose: bool,
+    env_file: string = "",
 ] {
     let logs_dir = ($artifacts_base | path join "docker" "logs")
     if not ($logs_dir | path exists) {
@@ -32,8 +33,9 @@ export def run-cypress-ci [
     } else {
         'set -o pipefail; log="$1"; shift; "$@" 2>&1 | tee "$log" | { grep -Ev "^(\s*(Container|Network)\s+ocmts--)" || true; }; exit ${PIPESTATUS[0]}'
     }
+    let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     try {
-        ^bash -c $tee_script -- $cypress_log docker compose ...$f_args -p $stack_id run --rm cypress
+        ^bash -c $tee_script -- $cypress_log docker compose ...$env_args ...$f_args -p $stack_id run --rm cypress
     } catch { }
     let cypress_exit = $env.LAST_EXIT_CODE
 

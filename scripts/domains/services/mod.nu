@@ -15,7 +15,9 @@ use ../../lib/mitm-peers.nu [write-mitm-peers]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]
 use ../../lib/services/context.nu [setup-run-context]
-use ../../lib/services/compose-files.nu [build-f-args write-active-files read-active-compose-files]
+use ../../lib/services/compose-files.nu [
+    build-f-args write-active-files read-active-compose-files read-compose-env-file
+]
 use ../../lib/services/lifecycle.nu [
     cleanup-temp
     ensure-network-gone
@@ -51,6 +53,8 @@ def "main up" [
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version)
+    let env_file = $ctx.env_file
+    let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
         $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
     ))
@@ -58,7 +62,8 @@ def "main up" [
     write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
     try {
         (validate-compose-strict $base_files $ctx.stack_id
-            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml"))
+            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
+            $env_file)
     } catch {|e|
         let finished_at = (utc-now)
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
@@ -71,9 +76,9 @@ def "main up" [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     try {
-        ^docker compose ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
+        ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -83,7 +88,7 @@ def "main up" [
             $ctx.images --phase "platform-up" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
-        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
         }
@@ -111,6 +116,8 @@ def "main up run" [
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version)
+    let env_file = $ctx.env_file
+    let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
         $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
     ))
@@ -122,7 +129,8 @@ def "main up run" [
     # Step 1: validate base file set strictly before touching Docker.
     try {
         (validate-compose-strict $base_files $ctx.stack_id
-            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml"))
+            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
+            $env_file)
     } catch {|e|
         let finished_at = (utc-now)
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
@@ -137,9 +145,9 @@ def "main up run" [
     }
 
     # Bring up platform services; quiet by default, verbose with --verbose.
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     if not $verbose { print "Starting services..." }
-    let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose)
+    let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose $env_file)
     if $up_err != null {
         let finished_at = (utc-now)
         let up_exit = $up_err.exit_code
@@ -150,7 +158,7 @@ def "main up run" [
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
         if not $keep_up {
-            let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+            let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
             if $down_fail != null {
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($up_err.msg)"
             }
@@ -172,7 +180,8 @@ def "main up run" [
     # Step 2: validate runner-ci file set strictly before running Cypress.
     try {
         (validate-compose-strict $run_files $ctx.stack_id
-            ($ctx.artifacts_base | path join "compose" "compose.resolved.run.yml"))
+            ($ctx.artifacts_base | path join "compose" "compose.resolved.run.yml")
+            $env_file)
     } catch {|e|
         let finished_at = (utc-now)
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
@@ -182,7 +191,7 @@ def "main up run" [
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
         if not $keep_up {
-            let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+            let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
             if $down_fail != null {
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"runner-ci validation failed: ($e.msg)"
             }
@@ -194,7 +203,7 @@ def "main up run" [
     write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames "runner-ci.yml"
 
     print $"Running tests for ($ctx.cell.cell_id) [execution_id=($ctx.execution_id)]..."
-    let cy = (run-cypress-ci $ctx.artifacts_base $f_args_run $ctx.stack_id $verbose)
+    let cy = (run-cypress-ci $ctx.artifacts_base $f_args_run $ctx.stack_id $verbose $env_file)
     let cypress_exit = $cy.exit_code
     let cypress_status = if $cypress_exit == 0 { "passed" } else { "failed" }
 
@@ -207,7 +216,8 @@ def "main up run" [
         let f_args_down = (build-f-args $down_files)
         let down_validate_err = (try {
             (validate-compose-strict $down_files $ctx.stack_id
-                ($ctx.artifacts_base | path join "compose" "compose.resolved.down.yml"))
+                ($ctx.artifacts_base | path join "compose" "compose.resolved.down.yml")
+                $env_file)
             null
         } catch {|ve|
             $ve.msg
@@ -215,7 +225,7 @@ def "main up run" [
         $down_err = if $down_validate_err != null {
             $"compose down validation failed: ($down_validate_err)"
         } else {
-            let dc_err = (do-compose-down $f_args_down $ctx.stack_id $verbose)
+            let dc_err = (do-compose-down $f_args_down $ctx.stack_id $verbose $env_file)
             if $dc_err != null {
                 $dc_err
             } else {
@@ -265,6 +275,8 @@ def "main up open" [
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version)
+    let env_file = $ctx.env_file
+    let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
         $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
     ))
@@ -272,7 +284,8 @@ def "main up open" [
 
     try {
         (validate-compose-strict $base_files $ctx.stack_id
-            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml"))
+            ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
+            $env_file)
     } catch {|e|
         let finished_at = (utc-now)
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
@@ -285,9 +298,9 @@ def "main up open" [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["platform"] }
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     try {
-        ^docker compose ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
+        ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -297,7 +310,7 @@ def "main up open" [
             $ctx.images --phase "platform-up" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
-        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
         }
@@ -312,7 +325,8 @@ def "main up open" [
     let f_args_dev = (build-f-args $dev_files)
     try {
         (validate-compose-strict $dev_files $ctx.stack_id
-            ($ctx.artifacts_base | path join "compose" "compose.resolved.dev.yml"))
+            ($ctx.artifacts_base | path join "compose" "compose.resolved.dev.yml")
+            $env_file)
     } catch {|e|
         let finished_at = (utc-now)
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
@@ -321,7 +335,7 @@ def "main up open" [
             $ctx.images --phase "compose-validate-dev" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
-        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"dev validation failed: ($e.msg)"
         }
@@ -331,7 +345,7 @@ def "main up open" [
     }
     write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames "runner-dev.yml"
     try {
-        ^docker compose ...$f_args_dev -p $ctx.stack_id up -d cypress_dev
+        ^docker compose ...$env_args ...$f_args_dev -p $ctx.stack_id up -d cypress_dev
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)
@@ -341,7 +355,7 @@ def "main up open" [
             $ctx.images --phase "cypress-dev-up" --fail-error $e.msg)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
-        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"cypress_dev up failed: ($e.msg)"
         }
@@ -351,7 +365,7 @@ def "main up open" [
     }
 
     let port_result = (try {
-        ^docker compose ...$f_args_dev -p $ctx.stack_id port cypress_dev 6901 | complete
+        ^docker compose ...$env_args ...$f_args_dev -p $ctx.stack_id port cypress_dev 6901 | complete
     } catch {|e|
         {exit_code: 1, stdout: "", stderr: $e.msg}
     })
@@ -368,7 +382,7 @@ def "main up open" [
             $ctx.images --phase "cypress-dev-up" --fail-error $port_err)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
-        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
         }
@@ -387,7 +401,7 @@ def "main up open" [
             $ctx.images --phase "cypress-dev-up" --fail-error $port_err)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id "infra-failed" 1 $finished_at)
-        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base; null } catch {|ce| $ce.msg})
+        let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
         }
@@ -436,10 +450,13 @@ def "main down" [
         print "WARNING: active-files.txt not found; using base-only file set (legacy artifacts)"
     }
     let down_files = (read-active-compose-files $artifacts_base $base_yml)
+    let env_file = (read-compose-env-file $artifacts_base)
+    let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let f_args_down = (build-f-args $down_files)
     try {
         (validate-compose-strict $down_files $stack_id
-            ($artifacts_base | path join "compose" "compose.resolved.down.yml"))
+            ($artifacts_base | path join "compose" "compose.resolved.down.yml")
+            $env_file)
     } catch {|ve|
         cleanup-temp $exec_id $preserve_temp
         let finished_at = (utc-now)
@@ -448,7 +465,7 @@ def "main down" [
         error make {msg: $"cleanup/down failed: down file set validation failed: ($ve.msg)"}
     }
     let down_err = (try {
-        ^docker compose ...$f_args_down -p $stack_id down --volumes
+        ^docker compose ...$env_args ...$f_args_down -p $stack_id down --volumes
         ensure-network-gone $stack_id
         null
     } catch {|e|

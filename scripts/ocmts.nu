@@ -16,6 +16,7 @@ def main [] {
     print "  services   Docker Compose service lifecycle"
     print "  test       Test execution"
     print "  artifacts  Artifact inspection"
+    print "  site       Site clone, ingest, build, and publish"
 }
 
 # Forward to scripts/domains/version/mod.nu (passthrough argv).
@@ -51,4 +52,9 @@ def --wrapped "main test" [...args: string] {
 # Forward to scripts/domains/artifacts/mod.nu (passthrough argv).
 def --wrapped "main artifacts" [...args: string] {
     forward-to "scripts/domains/artifacts/mod.nu" $args
+}
+
+# Forward to scripts/domains/site/mod.nu (passthrough argv).
+def --wrapped "main site" [...args: string] {
+    forward-to "scripts/domains/site/mod.nu" $args
 }

@@ -1,52 +1,85 @@
 # One-party compose overlay writer (e.g. login scenario).
+# Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
+# stack.env for docker compose variable substitution.
 
-use ./yaml.nu [
-    platform-primary-host platform-party-host
-    yaml-env-entry env-lines network-block depends-on-entries
-]
+use ./yaml.nu [platform-primary-host platform-party-host yaml-env-entry]
 use ../actors.nu [load-actor-for-scenario]
 use ../cell.nu [validate-browser]
 use ../execution-id.nu [execution-temp-path]
 
-def helpers-services [
-    helpers: list<string>,
+# Write stack.env for a one-party run into art_inputs/.
+# Returns the absolute path to the written file.
+def write-one-party-env [
+    art_inputs: string,
+    platform: string,
+    image_ref: string,
     mariadb_image: string,
     valkey_image: string,
-] {
-    if ($helpers | is-empty) { return "services: {}" }
-    let blocks = ($helpers | each {|h|
-        match $h {
-            "db" => ([
-                "  platform-db:",
-                $"    image: ($mariadb_image)",
-                "    networks: [ocm-net]",
-                "    environment:",
-                "      - MYSQL_ROOT_PASSWORD=rootpassword",
-                "      - MYSQL_DATABASE=nextcloud",
-                "      - MYSQL_USER=nextcloud",
-                "      - MYSQL_PASSWORD=nextcloudpassword",
-                "    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-file-per-table=1 --skip-innodb-read-only-compressed",
-            ] | str join "\n"),
-            "cache" => ([
-                "  platform-cache:",
-                $"    image: ($valkey_image)",
-                "    networks: [ocm-net]",
-                "    healthcheck:",
-                "      test: [\"CMD\",\"valkey-cli\",\"ping\"]",
-                "      interval: 2s",
-                "      timeout: 3s",
-                "      retries: 30",
-                "      start_period: 10s",
-            ] | str join "\n"),
-            _ => "",
+    record_video: bool,
+    root: string,
+    actor: any,
+]: nothing -> string {
+    let party_host = (platform-party-host $platform 1)
+    let primary_host = (platform-primary-host $platform)
+    let record_str = if $record_video { "true" } else { "false" }
+    let short_host = ($party_host | str replace --regex '\.docker$' '')
+    let artifacts_base = ($art_inputs | path dirname | path dirname)
+
+    mut lines = [
+        $"OCMTS_ROOT=($root)"
+        $"OCMTS_ARTIFACTS_BASE=($artifacts_base)"
+        $"SENDER_IMAGE=($image_ref)"
+        $"MARIADB_IMAGE=($mariadb_image)"
+        $"VALKEY_IMAGE=($valkey_image)"
+        $"SENDER_PARTY_HOST=($party_host)"
+        $"SENDER_PRIMARY_HOST=($primary_host)"
+        "SENDER_MYSQL_HOST=sender-db"
+        "SENDER_REDIS_HOST=sender-cache"
+        "SENDER_HTTP_PROXY="
+        "SENDER_HTTPS_PROXY="
+        "SENDER_NO_PROXY="
+        $"SENDER_PLATFORM=($platform)"
+        $"SENDER_PUBLIC_ORIGIN=https://($party_host)"
+        "RECEIVER_PARTY_HOST="
+        "RECEIVER_PRIMARY_HOST="
+        "RECEIVER_PLATFORM="
+        "RECEIVER_PUBLIC_ORIGIN="
+        $"CYPRESS_baseUrl=https://($party_host)"
+        $"CYPRESS_video=($record_str)"
+        "CYPRESS_screenshotsFolder=/artifacts/cypress/screenshots"
+        "CYPRESS_videosFolder=/artifacts/cypress/videos"
+        "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
+    ]
+    if $platform == "ocmgo" {
+        if $actor == null {
+            error make {msg: "platform 'ocmgo' requires an actor (admin credentials); none configured for this scenario"}
         }
-    } | where {|e| $e != ""})
-    if ($blocks | is-empty) { return "services: {}" }
-    ("services:\n" + ($blocks | str join "\n\n"))
+        $lines = ($lines | append [
+            $"OCM_GO_SENDER_HOST=($short_host)"
+            $"OCM_GO_SENDER_ADMIN_USER=($actor.username)"
+            $"OCM_GO_SENDER_ADMIN_PASSWORD=($actor.password)"
+        ])
+    } else {
+        $lines = ($lines | append [
+            "OCM_GO_SENDER_HOST="
+            "OCM_GO_SENDER_ADMIN_USER="
+            "OCM_GO_SENDER_ADMIN_PASSWORD="
+        ])
+    }
+    if $actor != null {
+        $lines = ($lines | append [
+            $"CYPRESS_($actor.platform)_username=($actor.username)"
+            $"CYPRESS_($actor.platform)_password=($actor.password)"
+        ])
+    }
+
+    let env_path = ($art_inputs | path join "stack.env")
+    $lines | str join "\n" | save --force $env_path
+    $env_path
 }
 
 # Write overlays for a one-party scenario (e.g. login).
-# Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party}.
+# Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party, env_file}.
 export def write-one-party-overlays [
     scenario: string,
     platform: string,
@@ -62,22 +95,10 @@ export def write-one-party-overlays [
     record_video: bool,
     root: string,
     artifacts_base: string,
+    --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
-    let svc = (open ($root | path join $"config/services/($platform).nuon"))
-    let helpers = ($svc.helpers? | default [])
-
-    let known_helpers = ["db" "cache"]
-    let unknown_helpers = ($helpers | where {|h| not ($h in $known_helpers)})
-    if not ($unknown_helpers | is-empty) {
-        error make {msg: $"Unknown helpers in config/services/($platform).nuon: ($unknown_helpers | str join ', '). Known: ($known_helpers | str join ', ')"}
-    }
-
     let actor = (load-actor-for-scenario $scenario $root)
-
-    if ($actor != null and $actor.platform != $platform) {
-        error make {msg: $"Actor platform '($actor.platform)' in scenarios/($scenario).nuon does not match sender platform '($platform)'. Fix the scenario actor config."}
-    }
 
     let stack_id = $"ocmts--($artifact_name)--($execution_id)"
     let compose_d = (execution-temp-path $execution_id | path join "compose.d")
@@ -90,65 +111,33 @@ export def write-one-party-overlays [
     (["networks:" "  ocm-net:" $"    name: ($stack_id)"] | str join "\n")
         | save --force ($compose_d | path join "exec.yml")
 
-    # platform.yml: platform service with healthcheck, depends_on, and env
-    let hc = $svc.healthcheck
-    let test_json = ($hc.test | to json --raw)
-    let dep_entries = (depends-on-entries $helpers)
-    mut platform_lines = [
-        "services:"
-        "  platform:"
-        $"    image: ($image_ref)"
-        "    hostname: platform"
-        (network-block [(platform-party-host $platform 1) (platform-primary-host $platform)])
-        "    healthcheck:"
-        $"      test: ($test_json)"
-        $"      interval: ($hc.interval)"
-        $"      timeout: ($hc.timeout)"
-        $"      retries: ($hc.retries)"
-        $"      start_period: ($hc.start_period)"
-    ]
-    if not ($dep_entries | is-empty) {
-        $platform_lines = ($platform_lines | append "    depends_on:" | append $dep_entries)
+    # Copy sender cookbook YAML from config/compose/cookbooks/
+    let cookbook_src = ($root | path join "config/compose/cookbooks" $"($platform).sender.yml")
+    if not ($cookbook_src | path exists) {
+        error make {msg: $"No sender cookbook for platform '($platform)': config/compose/cookbooks/($platform).sender.yml not found"}
     }
+    open --raw $cookbook_src | save --force ($compose_d | path join "sender.yml")
+
+    # Write stack.env with all substitution variables
+    let env_file = (write-one-party-env
+        $art_inputs $platform $image_ref $mariadb_image $valkey_image
+        $record_video $root $actor)
+
     let party_host = (platform-party-host $platform 1)
-    let platform_env = if $platform == "nextcloud" {
-        $svc.env | merge {
-            APACHE_SERVER_NAME: $party_host,
-            OVERWRITEHOST: $party_host,
-            NEXTCLOUD_TRUSTED_DOMAINS: $party_host,
-        }
-    } else {
-        $svc.env
-    }
-    $platform_lines = ($platform_lines | append "    environment:" | append (env-lines $platform_env))
-    if ($actor != null and $platform == "nextcloud") {
-        $platform_lines = ($platform_lines | append "      - NEXTCLOUD_SEEDED_USERS_FILE=/ocmts/actors/platforms/nextcloud.nuon")
-    }
-    if $actor != null {
-        $platform_lines = ($platform_lines | append [
-            "    volumes:"
-            $"      - ($root)/config/actors:/ocmts/actors:ro"
-        ])
-    }
-    ($platform_lines | str join "\n") | save --force ($compose_d | path join "platform.yml")
-
-    # helpers.yml: db / cache helper services
-    (helpers-services $helpers $mariadb_image $valkey_image)
-        | save --force ($compose_d | path join "helpers.yml")
-
-    # runner-ci.yml: cypress headless runner only (no cypress_dev)
     let record_str = if $record_video { "true" } else { "false" }
+
+    # runner-ci.yml: cypress headless runner
     mut runner_ci_lines = [
         "services:"
         "  cypress:"
         $"    image: ($cypress_image)"
         "    depends_on:"
-        "      platform:"
+        "      sender:"
         "        condition: service_healthy"
         "    networks: [ocm-net]"
         "    working_dir: /workspace"
         "    environment:"
-        $"      - CYPRESS_baseUrl=https://(platform-party-host $platform 1)"
+        $"      - CYPRESS_baseUrl=https://($party_host)"
         $"      - CYPRESS_video=($record_str)"
         "      - CYPRESS_screenshotsFolder=/artifacts/cypress/screenshots"
         "      - CYPRESS_videosFolder=/artifacts/cypress/videos"
@@ -158,6 +147,11 @@ export def write-one-party-overlays [
         $runner_ci_lines = ($runner_ci_lines | append [
             (yaml-env-entry $"CYPRESS_($actor.platform)_username" $actor.username)
             (yaml-env-entry $"CYPRESS_($actor.platform)_password" $actor.password)
+        ])
+    }
+    if not ($cell_id | is-empty) {
+        $runner_ci_lines = ($runner_ci_lines | append [
+            $"      - CYPRESS_proof_cell=($cell_id)"
         ])
     }
     $runner_ci_lines = ($runner_ci_lines | append [
@@ -176,13 +170,13 @@ export def write-one-party-overlays [
     ])
     ($runner_ci_lines | str join "\n") | save --force ($compose_d | path join "runner-ci.yml")
 
-    # runner-dev.yml: cypress_dev kasm desktop workspace only (no cypress headless)
+    # runner-dev.yml: cypress_dev kasm desktop workspace
     mut runner_dev_lines = [
         "services:"
         "  cypress_dev:"
         $"    image: ($cypress_dev_image)"
         "    depends_on:"
-        "      platform:"
+        "      sender:"
         "        condition: service_healthy"
         "    shm_size: \"2g\""
         "    ports:"
@@ -190,12 +184,17 @@ export def write-one-party-overlays [
         "    networks: [ocm-net]"
         "    working_dir: /workspace"
         "    environment:"
-        $"      - CYPRESS_baseUrl=https://(platform-party-host $platform 1)"
+        $"      - CYPRESS_baseUrl=https://($party_host)"
     ]
     if $actor != null {
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry $"CYPRESS_($actor.platform)_username" $actor.username)
             (yaml-env-entry $"CYPRESS_($actor.platform)_password" $actor.password)
+        ])
+    }
+    if not ($cell_id | is-empty) {
+        $runner_dev_lines = ($runner_dev_lines | append [
+            $"      - CYPRESS_proof_cell=($cell_id)"
         ])
     }
     $runner_dev_lines = ($runner_dev_lines | append [
@@ -205,7 +204,7 @@ export def write-one-party-overlays [
     ])
     ($runner_dev_lines | str join "\n") | save --force ($compose_d | path join "runner-dev.yml")
 
-    let base_overlay_fnames = ["exec.yml" "platform.yml" "helpers.yml"]
+    let base_overlay_fnames = ["exec.yml" "sender.yml"]
 
     # Copy all overlays to artifacts for durable access.
     for fname in ([$base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]] | flatten) {
@@ -227,5 +226,6 @@ export def write-one-party-overlays [
         base_yml: $base_yml,
         base_overlay_fnames: $base_overlay_fnames,
         is_two_party: false,
+        env_file: $env_file,
     }
 }

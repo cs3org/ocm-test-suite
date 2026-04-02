@@ -49,6 +49,7 @@ export def write-compose-overlays [
             $image_ref $cypress_image $cypress_dev_image
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
-            $root $artifacts_base)
+            $root $artifacts_base
+            --cell-id $cell_id)
     }
 }

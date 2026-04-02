@@ -1,4 +1,4 @@
-# OCM Test Suite (reboot)
+# OCM Test Suite
 
 This repository is a greenfield rewrite workspace for the OCM test suite. It is
 intentionally built from scratch and does not carry over legacy harness
@@ -8,7 +8,7 @@ Legacy policy:
 
 - Legacy-first, clean rewrite is mandatory. Inspect the analogous legacy Cypress
   spec and helpers first to learn stable sequence and selectors, then rewrite
-  into the reboot TypeScript contracts.
+  into the new TypeScript contracts.
 - Legacy is reference material, not a code template. Do not copy the legacy
   JavaScript layout or helper-bag architecture.
 
@@ -38,6 +38,31 @@ Common flows:
   `services up`, `services up run`, or `services up open`. `test run` reuses the
   pre-rendered runner overlay from `services up` / `services up open`, so the
   video setting is inherited.
+
+## Flow identity
+
+This repo treats flow identity as explicit data.
+
+- `--scenario` selects the scenario module key (for example `login`).
+- Each scenario has an explicit public `flow_id` in `config/matrix-rules.nuon`.
+- Today public flow ids in this repo match scenario module names:
+  - `login`
+  - `share-with`
+  - `contact-token`
+  - `contact-wayf`
+  - `code-flow`
+- `cell_id` and `artifact_name` use `flow_id` as the leading segment.
+- `meta/cell.json` includes both `flow_id` and `scenario_module`.
+
+Legacy naming note:
+
+- Legacy names such as `invite-link` and standalone `wayf` are comparison-only
+  terms for the old suite. This suite must not emit them as `flow_id` values.
+
+Placeholder note:
+
+- `config/matrix-rules.nuon` includes placeholder rows for `contact-token`,
+  `contact-wayf`, and `code-flow`. Those scenarios are not runnable yet.
 
 ## Local artifacts
 
@@ -159,7 +184,8 @@ MITM evidence policy:
 
 Do not use `cy.origin()` in this repo.
 
-Reason: OTS tests should avoid Cypress cross-origin mode and its restrictions.
+Reason: Tests in this suite should avoid Cypress cross-origin mode and its
+restrictions.
 Multi-party OCM flows are represented as ordered scenario phases:
 
 - Keep sender and receiver work in separate ordered `it` blocks unless a future

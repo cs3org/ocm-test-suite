@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "flow_id": "contact-token",
+  "two_party": true,
+  "enabled": false,
+  "mitm": true,
+  "browsers": null,
+  "include": [
+    { "sender": ["nextcloud"], "receiver": ["nextcloud"] }
+  ],
+  "versions_sender": {},
+  "versions_receiver": {}
+}

@@ -1,12 +1,76 @@
 {
   "scenarios": {
+    "code-flow": {
+      "enabled": false,
+      "flow_id": "code-flow",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token": {
+      "enabled": false,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-wayf": {
+      "enabled": false,
+      "flow_id": "contact-wayf",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v33"
+        ]
+      },
+      "mitm": true
+    },
     "login": {
       "enabled": true,
       "flow_id": "login",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v33"
+        ]
       },
       "receiver": null,
       "mitm": false
@@ -14,10 +78,14 @@
     "login-ocmgo": {
       "enabled": true,
       "flow_id": "login",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "ocmgo",
-        "version_lines": ["v1"]
+        "version_lines": [
+          "v1"
+        ]
       },
       "receiver": null,
       "mitm": false
@@ -25,98 +93,80 @@
     "share-with": {
       "enabled": true,
       "flow_id": "share-with",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v33"
+        ]
       },
       "receiver": {
         "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v33"
+        ]
       },
       "mitm": true
     },
     "share-with-nc-ocmgo": {
       "enabled": true,
       "flow_id": "share-with",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v33"
+        ]
       },
       "receiver": {
         "platform": "ocmgo",
-        "version_lines": ["v1"]
+        "version_lines": [
+          "v1"
+        ]
       },
       "mitm": true
     },
     "share-with-ocmgo-nc": {
       "enabled": true,
       "flow_id": "share-with",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "ocmgo",
-        "version_lines": ["v1"]
+        "version_lines": [
+          "v1"
+        ]
       },
       "receiver": {
         "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v33"
+        ]
       },
       "mitm": true
     },
     "share-with-ocmgo-ocmgo": {
       "enabled": true,
       "flow_id": "share-with",
-      "browsers": ["chrome"],
+      "browsers": [
+        "chrome"
+      ],
       "sender": {
         "platform": "ocmgo",
-        "version_lines": ["v1"]
+        "version_lines": [
+          "v1"
+        ]
       },
       "receiver": {
         "platform": "ocmgo",
-        "version_lines": ["v1"]
-      },
-      "mitm": true
-    },
-    "contact-token": {
-      "enabled": false,
-      "flow_id": "contact-token",
-      "browsers": ["chrome"],
-      "sender": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
-      },
-      "receiver": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
-      },
-      "mitm": true
-    },
-    "contact-wayf": {
-      "enabled": false,
-      "flow_id": "contact-wayf",
-      "browsers": ["chrome"],
-      "sender": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
-      },
-      "receiver": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
-      },
-      "mitm": true
-    },
-    "code-flow": {
-      "enabled": false,
-      "flow_id": "code-flow",
-      "browsers": ["chrome"],
-      "sender": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
-      },
-      "receiver": {
-        "platform": "nextcloud",
-        "version_lines": ["v33"]
+        "version_lines": [
+          "v1"
+        ]
       },
       "mitm": true
     }

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "platforms": {
+    "nextcloud": {
+      "slug": "nc",
+      "version_lines": ["v33"]
+    },
+    "ocmgo": {
+      "slug": "ocmgo",
+      "version_lines": ["v1"]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "baseline_by_flow": {
+    "login": {
+      "sender": "nextcloud",
+      "receiver": null
+    },
+    "share-with": {
+      "sender": "nextcloud",
+      "receiver": "nextcloud"
+    },
+    "contact-token": {
+      "sender": "nextcloud",
+      "receiver": "nextcloud"
+    },
+    "contact-wayf": {
+      "sender": "nextcloud",
+      "receiver": "nextcloud"
+    },
+    "code-flow": {
+      "sender": "nextcloud",
+      "receiver": "nextcloud"
+    }
+  },
+  "overrides": {}
+}

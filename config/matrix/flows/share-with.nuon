@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "flow_id": "share-with",
+  "two_party": true,
+  "enabled": true,
+  "mitm": true,
+  "browsers": null,
+  "include": [
+    { "sender": ["nextcloud"], "receiver": ["nextcloud"] },
+    { "sender": ["nextcloud"], "receiver": ["ocmgo"] },
+    { "sender": ["ocmgo"], "receiver": ["nextcloud"] },
+    { "sender": ["ocmgo"], "receiver": ["ocmgo"] }
+  ],
+  "versions_sender": {},
+  "versions_receiver": {}
+}

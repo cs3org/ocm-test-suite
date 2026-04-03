@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "flow_id": "login",
+  "two_party": false,
+  "enabled": true,
+  "mitm": false,
+  "browsers": null,
+  "include": {
+    "senders": ["nextcloud", "ocmgo"]
+  },
+  "versions_sender": {}
+}

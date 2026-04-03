@@ -1,0 +1,10 @@
+{
+  "sender": {
+    "platform": "ocmgo",
+    "account": "marie"
+  },
+  "receiver": {
+    "platform": "nextcloud",
+    "account": "marie"
+  }
+}

@@ -31,6 +31,7 @@ module.exports = {
   allowCypressEnv: false,
   expose: {
     receiver_baseUrl: process.env.CYPRESS_receiver_baseUrl,
+    proof_cell: process.env.CYPRESS_proof_cell,
   },
   e2e: {
     specPattern: "cypress/e2e/**/*.cy.ts",

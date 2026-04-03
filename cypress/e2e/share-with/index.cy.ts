@@ -3,6 +3,11 @@
 import { shareWithCases } from "./cases";
 import { defineShareWithScenarioCase } from "./steps";
 
-for (const scenarioCase of shareWithCases) {
+const proofCell = String(Cypress.expose("proof_cell") ?? "");
+const selected = proofCell
+  ? shareWithCases.filter((c) => c.id === proofCell)
+  : shareWithCases;
+
+for (const scenarioCase of selected) {
   defineShareWithScenarioCase(scenarioCase);
 }

@@ -1,9 +1,5 @@
 /// <reference types="cypress" />
 
-import {
-  assertNextcloudLoggedIn,
-  loginNextcloudViaUi,
-} from "../../support/adapters/nextcloud/shared-login";
 import { resolveActorCredentials } from "../../support/actors/credentials";
 import type { ScenarioCase } from "../../support/contracts/share-with";
 
@@ -35,16 +31,16 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
           (receiverCredentials) => {
             const federatedRecipientId = `${receiverCredentials.username}@${receiverHost}`;
 
-            loginNextcloudViaUi(senderCredentials);
-            assertNextcloudLoggedIn();
+            scenarioCase.senderLogin.login(senderCredentials);
+            scenarioCase.senderLogin.assertLoggedIn();
             takeStepScreenshot("sender--after-login");
 
-            scenarioCase.adapter.prepareShareFile({
+            scenarioCase.senderAdapter.prepareShareFile({
               sourceFileName: "welcome.txt",
               sharedFileName,
             });
 
-            scenarioCase.adapter.shareWithFederatedRecipient({
+            scenarioCase.senderAdapter.shareWithFederatedRecipient({
               sharedFileName,
               federatedRecipientId,
             });
@@ -59,10 +55,10 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
       resolveActorCredentials(scenarioCase.receiver).then((receiverCredentials) => {
         Cypress.config("baseUrl", receiverBaseUrl);
 
-        loginNextcloudViaUi(receiverCredentials);
-        assertNextcloudLoggedIn();
+        scenarioCase.receiverLogin.login(receiverCredentials);
+        scenarioCase.receiverLogin.assertLoggedIn();
         takeStepScreenshot("receiver--after-login");
-        scenarioCase.adapter.acceptIncomingShare({ sharedFileName });
+        scenarioCase.receiverAdapter.acceptIncomingShare({ sharedFileName });
         takeStepScreenshot("receiver--after-share-visible");
       });
     });

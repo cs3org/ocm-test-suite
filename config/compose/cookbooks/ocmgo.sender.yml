@@ -1,0 +1,30 @@
+# Open Cloud Mesh Go sender service (one-party: sole platform; two-party: left party).
+# No db/cache helpers. TLS cert expected at /tls/ocmgo.crt.
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  sender:
+    image: ${SENDER_IMAGE}
+    hostname: sender
+    networks:
+      ocm-net:
+        aliases:
+          - ${SENDER_PARTY_HOST}
+          - ${SENDER_PRIMARY_HOST}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sfkL https://localhost/api/healthz | grep -q '\"status\":\"ok\"'"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+    environment:
+      - HOST=${OCM_GO_SENDER_HOST}
+      - PUBLIC_ORIGIN=${SENDER_PUBLIC_ORIGIN}
+      - OCM_GO_ADMIN_USER=${OCM_GO_SENDER_ADMIN_USER}
+      - OCM_GO_ADMIN_PASSWORD=${OCM_GO_SENDER_ADMIN_PASSWORD}
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
+    volumes:
+      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro
+      - ${OCMTS_ARTIFACTS_BASE}/share:/tmp/ocmts-share:rw
+      - ${OCMTS_ROOT}/../containers/services/opencloudmesh-go/scripts/entrypoint-init.nu:/usr/bin/entrypoint-init.nu:ro

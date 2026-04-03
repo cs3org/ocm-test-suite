@@ -1,0 +1,60 @@
+# Nextcloud sender service (one-party: sole platform; two-party: left party).
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  sender:
+    image: ${SENDER_IMAGE}
+    hostname: sender
+    networks:
+      ocm-net:
+        aliases:
+          - ${SENDER_PARTY_HOST}
+          - ${SENDER_PRIMARY_HOST}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sfL http://localhost/status.php | grep -q '\"installed\":true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      sender-db:
+        condition: service_started
+      sender-cache:
+        condition: service_healthy
+    environment:
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=admin
+      - NEXTCLOUD_HTTPS_MODE=https-only
+      - OVERWRITEPROTOCOL=https
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloudpassword
+      - REDIS_HOST_PORT=6379
+      - APACHE_SERVER_NAME=${SENDER_PARTY_HOST}
+      - OVERWRITEHOST=${SENDER_PARTY_HOST}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${SENDER_PARTY_HOST}
+      - MYSQL_HOST=${SENDER_MYSQL_HOST}
+      - REDIS_HOST=${SENDER_REDIS_HOST}
+      - NEXTCLOUD_SEEDED_USERS_FILE=/ocmts/actors/platforms/nextcloud.nuon
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
+    volumes:
+      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro
+  sender-db:
+    image: ${MARIADB_IMAGE}
+    networks: [ocm-net]
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloudpassword
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-file-per-table=1 --skip-innodb-read-only-compressed
+  sender-cache:
+    image: ${VALKEY_IMAGE}
+    networks: [ocm-net]
+    healthcheck:
+      test: ["CMD","valkey-cli","ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s

@@ -1,6 +1,9 @@
 /// <reference types="cypress" />
 
-import type { ShareWithAdapter } from "../../../contracts/share-with";
+import type {
+  ShareWithReceiverAdapter,
+  ShareWithSenderAdapter,
+} from "../../../contracts/share-with";
 import {
   ensureFileExists,
   ensureFilesAppActive,
@@ -9,7 +12,7 @@ import {
 } from "./shared-files";
 import { addExternalShare, handleShareAcceptance, openSharingPanel } from "./shared-sharing";
 
-export const nextcloudV33ShareWithAdapter: ShareWithAdapter = {
+export const nextcloudV33ShareWithSenderAdapter: ShareWithSenderAdapter = {
   key: "nextcloud/v33",
 
   prepareShareFile({ sourceFileName = "welcome.txt", sharedFileName }) {
@@ -30,6 +33,10 @@ export const nextcloudV33ShareWithAdapter: ShareWithAdapter = {
     openSharingPanel(sharedFileName);
     addExternalShare(federatedRecipientId);
   },
+};
+
+export const nextcloudV33ShareWithReceiverAdapter: ShareWithReceiverAdapter = {
+  key: "nextcloud/v33",
 
   acceptIncomingShare({ sharedFileName }) {
     ensureFilesAppLoadedForShareAcceptance();

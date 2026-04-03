@@ -1,8 +1,8 @@
 /// <reference types="cypress" />
 
-import type { ActorCredentials, ActorRef } from "./login";
+import type { ActorCredentials, ActorRef, LoginAdapter } from "./login";
 
-export type ShareWithAdapter = {
+export type ShareWithSenderAdapter = {
   key: string;
   prepareShareFile(params: {
     sharedFileName: string;
@@ -12,12 +12,19 @@ export type ShareWithAdapter = {
     sharedFileName: string;
     federatedRecipientId: string;
   }): void;
+};
+
+export type ShareWithReceiverAdapter = {
+  key: string;
   acceptIncomingShare(params: { sharedFileName: string }): void;
 };
 
 export type ScenarioCase = {
   id: string;
-  adapter: ShareWithAdapter;
+  senderAdapter: ShareWithSenderAdapter;
+  receiverAdapter: ShareWithReceiverAdapter;
+  senderLogin: LoginAdapter;
+  receiverLogin: LoginAdapter;
   sender: ActorRef;
   receiver: ActorRef;
 };

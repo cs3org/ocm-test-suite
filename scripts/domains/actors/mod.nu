@@ -14,6 +14,7 @@ def main [] {
     print "  list              List scenarios with actor configs"
     print "  show              Show actor config for a scenario"
     print "  validate          Validate actor config; optionally check platform match"
+    print "  validate-all      Validate actor configs for all enabled scenarios"
 }
 
 # List all scenarios that have actor config files.
@@ -49,10 +50,33 @@ def "main show" [
 # Checks: scenario file exists, platform config exists, account exists,
 # username/password non-empty. With --sender-platform, also checks platform match.
 def "main validate" [
-    --scenario: string,               # Scenario name (e.g. login)
-    --sender-platform: string = "",   # Optional: check actor platform matches this
+    --scenario: string,                 # Scenario name (e.g. login)
+    --sender-platform: string = "",     # Optional: expected actor/sender platform
+    --receiver-platform: string = "",   # Optional: expected receiver platform (two-party)
 ] {
     let root = get-ocmts-root
-    validate-actor-config $scenario $root $sender_platform
+    validate-actor-config $scenario $root $sender_platform $receiver_platform
     print $"actor config for '($scenario)': ok"
+}
+
+# Validate actor configs for all enabled scenarios in config/matrix-rules.nuon.
+# For each enabled scenario, expected platforms are taken from matrix rules.
+# Prints one ok line per scenario; errors on first failure.
+def "main validate-all" [] {
+    let root = get-ocmts-root
+    let rules_path = ($root | path join "config/matrix-rules.nuon")
+    if not ($rules_path | path exists) {
+        error make {msg: "config/matrix-rules.nuon not found; generate it first with 'matrix generate'"}
+    }
+    let rules = (open $rules_path)
+    let all_scenarios = ($rules.scenarios | transpose name rule)
+    let enabled = ($all_scenarios | where {|row| $row.rule.enabled})
+    for item in $enabled {
+        let name = $item.name
+        let rule = $item.rule
+        let sp = (if $rule.sender? == null { "" } else { $rule.sender.platform? | default "" })
+        let rp = (if $rule.receiver? == null { "" } else { $rule.receiver.platform? | default "" })
+        validate-actor-config $name $root $sp $rp
+        print $"  ($name): ok"
+    }
 }

@@ -153,8 +153,8 @@ export def write-two-party-overlays [
 ] {
     let safe_browser = (validate-browser $browser)
     let effective_flow_id = if ($flow_id | is-empty) { $scenario } else { $flow_id }
-    let sender_actor = (load-sender-for-scenario $scenario $root)
-    let receiver_actor = (load-receiver-for-scenario $scenario $root)
+    let sender_actor = (load-sender-for-scenario $scenario $root $sender_platform)
+    let receiver_actor = (load-receiver-for-scenario $scenario $root $receiver_platform)
 
     let stack_id = $"ocmts--($artifact_name)--($execution_id)"
     let compose_d = (execution-temp-path $execution_id | path join "compose.d")

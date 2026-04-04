@@ -26,4 +26,3 @@ services:
     volumes:
       - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro
       - ${OCMTS_ARTIFACTS_BASE}/share:/tmp/ocmts-share:rw
-      - ${OCMTS_ROOT}/../containers/services/opencloudmesh-go/scripts/entrypoint-init.nu:/usr/bin/entrypoint-init.nu:ro

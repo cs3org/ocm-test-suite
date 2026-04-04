@@ -98,7 +98,7 @@ export def write-one-party-overlays [
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
-    let actor = (load-actor-for-scenario $scenario $root)
+    let actor = (load-actor-for-scenario $scenario $root $platform)
 
     let stack_id = $"ocmts--($artifact_name)--($execution_id)"
     let compose_d = (execution-temp-path $execution_id | path join "compose.d")

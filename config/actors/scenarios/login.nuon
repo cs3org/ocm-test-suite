@@ -1,6 +1,3 @@
 {
-    "actor": {
-        "platform": "nextcloud",
-        "account": "michiel"
-    }
+    actor: {}
 }

@@ -1,0 +1,26 @@
+{
+  "flows": {
+    "login": {
+      "actor": {
+        "by_platform": {
+          "nextcloud": "michiel",
+          "ocmgo": "marie"
+        }
+      }
+    },
+    "share-with": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel",
+          "ocmgo": "marie"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie",
+          "ocmgo": "einstein"
+        }
+      }
+    }
+  }
+}

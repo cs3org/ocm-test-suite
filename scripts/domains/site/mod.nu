@@ -3,6 +3,7 @@
 use ../../lib/site-clone.nu [resolve-site-dir, clone-or-refresh-site]
 use ../../lib/site-ingest.nu [ingest-site, run-site-build]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix-rules-gen.nu [write-generated-matrix-rules]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu site <verb> [flags]"
@@ -53,7 +54,11 @@ def "main ingest" [
     } else {
         $site | path join "public"
     }
+    let matrix_dir = ($root | path join "config/matrix")
     let rules_path = ($root | path join "config/matrix-rules.nuon")
+    if ($matrix_dir | path exists) {
+        write-generated-matrix-rules $matrix_dir $rules_path
+    }
     if not ($rules_path | path exists) {
         error make {msg: $"Matrix rules not found: ($rules_path)"}
     }
@@ -86,6 +91,7 @@ def "main publish" [
     } else {
         $root | path join "artifacts"
     }
+    let matrix_dir = ($root | path join "config/matrix")
     let rules_path = ($root | path join "config/matrix-rules.nuon")
     let pub_dir = ($site | path join "public")
 
@@ -98,6 +104,9 @@ def "main publish" [
         clone-or-refresh-site $site $effective_ref
     }
 
+    if ($matrix_dir | path exists) {
+        write-generated-matrix-rules $matrix_dir $rules_path
+    }
     if not ($rules_path | path exists) {
         error make {msg: $"Matrix rules not found: ($rules_path)"}
     }

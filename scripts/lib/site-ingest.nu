@@ -20,34 +20,37 @@ def evidence-path-allowed [rel: string] {
 }
 
 # Build a flat cell list from matrix-rules.nuon.
-# Mirrors `matrix list --json`: one row per (scenario, sender_version, browser),
-# first receiver_version for two-party scenarios. Includes disabled scenarios
-# (placeholder universe). Does NOT call assert-scenario-enabled.
+# Mirrors `matrix list --json`: one row per
+# (scenario, sender_version, receiver_version, browser) for two-party,
+# or (scenario, sender_version, browser) for one-party. Includes disabled
+# scenarios (placeholder universe). Does NOT call assert-scenario-enabled.
 def compute-matrix-cells [rules: record] {
     $rules.scenarios | items {|scenario, sc|
         let recv_platform = ($sc.receiver?.platform? | default "")
-        let recv_version = if ($sc.receiver? != null) {
-            ($sc.receiver.version_lines | first)
+        let recv_versions = if ($sc.receiver? != null) {
+            $sc.receiver.version_lines
         } else {
-            ""
+            [""]
         }
         let flow_id_arg = ($sc.flow_id? | default $scenario)
-        $sc.sender.version_lines | each {|ver|
-            $sc.browsers | each {|browser|
-                let cell = (try {
-                    (compute-cell $scenario $sc.sender.platform $ver $browser
-                        $recv_platform $recv_version $flow_id_arg)
-                } catch {|e|
-                    print $"WARNING: compute-cell failed for ($scenario)/($ver)/($browser): ($e.msg)"
-                    null
-                })
-                if $cell != null {
-                    $cell | merge {
-                        enabled: ($sc.enabled? | default false),
-                        mitm: ($sc.mitm? | default false),
+        $recv_versions | each {|recv_ver|
+            $sc.sender.version_lines | each {|ver|
+                $sc.browsers | each {|browser|
+                    let cell = (try {
+                        (compute-cell $scenario $sc.sender.platform $ver $browser
+                            $recv_platform $recv_ver $flow_id_arg)
+                    } catch {|e|
+                        print $"WARNING: compute-cell failed for ($scenario)/($ver)/($browser): ($e.msg)"
+                        null
+                    })
+                    if $cell != null {
+                        $cell | merge {
+                            enabled: ($sc.enabled? | default false),
+                            mitm: ($sc.mitm? | default false),
+                        }
                     }
-                }
-            } | where {|x| $x != null}
+                } | where {|x| $x != null}
+            } | flatten
         } | flatten
     } | flatten
 }

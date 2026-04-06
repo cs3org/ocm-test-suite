@@ -12,8 +12,8 @@ import {
 } from "../shared/files";
 import { addExternalShare, handleShareAcceptance, openSharingPanel } from "../shared/sharing";
 
-export const nextcloudV33ShareWithSenderAdapter: ShareWithSenderAdapter = {
-  key: "nextcloud/v33",
+export const nextcloudV32ShareWithSenderAdapter: ShareWithSenderAdapter = {
+  key: "nextcloud/v32",
 
   prepareShareFile({ sourceFileName = "welcome.txt", sharedFileName }) {
     ensureFilesAppActive();
@@ -35,8 +35,8 @@ export const nextcloudV33ShareWithSenderAdapter: ShareWithSenderAdapter = {
   },
 };
 
-export const nextcloudV33ShareWithReceiverAdapter: ShareWithReceiverAdapter = {
-  key: "nextcloud/v33",
+export const nextcloudV32ShareWithReceiverAdapter: ShareWithReceiverAdapter = {
+  key: "nextcloud/v32",
 
   acceptIncomingShare({ sharedFileName }) {
     ensureFilesAppLoadedForShareAcceptance();

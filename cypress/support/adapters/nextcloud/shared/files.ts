@@ -66,6 +66,52 @@ export function ensureFileExists(
   });
 }
 
+function clickRenameAction(): void {
+  const candidates = [
+    '[data-cy-files-list-row-action="rename"] button',
+    'button[aria-label="Rename"]',
+    'button[aria-label="Rename file"]',
+  ];
+
+  cy.get("body").then(($body) => {
+    const selector = candidates.find((sel) => {
+      return $body.find(sel).filter(":visible").length > 0;
+    });
+
+    if (!selector) {
+      throw new Error(
+        [
+          "Could not find Nextcloud rename action button.",
+          `Tried selectors: ${candidates.join(", ")}`,
+        ].join(" "),
+      );
+    }
+
+    cy.get(selector, { timeout: 20000 }).filter(":visible").first().click();
+  });
+}
+
+function getRenameInput(): Cypress.Chainable<JQuery<HTMLInputElement>> {
+  const candidates = [
+    'form[aria-label="Rename file"] input.input-field__input',
+    'form[aria-label*="Rename"] input',
+  ];
+
+  return cy.get("body").then(($body) => {
+    const selector = candidates.find((sel) => $body.find(sel).length > 0);
+    if (!selector) {
+      throw new Error(
+        [
+          "Could not find Nextcloud rename input.",
+          `Tried selectors: ${candidates.join(", ")}`,
+        ].join(" "),
+      );
+    }
+
+    return cy.get<HTMLInputElement>(selector, { timeout: 20000 }).first();
+  });
+}
+
 export function renameFile(sourceFileName: string, sharedFileName: string): void {
   cy.intercept({
     method: "MOVE",
@@ -78,14 +124,10 @@ export function renameFile(sourceFileName: string, sharedFileName: string): void
       .click();
   });
 
-  // NOTE: In Nextcloud v33 this rename action button is not within the row.
-  cy.get('[data-cy-files-list-row-action="rename"] button', { timeout: 10000 })
-    .should("be.visible")
-    .click();
+  // Nextcloud versions differ in where the rename action is mounted (row vs global popover).
+  clickRenameAction();
 
-  cy.get('form[aria-label="Rename file"] input.input-field__input', {
-    timeout: 20000,
-  })
+  getRenameInput()
     .should("be.visible")
     .clear()
     .type(sharedFileName)

@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-import type { ActorCredentials } from "../../contracts/login";
+import type { ActorCredentials } from "../../../contracts/login";
 
 export function loginNextcloudViaUi({ username, password }: ActorCredentials) {
   cy.intercept("POST", "**/login*").as("nextcloudLogin");

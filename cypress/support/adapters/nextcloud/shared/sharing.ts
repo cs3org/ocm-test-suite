@@ -6,7 +6,7 @@ import {
   ensureFileExists,
   ensureFilesAppLoadedForShareAcceptance,
   getFileRow,
-} from "./shared-files";
+} from "./files";
 
 export function openSharingPanel(sharedFileName: string): void {
   getFileRow(sharedFileName).within(() => {
@@ -20,7 +20,7 @@ export function openSharingPanel(sharedFileName: string): void {
   });
 
   // External shares combobox exists within the sharing panel.
-  cy.get(".sharing-search__input input[role=\"combobox\"]", { timeout: 20000 }).should(
+  cy.get('.sharing-search__input input[role="combobox"]', { timeout: 20000 }).should(
     "be.visible",
   );
 }

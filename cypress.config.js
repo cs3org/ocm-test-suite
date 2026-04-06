@@ -3,31 +3,44 @@
 
 const runtimeStore = new Map();
 
-function resolveBooleanEnv(value, defaultValue) {
-  if (value === undefined || value === null || String(value).trim() === "") {
-    return defaultValue;
-  }
+const TRUE_TOKENS = new Set(["1", "true", "yes", "y", "on"]);
+const FALSE_TOKENS = new Set(["0", "false", "no", "n", "off"]);
 
-  switch (String(value).trim().toLowerCase()) {
-    case "1":
-    case "true":
-    case "yes":
-    case "y":
-    case "on":
-      return true;
-    case "0":
-    case "false":
-    case "no":
-    case "n":
-    case "off":
-      return false;
-    default:
-      return defaultValue;
-  }
+function normalizeEnv(value) {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim().toLowerCase();
+  return s === "" ? null : s;
+}
+
+function parseBoolToken(s) {
+  if (TRUE_TOKENS.has(s)) return true;
+  if (FALSE_TOKENS.has(s)) return false;
+  return null;
+}
+
+function resolveBooleanEnv(value, defaultValue) {
+  const s = normalizeEnv(value);
+  if (s === null) return defaultValue;
+  const b = parseBoolToken(s);
+  return b === null ? defaultValue : b;
+}
+
+function resolveVideoCompressionEnv(value, defaultValue) {
+  const s = normalizeEnv(value);
+  if (s === null) return defaultValue;
+
+  const b = parseBoolToken(s);
+  if (b !== null) return b;
+
+  const n = Number(s);
+  if (Number.isInteger(n) && n >= 1 && n <= 51) return n;
+
+  return defaultValue;
 }
 
 module.exports = {
   video: resolveBooleanEnv(process.env.CYPRESS_video, true),
+  videoCompression: resolveVideoCompressionEnv(process.env.CYPRESS_videoCompression, true),
   allowCypressEnv: false,
   expose: {
     receiver_baseUrl: process.env.CYPRESS_receiver_baseUrl,

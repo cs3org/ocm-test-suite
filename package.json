@@ -1,8 +1,12 @@
 {
   "name": "ocm-test-suite",
   "private": true,
+  "scripts": {
+    "check:adapter-capabilities": "tsx scripts/check-adapter-capabilities.ts"
+  },
   "devDependencies": {
     "cypress": "15.14.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.2"
   }
 }

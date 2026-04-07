@@ -12,6 +12,8 @@ use ../domain/core/ocmts-root.nu [get-ocmts-root]
 
 # Compute IDs, create dirs, generate overlays, write initial metadata.
 # Returns the run context record used by services domain commands.
+# --suite-id: group this run under an existing suite. Defaults to execution_id when empty.
+# --suite-kind: "suite" for full suite runs, "single" for standalone runs (default).
 export def setup-run-context [
     scenario: string,
     sender_platform: string,
@@ -20,6 +22,8 @@ export def setup-run-context [
     record_video: bool,
     receiver_platform: string = "",
     receiver_version: string = "",
+    --suite-id: string = "",
+    --suite-kind: string = "single",
 ] {
     let root = get-ocmts-root
     assert-scenario-enabled $scenario
@@ -39,6 +43,8 @@ export def setup-run-context [
     } else { "" }
 
     let execution_id = (new-execution-id)
+    # Default suite_id to execution_id for uniform metadata on single runs.
+    let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
     let artifacts_base = (init-artifact-dirs $cell.artifact_name $execution_id)
 
     let spec_entrypoint = $"cypress/e2e/($cell.scenario_module)/index.cy.ts"
@@ -62,13 +68,18 @@ export def setup-run-context [
         $images
     }
 
-    ($cell | insert execution_id $execution_id | insert images $images_full)
+    ($cell
+        | insert execution_id $execution_id
+        | insert images $images_full
+        | insert suite_id $eff_suite_id
+        | insert suite_kind $suite_kind)
         | to json
         | save --force ($artifacts_base | path join "meta/cell.json")
 
     (write-prepared-run
         $artifacts_base $execution_id $cell.cell_id
-        $cell.artifact_name $started_at $overlay.stack_id)
+        $cell.artifact_name $started_at $overlay.stack_id
+        --suite-id $eff_suite_id --suite-kind $suite_kind)
 
     write-last-execution-id $cell.artifact_name $execution_id
 
@@ -76,6 +87,8 @@ export def setup-run-context [
         cell: $cell,
         images: $images_full,
         execution_id: $execution_id,
+        suite_id: $eff_suite_id,
+        suite_kind: $suite_kind,
         artifacts_base: $artifacts_base,
         started_at: $started_at,
         stack_id: $overlay.stack_id,

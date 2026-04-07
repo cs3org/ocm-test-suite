@@ -26,7 +26,9 @@ use ../../lib/services/lifecycle.nu [
     do-compose-up
     do-compose-down
 ]
+use ../../lib/docker-logs.nu [collect-service-logs]
 use ../../lib/publish-envelope.nu [publish-envelope-safe emit-publish-envelope]
+use ../../lib/suite-index.nu [record-suite-run-safe]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu services <verb> [flags]"
@@ -49,10 +51,13 @@ def "main up" [
     --browser: string = "chrome",
     --no-video,
     --preserve-temp,
+    --suite-id: string = "",
+    --suite-kind: string = "single",
 ] {
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
-        $receiver_platform $receiver_version)
+        $receiver_platform $receiver_version
+        --suite-id $suite_id --suite-kind $suite_kind)
     let env_file = $ctx.env_file
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
@@ -69,9 +74,11 @@ def "main up" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
+            $ctx.images --phase "compose-validate-base" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
@@ -85,9 +92,11 @@ def "main up" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
-            $ctx.images --phase "platform-up" --fail-error $e.msg)
+            $ctx.images --phase "platform-up" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
+            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
@@ -112,10 +121,13 @@ def "main up run" [
     --preserve-temp,
     --keep-up,
     --verbose,     # Show all docker compose output; default is quiet mode
+    --suite-id: string = "",
+    --suite-kind: string = "single",
 ] {
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
-        $receiver_platform $receiver_version)
+        $receiver_platform $receiver_version
+        --suite-id $suite_id --suite-kind $suite_kind)
     let env_file = $ctx.env_file
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
@@ -136,10 +148,16 @@ def "main up run" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
+            $ctx.images --phase "compose-validate-base" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
+        if $ctx.suite_kind == "suite" {
+            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
+                $ctx.cell.artifact_name "infra-failed" 1 $ctx.started_at $finished_at)
+        }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose base validation failed: ($e.msg)"}
     }
@@ -154,9 +172,17 @@ def "main up run" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
-            $ctx.images --phase "platform-up" --fail-error $up_err.msg)
+            $ctx.images --phase "platform-up" --fail-error $up_err.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
+            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        # Best-effort: collect container logs before teardown so infra failures are diagnosable.
+        try {
+            collect-service-logs $ctx.artifacts_base $ctx.stack_id $base_files $wait_services
+        } catch {|log_err|
+            print $"WARNING: log collection failed after compose up failure: ($log_err.msg)"
+        }
         if not $keep_up {
             let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
             if $down_fail != null {
@@ -164,6 +190,10 @@ def "main up run" [
             }
         }
         publish-envelope-safe $ctx.artifacts_base
+        if $ctx.suite_kind == "suite" {
+            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
+                $ctx.cell.artifact_name "infra-failed" $up_exit $ctx.started_at $finished_at)
+        }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up platform failed: ($up_err.msg)"}
     }
@@ -187,9 +217,11 @@ def "main up run" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-runner-ci" --fail-error $e.msg)
+            $ctx.images --phase "compose-validate-runner-ci" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         if not $keep_up {
             let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
             if $down_fail != null {
@@ -197,6 +229,10 @@ def "main up run" [
             }
         }
         publish-envelope-safe $ctx.artifacts_base
+        if $ctx.suite_kind == "suite" {
+            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
+                $ctx.cell.artifact_name "infra-failed" 1 $ctx.started_at $finished_at)
+        }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
     }
@@ -241,10 +277,16 @@ def "main up run" [
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "cleanup-failed" 1 $ctx.stack_id
             $ctx.images --phase "compose-down"
-            --fail-error $"($down_fail_msg) [cypress: status=($cypress_status) exit=($cypress_exit)]")
+            --fail-error $"($down_fail_msg) [cypress: status=($cypress_status) exit=($cypress_exit)]"
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "cleanup-failed" 1 $finished_at)
+            $ctx.cell.cell_id "cleanup-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
+        if $ctx.suite_kind == "suite" {
+            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
+                $ctx.cell.artifact_name "cleanup-failed" 1 $ctx.started_at $finished_at)
+        }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $down_fail_msg}
     }
@@ -252,10 +294,16 @@ def "main up run" [
     (write-terminal-run $ctx.artifacts_base $ctx.execution_id
         $ctx.cell.cell_id $ctx.cell.artifact_name
         $ctx.started_at $finished_at $cypress_status $cypress_exit $ctx.stack_id
-        $ctx.images)
+        $ctx.images
+        --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
     (write-compact-result $ctx.artifacts_base $ctx.execution_id
-        $ctx.cell.cell_id $cypress_status $cypress_exit $finished_at)
+        $ctx.cell.cell_id $cypress_status $cypress_exit $finished_at
+        --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
     emit-publish-envelope $ctx.artifacts_base
+    if $ctx.suite_kind == "suite" {
+        (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
+            $ctx.cell.artifact_name $cypress_status $cypress_exit $ctx.started_at $finished_at)
+    }
     cleanup-temp $ctx.execution_id $preserve_temp
     print $"Done. status=($cypress_status) execution_id=($ctx.execution_id)"
     print $"Artifacts: ($ctx.artifacts_base)"
@@ -271,10 +319,13 @@ def "main up open" [
     --browser: string = "chrome",
     --no-video,
     --preserve-temp,
+    --suite-id: string = "",
+    --suite-kind: string = "single",
 ] {
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
-        $receiver_platform $receiver_version)
+        $receiver_platform $receiver_version
+        --suite-id $suite_id --suite-kind $suite_kind)
     let env_file = $ctx.env_file
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
@@ -291,9 +342,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-base" --fail-error $e.msg)
+            $ctx.images --phase "compose-validate-base" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
@@ -307,9 +360,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
-            $ctx.images --phase "platform-up" --fail-error $e.msg)
+            $ctx.images --phase "platform-up" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
+            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
@@ -332,9 +387,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-dev" --fail-error $e.msg)
+            $ctx.images --phase "compose-validate-dev" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"dev validation failed: ($e.msg)"
@@ -352,9 +409,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
-            $ctx.images --phase "cypress-dev-up" --fail-error $e.msg)
+            $ctx.images --phase "cypress-dev-up" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at)
+            $ctx.cell.cell_id "infra-failed" $up_exit $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"cypress_dev up failed: ($e.msg)"
@@ -379,9 +438,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "cypress-dev-up" --fail-error $port_err)
+            $ctx.images --phase "cypress-dev-up" --fail-error $port_err
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
@@ -398,9 +459,11 @@ def "main up open" [
         (write-terminal-run $ctx.artifacts_base $ctx.execution_id
             $ctx.cell.cell_id $ctx.cell.artifact_name
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "cypress-dev-up" --fail-error $port_err)
+            $ctx.images --phase "cypress-dev-up" --fail-error $port_err
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         (write-compact-result $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id "infra-failed" 1 $finished_at)
+            $ctx.cell.cell_id "infra-failed" 1 $finished_at
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"

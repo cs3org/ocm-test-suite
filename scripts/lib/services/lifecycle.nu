@@ -78,12 +78,16 @@ export def overwrite-cleanup-failed [
 ] {
     let cf_at = (utc-now)
     let combined = $"cleanup/down failed: ($down_fail) [($original_err)]"
+    let suite_id = ($ctx.suite_id? | default "")
+    let suite_kind = ($ctx.suite_kind? | default "")
     (write-terminal-run $ctx.artifacts_base $ctx.execution_id
         $ctx.cell.cell_id $ctx.cell.artifact_name
         $ctx.started_at $cf_at "cleanup-failed" 1 $ctx.stack_id
-        $ctx.images --phase "compose-down" --fail-error $combined)
+        $ctx.images --phase "compose-down" --fail-error $combined
+        --suite-id $suite_id --suite-kind $suite_kind)
     (write-compact-result $ctx.artifacts_base $ctx.execution_id
-        $ctx.cell.cell_id "cleanup-failed" 1 $cf_at)
+        $ctx.cell.cell_id "cleanup-failed" 1 $cf_at
+        --suite-id $suite_id --suite-kind $suite_kind)
     publish-envelope-safe $ctx.artifacts_base
     cleanup-temp $ctx.execution_id $preserve_temp
     error make {msg: $combined}

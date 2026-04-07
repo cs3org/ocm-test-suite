@@ -1,6 +1,7 @@
 # Test domain: test execution against an already-up stack.
 
 use ../../lib/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
+use ../../lib/matrix-expand.nu [expand-version-pairs]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/execution-id.nu [execution-artifacts-path]
@@ -9,6 +10,7 @@ use ../../lib/publish-envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/compose-files.nu [build-f-args build-run-files]
+use ../../lib/suite-index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record]
 
 # Returns true if docker compose reports the primary platform service as running.
 def stack-platform-running [f_args: list<string>, stack_id: string, is_two_party: bool] {
@@ -30,7 +32,8 @@ def main [] {
     print "Usage: nu scripts/ocmts.nu test <verb> [flags]"
     print ""
     print "Verbs:"
-    print "  run   Run Cypress tests headless against an already-up stack"
+    print "  run     Run Cypress tests headless against an already-up stack"
+    print "  suite   Run the full enabled matrix suite sequentially"
     print ""
     print "Notes:"
     print "  Video recording is enabled by default. To opt out, pass --no-video"
@@ -143,4 +146,127 @@ def "main run" [
     emit-publish-envelope $artifacts_base
 
     exit $cypress_exit
+}
+
+# Run the full enabled matrix suite sequentially via `services up run`.
+# Reads config/matrix-rules.nuon, expands all cells, filters to enabled only,
+# then runs each cell in order. Default: continue after failures.
+def "main suite" [
+    --suite-id: string = "",  # Override generated suite_id for this run
+    --stop-on-fail,           # Stop on first failure (default: continue)
+    --continue-on-fail,       # Compat alias: continue after failures (now the default)
+    --max: int = 0,           # Limit runs to N cells (0 = unlimited)
+    --verbose,                # Pass --verbose to services up run
+] {
+    let root = get-ocmts-root
+    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let ocmts_script = ($root | path join "scripts/ocmts.nu")
+
+    let all_cells = ($rules.scenarios | items {|scenario, sc|
+        let recv_platform = ($sc.receiver?.platform? | default "")
+        let flow_id = ($sc.flow_id? | default $scenario)
+        let is_two_party = ($sc.receiver? != null)
+        let version_pairs = (expand-version-pairs $sc)
+        $version_pairs | each {|vp|
+            $sc.browsers | each {|browser|
+                let cell_id = if $is_two_party {
+                    $"($flow_id)__($sc.sender.platform)-($vp.sender_version)__($recv_platform)-($vp.receiver_version)"
+                } else {
+                    $"($flow_id)__($sc.sender.platform)-($vp.sender_version)"
+                }
+                {
+                    scenario: $scenario,
+                    sender_platform: $sc.sender.platform,
+                    sender_version: $vp.sender_version,
+                    receiver_platform: $recv_platform,
+                    receiver_version: $vp.receiver_version,
+                    browser: $browser,
+                    enabled: ($sc.enabled? | default false),
+                    cell_id: $cell_id,
+                }
+            }
+        } | flatten
+    } | flatten)
+
+    let enabled_cells = ($all_cells | where enabled)
+    let cells_to_run = if $max > 0 {
+        $enabled_cells | first $max
+    } else {
+        $enabled_cells
+    }
+    let total = ($cells_to_run | length)
+
+    if $total == 0 {
+        print "Suite: no enabled cells to run."
+        return
+    }
+
+    let eff_suite_id = if ($suite_id | is-empty) { new-suite-id } else { $suite_id }
+    print $"Suite: ($total) cell\(s\) to run  suite_id=($eff_suite_id)"
+
+    let cell_ids = ($cells_to_run | each {|c| $c.cell_id})
+    (init-suite-record $eff_suite_id "suite" $cell_ids)
+
+    mut passed = 0
+    mut failed_cells: list<string> = []
+
+    for cell in $cells_to_run {
+        print $"\n--- ($cell.cell_id) ---"
+        mut args: list<string> = [
+            "services" "up" "run"
+            "--scenario" $cell.scenario
+            "--sender-platform" $cell.sender_platform
+            "--sender-version" $cell.sender_version
+            "--browser" $cell.browser
+            "--suite-id" $eff_suite_id
+            "--suite-kind" "suite"
+        ]
+        if not ($cell.receiver_platform | is-empty) {
+            $args = ($args | append ["--receiver-platform" $cell.receiver_platform])
+        }
+        if not ($cell.receiver_version | is-empty) {
+            $args = ($args | append ["--receiver-version" $cell.receiver_version])
+        }
+        if $verbose {
+            $args = ($args | append ["--verbose"])
+        }
+
+        let cell_exit = (try { ^nu $ocmts_script ...$args; 0 } catch {|e| ($e.exit_code? | default 1) })
+
+        if $cell_exit == 0 {
+            $passed = $passed + 1
+        } else {
+            $failed_cells = ($failed_cells | append $cell.cell_id)
+            if $stop_on_fail {
+                print $"\nStopped on failure: ($cell.cell_id)"
+                break
+            }
+        }
+    }
+
+    let failed_count = ($failed_cells | length)
+    try {
+        finish-suite-record $eff_suite_id $passed $failed_count
+    } catch {|e|
+        print $"WARNING: finish-suite-record failed: ($e.msg)"
+    }
+    if $max == 0 {
+        update-latest-suite-id $eff_suite_id
+    }
+
+    let ran = $passed + $failed_count
+    print "\n=== Suite Summary ==="
+    print $"suite_id:        ($eff_suite_id)"
+    print $"Total scheduled: ($total)"
+    print $"Ran:             ($ran)"
+    print $"Passed:          ($passed)"
+    print $"Failed:          ($failed_count)"
+
+    if not ($failed_cells | is-empty) {
+        print "\nFailing cells:"
+        for c in $failed_cells {
+            print $"  - ($c)"
+        }
+        exit 1
+    }
 }

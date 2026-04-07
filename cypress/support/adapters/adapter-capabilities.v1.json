@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "adapters": {
+    "nextcloud/v32": [
+      "login",
+      "share-with.sender",
+      "share-with.receiver"
+    ],
+    "nextcloud/v33": [
+      "login",
+      "share-with.sender",
+      "share-with.receiver"
+    ],
+    "ocmgo/v1": [
+      "login",
+      "share-with.sender",
+      "share-with.receiver"
+    ]
+  }
+}

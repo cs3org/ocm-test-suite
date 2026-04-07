@@ -1,15 +1,18 @@
 {
   "platforms": {
     "ocmgo": {
+      "override_env": "OCMTS_OCMGO_IMAGE",
       "v1": {
-        "default": "opencloudmesh-go:v1.0.0",
-        "override_env": "OCMTS_OCMGO_IMAGE"
+        "default": "opencloudmesh-go:v1.0.0"
       }
     },
     "nextcloud": {
+      "override_env": "OCMTS_NEXTCLOUD_IMAGE",
+      "v32": {
+        "default": "nextcloud:v32.0.9"
+      },
       "v33": {
-        "default": "nextcloud:v33.0.2",
-        "override_env": "OCMTS_NEXTCLOUD_IMAGE"
+        "default": "nextcloud:v33.0.3"
       }
     }
   },

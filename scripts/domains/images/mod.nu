@@ -30,16 +30,26 @@ def "main show" [
     validate-platform-version $platform $version
     let root = get-ocmts-root
     let imgs = open ($root | path join "config/images.nuon")
-    let spec = ($imgs.platforms | get $platform | get $version)
-    let env_val = ($env | get --optional $spec.override_env | default "")
+    let plat_spec = ($imgs.platforms | get $platform)
+    let spec = ($plat_spec | get $version)
+    let platform_env = ($plat_spec.override_env? | default "")
+    let version_env = ($spec.override_env? | default "")
+    let effective_env = if not ($version_env | is-empty) { $version_env } else { $platform_env }
+    let env_val = if ($effective_env | is-empty) {
+        ""
+    } else {
+        ($env | get --optional $effective_env | default "")
+    }
     let resolved = if ($env_val | is-empty) { $spec.default } else { $env_val }
-    print $"platform:     ($platform)"
-    print $"version:      ($version)"
-    print $"default:      ($spec.default)"
-    print $"override_env: ($spec.override_env)"
-    print $"resolved:     ($resolved)"
+    print $"platform:               ($platform)"
+    print $"version:                ($version)"
+    print $"default:                ($spec.default)"
+    print $"platform_override_env:  ($platform_env)"
+    print $"version_override_env:   ($version_env)"
+    print $"effective_override_env: ($effective_env)"
+    print $"resolved:               ($resolved)"
     if not ($env_val | is-empty) {
-        print $"note: ($spec.override_env) is set; using env override"
+        print $"note: ($effective_env) is set; using env override"
     }
 }
 

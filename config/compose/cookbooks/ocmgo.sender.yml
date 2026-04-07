@@ -4,6 +4,16 @@
 services:
   sender:
     image: ${SENDER_IMAGE}
+    entrypoint: ["/app/bin/opencloudmesh-go"]
+    command:
+      - -config
+      - /configs/config.toml
+      - -public-origin
+      - ${SENDER_PUBLIC_ORIGIN}
+      - -admin-username
+      - ${OCM_GO_SENDER_ADMIN_USER}
+      - -admin-password
+      - ${OCM_GO_SENDER_ADMIN_PASSWORD}
     hostname: sender
     networks:
       ocm-net:
@@ -11,7 +21,7 @@ services:
           - ${SENDER_PARTY_HOST}
           - ${SENDER_PRIMARY_HOST}
     healthcheck:
-      test: ["CMD-SHELL", "curl -sfkL https://localhost/api/healthz | grep -q '\"status\":\"ok\"'"]
+      test: ["CMD-SHELL", "HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= NO_PROXY= nu -c \"if ((http get --raw --insecure https://localhost/api/healthz | str contains '\\\"status\\\":\\\"ok\\\"')) { exit 0 } else { exit 1 }\""]
       interval: 5s
       timeout: 3s
       retries: 24

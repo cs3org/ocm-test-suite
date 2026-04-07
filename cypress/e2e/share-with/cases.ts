@@ -1,13 +1,11 @@
 /// <reference types="cypress" />
 
-import { ocmgoV1LoginAdapter } from "../../support/adapters/ocmgo/v1/login-adapter";
-import { ocmgoV1ShareWithReceiverAdapter } from "../../support/adapters/ocmgo/v1/share-with-receiver-adapter";
-import { ocmgoV1ShareWithSenderAdapter } from "../../support/adapters/ocmgo/v1/share-with-sender-adapter";
-import { nextcloudV33LoginAdapter } from "../../support/adapters/nextcloud/v33/login-adapter";
 import {
-  nextcloudV33ShareWithReceiverAdapter,
-  nextcloudV33ShareWithSenderAdapter,
-} from "../../support/adapters/nextcloud/v33/share-with-adapter";
+  resolveLoginAdapter,
+  resolveShareWithReceiverAdapter,
+  resolveShareWithSenderAdapter,
+  type AdapterRef,
+} from "../../support/adapters/registry";
 import type { ActorRef, ScenarioCase } from "../../support/contracts/share-with";
 
 const senderActor: ActorRef = {
@@ -22,41 +20,54 @@ const receiverActor: ActorRef = {
   passwordEnvKeys: ["receiver_password"],
 };
 
+function parsePlatformVersionToken(token: string): AdapterRef {
+  const idx = token.lastIndexOf("-");
+  const platform = idx > 0 ? token.slice(0, idx) : "";
+  const versionLine = idx > 0 ? token.slice(idx + 1) : "";
+
+  if (platform.length === 0 || versionLine.length === 0) {
+    throw new Error(
+      [
+        `[share-with] Invalid case token "${token}".`,
+        'Expected "<platform>-<versionLine>", for example "nextcloud-v32".',
+      ].join(" "),
+    );
+  }
+
+  return { platform, versionLine };
+}
+
+function makeShareWithCase(senderRef: AdapterRef, receiverRef: AdapterRef): ScenarioCase {
+  return {
+    id: `share-with__${senderRef.platform}-${senderRef.versionLine}__${receiverRef.platform}-${receiverRef.versionLine}`,
+    senderAdapter: resolveShareWithSenderAdapter(senderRef),
+    receiverAdapter: resolveShareWithReceiverAdapter(receiverRef),
+    senderLogin: resolveLoginAdapter(senderRef),
+    receiverLogin: resolveLoginAdapter(receiverRef),
+    sender: senderActor,
+    receiver: receiverActor,
+  };
+}
+
+export function resolveShareWithScenarioCase(caseId: string): ScenarioCase {
+  const parts = caseId.split("__");
+  if (parts.length !== 3 || parts[0] !== "share-with") {
+    throw new Error(
+      [
+        `[share-with] proof_cell="${caseId}" is not a share-with case id.`,
+        'Expected "share-with__<senderPlatform>-<senderVersionLine>__<receiverPlatform>-<receiverVersionLine>".',
+      ].join(" "),
+    );
+  }
+
+  const senderRef = parsePlatformVersionToken(parts[1] ?? "");
+  const receiverRef = parsePlatformVersionToken(parts[2] ?? "");
+  return { ...makeShareWithCase(senderRef, receiverRef), id: caseId };
+}
+
 export const shareWithCases: ScenarioCase[] = [
-  {
-    id: "share-with__nextcloud-v33__nextcloud-v33",
-    senderAdapter: nextcloudV33ShareWithSenderAdapter,
-    receiverAdapter: nextcloudV33ShareWithReceiverAdapter,
-    senderLogin: nextcloudV33LoginAdapter,
-    receiverLogin: nextcloudV33LoginAdapter,
-    sender: senderActor,
-    receiver: receiverActor,
-  },
-  {
-    id: "share-with__nextcloud-v33__ocmgo-v1",
-    senderAdapter: nextcloudV33ShareWithSenderAdapter,
-    receiverAdapter: ocmgoV1ShareWithReceiverAdapter,
-    senderLogin: nextcloudV33LoginAdapter,
-    receiverLogin: ocmgoV1LoginAdapter,
-    sender: senderActor,
-    receiver: receiverActor,
-  },
-  {
-    id: "share-with__ocmgo-v1__nextcloud-v33",
-    senderAdapter: ocmgoV1ShareWithSenderAdapter,
-    receiverAdapter: nextcloudV33ShareWithReceiverAdapter,
-    senderLogin: ocmgoV1LoginAdapter,
-    receiverLogin: nextcloudV33LoginAdapter,
-    sender: senderActor,
-    receiver: receiverActor,
-  },
-  {
-    id: "share-with__ocmgo-v1__ocmgo-v1",
-    senderAdapter: ocmgoV1ShareWithSenderAdapter,
-    receiverAdapter: ocmgoV1ShareWithReceiverAdapter,
-    senderLogin: ocmgoV1LoginAdapter,
-    receiverLogin: ocmgoV1LoginAdapter,
-    sender: senderActor,
-    receiver: receiverActor,
-  },
+  makeShareWithCase({ platform: "nextcloud", versionLine: "v33" }, { platform: "nextcloud", versionLine: "v33" }),
+  makeShareWithCase({ platform: "nextcloud", versionLine: "v33" }, { platform: "ocmgo", versionLine: "v1" }),
+  makeShareWithCase({ platform: "ocmgo", versionLine: "v1" }, { platform: "nextcloud", versionLine: "v33" }),
+  makeShareWithCase({ platform: "ocmgo", versionLine: "v1" }, { platform: "ocmgo", versionLine: "v1" }),
 ];

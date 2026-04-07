@@ -1,11 +1,11 @@
 /// <reference types="cypress" />
 
-import { shareWithCases } from "./cases";
+import { resolveShareWithScenarioCase, shareWithCases } from "./cases";
 import { defineShareWithScenarioCase } from "./steps";
 
 const proofCell = String(Cypress.expose("proof_cell") ?? "");
-const selected = proofCell
-  ? shareWithCases.filter((c) => c.id === proofCell)
+const selected = proofCell.length > 0
+  ? [resolveShareWithScenarioCase(proofCell)]
   : shareWithCases;
 
 for (const scenarioCase of selected) {

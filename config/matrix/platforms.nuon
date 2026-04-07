@@ -3,7 +3,7 @@
   "platforms": {
     "nextcloud": {
       "slug": "nc",
-      "version_lines": ["v33"]
+      "version_lines": ["v32", "v33"]
     },
     "ocmgo": {
       "slug": "ocmgo",

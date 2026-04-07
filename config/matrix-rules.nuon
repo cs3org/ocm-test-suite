@@ -9,12 +9,14 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -29,12 +31,14 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -49,12 +53,14 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -69,6 +75,7 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -99,12 +106,14 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -119,6 +128,7 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },
@@ -145,6 +155,7 @@
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
+          "v32",
           "v33"
         ]
       },

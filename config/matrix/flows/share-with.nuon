@@ -6,10 +6,10 @@
   "mitm": true,
   "browsers": null,
   "include": [
-    { "sender": ["nextcloud"], "receiver": ["nextcloud"] },
-    { "sender": ["nextcloud"], "receiver": ["ocmgo"] },
-    { "sender": ["ocmgo"], "receiver": ["nextcloud"] },
-    { "sender": ["ocmgo"], "receiver": ["ocmgo"] }
+    { "sender": ["nextcloud"], "receiver": ["nextcloud"], "version_pairing": "cross_product" },
+    { "sender": ["nextcloud"], "receiver": ["ocmgo"], "version_pairing": "cross_product" },
+    { "sender": ["ocmgo"], "receiver": ["nextcloud"], "version_pairing": "cross_product" },
+    { "sender": ["ocmgo"], "receiver": ["ocmgo"], "version_pairing": "cross_product" }
   ],
   "versions_sender": {},
   "versions_receiver": {}

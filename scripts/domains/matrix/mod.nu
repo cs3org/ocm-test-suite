@@ -4,6 +4,7 @@ use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/matrix-rules-gen.nu [generate-matrix-rules write-generated-matrix-rules]
+use ../../lib/matrix-expand.nu [expand-version-pairs]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu matrix <verb> [flags]"
@@ -54,27 +55,21 @@ def "main list" [--json] {
     let rules = open ($root | path join "config/matrix-rules.nuon")
     let cells = ($rules.scenarios | items {|scenario, sc|
         let recv_platform = ($sc.receiver?.platform? | default "")
-        let recv_versions = if ($sc.receiver? != null) {
-            $sc.receiver.version_lines
-        } else {
-            [""]
-        }
-        $recv_versions | each {|recv_ver|
-            $sc.sender.version_lines | each {|ver|
-                $sc.browsers | each {|browser|
-                    {
-                        scenario: $scenario,
-                        flow_id: ($sc.flow_id? | default $scenario),
-                        sender_platform: $sc.sender.platform,
-                        sender_version: $ver,
-                        receiver_platform: $recv_platform,
-                        receiver_version: $recv_ver,
-                        mitm: ($sc.mitm? | default false),
-                        browser: $browser,
-                        enabled: ($sc.enabled? | default false),
-                    }
+        let version_pairs = (expand-version-pairs $sc)
+        $version_pairs | each {|vp|
+            $sc.browsers | each {|browser|
+                {
+                    scenario: $scenario,
+                    flow_id: ($sc.flow_id? | default $scenario),
+                    sender_platform: $sc.sender.platform,
+                    sender_version: $vp.sender_version,
+                    receiver_platform: $recv_platform,
+                    receiver_version: $vp.receiver_version,
+                    mitm: ($sc.mitm? | default false),
+                    browser: $browser,
+                    enabled: ($sc.enabled? | default false),
                 }
-            } | flatten
+            }
         } | flatten
     } | flatten)
     if $json {

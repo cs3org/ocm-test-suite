@@ -59,11 +59,31 @@ def expand-flow [
     let baseline = ($baseline_by_flow | get $flow_id)
 
     let pairs = if not $flow.two_party {
-        $flow.include.senders | each {|s| {sender: $s, receiver: null}}
+        $flow.include.senders | each {|s|
+            {sender: $s, receiver: null, version_pairing: null, version_pairs: null}
+        }
     } else {
         $flow.include | each {|group|
+            let pairing = ($group.version_pairing? | default "cross_product")
+            let version_pairs = ($group.version_pairs? | default null)
+            if $pairing == "explicit_pairs" {
+                if ($group.sender | length) != 1 {
+                    error make {msg: $"flow ($flow_id): explicit_pairs group requires exactly 1 sender platform, got ($group.sender | length)"}
+                }
+                if ($group.receiver | length) != 1 {
+                    error make {msg: $"flow ($flow_id): explicit_pairs group requires exactly 1 receiver platform, got ($group.receiver | length)"}
+                }
+                let vp = ($version_pairs | default [])
+                if ($vp | is-empty) {
+                    let s = ($group.sender | first)
+                    let r = ($group.receiver | first)
+                    error make {msg: $"flow ($flow_id): explicit_pairs group sender=($s) receiver=($r) has empty version_pairs"}
+                }
+            }
             $group.sender | each {|s|
-                $group.receiver | each {|r| {sender: $s, receiver: $r}}
+                $group.receiver | each {|r|
+                    {sender: $s, receiver: $r, version_pairing: $pairing, version_pairs: $version_pairs}
+                } | flatten
             } | flatten
         } | flatten
     }
@@ -100,17 +120,23 @@ def expand-flow [
             null
         }
 
-        {
-            key: $key,
-            entry: {
-                enabled: $flow.enabled,
-                flow_id: $flow_id,
-                browsers: $browsers,
-                sender: {platform: $sender, version_lines: $sender_vl},
-                receiver: $receiver_entry,
-                mitm: $flow.mitm,
-            }
+        let base_entry = {
+            enabled: $flow.enabled,
+            flow_id: $flow_id,
+            browsers: $browsers,
+            sender: {platform: $sender, version_lines: $sender_vl},
+            receiver: $receiver_entry,
+            mitm: $flow.mitm,
         }
+        let pairing = ($pair.version_pairing? | default "cross_product")
+        let entry = if $pairing == "explicit_pairs" {
+            $base_entry
+            | insert version_pairing "explicit_pairs"
+            | insert version_pairs ($pair.version_pairs | default [])
+        } else {
+            $base_entry
+        }
+        {key: $key, entry: $entry}
     }
 }
 

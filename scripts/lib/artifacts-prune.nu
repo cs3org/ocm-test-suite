@@ -1,25 +1,27 @@
 # Helpers for `artifacts prune`.
+# Path contract: artifacts/<flow_id>/<pair>/<execution_id>
+# Suites live under artifacts/suites/ and are excluded from enumeration.
 
 use ./execution-id.nu [validate-execution-id]
 
-# Determine the latest execution_id for an artifact_name.
+# Determine the latest execution_id for a flow_id+pair.
 # Prefers LAST_EXECUTION_ID marker when valid and pointing to an existing dir.
 # Falls back to the newest valid run dir by mtime.
 # Returns null when no valid run dir exists.
-export def resolve-latest-for-artifact [root: string, artifact_name: string] {
-    let marker = ($root | path join "artifacts" $artifact_name "LAST_EXECUTION_ID")
+export def resolve-latest-for-pair [root: string, flow_id: string, pair: string] {
+    let pair_base = ($root | path join "artifacts" $flow_id $pair)
+    let marker = ($pair_base | path join "LAST_EXECUTION_ID")
     if ($marker | path exists) {
         let candidate = (open --raw $marker | str trim)
-        let candidate_dir = ($root | path join "artifacts" $artifact_name $candidate)
+        let candidate_dir = ($pair_base | path join $candidate)
         let valid = (try { validate-execution-id $candidate; true } catch { false })
         if $valid and ($candidate_dir | path exists) {
             return $candidate
         }
     }
-    let artifact_base = ($root | path join "artifacts" $artifact_name)
-    if not ($artifact_base | path exists) { return null }
+    if not ($pair_base | path exists) { return null }
     let dirs = (try {
-        ls $artifact_base | where type == dir | sort-by modified --reverse
+        ls $pair_base | where type == dir | sort-by modified --reverse
     } catch { [] })
     let valid_ids = ($dirs | each {|row|
         let id = ($row.name | path basename)
@@ -49,19 +51,20 @@ export def run-passes-safety-filters [
     $terminal_ok
 }
 
-# Collect run_base paths for one artifact that pass scope + safety filters.
+# Collect run_base paths for one flow_id+pair that pass scope + safety filters.
 export def collect-scoped-runs [
     root: string,
-    artifact_name: string,
+    flow_id: string,
+    pair: string,
     scope: string,
     published_only: bool,
     include_nonterminal: bool,
 ] {
-    let artifact_base = ($root | path join "artifacts" $artifact_name)
-    if not ($artifact_base | path exists) { return [] }
-    let latest_id = (resolve-latest-for-artifact $root $artifact_name)
+    let pair_base = ($root | path join "artifacts" $flow_id $pair)
+    if not ($pair_base | path exists) { return [] }
+    let latest_id = (resolve-latest-for-pair $root $flow_id $pair)
     let dirs = (try {
-        ls $artifact_base | where type == dir | sort-by modified --reverse
+        ls $pair_base | where type == dir | sort-by modified --reverse
     } catch { [] })
     let all_ids = ($dirs | each {|row|
         let id = ($row.name | path basename)
@@ -78,10 +81,39 @@ export def collect-scoped-runs [
         error make {msg: $"scope must be latest/non-latest/all, got: ($scope)"}
     }
     $scoped | each {|exec_id|
-        let run_base = ($root | path join "artifacts" $artifact_name $exec_id)
+        let run_base = ($root | path join "artifacts" $flow_id $pair $exec_id)
         let passes = (run-passes-safety-filters $run_base $published_only $include_nonterminal)
         if $passes { $run_base } else { "" }
     } | where {|p| not ($p | is-empty)}
+}
+
+# Collect run_base paths across all flow+pair combinations under artifacts/.
+# Skips the artifacts/suites/ directory.
+export def collect-all-scoped-runs [
+    root: string,
+    scope: string,
+    published_only: bool,
+    include_nonterminal: bool,
+] {
+    let artifacts_dir = ($root | path join "artifacts")
+    if not ($artifacts_dir | path exists) { return [] }
+    let flow_dirs = (try {
+        ls $artifacts_dir
+        | where type == dir
+        | each {|row| $row.name | path basename}
+        | where {|name| $name != "suites" and not ($name | str starts-with "_")}
+    } catch { [] })
+    $flow_dirs | each {|flow_id|
+        let flow_base = ($artifacts_dir | path join $flow_id)
+        let pair_dirs = (try {
+            ls $flow_base
+            | where type == dir
+            | each {|row| $row.name | path basename}
+        } catch { [] })
+        $pair_dirs | each {|pair|
+            collect-scoped-runs $root $flow_id $pair $scope $published_only $include_nonterminal
+        } | flatten
+    } | flatten
 }
 
 # Compute files to delete for a run. Does not modify anything.

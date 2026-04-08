@@ -338,6 +338,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     let cell_entry = {
         id: $cell.cell_id,
         flow_id: $flow_id,
+        pair: ($cell.pair? | default ""),
         artifact_name: $cell.artifact_name,
         scenario: $cell.scenario,
         sender_platform: $cell.sender_platform,
@@ -367,6 +368,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         id: $run_id,
         cell_id: $cell.cell_id,
         execution_id: $run.execution_id,
+        artifact_name: ($cell.artifact_name? | default ""),
         attempt_number: 1,
         retry_of_run_id: null,
         superseded_by_run_id: null,

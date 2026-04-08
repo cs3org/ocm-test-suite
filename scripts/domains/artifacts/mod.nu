@@ -2,16 +2,16 @@
 
 use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
-use ../../lib/execution-id.nu [validate-execution-id validate-artifact-name execution-artifacts-path]
+use ../../lib/execution-id.nu [validate-execution-id execution-artifacts-path]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/docker-logs.nu [collect-service-logs]
 use ../../lib/services/compose-files.nu [read-active-compose-files]
 use ../../lib/publish-envelope.nu [emit-publish-envelope]
 use ../../lib/artifacts-prune.nu [
-    resolve-latest-for-artifact
     run-passes-safety-filters
     collect-scoped-runs
+    collect-all-scoped-runs
     plan-run-deletion
     apply-run-deletion
 ]
@@ -44,10 +44,9 @@ def "main list" [
     let cell = (compute-cell
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version $flow_id)
-    let safe_name = (validate-artifact-name $cell.artifact_name)
-    let base = ($root | path join "artifacts" $safe_name)
+    let base = ($root | path join "artifacts" $cell.flow_id $cell.pair)
     if not ($base | path exists) {
-        print $"No artifacts found for ($cell.artifact_name)"
+        print $"No artifacts found for ($cell.flow_id)/($cell.pair)"
         return
     }
     ls $base | where type == dir | sort-by modified --reverse | each {|row|
@@ -88,11 +87,11 @@ def "main show" [
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
-        read-last-execution-id $cell.artifact_name
+        read-last-execution-id $cell.flow_id $cell.pair
     } else {
         $execution_id
     }
-    let base = (execution-artifacts-path $root $cell.artifact_name $exec_id)
+    let base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
     let result_file = ($base | path join "meta/result.json")
     let run_file = ($base | path join "meta/run.json")
     mut summary = {artifacts_base: $base}
@@ -121,11 +120,11 @@ def "main collect" [
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
-        read-last-execution-id $cell.artifact_name
+        read-last-execution-id $cell.flow_id $cell.pair
     } else {
         $execution_id
     }
-    let base = (execution-artifacts-path $root $cell.artifact_name $exec_id)
+    let base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
     let stack_id_file = ($base | path join "compose" "stack_id.txt")
     if not ($stack_id_file | path exists) {
@@ -201,7 +200,7 @@ def "main collect" [
 
 # Regenerate suite-manifest.v1.json, summary.json, summary.md for a run.
 # Pass --artifacts-base with the full path to the execution artifact root,
-# e.g. artifacts/<artifact_name>/<execution_id>.
+# e.g. artifacts/<flow_id>/<pair>/<execution_id>.
 def "main publish" [
     --artifacts-base: string,
     --scenario: string = "",
@@ -223,11 +222,11 @@ def "main publish" [
             $scenario $sender_platform $sender_version "chrome"
             $receiver_platform $receiver_version $flow_id)
         let exec_id = if ($execution_id | is-empty) {
-            read-last-execution-id $cell.artifact_name
+            read-last-execution-id $cell.flow_id $cell.pair
         } else {
             $execution_id
         }
-        execution-artifacts-path $root $cell.artifact_name $exec_id
+        execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id
     }
     if not ($base | path exists) {
         error make {msg: $"Artifacts base not found: ($base)"}
@@ -249,7 +248,7 @@ def "main publish" [
 # Suite selection (--suite-id/--latest-suite) targets exactly the runs in a
 # suite and cannot be combined with --all, --artifacts-base, or cell selectors.
 def "main prune" [
-    --all,                              # target all artifact names
+    --all,                              # target all flow+pair combinations (excludes suites/)
     --artifacts-base: string = "",      # target exactly one run directory
     --scenario: string = "",
     --sender-platform: string = "",
@@ -299,8 +298,14 @@ def "main prune" [
         let loaded = (load-suite-entry $arts_dir $suite_id $latest_suite)
         let suite_record = $loaded.suite_record
         $suite_record.runs | each {|run|
-            let run_base = ($root | path join "artifacts" $run.artifact_name $run.execution_id)
-            if not ($run_base | path exists) {
+            let run_base = ($root | path join "artifacts" $run.flow_id $run.pair $run.execution_id)
+            # Enforce prefix safety before any use.
+            let artifacts_tree = ($root | path join "artifacts" | path expand)
+            let resolved = ($run_base | path expand)
+            if not ($resolved | str starts-with ($artifacts_tree + "/")) {
+                print $"WARNING: suite run locator outside artifacts tree, skipping: ($run_base)"
+                ""
+            } else if not ($run_base | path exists) {
                 ""
             } else {
                 let passes = (run-passes-safety-filters $run_base $published_only $include_nonterminal)
@@ -320,21 +325,8 @@ def "main prune" [
         let passes = (run-passes-safety-filters $resolved_base $published_only $include_nonterminal)
         if $passes { [$resolved_base] } else { [] }
     } else if $all {
-        # All artifact names under artifacts/.
-        let artifacts_dir = ($root | path join "artifacts")
-        if not ($artifacts_dir | path exists) {
-            []
-        } else {
-            let artifact_names = (
-                ls $artifacts_dir
-                | where type == dir
-                | each {|row| $row.name | path basename}
-                | where {|name| not ($name | str starts-with "_")}
-            )
-            $artifact_names | each {|name|
-                collect-scoped-runs $root $name $eff_scope $published_only $include_nonterminal
-            } | flatten
-        }
+        # All flow+pair combinations under artifacts/ (excludes suites/).
+        collect-all-scoped-runs $root $eff_scope $published_only $include_nonterminal
     } else {
         # Cell selector target.
         if ($scenario | is-empty) {
@@ -349,13 +341,14 @@ def "main prune" [
         let cell = (compute-cell
             $scenario $sender_platform $sender_version "chrome"
             $receiver_platform $receiver_version $flow_id)
-        collect-scoped-runs $root $cell.artifact_name $eff_scope $published_only $include_nonterminal
+        collect-scoped-runs $root $cell.flow_id $cell.pair $eff_scope $published_only $include_nonterminal
     }
 
     let total_runs = ($run_bases | length)
 
     if $mode == "runs" {
-        # Runs mode: delete entire run directories.
+        # Runs mode: delete entire run directories (prefix-checked).
+        let artifacts_tree = ($root | path join "artifacts" | path expand)
         if not $apply {
             if $json {
                 print ({
@@ -378,6 +371,11 @@ def "main prune" [
         }
         mut deleted = 0
         for rb in $run_bases {
+            let resolved = ($rb | path expand)
+            if not ($resolved | str starts-with ($artifacts_tree + "/")) {
+                print $"WARNING: skipping path outside artifacts tree: ($rb)"
+                continue
+            }
             rm --recursive --force $rb
             $deleted = $deleted + 1
         }

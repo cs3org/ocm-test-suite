@@ -4,16 +4,6 @@
 services:
   receiver:
     image: ${RECEIVER_IMAGE}
-    entrypoint: ["/app/bin/opencloudmesh-go"]
-    command:
-      - -config
-      - /configs/config.toml
-      - -public-origin
-      - ${RECEIVER_PUBLIC_ORIGIN}
-      - -admin-username
-      - ${OCM_GO_RECEIVER_ADMIN_USER}
-      - -admin-password
-      - ${OCM_GO_RECEIVER_ADMIN_PASSWORD}
     hostname: receiver
     networks:
       ocm-net:
@@ -30,6 +20,7 @@ services:
       - PUBLIC_ORIGIN=${RECEIVER_PUBLIC_ORIGIN}
       - OCM_GO_ADMIN_USER=${OCM_GO_RECEIVER_ADMIN_USER}
       - OCM_GO_ADMIN_PASSWORD=${OCM_GO_RECEIVER_ADMIN_PASSWORD}
+      - OCM_GO_SSRF_MODE=off
       - HTTP_PROXY=${RECEIVER_HTTP_PROXY}
       - HTTPS_PROXY=${RECEIVER_HTTPS_PROXY}
       - NO_PROXY=${RECEIVER_NO_PROXY}

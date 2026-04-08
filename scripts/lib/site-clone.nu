@@ -14,7 +14,7 @@ export def resolve-site-repo-url [] {
 }
 
 # Resolve the local site clone directory.
-# override wins; default is ../ocm-web-site relative to the ots-rebooted root.
+# override wins; default is ../ocm-web-site relative to this repo root.
 export def resolve-site-dir [override: string] {
     if not ($override | is-empty) {
         return ($override | path expand)

@@ -15,6 +15,7 @@ use ../../lib/artifacts-prune.nu [
     plan-run-deletion
     apply-run-deletion
 ]
+use ../../lib/suite-index.nu [load-suite-entry]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu artifacts <verb> [flags]"
@@ -245,6 +246,8 @@ def "main publish" [
 # Default: dry-run, non-latest scope, terminal runs only.
 # Pass --apply to delete; --all to target every artifact; or cell selectors
 # to target one artifact. --artifacts-base targets a single run dir directly.
+# Suite selection (--suite-id/--latest-suite) targets exactly the runs in a
+# suite and cannot be combined with --all, --artifacts-base, or cell selectors.
 def "main prune" [
     --all,                              # target all artifact names
     --artifacts-base: string = "",      # target exactly one run directory
@@ -253,6 +256,8 @@ def "main prune" [
     --sender-version: string = "",
     --receiver-platform: string = "",
     --receiver-version: string = "",
+    --suite-id: string = "",            # target runs from this suite_id only
+    --latest-suite,                     # target runs from the latest suite (LATEST_SUITE_ID)
     --apply,                            # perform deletions; default is dry-run
     --scope: string = "non-latest",     # latest | non-latest | all
     --all-latest,                       # with --all: set scope to "all"
@@ -280,8 +285,29 @@ def "main prune" [
     # Runs mode does not require a suite-manifest (unpublished runs included).
     let published_only = if $mode == "runs" { false } else { not $include_unpublished }
 
+    let suite_active = (not ($suite_id | is-empty)) or $latest_suite
+
     # Resolve target run_bases depending on selector.
-    let run_bases = if not ($artifacts_base | is-empty) {
+    let run_bases = if $suite_active {
+        if $all or (not ($artifacts_base | is-empty)) or (not ($scenario | is-empty)) {
+            error make {msg: (
+                "--suite-id/--latest-suite cannot be combined with "
+                + "--all, --artifacts-base, or cell selectors"
+            )}
+        }
+        let arts_dir = ($root | path join "artifacts")
+        let loaded = (load-suite-entry $arts_dir $suite_id $latest_suite)
+        let suite_record = $loaded.suite_record
+        $suite_record.runs | each {|run|
+            let run_base = ($root | path join "artifacts" $run.artifact_name $run.execution_id)
+            if not ($run_base | path exists) {
+                ""
+            } else {
+                let passes = (run-passes-safety-filters $run_base $published_only $include_nonterminal)
+                if $passes { $run_base } else { "" }
+            }
+        } | where {|p| not ($p | is-empty)}
+    } else if not ($artifacts_base | is-empty) {
         # Direct single-run target.
         let resolved_base = ($artifacts_base | path expand)
         let artifacts_tree = ($root | path join "artifacts" | path expand)
@@ -303,6 +329,7 @@ def "main prune" [
                 ls $artifacts_dir
                 | where type == dir
                 | each {|row| $row.name | path basename}
+                | where {|name| not ($name | str starts-with "_")}
             )
             $artifact_names | each {|name|
                 collect-scoped-runs $root $name $eff_scope $published_only $include_nonterminal

@@ -2,6 +2,8 @@
 # See /temp/ocm-web-site-observatory-contract-v1.md for the data contract.
 
 use ./cell.nu [compute-cell]
+use ./matrix-expand.nu [expand-version-pairs]
+use ./suite-index.nu [load-suite-entry]
 
 def now-utc [] {
     date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
@@ -27,32 +29,134 @@ def evidence-path-allowed [rel: string] {
 def compute-matrix-cells [rules: record] {
     $rules.scenarios | items {|scenario, sc|
         let recv_platform = ($sc.receiver?.platform? | default "")
-        let recv_versions = if ($sc.receiver? != null) {
-            $sc.receiver.version_lines
-        } else {
-            [""]
-        }
         let flow_id_arg = ($sc.flow_id? | default $scenario)
-        $recv_versions | each {|recv_ver|
-            $sc.sender.version_lines | each {|ver|
-                $sc.browsers | each {|browser|
-                    let cell = (try {
-                        (compute-cell $scenario $sc.sender.platform $ver $browser
-                            $recv_platform $recv_ver $flow_id_arg)
-                    } catch {|e|
-                        print $"WARNING: compute-cell failed for ($scenario)/($ver)/($browser): ($e.msg)"
-                        null
-                    })
-                    if $cell != null {
-                        $cell | merge {
-                            enabled: ($sc.enabled? | default false),
-                            mitm: ($sc.mitm? | default false),
-                        }
+        let version_pairs = (expand-version-pairs $sc)
+        $version_pairs | each {|vp|
+            $sc.browsers | each {|browser|
+                let cell = (try {
+                    (compute-cell $scenario $sc.sender.platform $vp.sender_version $browser
+                        $recv_platform $vp.receiver_version $flow_id_arg)
+                } catch {|e|
+                    print $"WARNING: compute-cell failed for ($scenario)/($vp.sender_version)/($browser): ($e.msg)"
+                    null
+                })
+                if $cell != null {
+                    $cell | merge {
+                        enabled: ($sc.enabled? | default false),
+                        mitm: ($sc.mitm? | default false),
                     }
-                } | where {|x| $x != null}
-            } | flatten
+                }
+            } | where {|x| $x != null}
         } | flatten
     } | flatten
+}
+
+# Derive requirements and blockers for one cell against the adapter capability
+# map. Returns {requirements: list, blockers: list}.
+def derive-cell-impl-info [cell: record, adapters: record] {
+    let flow_id = $cell.flow_id
+    let sender_key = $"($cell.sender_platform)/($cell.sender_version)"
+
+    let flow_sender_caps = if $flow_id == "login" {
+        ["login"]
+    } else if $flow_id == "share-with" {
+        ["login", "share-with.sender"]
+    } else {
+        null
+    }
+
+    if $flow_sender_caps == null {
+        return {
+            requirements: [],
+            blockers: [{reason_code: "unknown_flow_id", flow_id: $flow_id, role: "", adapter_key: "", capability: ""}],
+        }
+    }
+
+    mut requirements = []
+    mut blockers = []
+
+    if $sender_key in $adapters {
+        let sender_caps = ($adapters | get $sender_key)
+        for cap in $flow_sender_caps {
+            $requirements = ($requirements | append {capability: $cap, role: "sender", adapter_key: $sender_key})
+            if not ($cap in $sender_caps) {
+                $blockers = ($blockers | append {reason_code: "missing_capability", role: "sender", adapter_key: $sender_key, capability: $cap})
+            }
+        }
+    } else {
+        for cap in $flow_sender_caps {
+            $requirements = ($requirements | append {capability: $cap, role: "sender", adapter_key: $sender_key})
+        }
+        $blockers = ($blockers | append {reason_code: "missing_adapter_bundle", role: "sender", adapter_key: $sender_key, capability: ""})
+    }
+
+    if $cell.is_two_party {
+        let receiver_key = $"($cell.receiver_platform)/($cell.receiver_version)"
+        let flow_receiver_caps = if $flow_id == "share-with" {
+            ["login", "share-with.receiver"]
+        } else {
+            []
+        }
+        if not ($flow_receiver_caps | is-empty) {
+            if $receiver_key in $adapters {
+                let receiver_caps = ($adapters | get $receiver_key)
+                for cap in $flow_receiver_caps {
+                    $requirements = ($requirements | append {capability: $cap, role: "receiver", adapter_key: $receiver_key})
+                    if not ($cap in $receiver_caps) {
+                        $blockers = ($blockers | append {reason_code: "missing_capability", role: "receiver", adapter_key: $receiver_key, capability: $cap})
+                    }
+                }
+            } else {
+                for cap in $flow_receiver_caps {
+                    $requirements = ($requirements | append {capability: $cap, role: "receiver", adapter_key: $receiver_key})
+                }
+                $blockers = ($blockers | append {reason_code: "missing_adapter_bundle", role: "receiver", adapter_key: $receiver_key, capability: ""})
+            }
+        }
+    }
+
+    {requirements: $requirements, blockers: $blockers}
+}
+
+# Build implemented-cells.v1.json content.
+# Evaluates each matrix cell (including disabled) against the adapter
+# capability map and produces a structured record keyed by cell_id.
+def build-implemented-cells-json [rules: record, rules_path: string, cap_map_path: string] {
+    let cap_map = (open $cap_map_path)
+    let adapters = ($cap_map.adapters? | default {})
+    let cell_list = (compute-matrix-cells $rules)
+    let cells = if ($cell_list | is-empty) {
+        {}
+    } else {
+        ($cell_list | each {|c|
+            let impl_info = (derive-cell-impl-info $c $adapters)
+            {
+                ($c.cell_id): {
+                    scenario: $c.scenario,
+                    flow_id: $c.flow_id,
+                    browser: $c.browser,
+                    sender_platform: $c.sender_platform,
+                    sender_version: $c.sender_version,
+                    receiver_platform: $c.receiver_platform,
+                    receiver_version: $c.receiver_version,
+                    artifact_name: $c.artifact_name,
+                    mitm: $c.mitm,
+                    implemented: ($impl_info.blockers | is-empty),
+                    requirements: $impl_info.requirements,
+                    blockers: $impl_info.blockers,
+                }
+            }
+        } | into record)
+    }
+    {
+        schema_version: 1,
+        generated_at: (now-utc),
+        sources: {
+            matrix_rules_path: $rules_path,
+            capability_map_path: $cap_map_path,
+        },
+        cells: $cells,
+    }
 }
 
 # Build matrix-rules.v1.json content (placeholder universe for the UI).
@@ -109,6 +213,54 @@ def compute-latest-index [results: record] {
     $pairs | into record
 }
 
+# Best-effort docker image inspect for one ref.
+# Returns {local_image_id, repo_digests} or null on any failure.
+def inspect-one-image [ref: string] {
+    if ($ref | is-empty) { return null }
+    let result = (try {
+        ^docker image inspect $ref | complete
+    } catch {
+        {exit_code: 127, stdout: "", stderr: ""}
+    })
+    if $result.exit_code != 0 { return null }
+    let parsed = (try { $result.stdout | from json } catch { return null })
+    if ($parsed | is-empty) { return null }
+    let info = ($parsed | first)
+    {
+        local_image_id: ($info.Id? | default null),
+        repo_digests: ($info.RepoDigests? | default []),
+    }
+}
+
+# For each image ref in the images record, attempt docker inspect.
+# Returns a record with the same keys; per-entry value is provenance or null.
+def build-images-provenance [images: record] {
+    if ($images | is-empty) { return {} }
+    $images | transpose key ref | each {|row|
+        let prov = (try {
+            inspect-one-image ($row.ref | into string)
+        } catch { null })
+        {($row.key): $prov}
+    } | into record
+}
+
+# Stable sha256 of sorted file contents under compose/inputs/.
+# Returns null if the inputs dir is absent or empty.
+def compute-stack-def-sha256 [run_dir: string] {
+    let inputs_dir = ($run_dir | path join "compose/inputs")
+    if not ($inputs_dir | path exists) { return null }
+    let files = (try {
+        glob $"($inputs_dir)/*"
+        | where {|p| ($p | path type) == "file"}
+        | sort
+    } catch { return null })
+    if ($files | is-empty) { return null }
+    let combined = ($files | each {|f|
+        try { open --raw $f } catch { "" }
+    } | str join "")
+    $combined | hash sha256
+}
+
 # Merge per-run entries into a single aggregated suite-manifest.v1.json.
 # Injects run.execution_context from top-level per-run execution_context.
 # Filters evidence[] to allowlisted paths only.
@@ -122,10 +274,21 @@ def build-aggregated-manifest [entries: list] {
         let m = $entry.manifest
         $flows = ($flows | merge $m.flows)
         $cells = ($cells | merge $m.cells)
-        # Inject per-run execution_context into the run map entry.
+        # Inject per-run execution_context and resolved image pins into run map.
         let run_id = ($m.runs | columns | first)
+        let run_json_path = ($entry.run_dir | path join "meta/run.json")
+        let run_images = if ($run_json_path | path exists) {
+            (open $run_json_path).images? | default {}
+        } else {
+            {}
+        }
+        let run_provenance = (build-images-provenance $run_images)
+        let stack_hash = (compute-stack-def-sha256 $entry.run_dir)
         let run_entry = ($m.runs | get $run_id
-            | upsert execution_context $m.execution_context)
+            | upsert execution_context $m.execution_context
+            | upsert images $run_images
+            | upsert images_provenance $run_provenance
+            | upsert stack_def_sha256 $stack_hash)
         $runs = ($runs | upsert $run_id $run_entry)
         # Filter evidence to allowlisted paths only (no download, no compose).
         let result_id = ($m.results | columns | first)
@@ -170,38 +333,71 @@ export def copy-allowlisted-artifacts [src_dir: string, dst_dir: string] {
     ($allowed | length)
 }
 
-# Main ingest: read LAST_EXECUTION_ID for each known cell, aggregate manifests,
-# write suite-manifest.v1.json and matrix-rules.v1.json, copy artifacts.
+# Main ingest: aggregate manifests, write suite-manifest.v1.json and
+# matrix-rules.v1.json, copy artifacts.
+# Default: reads LAST_EXECUTION_ID per cell. With --suite-id or --latest-suite,
+# reads the suite index and ingests exactly the runs listed there.
 export def ingest-site [
-    artifacts_root: string,    # e.g. <ots-root>/artifacts
-    matrix_rules_path: string, # e.g. <ots-root>/config/matrix-rules.nuon
+    artifacts_root: string,    # e.g. <ocmts-root>/artifacts
+    matrix_rules_path: string, # e.g. <ocmts-root>/config/matrix-rules.nuon
     public_dir: string,        # e.g. <site-dir>/public
+    --suite-id: string = "",   # ingest runs from this suite_id only
+    --latest-suite,            # ingest runs from the latest suite (LATEST_SUITE_ID)
 ] {
     let rules = (open $matrix_rules_path)
     let cell_list = (compute-matrix-cells $rules)
+    let suite_active = (not ($suite_id | is-empty)) or $latest_suite
     mut entries = []
-    for cell in $cell_list {
-        let marker = ($artifacts_root | path join $cell.artifact_name "LAST_EXECUTION_ID")
-        if not ($marker | path exists) { continue }
-        let exec_id = (open --raw $marker | str trim)
-        let run_dir = ($artifacts_root | path join $cell.artifact_name $exec_id)
-        let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
-        if not ($mf_path | path exists) {
-            print $"WARNING: no suite-manifest for ($cell.artifact_name)/($exec_id), skipping"
-            continue
+    if $suite_active {
+        let loaded = (load-suite-entry $artifacts_root $suite_id $latest_suite)
+        let eff_id = $loaded.suite_id
+        let suite_record = $loaded.suite_record
+        let run_count = ($suite_record.runs | length)
+        print $"Ingest mode: suite suite_id=($eff_id) runs=($run_count)"
+        for run in $suite_record.runs {
+            let run_dir = ($artifacts_root | path join $run.artifact_name $run.execution_id)
+            let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
+            if not ($mf_path | path exists) {
+                print $"WARNING: no suite-manifest for ($run.artifact_name)/($run.execution_id), skipping"
+                continue
+            }
+            let m = (open $mf_path)
+            let result_id = ($m.results | columns | first)
+            let finished_at = ($m.results | get $result_id | get finished_at? | default "")
+            $entries = ($entries | append {
+                manifest: $m,
+                run_dir: $run_dir,
+                artifact_name: $run.artifact_name,
+                exec_id: $run.execution_id,
+                cell_id: $run.cell_id,
+                result_id: $result_id,
+                finished_at: $finished_at,
+            })
         }
-        let m = (open $mf_path)
-        let result_id = ($m.results | columns | first)
-        let finished_at = ($m.results | get $result_id | get finished_at? | default "")
-        $entries = ($entries | append {
-            manifest: $m,
-            run_dir: $run_dir,
-            artifact_name: $cell.artifact_name,
-            exec_id: $exec_id,
-            cell_id: $cell.cell_id,
-            result_id: $result_id,
-            finished_at: $finished_at,
-        })
+    } else {
+        for cell in $cell_list {
+            let marker = ($artifacts_root | path join $cell.artifact_name "LAST_EXECUTION_ID")
+            if not ($marker | path exists) { continue }
+            let exec_id = (open --raw $marker | str trim)
+            let run_dir = ($artifacts_root | path join $cell.artifact_name $exec_id)
+            let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
+            if not ($mf_path | path exists) {
+                print $"WARNING: no suite-manifest for ($cell.artifact_name)/($exec_id), skipping"
+                continue
+            }
+            let m = (open $mf_path)
+            let result_id = ($m.results | columns | first)
+            let finished_at = ($m.results | get $result_id | get finished_at? | default "")
+            $entries = ($entries | append {
+                manifest: $m,
+                run_dir: $run_dir,
+                artifact_name: $cell.artifact_name,
+                exec_id: $exec_id,
+                cell_id: $cell.cell_id,
+                result_id: $result_id,
+                finished_at: $finished_at,
+            })
+        }
     }
 
     mkdir $public_dir
@@ -215,6 +411,17 @@ export def ingest-site [
     ($matrix_json | to json --indent 2
         | save --force ($public_dir | path join "matrix-rules.v1.json"))
     print $"Wrote matrix-rules.v1.json \(($matrix_json.scenarios | length) scenarios\)"
+
+    let ots_root = ($matrix_rules_path | path expand | path dirname | path dirname)
+    let cap_map_path = ($ots_root | path join "cypress/support/adapters/adapter-capabilities.v1.json")
+    if ($cap_map_path | path exists) {
+        let impl_cells_json = (build-implemented-cells-json $rules $matrix_rules_path $cap_map_path)
+        ($impl_cells_json | to json --indent 2
+            | save --force ($public_dir | path join "implemented-cells.v1.json"))
+        print $"Wrote implemented-cells.v1.json \(($impl_cells_json.cells | columns | length) cells\)"
+    } else {
+        print $"WARNING: capability map not found at ($cap_map_path), skipping implemented-cells.v1.json"
+    }
 
     mut total_files = 0
     for entry in $entries {

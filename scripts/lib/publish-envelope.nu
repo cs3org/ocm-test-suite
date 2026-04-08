@@ -321,6 +321,10 @@ export def emit-publish-envelope [artifacts_base: string] {
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $base)
 
+    # Suite grouping fields - optional, backward compatible with legacy runs.
+    let suite_id = ($cell.suite_id? | default "")
+    let suite_kind = ($cell.suite_kind? | default "")
+
     # Stable IDs (current proof-slice: run.id == execution_id)
     let run_id = ($run.id? | default $run.execution_id)
     let result_id = ($result.id? | default $"result-($result.execution_id)")
@@ -386,7 +390,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         $result_entry = ($result_entry | upsert failure_reason $failure_reason_val)
     }
 
-    let manifest = {
+    mut manifest = {
         schema_version: 1,
         generated_at: $generated_at,
         producer: {name: "ocmts", version: "0.1.0"},
@@ -399,6 +403,9 @@ export def emit-publish-envelope [artifacts_base: string] {
             latest_terminal_result_by_cell: {($cell.cell_id): $result_id}
         },
     }
+    if not ($suite_id | is-empty) { $manifest = ($manifest | upsert suite_id $suite_id) }
+    if not ($suite_kind | is-empty) { $manifest = ($manifest | upsert suite_kind $suite_kind) }
+    let manifest = $manifest
 
     let errs = (consistency-errors $manifest)
     let warnings = ($errs | each {|e| $"consistency: ($e)"})
@@ -407,7 +414,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     $manifest | to json --indent 2
         | save --force ($meta_dir | path join "suite-manifest.v1.json")
 
-    let summary = {
+    mut summary = {
         cell_id: $cell.cell_id,
         artifact_name: $cell.artifact_name,
         execution_id: $run.execution_id,
@@ -431,6 +438,9 @@ export def emit-publish-envelope [artifacts_base: string] {
         },
         warnings: $warnings,
     }
+    if not ($suite_id | is-empty) { $summary = ($summary | upsert suite_id $suite_id) }
+    if not ($suite_kind | is-empty) { $summary = ($summary | upsert suite_kind $suite_kind) }
+    let summary = $summary
     $summary | to json --indent 2 | save --force ($meta_dir | path join "summary.json")
 
     let md = (build-summary-md $summary $ev.rows)

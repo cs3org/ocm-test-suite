@@ -26,8 +26,10 @@ export def write-prepared-run [
     artifact_name: string,
     started_at: string,
     stack_id: string,
+    --suite-id: string = "",
+    --suite-kind: string = "single",
 ] {
-    {
+    mut r = {
         schema_version: 1,
         id: $execution_id,
         execution_id: $execution_id,
@@ -37,7 +39,10 @@ export def write-prepared-run [
         status: "prepared",
         stack_id: $stack_id,
         artifacts_dir: $artifacts_base,
-    } | to json | save --force ($artifacts_base | path join "meta/run.json")
+        suite_kind: $suite_kind,
+    }
+    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
+    $r | to json | save --force ($artifacts_base | path join "meta/run.json")
 }
 
 # Write terminal run.json (passed / failed / infra-failed / cleanup-failed).
@@ -55,6 +60,8 @@ export def write-terminal-run [
     images: any = null,
     --phase: string = "",
     --fail-error: string = "",
+    --suite-id: string = "",
+    --suite-kind: string = "",
 ] {
     mut r = {
         schema_version: 1,
@@ -72,6 +79,8 @@ export def write-terminal-run [
     }
     if not ($phase | is-empty) { $r = ($r | upsert phase $phase) }
     if not ($fail_error | is-empty) { $r = ($r | upsert error $fail_error) }
+    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
+    if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
     $r | to json | save --force ($artifacts_base | path join "meta/run.json")
 }
 
@@ -116,8 +125,10 @@ export def write-compact-result [
     status: string,
     exit_code: int,
     finished_at: string,
+    --suite-id: string = "",
+    --suite-kind: string = "",
 ] {
-    {
+    mut r = {
         schema_version: 1,
         id: $"result-($execution_id)",
         run_id: $execution_id,
@@ -126,5 +137,8 @@ export def write-compact-result [
         exit_code: $exit_code,
         status: $status,
         finished_at: $finished_at,
-    } | to json | save --force ($artifacts_base | path join "meta/result.json")
+    }
+    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
+    if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
+    $r | to json | save --force ($artifacts_base | path join "meta/result.json")
 }

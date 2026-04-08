@@ -39,9 +39,14 @@ def "main clone" [
 # artifacts into the site public/ directory.
 def "main ingest" [
     --site-dir: string = "",       # Site repo dir (default: ../ocm-web-site)
-    --artifacts-root: string = "", # OTS artifacts root (default: <ots-root>/artifacts)
+    --artifacts-root: string = "", # OCMTS artifacts root (default: <ocmts-root>/artifacts)
     --public-dir: string = "",     # Output dir (default: <site-dir>/public)
+    --suite-id: string = "",       # Ingest runs from this suite_id only
+    --latest-suite,                # Ingest runs from the latest suite (LATEST_SUITE_ID)
 ] {
+    if (not ($suite_id | is-empty)) and $latest_suite {
+        error make {msg: "--suite-id and --latest-suite are mutually exclusive"}
+    }
     let root = get-ocmts-root
     let site = (resolve-site-dir $site_dir)
     let art_root = if not ($artifacts_root | is-empty) {
@@ -62,7 +67,13 @@ def "main ingest" [
     if not ($rules_path | path exists) {
         error make {msg: $"Matrix rules not found: ($rules_path)"}
     }
-    ingest-site $art_root $rules_path $pub_dir
+    if $latest_suite {
+        ingest-site $art_root $rules_path $pub_dir --latest-suite
+    } else if not ($suite_id | is-empty) {
+        ingest-site $art_root $rules_path $pub_dir --suite-id $suite_id
+    } else {
+        ingest-site $art_root $rules_path $pub_dir
+    }
 }
 
 # Build the Astro site (bun preferred, npm fallback). Does not start a dev server.
@@ -80,10 +91,15 @@ def "main build" [
 # Orchestrate clone (optional), ingest, and build in one step.
 def "main publish" [
     --site-dir: string = "",       # Site repo dir (default: ../ocm-web-site)
-    --artifacts-root: string = "", # OTS artifacts root (default: <ots-root>/artifacts)
+    --artifacts-root: string = "", # OCMTS artifacts root (default: <ocmts-root>/artifacts)
     --skip-clone,                  # Skip git clone/refresh
     --ref: string = "",            # Git ref; falls back to OCMTS_SITE_REF, then main
+    --suite-id: string = "",       # Ingest runs from this suite_id only
+    --latest-suite,                # Ingest runs from the latest suite (LATEST_SUITE_ID)
 ] {
+    if (not ($suite_id | is-empty)) and $latest_suite {
+        error make {msg: "--suite-id and --latest-suite are mutually exclusive"}
+    }
     let root = get-ocmts-root
     let site = (resolve-site-dir $site_dir)
     let art_root = if not ($artifacts_root | is-empty) {
@@ -110,7 +126,13 @@ def "main publish" [
     if not ($rules_path | path exists) {
         error make {msg: $"Matrix rules not found: ($rules_path)"}
     }
-    ingest-site $art_root $rules_path $pub_dir
+    if $latest_suite {
+        ingest-site $art_root $rules_path $pub_dir --latest-suite
+    } else if not ($suite_id | is-empty) {
+        ingest-site $art_root $rules_path $pub_dir --suite-id $suite_id
+    } else {
+        ingest-site $art_root $rules_path $pub_dir
+    }
 
     if not ($site | path exists) {
         error make {msg: $"Site dir not found: ($site). Cannot build."}

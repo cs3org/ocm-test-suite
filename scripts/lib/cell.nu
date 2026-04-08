@@ -145,6 +145,24 @@ export def validate-cell-rules [
         if not ($receiver_version in $known_recv_versions) {
             error make {msg: $"Receiver version '($receiver_version)' not in matrix for '($scenario)'/'($receiver_platform)'. Known: ($known_recv_versions | str join ', ')"}
         }
+        # Enforce version pairing policy.
+        let pairing = ($sc.version_pairing? | default "cross_product")
+        match $pairing {
+            "cross_product" => {}
+            "explicit_pairs" => {
+                let vp = ($sc.version_pairs? | default [])
+                if ($vp | is-empty) {
+                    error make {msg: $"Scenario '($scenario)' has explicit_pairs but empty version_pairs list"}
+                }
+                let pair_ok = ($vp | any {|p| ($p.sender == $sender_version) and ($p.receiver == $receiver_version)})
+                if not $pair_ok {
+                    error make {msg: $"Version pair sender=($sender_version)/receiver=($receiver_version) not in explicit_pairs for scenario '($scenario)'"}
+                }
+            }
+            _ => {
+                error make {msg: $"Scenario '($scenario)': unknown version_pairing '($pairing)'"}
+            }
+        }
     }
 
     $flow_id

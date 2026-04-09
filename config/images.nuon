@@ -13,6 +13,9 @@
       },
       "v33": {
         "default": "nextcloud:v33.0.3"
+      },
+      "v34": {
+        "default": "nextcloud-contacts:sta-ocm-m6"
       }
     }
   },

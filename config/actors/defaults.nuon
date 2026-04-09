@@ -21,6 +21,30 @@
           "ocmgo": "einstein"
         }
       }
+    },
+    "contact-wayf": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie"
+        }
+      }
+    },
+    "contact-token": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie"
+        }
+      }
     }
   }
 }

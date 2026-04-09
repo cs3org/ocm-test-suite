@@ -10,20 +10,22 @@
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "mitm": true
     },
     "contact-token": {
-      "enabled": false,
+      "enabled": true,
       "flow_id": "contact-token",
       "browsers": [
         "chrome"
@@ -31,21 +33,19 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
-          "v32",
-          "v33"
+          "v34"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
-          "v32",
-          "v33"
+          "v34"
         ]
       },
       "mitm": true
     },
     "contact-wayf": {
-      "enabled": false,
+      "enabled": true,
       "flow_id": "contact-wayf",
       "browsers": [
         "chrome"
@@ -53,15 +53,13 @@
       "sender": {
         "platform": "nextcloud",
         "version_lines": [
-          "v32",
-          "v33"
+          "v34"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
-          "v32",
-          "v33"
+          "v34"
         ]
       },
       "mitm": true

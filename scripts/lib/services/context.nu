@@ -45,7 +45,7 @@ export def setup-run-context [
     let execution_id = (new-execution-id)
     # Default suite_id to execution_id for uniform metadata on single runs.
     let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
-    let artifacts_base = (init-artifact-dirs $cell.artifact_name $execution_id)
+    let artifacts_base = (init-artifact-dirs $cell.flow_id $cell.pair $execution_id)
 
     let spec_entrypoint = $"cypress/e2e/($cell.scenario_module)/index.cy.ts"
     let overlay = (write-compose-overlays
@@ -81,7 +81,7 @@ export def setup-run-context [
         $cell.artifact_name $started_at $overlay.stack_id
         --suite-id $eff_suite_id --suite-kind $suite_kind)
 
-    write-last-execution-id $cell.artifact_name $execution_id
+    write-last-execution-id $cell.flow_id $cell.pair $execution_id
 
     {
         cell: $cell,

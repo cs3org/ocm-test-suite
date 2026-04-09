@@ -1,6 +1,7 @@
 # Compose overlay writer.
 # Generates per-execution overlay fragments under /tmp/ocmts/<execution_id>/compose.d/
-# and copies them to artifacts/<name>/<execution_id>/compose/inputs/ for durable access.
+# and copies them to artifacts/<flow_id>/<pair>/<execution_id>/compose/inputs/ for
+# durable access.
 # Dispatches to topology-specific writers; see compose/ subdirectory for details.
 
 use ./compose/topology-two-party.nu [write-two-party-overlays]

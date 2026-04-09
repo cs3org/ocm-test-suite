@@ -155,8 +155,9 @@ def "main up run" [
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
-                $ctx.cell.artifact_name "infra-failed" 1 $ctx.started_at $finished_at)
+            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+                "infra-failed" 1 $ctx.started_at $finished_at)
         }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose base validation failed: ($e.msg)"}
@@ -191,8 +192,9 @@ def "main up run" [
         }
         publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
-                $ctx.cell.artifact_name "infra-failed" $up_exit $ctx.started_at $finished_at)
+            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+                "infra-failed" $up_exit $ctx.started_at $finished_at)
         }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up platform failed: ($up_err.msg)"}
@@ -230,8 +232,9 @@ def "main up run" [
         }
         publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
-                $ctx.cell.artifact_name "infra-failed" 1 $ctx.started_at $finished_at)
+            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+                "infra-failed" 1 $ctx.started_at $finished_at)
         }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
@@ -284,8 +287,9 @@ def "main up run" [
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
-                $ctx.cell.artifact_name "cleanup-failed" 1 $ctx.started_at $finished_at)
+            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+                "cleanup-failed" 1 $ctx.started_at $finished_at)
         }
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $down_fail_msg}
@@ -301,8 +305,9 @@ def "main up run" [
         --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
     emit-publish-envelope $ctx.artifacts_base
     if $ctx.suite_kind == "suite" {
-        (record-suite-run-safe $ctx.suite_id $ctx.execution_id $ctx.cell.cell_id
-            $ctx.cell.artifact_name $cypress_status $cypress_exit $ctx.started_at $finished_at)
+        (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+            $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+            $cypress_status $cypress_exit $ctx.started_at $finished_at)
     }
     cleanup-temp $ctx.execution_id $preserve_temp
     print $"Done. status=($cypress_status) execution_id=($ctx.execution_id)"
@@ -494,11 +499,11 @@ def "main down" [
         $scenario $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
-        read-last-execution-id $cell.artifact_name
+        read-last-execution-id $cell.flow_id $cell.pair
     } else {
         $execution_id
     }
-    let artifacts_base = (execution-artifacts-path $root $cell.artifact_name $exec_id)
+    let artifacts_base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
     let stack_id_file = ($artifacts_base | path join "compose" "stack_id.txt")
     if not ($stack_id_file | path exists) {

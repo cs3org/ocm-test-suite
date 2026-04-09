@@ -71,7 +71,7 @@ ignored by git.
 
 Default layout:
 
-- `artifacts/<artifact_name>/<execution_id>/`
+- `artifacts/<flow_id>/<pair>/<execution_id>/`
   - `compose/` rendered compose inputs
   - `cypress/` screenshots, videos, downloads
     - `videos/*.mp4` (when video is enabled)
@@ -82,9 +82,19 @@ Default layout:
       (captured by both `services up run` and `test run`).
     - `platform.log`, `platform-db.log`, `platform-cache.log` collected by
       `services up run` before teardown, or by
-      `nu scripts/ocmts.nu artifacts collect --include-logs ...` while the stack
-      is still up.
+      `nu scripts/ocmts.nu artifacts collect --include-logs ...` while the
+      stack is still up.
   - `meta/` cell/run/result metadata and suite envelope outputs
+- `artifacts/<flow_id>/<pair>/LAST_EXECUTION_ID` marker written at run setup
+- `artifacts/suites/LATEST_SUITE_ID` latest suite marker
+- `artifacts/suites/runs/<suite_id>.json` suite records (schema v2)
+
+Where `pair` is role-ordered and opaque:
+
+- 1-party: `<sender_platform>-<sender_version>`
+  (example: `nextcloud-v33`)
+- 2-party: `<sender_platform>-<sender_version>-<receiver_platform>-<receiver_version>`
+  (example: `nextcloud-v33-nextcloud-v33`)
 
 ## Image overrides
 

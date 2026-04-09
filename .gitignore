@@ -1,5 +1,7 @@
 /artifacts/
 /node_modules/
+/cypress/support/adapters/**/*.js
+/cypress/support/adapters/**/*.js.map
 __pycache__/
 *.py[cod]
 bun.lock

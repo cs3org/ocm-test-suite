@@ -1,6 +1,6 @@
 {
-    sender: {},
-    receiver: {
-        account: "marie"
-    }
+  "sender": {},
+  "receiver": {
+    "account": "marie"
+  }
 }

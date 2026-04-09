@@ -71,11 +71,11 @@ def "main run" [
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version $flow_id)
     let exec_id = if ($execution_id | is-empty) {
-        read-last-execution-id $cell.artifact_name
+        read-last-execution-id $cell.flow_id $cell.pair
     } else {
         $execution_id
     }
-    let artifacts_base = (execution-artifacts-path $root $cell.artifact_name $exec_id)
+    let artifacts_base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
     let art_compose = ($artifacts_base | path join "compose")
     let stack_id_file = ($art_compose | path join "stack_id.txt")
     if not ($stack_id_file | path exists) {

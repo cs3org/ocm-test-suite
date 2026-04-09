@@ -43,12 +43,25 @@ export def validate-artifact-name [artifact_name: string] {
     validate-path-segment $artifact_name "artifact_name"
 }
 
-# Construct the artifact run path for an execution, validating both names first.
-# Rejects path traversal and invalid shapes before any path use.
-export def execution-artifacts-path [root: string, artifact_name: string, execution_id: string] {
-    let safe_name = (validate-artifact-name $artifact_name)
+# Validate a pair segment: opaque role-ordered slug, no slashes or traversal.
+# Accepts "nextcloud-v33" (1p) or "nextcloud-v33-nextcloud-v33" (2p).
+export def validate-pair [pair: string] {
+    validate-path-segment $pair "pair"
+}
+
+# Construct the artifact run path for an execution using the new path contract:
+#   artifacts/<flow_id>/<pair>/<execution_id>
+# Validates all three locator fields before any path use.
+export def execution-artifacts-path [
+    root: string,
+    flow_id: string,
+    pair: string,
+    execution_id: string,
+] {
+    let safe_flow = (validate-path-segment $flow_id "flow_id")
+    let safe_pair = (validate-pair $pair)
     let safe_id = (validate-execution-id $execution_id)
-    $root | path join "artifacts" $safe_name $safe_id
+    $root | path join "artifacts" $safe_flow $safe_pair $safe_id
 }
 
 # Construct the temp run path for an execution, validating id first.

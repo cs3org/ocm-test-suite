@@ -134,6 +134,7 @@ def build-implemented-cells-json [rules: record, rules_path: string, cap_map_pat
                 ($c.cell_id): {
                     scenario: $c.scenario,
                     flow_id: $c.flow_id,
+                    pair: $c.pair,
                     browser: $c.browser,
                     sender_platform: $c.sender_platform,
                     sender_version: $c.sender_version,
@@ -169,6 +170,7 @@ def build-matrix-rules-json [rules: record, rules_path: string] {
         scenarios: ($cell_list | each {|c| {
             scenario: $c.scenario,
             flow_id: $c.flow_id,
+            pair: $c.pair,
             enabled: $c.enabled,
             browser: $c.browser,
             sender_platform: $c.sender_platform,
@@ -355,10 +357,10 @@ export def ingest-site [
         let run_count = ($suite_record.runs | length)
         print $"Ingest mode: suite suite_id=($eff_id) runs=($run_count)"
         for run in $suite_record.runs {
-            let run_dir = ($artifacts_root | path join $run.artifact_name $run.execution_id)
+            let run_dir = ($artifacts_root | path join $run.flow_id $run.pair $run.execution_id)
             let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
             if not ($mf_path | path exists) {
-                print $"WARNING: no suite-manifest for ($run.artifact_name)/($run.execution_id), skipping"
+                print $"WARNING: no suite-manifest for ($run.flow_id)/($run.pair)/($run.execution_id), skipping"
                 continue
             }
             let m = (open $mf_path)
@@ -367,7 +369,9 @@ export def ingest-site [
             $entries = ($entries | append {
                 manifest: $m,
                 run_dir: $run_dir,
-                artifact_name: $run.artifact_name,
+                flow_id: $run.flow_id,
+                pair: $run.pair,
+                artifact_name: ($run.artifact_name? | default ""),
                 exec_id: $run.execution_id,
                 cell_id: $run.cell_id,
                 result_id: $result_id,
@@ -376,13 +380,13 @@ export def ingest-site [
         }
     } else {
         for cell in $cell_list {
-            let marker = ($artifacts_root | path join $cell.artifact_name "LAST_EXECUTION_ID")
+            let marker = ($artifacts_root | path join $cell.flow_id $cell.pair "LAST_EXECUTION_ID")
             if not ($marker | path exists) { continue }
             let exec_id = (open --raw $marker | str trim)
-            let run_dir = ($artifacts_root | path join $cell.artifact_name $exec_id)
+            let run_dir = ($artifacts_root | path join $cell.flow_id $cell.pair $exec_id)
             let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
             if not ($mf_path | path exists) {
-                print $"WARNING: no suite-manifest for ($cell.artifact_name)/($exec_id), skipping"
+                print $"WARNING: no suite-manifest for ($cell.flow_id)/($cell.pair)/($exec_id), skipping"
                 continue
             }
             let m = (open $mf_path)
@@ -391,6 +395,8 @@ export def ingest-site [
             $entries = ($entries | append {
                 manifest: $m,
                 run_dir: $run_dir,
+                flow_id: $cell.flow_id,
+                pair: $cell.pair,
                 artifact_name: $cell.artifact_name,
                 exec_id: $exec_id,
                 cell_id: $cell.cell_id,
@@ -426,9 +432,9 @@ export def ingest-site [
     mut total_files = 0
     for entry in $entries {
         let dst_base = ($public_dir
-            | path join "artifacts" $entry.artifact_name $entry.exec_id)
+            | path join "artifacts" $entry.flow_id $entry.pair $entry.exec_id)
         let count = (copy-allowlisted-artifacts $entry.run_dir $dst_base)
-        print $"  ($entry.artifact_name)/($entry.exec_id): ($count) files"
+        print $"  ($entry.flow_id)/($entry.pair)/($entry.exec_id): ($count) files"
         $total_files = $total_files + $count
     }
     print $"Ingest complete: ($entries | length) runs, ($total_files) artifact files"

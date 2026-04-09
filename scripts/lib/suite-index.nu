@@ -1,17 +1,17 @@
 # Suite index: create, track, and query suite runs.
 # Storage contract:
-#   artifacts/__suites/LATEST_SUITE_ID
-#   artifacts/__suites/suites/<suite_id>.json
+#   artifacts/suites/LATEST_SUITE_ID
+#   artifacts/suites/runs/<suite_id>.json
 
 use ./domain/core/ocmts-root.nu [get-ocmts-root]
 use ./run-metadata.nu [utc-now]
 
 def suites-dir [] {
-    (get-ocmts-root) | path join "artifacts/__suites"
+    (get-ocmts-root) | path join "artifacts/suites"
 }
 
 def suite-record-path [suite_id: string] {
-    (suites-dir) | path join "suites" $"($suite_id).json"
+    (suites-dir) | path join "runs" $"($suite_id).json"
 }
 
 def latest-marker-path [] {
@@ -44,10 +44,10 @@ export def init-suite-record [
     cell_ids: list<string>,
 ] {
     let safe_id = (validate-suite-id $suite_id)
-    let dir = ((suites-dir) | path join "suites")
+    let dir = ((suites-dir) | path join "runs")
     mkdir $dir
     let record = {
-        schema_version: 1,
+        schema_version: 2,
         suite_id: $safe_id,
         suite_kind: $suite_kind,
         started_at: (utc-now),
@@ -62,13 +62,16 @@ export def init-suite-record [
 # Write the LATEST_SUITE_ID marker file.
 export def update-latest-suite-id [suite_id: string] {
     let safe_id = (validate-suite-id $suite_id)
+    mkdir (suites-dir)
     $safe_id | save --force (latest-marker-path)
 }
 
-# Append a run entry to the suite record.
+# Append a run entry to the suite record (schema v2).
 # Errors propagate; use record-suite-run-safe for fire-and-forget calls.
 export def record-suite-run [
     suite_id: string,
+    flow_id: string,
+    pair: string,
     execution_id: string,
     cell_id: string,
     artifact_name: string,
@@ -84,6 +87,8 @@ export def record-suite-run [
     }
     let rec = (open $path)
     let entry = {
+        flow_id: $flow_id,
+        pair: $pair,
         execution_id: $execution_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
@@ -98,6 +103,8 @@ export def record-suite-run [
 # Safe variant of record-suite-run - prints a warning instead of erroring.
 export def record-suite-run-safe [
     suite_id: string,
+    flow_id: string,
+    pair: string,
     execution_id: string,
     cell_id: string,
     artifact_name: string,
@@ -107,7 +114,7 @@ export def record-suite-run-safe [
     finished_at: string,
 ] {
     try {
-        (record-suite-run $suite_id $execution_id $cell_id $artifact_name
+        (record-suite-run $suite_id $flow_id $pair $execution_id $cell_id $artifact_name
             $status $exit_code $started_at $finished_at)
     } catch {|e|
         print $"WARNING: record-suite-run failed for ($suite_id): ($e.msg)"
@@ -154,15 +161,16 @@ export def get-latest-suite-id [] {
 
 # List all suite records sorted by suite_id descending.
 export def list-suite-records [] {
-    let dir = ((suites-dir) | path join "suites")
+    let dir = ((suites-dir) | path join "runs")
     if not ($dir | path exists) { return [] }
     glob ($dir | path join "*.json")
         | each {|p| open $p}
         | sort-by suite_id --reverse
 }
 
-# Resolve and load a suite record from the __suites index.
+# Resolve and load a suite record from the suites index.
 # artifacts_root must be the artifacts/ directory (e.g. <ocmts-root>/artifacts).
+# Validates suite_id before path use.
 # Returns {suite_id: string, suite_record: record}.
 export def load-suite-entry [
     artifacts_root: string,
@@ -170,7 +178,7 @@ export def load-suite-entry [
     use_latest: bool,
 ] {
     let eff_id = if $use_latest {
-        let marker = ($artifacts_root | path join "__suites/LATEST_SUITE_ID")
+        let marker = ($artifacts_root | path join "suites/LATEST_SUITE_ID")
         if not ($marker | path exists) {
             error make {msg: $"LATEST_SUITE_ID marker not found: ($marker)"}
         }
@@ -178,9 +186,17 @@ export def load-suite-entry [
     } else {
         $explicit_id
     }
-    let suite_path = ($artifacts_root | path join "__suites/suites" $"($eff_id).json")
+    # Validate before path join to reject traversal.
+    let safe_id = if ($eff_id | str contains "..") {
+        error make {msg: $"suite_id path traversal rejected: ($eff_id)"}
+    } else if not ($eff_id =~ '^\d{8}t\d{6}-[0-9a-f]{8}$') {
+        error make {msg: $"suite_id shape invalid: ($eff_id)"}
+    } else {
+        $eff_id
+    }
+    let suite_path = ($artifacts_root | path join "suites/runs" $"($safe_id).json")
     if not ($suite_path | path exists) {
         error make {msg: $"Suite record not found: ($suite_path)"}
     }
-    {suite_id: $eff_id, suite_record: (open $suite_path)}
+    {suite_id: $safe_id, suite_record: (open $suite_path)}
 }

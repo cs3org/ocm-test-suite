@@ -2,7 +2,35 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as ts from "typescript";
 
-type Capability = "login" | "share-with.sender" | "share-with.receiver";
+const supportedCapabilities = [
+  "login",
+  "share-with.sender",
+  "share-with.receiver",
+  "contact-token.sender",
+  "contact-token.receiver",
+  "contact-wayf.sender",
+  "contact-wayf.receiver",
+  "provider-identity",
+] as const;
+
+type Capability = (typeof supportedCapabilities)[number];
+
+const supportedCapabilitySet: ReadonlySet<string> = new Set(supportedCapabilities);
+
+const registryCapabilityTables = [
+  { tableName: "loginAdapters", capability: "login" },
+  { tableName: "shareWithSenderAdapters", capability: "share-with.sender" },
+  { tableName: "shareWithReceiverAdapters", capability: "share-with.receiver" },
+  { tableName: "contactTokenSenderAdapters", capability: "contact-token.sender" },
+  { tableName: "contactTokenReceiverAdapters", capability: "contact-token.receiver" },
+  { tableName: "contactWayfSenderAdapters", capability: "contact-wayf.sender" },
+  { tableName: "contactWayfReceiverAdapters", capability: "contact-wayf.receiver" },
+  { tableName: "providerIdentityAdapters", capability: "provider-identity" },
+] as const satisfies ReadonlyArray<{ tableName: string; capability: Capability }>;
+
+function isCapability(value: string): value is Capability {
+  return supportedCapabilitySet.has(value);
+}
 
 type AdapterCapabilitiesJsonV1 = {
   schema_version: 1;
@@ -39,7 +67,7 @@ function parseAdapterCapabilitiesJsonV1(raw: string): AdapterCapabilitiesJsonV1 
 
     const caps: Capability[] = [];
     for (const cap of value) {
-      if (cap !== "login" && cap !== "share-with.sender" && cap !== "share-with.receiver") {
+      if (!isCapability(cap)) {
         throw new Error(
           `"adapters.${key}" has unknown capability: ${JSON.stringify(cap)}.`,
         );
@@ -144,10 +172,6 @@ async function main(): Promise<number> {
     ts.ScriptKind.TS,
   );
 
-  const loginKeys = extractAdapterKeysFromTable(sourceFile, "loginAdapters");
-  const senderKeys = extractAdapterKeysFromTable(sourceFile, "shareWithSenderAdapters");
-  const receiverKeys = extractAdapterKeysFromTable(sourceFile, "shareWithReceiverAdapters");
-
   const expected = new Map<string, Set<Capability>>();
   const addCap = (key: string, cap: Capability) => {
     const set = expected.get(key) ?? new Set<Capability>();
@@ -155,9 +179,10 @@ async function main(): Promise<number> {
     expected.set(key, set);
   };
 
-  Array.from(loginKeys).forEach((key) => addCap(key, "login"));
-  Array.from(senderKeys).forEach((key) => addCap(key, "share-with.sender"));
-  Array.from(receiverKeys).forEach((key) => addCap(key, "share-with.receiver"));
+  for (const { tableName, capability } of registryCapabilityTables) {
+    const keys = extractAdapterKeysFromTable(sourceFile, tableName);
+    Array.from(keys).forEach((key) => addCap(key, capability));
+  }
 
   const expectedKeys = new Set(expected.keys());
   const jsonKeys = new Set(Object.keys(capabilitiesJson.adapters));

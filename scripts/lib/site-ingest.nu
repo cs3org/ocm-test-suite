@@ -59,7 +59,7 @@ def derive-cell-impl-info [cell: record, adapters: record] {
 
     let flow_sender_caps = if $flow_id == "login" {
         ["login"]
-    } else if $flow_id == "share-with" {
+    } else if $flow_id in ["share-with", "contact-wayf", "contact-token"] {
         ["login", "share-with.sender"]
     } else {
         null
@@ -92,7 +92,7 @@ def derive-cell-impl-info [cell: record, adapters: record] {
 
     if $cell.is_two_party {
         let receiver_key = $"($cell.receiver_platform)/($cell.receiver_version)"
-        let flow_receiver_caps = if $flow_id == "share-with" {
+        let flow_receiver_caps = if $flow_id in ["share-with", "contact-wayf", "contact-token"] {
             ["login", "share-with.receiver"]
         } else {
             []

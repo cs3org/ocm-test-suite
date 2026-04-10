@@ -2,6 +2,13 @@
 
 import type { LoginAdapter } from "../contracts/login";
 import type {
+  ContactTokenReceiverAdapter,
+  ContactTokenSenderAdapter,
+  ContactWayfReceiverAdapter,
+  ContactWayfSenderAdapter,
+  ProviderIdentityAdapter,
+} from "../contracts/contact";
+import type {
   ShareWithReceiverAdapter,
   ShareWithSenderAdapter,
 } from "../contracts/share-with";
@@ -18,6 +25,18 @@ import {
   nextcloudV33ShareWithReceiverAdapter,
   nextcloudV33ShareWithSenderAdapter,
 } from "./nextcloud/v33/share-with-adapter";
+import { nextcloudV34LoginAdapter } from "./nextcloud/v34/login-adapter";
+import {
+  nextcloudV34ContactTokenReceiverAdapter,
+  nextcloudV34ContactTokenSenderAdapter,
+  nextcloudV34ContactWayfReceiverAdapter,
+  nextcloudV34ContactWayfSenderAdapter,
+  nextcloudV34ProviderIdentityAdapter,
+} from "./nextcloud/v34/contact-adapter";
+import {
+  nextcloudV34ShareWithReceiverAdapter,
+  nextcloudV34ShareWithSenderAdapter,
+} from "./nextcloud/v34/share-with-adapter";
 
 export type AdapterRef = {
   platform: string;
@@ -28,6 +47,7 @@ const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
   nextcloud: {
     v32: nextcloudV32LoginAdapter,
     v33: nextcloudV33LoginAdapter,
+    v34: nextcloudV34LoginAdapter,
   },
   ocmgo: {
     v1: ocmgoV1LoginAdapter,
@@ -38,6 +58,7 @@ const shareWithSenderAdapters: Record<string, Record<string, ShareWithSenderAdap
   nextcloud: {
     v32: nextcloudV32ShareWithSenderAdapter,
     v33: nextcloudV33ShareWithSenderAdapter,
+    v34: nextcloudV34ShareWithSenderAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareWithSenderAdapter,
@@ -48,9 +69,40 @@ const shareWithReceiverAdapters: Record<string, Record<string, ShareWithReceiver
   nextcloud: {
     v32: nextcloudV32ShareWithReceiverAdapter,
     v33: nextcloudV33ShareWithReceiverAdapter,
+    v34: nextcloudV34ShareWithReceiverAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareWithReceiverAdapter,
+  },
+};
+
+const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSenderAdapter>> = {
+  nextcloud: {
+    v34: nextcloudV34ContactTokenSenderAdapter,
+  },
+};
+
+const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenReceiverAdapter>> = {
+  nextcloud: {
+    v34: nextcloudV34ContactTokenReceiverAdapter,
+  },
+};
+
+const contactWayfSenderAdapters: Record<string, Record<string, ContactWayfSenderAdapter>> = {
+  nextcloud: {
+    v34: nextcloudV34ContactWayfSenderAdapter,
+  },
+};
+
+const contactWayfReceiverAdapters: Record<string, Record<string, ContactWayfReceiverAdapter>> = {
+  nextcloud: {
+    v34: nextcloudV34ContactWayfReceiverAdapter,
+  },
+};
+
+const providerIdentityAdapters: Record<string, Record<string, ProviderIdentityAdapter>> = {
+  nextcloud: {
+    v34: nextcloudV34ProviderIdentityAdapter,
   },
 };
 
@@ -103,4 +155,24 @@ export function resolveShareWithSenderAdapter(ref: AdapterRef): ShareWithSenderA
 
 export function resolveShareWithReceiverAdapter(ref: AdapterRef): ShareWithReceiverAdapter {
   return resolveFromTable("share-with receiver adapter", shareWithReceiverAdapters, ref);
+}
+
+export function resolveContactTokenSenderAdapter(ref: AdapterRef): ContactTokenSenderAdapter {
+  return resolveFromTable("contact token sender adapter", contactTokenSenderAdapters, ref);
+}
+
+export function resolveContactTokenReceiverAdapter(ref: AdapterRef): ContactTokenReceiverAdapter {
+  return resolveFromTable("contact token receiver adapter", contactTokenReceiverAdapters, ref);
+}
+
+export function resolveContactWayfSenderAdapter(ref: AdapterRef): ContactWayfSenderAdapter {
+  return resolveFromTable("contact WAYF sender adapter", contactWayfSenderAdapters, ref);
+}
+
+export function resolveContactWayfReceiverAdapter(ref: AdapterRef): ContactWayfReceiverAdapter {
+  return resolveFromTable("contact WAYF receiver adapter", contactWayfReceiverAdapters, ref);
+}
+
+export function resolveProviderIdentityAdapter(ref: AdapterRef): ProviderIdentityAdapter {
+  return resolveFromTable("provider identity adapter", providerIdentityAdapters, ref);
 }

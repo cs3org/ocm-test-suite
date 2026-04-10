@@ -11,6 +11,16 @@
       "share-with.sender",
       "share-with.receiver"
     ],
+    "nextcloud/v34": [
+      "contact-token.receiver",
+      "contact-token.sender",
+      "contact-wayf.receiver",
+      "contact-wayf.sender",
+      "login",
+      "provider-identity",
+      "share-with.sender",
+      "share-with.receiver"
+    ],
     "ocmgo/v1": [
       "login",
       "share-with.sender",

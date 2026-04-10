@@ -9,7 +9,11 @@ services:
         aliases:
           - ${RECEIVER_PARTY_HOST}
     healthcheck:
-      test: ["CMD-SHELL", "curl -sfL http://localhost/status.php | grep -q '\"installed\":true'"]
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sfL http://localhost/status.php | grep -q ''"installed":true''',
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -34,6 +38,8 @@ services:
       - MYSQL_HOST=${RECEIVER_MYSQL_HOST}
       - REDIS_HOST=${RECEIVER_REDIS_HOST}
       - NEXTCLOUD_SEEDED_USERS_FILE=/ocmts/actors/platforms/nextcloud.nuon
+      - CONTACTS_ENABLE_OCM_INVITES=true
+      - CONTACTS_OCM_INVITES_MODE=advanced
       - HTTP_PROXY=${RECEIVER_HTTP_PROXY}
       - HTTPS_PROXY=${RECEIVER_HTTPS_PROXY}
       - NO_PROXY=${RECEIVER_NO_PROXY}
@@ -52,7 +58,7 @@ services:
     image: ${VALKEY_IMAGE}
     networks: [ocm-net]
     healthcheck:
-      test: ["CMD","valkey-cli","ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 2s
       timeout: 3s
       retries: 30

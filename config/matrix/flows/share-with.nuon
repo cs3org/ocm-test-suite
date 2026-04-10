@@ -6,11 +6,59 @@
   "mitm": true,
   "browsers": null,
   "include": [
-    { "sender": ["nextcloud"], "receiver": ["nextcloud"], "version_pairing": "cross_product" },
-    { "sender": ["nextcloud"], "receiver": ["ocmgo"], "version_pairing": "cross_product" },
-    { "sender": ["ocmgo"], "receiver": ["nextcloud"], "version_pairing": "cross_product" },
-    { "sender": ["ocmgo"], "receiver": ["ocmgo"], "version_pairing": "cross_product" }
+    {
+      "sender": [
+        "nextcloud"
+      ],
+      "receiver": [
+        "nextcloud"
+      ],
+      "version_pairing": "cross_product"
+    },
+    {
+      "sender": [
+        "nextcloud"
+      ],
+      "receiver": [
+        "ocmgo"
+      ],
+      "version_pairing": "cross_product"
+    },
+    {
+      "sender": [
+        "ocmgo"
+      ],
+      "receiver": [
+        "nextcloud"
+      ],
+      "version_pairing": "cross_product"
+    },
+    {
+      "sender": [
+        "ocmgo"
+      ],
+      "receiver": [
+        "ocmgo"
+      ],
+      "version_pairing": "cross_product"
+    }
   ],
-  "versions_sender": {},
-  "versions_receiver": {}
+  "versions_sender": {
+    "nextcloud": [
+      "v32",
+      "v33"
+    ],
+    "ocmgo": [
+      "v1"
+    ]
+  },
+  "versions_receiver": {
+    "nextcloud": [
+      "v32",
+      "v33"
+    ],
+    "ocmgo": [
+      "v1"
+    ]
+  }
 }

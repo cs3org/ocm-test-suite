@@ -6,7 +6,18 @@
   "mitm": false,
   "browsers": null,
   "include": {
-    "senders": ["nextcloud", "ocmgo"]
+    "senders": [
+      "nextcloud",
+      "ocmgo"
+    ]
   },
-  "versions_sender": {}
+  "versions_sender": {
+    "nextcloud": [
+      "v32",
+      "v33"
+    ],
+    "ocmgo": [
+      "v1"
+    ]
+  }
 }

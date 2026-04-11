@@ -78,16 +78,17 @@ function clickRenameAction(): void {
       return $body.find(sel).filter(":visible").length > 0;
     });
 
-    if (!selector) {
-      throw new Error(
-        [
-          "Could not find Nextcloud rename action button.",
-          `Tried selectors: ${candidates.join(", ")}`,
-        ].join(" "),
-      );
+    if (selector) {
+      cy.get(selector, { timeout: 20000 }).filter(":visible").first().click();
+      return;
     }
 
-    cy.get(selector, { timeout: 20000 }).filter(":visible").first().click();
+    // Some Nextcloud versions mount Rename as a visible menu item (text) rather
+    // than a row action button with stable selectors.
+    cy.contains("button, a, [role=\"menuitem\"], li", /^\s*Rename\s*$/, { timeout: 20000 })
+      .filter(":visible")
+      .first()
+      .click();
   });
 }
 

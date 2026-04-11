@@ -98,27 +98,49 @@ export function handleShareAcceptance(
   sharedFileName: string,
   options: { remainingAttempts: number },
 ): void {
-  cy.get("body").then(($body) => {
-    const hasRemoteShareDialogButton =
-      $body.find('button:contains("Add remote share")').filter(":visible").length > 0;
+  const pollTimeoutMs = 15000;
+  const pollIntervalMs = 350;
+  const startedAt = Date.now();
 
-    if (hasRemoteShareDialogButton) {
-      if (options.remainingAttempts <= 0) {
-        throw new Error("Remote share dialog kept appearing after retries");
+  const hasRemoteShareDialogButton = ($body: JQuery<HTMLElement>) => {
+    return $body.find('button:contains("Add remote share")').filter(":visible").length > 0;
+  };
+
+  const pollForRemoteShareDialogButton = (): Cypress.Chainable<boolean> => {
+    return cy.get("body").then(($body) => {
+      if (hasRemoteShareDialogButton($body)) {
+        return cy.wrap(true, { log: false });
       }
 
-      cy.contains("button", "Add remote share", { timeout: 20000 })
-        .should("be.visible")
-        .click();
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= pollTimeoutMs) {
+        return cy.wrap(false, { log: false });
+      }
 
-      cy.reload();
-      ensureFilesAppLoadedForShareAcceptance();
-      handleShareAcceptance(sharedFileName, {
-        remainingAttempts: options.remainingAttempts - 1,
+      return cy.wait(pollIntervalMs, { log: false }).then(() => {
+        return pollForRemoteShareDialogButton();
       });
+    });
+  };
+
+  pollForRemoteShareDialogButton().then((dialogVisible) => {
+    if (!dialogVisible) {
+      ensureFileExists(sharedFileName);
       return;
     }
 
-    ensureFileExists(sharedFileName);
+    if (options.remainingAttempts <= 0) {
+      throw new Error("Remote share dialog kept appearing after retries");
+    }
+
+    cy.contains("button", "Add remote share", { timeout: 20000 })
+      .should("be.visible")
+      .click();
+
+    cy.reload();
+    ensureFilesAppLoadedForShareAcceptance();
+    handleShareAcceptance(sharedFileName, {
+      remainingAttempts: options.remainingAttempts - 1,
+    });
   });
 }

@@ -26,6 +26,11 @@ def evidence-path-allowed [rel: string] {
 # (scenario, sender_version, receiver_version, browser) for two-party,
 # or (scenario, sender_version, browser) for one-party. Includes disabled
 # scenarios (placeholder universe). Does NOT call assert-scenario-enabled.
+#
+# Intentionally best-effort: each compute-cell call is wrapped in try/catch.
+# On failure the row is warned and dropped (null-filtered). This differs from
+# expand-matrix-cells (matrix-cells.nu) which fails hard on any cell error.
+# Site ingest favors a partial result over a complete abort.
 def compute-matrix-cells [rules: record] {
     $rules.scenarios | items {|scenario, sc|
         let recv_platform = ($sc.receiver?.platform? | default "")

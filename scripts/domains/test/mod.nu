@@ -1,7 +1,7 @@
 # Test domain: test execution against an already-up stack.
 
 use ../../lib/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
-use ../../lib/matrix-expand.nu [expand-version-pairs]
+use ../../lib/matrix-cells.nu [expand-matrix-cells]
 use ../../lib/artifacts-init.nu [read-last-execution-id]
 use ../../lib/compose-validate.nu [validate-compose-strict]
 use ../../lib/execution-id.nu [execution-artifacts-path]
@@ -162,31 +162,7 @@ def "main suite" [
     let rules = open ($root | path join "config/matrix-rules.nuon")
     let ocmts_script = ($root | path join "scripts/ocmts.nu")
 
-    let all_cells = ($rules.scenarios | items {|scenario, sc|
-        let recv_platform = ($sc.receiver?.platform? | default "")
-        let flow_id = ($sc.flow_id? | default $scenario)
-        let is_two_party = ($sc.receiver? != null)
-        let version_pairs = (expand-version-pairs $sc)
-        $version_pairs | each {|vp|
-            $sc.browsers | each {|browser|
-                let cell_id = if $is_two_party {
-                    $"($flow_id)__($sc.sender.platform)-($vp.sender_version)__($recv_platform)-($vp.receiver_version)"
-                } else {
-                    $"($flow_id)__($sc.sender.platform)-($vp.sender_version)"
-                }
-                {
-                    scenario: $scenario,
-                    sender_platform: $sc.sender.platform,
-                    sender_version: $vp.sender_version,
-                    receiver_platform: $recv_platform,
-                    receiver_version: $vp.receiver_version,
-                    browser: $browser,
-                    enabled: ($sc.enabled? | default false),
-                    cell_id: $cell_id,
-                }
-            }
-        } | flatten
-    } | flatten)
+    let all_cells = (expand-matrix-cells $rules)
 
     let enabled_cells = ($all_cells | where enabled)
     let cells_to_run = if $max > 0 {

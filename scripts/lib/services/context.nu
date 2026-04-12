@@ -34,12 +34,14 @@ export def setup-run-context [
     let cell = (compute-cell
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version $flow_id)
-    let images = (resolve-images $sender_platform $sender_version)
+    let images = (resolve-images $sender_platform $sender_version
+        --scenario $scenario --flow-id $cell.flow_id)
     let receiver_image = if $cell.is_two_party {
-        resolve-receiver-image $receiver_platform $receiver_version
+        (resolve-receiver-image $receiver_platform $receiver_version
+            --scenario $scenario --flow-id $cell.flow_id)
     } else { "" }
     let mitmproxy_image = if $cell.is_two_party {
-        resolve-mitmproxy-image
+        resolve-mitmproxy-image --scenario $scenario --flow-id $cell.flow_id
     } else { "" }
 
     let execution_id = (new-execution-id)

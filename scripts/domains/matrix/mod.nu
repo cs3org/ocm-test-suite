@@ -4,15 +4,17 @@ use ../../lib/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/matrix-rules-gen.nu [generate-matrix-rules write-generated-matrix-rules]
-use ../../lib/matrix-expand.nu [expand-version-pairs]
+use ../../lib/matrix-cypress-gen.nu [write-cypress-matrix-files check-cypress-matrix-files]
+use ../../lib/matrix-cells.nu [expand-matrix-cells]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu matrix <verb> [flags]"
     print ""
     print "Verbs:"
-    print "  gen    Generate config/matrix-rules.nuon from config/matrix/"
-    print "  list   List all matrix cells from config/matrix-rules.nuon"
-    print "  cell   Compute cell_id and image refs for a matrix entry"
+    print "  gen                Generate config/matrix-rules.nuon from config/matrix/"
+    print "  gen cypress        Generate cypress/e2e/<flow>/matrix.ts files"
+    print "  list               List all matrix cells from config/matrix-rules.nuon"
+    print "  cell               Compute cell_id and image refs for a matrix entry"
 }
 
 # Generate config/matrix-rules.nuon from the modular SSOT at config/matrix/.
@@ -49,29 +51,35 @@ def "main gen" [
     }
 }
 
+# Generate cypress/e2e/<flow>/matrix.ts files from config/matrix-rules.nuon.
+def "main gen cypress" [
+    --check, # Compare generated output to existing files; error if different
+] {
+    let root = get-ocmts-root
+    let rules = open ($root | path join "config/matrix-rules.nuon")
+    if $check {
+        let results = (check-cypress-matrix-files $rules $root)
+        let failures = ($results | where {|r| not $r.ok})
+        if not ($failures | is-empty) {
+            for f in $failures {
+                print $"FAIL: ($f.path): ($f.diff)"
+            }
+            error make {msg: "cypress matrix check: generated output differs from on-disk files; run `matrix gen cypress` to update"}
+        }
+        print "cypress matrix check: OK"
+    } else {
+        let results = (write-cypress-matrix-files $rules $root)
+        for r in $results {
+            print $"Generated: ($r.path)"
+        }
+    }
+}
+
 # List all matrix cells defined in config/matrix-rules.nuon.
 def "main list" [--json] {
     let root = get-ocmts-root
     let rules = open ($root | path join "config/matrix-rules.nuon")
-    let cells = ($rules.scenarios | items {|scenario, sc|
-        let recv_platform = ($sc.receiver?.platform? | default "")
-        let version_pairs = (expand-version-pairs $sc)
-        $version_pairs | each {|vp|
-            $sc.browsers | each {|browser|
-                {
-                    scenario: $scenario,
-                    flow_id: ($sc.flow_id? | default $scenario),
-                    sender_platform: $sc.sender.platform,
-                    sender_version: $vp.sender_version,
-                    receiver_platform: $recv_platform,
-                    receiver_version: $vp.receiver_version,
-                    mitm: ($sc.mitm? | default false),
-                    browser: $browser,
-                    enabled: ($sc.enabled? | default false),
-                }
-            }
-        } | flatten
-    } | flatten)
+    let cells = (expand-matrix-cells $rules)
     if $json {
         $cells | to json
     } else {
@@ -95,11 +103,13 @@ def "main cell" [
     let cell = (compute-cell
         $scenario $sender_platform $sender_version $browser
         $receiver_platform $receiver_version $flow_id)
-    let images = (resolve-images $sender_platform $sender_version)
+    let images = (resolve-images $sender_platform $sender_version
+        --scenario $scenario --flow-id $flow_id)
     mut result = ($cell | insert images $images)
     if $cell.is_two_party {
-        let recv_img = (resolve-receiver-image $receiver_platform $receiver_version)
-        let mitm_img = (resolve-mitmproxy-image)
+        let recv_img = (resolve-receiver-image $receiver_platform $receiver_version
+            --scenario $scenario --flow-id $flow_id)
+        let mitm_img = (resolve-mitmproxy-image --scenario $scenario --flow-id $flow_id)
         $result = ($result | insert receiver_image $recv_img | insert mitmproxy_image $mitm_img)
     }
     if $json {

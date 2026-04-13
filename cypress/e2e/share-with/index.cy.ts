@@ -1,13 +1,12 @@
 /// <reference types="cypress" />
 
-import { resolveShareWithScenarioCase, shareWithCases } from "./cases";
+import { requireMatrixProofCell } from "../proof-cell";
+import { resolveShareWithScenarioCase } from "./cases";
+import { matrixCellIds } from "./matrix";
 import { defineShareWithScenarioCase } from "./steps";
 
-const proofCell = String(Cypress.expose("proof_cell") ?? "");
-const selected = proofCell.length > 0
-  ? [resolveShareWithScenarioCase(proofCell)]
-  : shareWithCases;
+const scenarioCase = resolveShareWithScenarioCase(
+  requireMatrixProofCell({ flowId: "share-with", matrixCellIds }),
+);
 
-for (const scenarioCase of selected) {
-  defineShareWithScenarioCase(scenarioCase);
-}
+defineShareWithScenarioCase(scenarioCase);

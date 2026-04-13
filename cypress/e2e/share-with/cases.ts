@@ -7,6 +7,7 @@ import {
   type AdapterRef,
 } from "../../support/adapters/registry";
 import type { ActorRef, ScenarioCase } from "../../support/contracts/share-with";
+import type { MatrixCellId } from "./matrix";
 
 const senderActor: ActorRef = {
   id: "sender",
@@ -49,7 +50,7 @@ function makeShareWithCase(senderRef: AdapterRef, receiverRef: AdapterRef): Scen
   };
 }
 
-export function resolveShareWithScenarioCase(caseId: string): ScenarioCase {
+export function resolveShareWithScenarioCase(caseId: MatrixCellId): ScenarioCase {
   const parts = caseId.split("__");
   if (parts.length !== 3 || parts[0] !== "share-with") {
     throw new Error(
@@ -64,10 +65,3 @@ export function resolveShareWithScenarioCase(caseId: string): ScenarioCase {
   const receiverRef = parsePlatformVersionToken(parts[2] ?? "");
   return { ...makeShareWithCase(senderRef, receiverRef), id: caseId };
 }
-
-export const shareWithCases: ScenarioCase[] = [
-  makeShareWithCase({ platform: "nextcloud", versionLine: "v33" }, { platform: "nextcloud", versionLine: "v33" }),
-  makeShareWithCase({ platform: "nextcloud", versionLine: "v33" }, { platform: "ocmgo", versionLine: "v1" }),
-  makeShareWithCase({ platform: "ocmgo", versionLine: "v1" }, { platform: "nextcloud", versionLine: "v33" }),
-  makeShareWithCase({ platform: "ocmgo", versionLine: "v1" }, { platform: "ocmgo", versionLine: "v1" }),
-];

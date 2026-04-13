@@ -3,6 +3,7 @@
 import type { AdapterRef } from "../../support/adapters/registry";
 import { resolveLoginAdapter } from "../../support/adapters/registry";
 import type { ActorRef, ScenarioCase } from "../../support/contracts/login";
+import type { MatrixCellId } from "./matrix";
 
 const nextcloudMichielActor: ActorRef = {
   id: "nextcloud-michiel",
@@ -56,7 +57,7 @@ function makeLoginCase(ref: AdapterRef): ScenarioCase {
   };
 }
 
-export function resolveLoginScenarioCase(caseId: string): ScenarioCase {
+export function resolveLoginScenarioCase(caseId: MatrixCellId): ScenarioCase {
   const parts = caseId.split("__");
   if (parts.length !== 2 || parts[0] !== "login") {
     throw new Error(
@@ -70,8 +71,3 @@ export function resolveLoginScenarioCase(caseId: string): ScenarioCase {
   const ref = parsePlatformVersionToken(parts[1] ?? "");
   return { ...makeLoginCase(ref), id: caseId };
 }
-
-export const loginCases: ScenarioCase[] = [
-  makeLoginCase({ platform: "nextcloud", versionLine: "v33" }),
-  makeLoginCase({ platform: "ocmgo", versionLine: "v1" }),
-];

@@ -20,6 +20,7 @@ import type {
   ShareWithSenderAdapter,
 } from "../../support/contracts/share-with";
 import type { LoginAdapter } from "../../support/contracts/login";
+import type { MatrixCellId } from "./matrix";
 
 export type ScenarioCase = {
   id: string;
@@ -78,7 +79,9 @@ function makeContactWayfCase(senderRef: AdapterRef, receiverRef: AdapterRef): Sc
   };
 }
 
-export function resolveContactWayfScenarioCase(caseId: string): ScenarioCase {
+export function resolveContactWayfScenarioCase(
+  caseId: MatrixCellId,
+): ScenarioCase {
   const parts = caseId.split("__");
   if (parts.length !== 3 || parts[0] !== "contact-wayf") {
     throw new Error(
@@ -93,10 +96,3 @@ export function resolveContactWayfScenarioCase(caseId: string): ScenarioCase {
   const receiverRef = parsePlatformVersionToken(parts[2] ?? "");
   return { ...makeContactWayfCase(senderRef, receiverRef), id: caseId };
 }
-
-export const contactWayfCases: ScenarioCase[] = [
-  makeContactWayfCase(
-    { platform: "nextcloud", versionLine: "v34" },
-    { platform: "nextcloud", versionLine: "v34" },
-  ),
-];

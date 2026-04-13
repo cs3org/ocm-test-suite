@@ -20,6 +20,7 @@ import type {
   ShareWithSenderAdapter,
 } from "../../support/contracts/share-with";
 import type { LoginAdapter } from "../../support/contracts/login";
+import type { MatrixCellId } from "./matrix";
 
 export type ScenarioCase = {
   id: string;
@@ -78,7 +79,9 @@ function makeContactTokenCase(senderRef: AdapterRef, receiverRef: AdapterRef): S
   };
 }
 
-export function resolveContactTokenScenarioCase(caseId: string): ScenarioCase {
+export function resolveContactTokenScenarioCase(
+  caseId: MatrixCellId,
+): ScenarioCase {
   const parts = caseId.split("__");
   if (parts.length !== 3 || parts[0] !== "contact-token") {
     throw new Error(
@@ -93,10 +96,3 @@ export function resolveContactTokenScenarioCase(caseId: string): ScenarioCase {
   const receiverRef = parsePlatformVersionToken(parts[2] ?? "");
   return { ...makeContactTokenCase(senderRef, receiverRef), id: caseId };
 }
-
-export const contactTokenCases: ScenarioCase[] = [
-  makeContactTokenCase(
-    { platform: "nextcloud", versionLine: "v34" },
-    { platform: "nextcloud", versionLine: "v34" },
-  ),
-];

@@ -1,13 +1,12 @@
 /// <reference types="cypress" />
 
-import { contactWayfCases, resolveContactWayfScenarioCase } from "./cases";
+import { requireMatrixProofCell } from "../proof-cell";
+import { resolveContactWayfScenarioCase } from "./cases";
+import { matrixCellIds } from "./matrix";
 import { defineContactWayfScenarioCase } from "./steps";
 
-const proofCell = String(Cypress.expose("proof_cell") ?? "");
-const selected = proofCell.length > 0
-  ? [resolveContactWayfScenarioCase(proofCell)]
-  : contactWayfCases;
+const scenarioCase = resolveContactWayfScenarioCase(
+  requireMatrixProofCell({ flowId: "contact-wayf", matrixCellIds }),
+);
 
-for (const scenarioCase of selected) {
-  defineContactWayfScenarioCase(scenarioCase);
-}
+defineContactWayfScenarioCase(scenarioCase);

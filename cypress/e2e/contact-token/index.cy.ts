@@ -1,13 +1,12 @@
 /// <reference types="cypress" />
 
-import { contactTokenCases, resolveContactTokenScenarioCase } from "./cases";
+import { requireMatrixProofCell } from "../proof-cell";
+import { resolveContactTokenScenarioCase } from "./cases";
+import { matrixCellIds } from "./matrix";
 import { defineContactTokenScenarioCase } from "./steps";
 
-const proofCell = String(Cypress.expose("proof_cell") ?? "");
-const selected = proofCell.length > 0
-  ? [resolveContactTokenScenarioCase(proofCell)]
-  : contactTokenCases;
+const scenarioCase = resolveContactTokenScenarioCase(
+  requireMatrixProofCell({ flowId: "contact-token", matrixCellIds }),
+);
 
-for (const scenarioCase of selected) {
-  defineContactTokenScenarioCase(scenarioCase);
-}
+defineContactTokenScenarioCase(scenarioCase);

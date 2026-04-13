@@ -1,4 +1,5 @@
 {
+  "schema_version": 2,
   "platforms": {
     "ocmgo": {
       "override_env": "OCMTS_OCMGO_IMAGE",
@@ -15,7 +16,15 @@
         "default": "nextcloud:v33.0.3"
       },
       "v34": {
-        "default": "nextcloud-contacts:sta-ocm-m6"
+        "default": "nextcloud:master",
+        "by_flow": {
+          "contact-token": {
+            "default": "nextcloud-contacts:sta-ocm-m6"
+          },
+          "contact-wayf": {
+            "default": "nextcloud-contacts:sta-ocm-m6"
+          }
+        }
       }
     }
   },

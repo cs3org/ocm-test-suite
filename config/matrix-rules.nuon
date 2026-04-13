@@ -74,7 +74,8 @@
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "receiver": null,
@@ -105,14 +106,16 @@
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "receiver": {
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "mitm": true
@@ -127,7 +130,8 @@
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "receiver": {
@@ -154,7 +158,8 @@
         "platform": "nextcloud",
         "version_lines": [
           "v32",
-          "v33"
+          "v33",
+          "v34"
         ]
       },
       "mitm": true

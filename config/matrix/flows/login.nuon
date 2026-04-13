@@ -14,7 +14,8 @@
   "versions_sender": {
     "nextcloud": [
       "v32",
-      "v33"
+      "v33",
+      "v34"
     ],
     "ocmgo": [
       "v1"

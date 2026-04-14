@@ -1,0 +1,24 @@
+{
+    # GitHub Actions workflow generation config.
+    # Regenerate workflows after changing these:
+    #   nu scripts/ocmts.nu ci workflows generate github
+    github: {
+        filenames: {
+            matrix: "ci-matrix.yml"
+            run_wave: "ci-run-wave.yml"
+            run_cell: "ci-run-cell.yml"
+        }
+        runner: "ubuntu-latest"
+        setup_nu_action: "hustcer/setup-nu@v3"
+        # Visual job order for cell groups in the generated matrix workflow.
+        # Cells are sorted by their flow_id position in this list.
+        # Flows not listed appear after all listed flows (stable order within group).
+        job_order: [
+            "login",
+            "share-with",
+            "contact-token",
+            "contact-wayf",
+            "code-flow"
+        ]
+    }
+}

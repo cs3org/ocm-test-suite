@@ -1,0 +1,34 @@
+{
+    # Capability rules define which flow produces a platform login capability
+    # and which flows require it. The planner uses this to compute `depends_on`
+    # relationships between cells.
+    #
+    # To regenerate CI workflows after editing this file, run:
+    #   nu scripts/ocmts.nu ci workflow
+    capability_rules: [
+        {
+            # The login flow produces one capability per platform+version.
+            # Format: login__<platform>-<version>  (e.g. login__nextcloud-v34)
+            capability_flow: "login",
+
+            # Flows whose cells consume login capabilities.
+            # A cell in one of these flows that uses a platform+version as
+            # sender or receiver depends on the login cell for that
+            # platform+version.
+            required_for_flows: [
+                "share-with",
+                "contact-token",
+                "contact-wayf",
+                "code-flow"
+            ],
+
+            # Which participant roles require login capability.
+            # "sender" -> sender_platform + sender_version must have login cap.
+            # "receiver" -> receiver_platform + receiver_version must have cap.
+            required_roles: [
+                "sender",
+                "receiver"
+            ]
+        }
+    ]
+}

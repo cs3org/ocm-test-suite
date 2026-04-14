@@ -1,0 +1,214 @@
+# CI workflow YAML generators using blueprint templates.
+# Builds ci-matrix.yml, ci-run-wave.yml, and ci-run-cell.yml from a plan record.
+# Also produces per-flow JSON asset files under .github/workflows/assets/.
+# Exported so ci/mod.nu and tests can import directly.
+#
+# Key properties:
+# - suite_id is NOT baked at generation time; the `setup` job generates a
+#   fresh one at workflow runtime and shares it via job outputs.
+# - execution_id is NOT baked per-cell; ci-run-cell.yml generates a fresh
+#   one per cell at runtime in a dedicated step.
+# - artifact-name (e.g. cell-login-nextcloud-v34) is stable and derived from
+#   scenario+participants, so embedding it in YAML is safe and necessary.
+# - cells-json is no longer inline in ci-matrix.yml; each flow's cells are
+#   stored in .github/workflows/assets/<flow>.json and loaded at runtime by
+#   a load-cells job in ci-run-wave.yml.
+
+use ./template-renderer.nu [render-blueprint render-template]
+use ./flow-order.nu [sort-cells-by-flow-order]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+
+# Build the aggregate needs block (multi-line YAML fragment).
+# Returns the indented `needs:` block string.
+export def build-aggregate-needs-block [job_names: list<string>]: any -> string {
+    let all_needs = (["setup"] | append $job_names)
+    let items = ($all_needs | each {|n| $"        ($n),"} | str join "\n")
+    $"    needs:\n      [\n($items)\n      ]"
+}
+
+# Build a cell record for asset JSON (all fields needed by ci-run-cell.yml).
+def build-cell-json-record [
+    cell: record,
+    cell_id_to_artifact: record,
+]: any -> record {
+    let recv_platform = if $cell.is_two_party { $cell.receiver_platform } else { "" }
+    let recv_version = if $cell.is_two_party { $cell.receiver_version } else { "" }
+    let deps = ($cell.depends_on? | default [])
+    let cell_depends_on = if ($deps | is-empty) {
+        ""
+    } else {
+        $deps | each {|dep_id|
+            $cell_id_to_artifact | get --optional $dep_id | default ""
+        } | where {|a| not ($a | is-empty)} | str join ","
+    }
+    {
+        scenario: $cell.scenario
+        sender_platform: $cell.sender_platform
+        sender_version: $cell.sender_version
+        receiver_platform: $recv_platform
+        receiver_version: $recv_version
+        artifact_name: $cell.artifact_name
+        cell_id: $cell.cell_id
+        cell_depends_on: $cell_depends_on
+    }
+}
+
+# Relative path for a flow's cell JSON asset file.
+def flow-asset-rel-path [flow_id: string]: any -> string {
+    $".github/workflows/assets/($flow_id).json"
+}
+
+# Build pretty-printed JSON content for a flow asset file.
+export def build-flow-asset-content [cells: list]: any -> string {
+    ($cells | to json --indent 2) + "\n"
+}
+
+# Build all per-flow asset files for the generated workflow set.
+# Returns list of {path: string, content: string} where path is
+# relative (e.g. .github/workflows/assets/login.json).
+export def build-flow-assets [plan: record]: any -> list {
+    let root = get-ocmts-root
+    let cfg = (load-ci-config $root)
+    let gh = $cfg.workflows.github
+
+    let ordered_cells = (sort-cells-by-flow-order $plan.cells $gh.job_order)
+    let cell_id_to_artifact = ($plan.cells | reduce --fold {} {|c, acc|
+        $acc | upsert $c.cell_id $c.artifact_name
+    })
+    let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
+    let cells_by_flow = ($ordered_cells | group-by flow_id)
+
+    $flow_ids_ordered | each {|flow_id|
+        let flow_cells = ($cells_by_flow | get --optional $flow_id | default [])
+        if ($flow_cells | is-empty) { return null }
+        let cell_records = ($flow_cells | each {|c|
+            build-cell-json-record $c $cell_id_to_artifact
+        })
+        {
+            path: (flow-asset-rel-path $flow_id)
+            content: (build-flow-asset-content $cell_records)
+        }
+    } | where {|a| $a != null}
+}
+
+# Render a single flow job YAML fragment for ci-matrix.yml.
+# Each flow job calls ci-run-wave.yml with cells-path pointing to the
+# pre-generated asset file for that flow.
+def render-flow-job [
+    flow_id: string,
+    needs: list<string>,
+    cells_path: string,
+    run_wave_filename: string,
+]: any -> string {
+    let needs_str = ($needs | str join ", ")
+    [
+        $"  ($flow_id):"
+        $"    needs: [($needs_str)]"
+        "    if: always() && needs.setup.result == 'success'"
+        $"    uses: ./.github/workflows/($run_wave_filename)"
+        "    with:"
+        $"      flow-id: ($flow_id)"
+        "      suite-id: ${{ needs.setup.outputs['suite-id'] }}"
+        $"      cells-path: ($cells_path)"
+    ] | str join "\n"
+}
+
+# Load CI config records from the repo.
+def load-ci-config [root: string]: any -> record {
+    let toolchain = (open ($root | path join "config/ci/toolchain.nuon"))
+    let workflows = (open ($root | path join "config/ci/workflows.nuon"))
+    {toolchain: $toolchain, workflows: $workflows}
+}
+
+# Blueprint path helpers.
+def bp-path [root: string, rel: string]: any -> string {
+    $root | path join "scripts/lib/ci/blueprints" $rel
+}
+
+# Generate ci-matrix.yml YAML content using per-flow job strategy.
+# Each enabled flow in config job_order becomes a separate GitHub Actions job.
+# Cells are grouped by flow_id; each flow job passes cells-path to
+# ci-run-wave.yml pointing at the pre-generated asset JSON for that flow.
+# suite_id and per-cell execution_ids are resolved at workflow runtime, not
+# embedded here. The `plan` argument provides cell topology (deps, scenario,
+# participants, artifact_name) which are all stable across runs.
+export def build-ci-matrix-yml [plan: record] {
+    let root = get-ocmts-root
+    let cfg = (load-ci-config $root)
+    let gh = $cfg.workflows.github
+    let nu_ver = $cfg.toolchain.nushell.version
+    let run_wave_filename = ($gh.filenames.run_wave? | default "ci-run-wave.yml")
+
+    let ordered_cells = (sort-cells-by-flow-order $plan.cells $gh.job_order)
+    let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
+    let cells_by_flow = ($ordered_cells | group-by flow_id)
+
+    # Emit one job per flow that has cells, in visual order.
+    # Each subsequent flow job needs all prior emitted flow jobs.
+    mut emitted_flows: list<string> = []
+    mut flow_job_fragments: list<string> = []
+
+    for flow_id in $flow_ids_ordered {
+        let flow_cells = ($cells_by_flow | get --optional $flow_id | default [])
+        if ($flow_cells | is-empty) { continue }
+        let cells_path = (flow-asset-rel-path $flow_id)
+        let needs = (["setup"] | append $emitted_flows)
+        let fragment = (render-flow-job $flow_id $needs $cells_path $run_wave_filename)
+        $flow_job_fragments = ($flow_job_fragments | append ($fragment | str trim --right))
+        $emitted_flows = ($emitted_flows | append $flow_id)
+    }
+
+    let flow_jobs_text = ($flow_job_fragments | str join "\n\n")
+    let aggregate_needs_block = (build-aggregate-needs-block $emitted_flows)
+    let matrix_tpl = (bp-path $root "github/workflows/ci-matrix.yml.tpl")
+
+    render-blueprint $matrix_tpl {
+        "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
+        "runner.label": $gh.runner
+        "setup.nu.action": $gh.setup_nu_action
+        "nushell.version": $nu_ver
+        "flow.jobs": $"\n\n($flow_jobs_text)"
+        "aggregate.needs.block": $aggregate_needs_block
+    }
+}
+
+# Generate ci-run-wave.yml YAML content.
+# This reusable workflow accepts cells-path and fans out as a matrix,
+# calling ci-run-cell.yml for each cell. A load-cells job reads the
+# asset file and emits cells-json so run-wave can expand the matrix.
+export def build-run-wave-yml [] {
+    let root = get-ocmts-root
+    let cfg = (load-ci-config $root)
+    let gh = $cfg.workflows.github
+    let max_parallel = ($gh.max_parallel? | default 0)
+    let max_parallel_line = if $max_parallel > 0 {
+        $"\n      max-parallel: ($max_parallel)"
+    } else {
+        ""
+    }
+    let run_wave_tpl = (bp-path $root "github/workflows/ci-run-wave.yml.tpl")
+    render-blueprint $run_wave_tpl {
+        "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
+        "runner.label": $gh.runner
+        "max_parallel_line": $max_parallel_line
+    }
+}
+
+# Generate ci-run-cell.yml YAML content.
+# execution_id is generated per-cell at runtime in the workflow (not an input).
+# artifact-name is passed from the matrix workflow as a stable derived value
+# matching the 'cell-*' download pattern in the aggregate job.
+export def build-run-cell-yml [] {
+    let root = get-ocmts-root
+    let cfg = (load-ci-config $root)
+    let gh = $cfg.workflows.github
+    let nu_ver = $cfg.toolchain.nushell.version
+    let run_cell_tpl = (bp-path $root "github/workflows/ci-run-cell.yml.tpl")
+
+    render-blueprint $run_cell_tpl {
+        "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
+        "runner.label": $gh.runner
+        "setup.nu.action": $gh.setup_nu_action
+        "nushell.version": $nu_ver
+    }
+}

@@ -17,6 +17,7 @@ def main [] {
     print "  test       Test execution"
     print "  artifacts  Artifact inspection"
     print "  site       Site clone, ingest, build, and publish"
+    print "  ci         CI workflow generation, planning, and aggregation"
 }
 
 # Forward to scripts/domains/version/mod.nu (passthrough argv).
@@ -57,4 +58,9 @@ def --wrapped "main artifacts" [...args: string] {
 # Forward to scripts/domains/site/mod.nu (passthrough argv).
 def --wrapped "main site" [...args: string] {
     forward-to "scripts/domains/site/mod.nu" $args
+}
+
+# Forward to scripts/domains/ci/mod.nu (passthrough argv).
+def --wrapped "main ci" [...args: string] {
+    forward-to "scripts/domains/ci/mod.nu" $args
 }

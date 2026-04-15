@@ -11,6 +11,9 @@ use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/compose-files.nu [build-f-args build-run-files]
 use ../../lib/suite-index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record]
+use ../../lib/ci/planner.nu [plan-suite]
+use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact]
+use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
 
 # Returns true if docker compose reports the primary platform service as running.
 def stack-platform-running [f_args: list<string>, stack_id: string, is_two_party: bool] {
@@ -149,8 +152,10 @@ def "main run" [
 }
 
 # Run the full enabled matrix suite sequentially via `services up run`.
-# Reads config/matrix-rules.nuon, expands all cells, filters to enabled only,
-# then runs each cell in order. Default: continue after failures.
+# Uses the shared CI planner to assign execution_ids and compute prerequisite
+# dependencies. When a cell fails, downstream dependent cells are marked
+# `blocked` and skipped - no Docker stack is started for them.
+# Default: continue after failures.
 def "main suite" [
     --suite-id: string = "",  # Override generated suite_id for this run
     --stop-on-fail,           # Stop on first failure (default: continue)
@@ -160,15 +165,17 @@ def "main suite" [
 ] {
     let root = get-ocmts-root
     let rules = open ($root | path join "config/matrix-rules.nuon")
+    let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
+    let workflows_cfg = open ($root | path join "config/ci/workflows.nuon")
     let ocmts_script = ($root | path join "scripts/ocmts.nu")
 
-    let all_cells = (expand-matrix-cells $rules)
+    let plan = (plan-suite $rules $prereqs)
+    let planned_cells = (sort-cells-by-flow-order $plan.cells $workflows_cfg.github.job_order)
 
-    let enabled_cells = ($all_cells | where enabled)
     let cells_to_run = if $max > 0 {
-        $enabled_cells | first $max
+        $planned_cells | first $max
     } else {
-        $enabled_cells
+        $planned_cells
     }
     let total = ($cells_to_run | length)
 
@@ -177,7 +184,7 @@ def "main suite" [
         return
     }
 
-    let eff_suite_id = if ($suite_id | is-empty) { new-suite-id } else { $suite_id }
+    let eff_suite_id = if ($suite_id | is-empty) { $plan.suite_id } else { $suite_id }
     print $"Suite: ($total) cell\(s\) to run  suite_id=($eff_suite_id)"
 
     let cell_ids = ($cells_to_run | each {|c| $c.cell_id})
@@ -185,8 +192,28 @@ def "main suite" [
 
     mut passed = 0
     mut failed_cells: list<string> = []
+    mut blocked_cells: list<string> = []
 
     for cell in $cells_to_run {
+        # Evaluate whether this cell is blocked by a prior failure or a prior block.
+        # Both failed and blocked cells are unavailable for downstream dependency
+        # checks so transitive blocks propagate correctly.
+        let snap_unavailable = ($failed_cells | append $blocked_cells)
+        let block_eval = (eval-blocked-cells [$cell] $snap_unavailable)
+        let block_entry = ($block_eval | first)
+
+        if $block_entry.blocked {
+            print $"\n--- ($cell.cell_id) [BLOCKED: ($block_entry.failure_reason)] ---"
+            try {
+                (emit-blocked-cell-artifact $root $cell $block_entry.failure_reason
+                    --suite-id $eff_suite_id --suite-kind "suite")
+            } catch {|e|
+                print $"WARNING: emit-blocked-cell-artifact failed: ($e.msg)"
+            }
+            $blocked_cells = ($blocked_cells | append $cell.cell_id)
+            continue
+        }
+
         print $"\n--- ($cell.cell_id) ---"
         mut args: list<string> = [
             "services" "up" "run"
@@ -196,6 +223,7 @@ def "main suite" [
             "--browser" $cell.browser
             "--suite-id" $eff_suite_id
             "--suite-kind" "suite"
+            "--execution-id" $cell.execution_id
         ]
         if not ($cell.receiver_platform | is-empty) {
             $args = ($args | append ["--receiver-platform" $cell.receiver_platform])
@@ -221,9 +249,10 @@ def "main suite" [
     }
 
     let failed_count = ($failed_cells | length)
+    let blocked_count = ($blocked_cells | length)
     try {
-        finish-suite-record $eff_suite_id $passed $failed_count
-    } catch {|e|
+        finish-suite-record $eff_suite_id $passed $failed_count $blocked_count
+    } catch {|e| 
         print $"WARNING: finish-suite-record failed: ($e.msg)"
     }
     if $max == 0 {
@@ -237,7 +266,14 @@ def "main suite" [
     print $"Ran:             ($ran)"
     print $"Passed:          ($passed)"
     print $"Failed:          ($failed_count)"
+    print $"Blocked:         ($blocked_count)"
 
+    if not ($blocked_cells | is-empty) {
+        print "\nBlocked cells:"
+        for c in $blocked_cells {
+            print $"  - ($c)"
+        }
+    }
     if not ($failed_cells | is-empty) {
         print "\nFailing cells:"
         for c in $failed_cells {

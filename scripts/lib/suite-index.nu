@@ -121,21 +121,32 @@ export def record-suite-run-safe [
     }
 }
 
-# Finalize a suite record: set status and finished_at.
+# Compute suite overall status from outcome counts.
+# failed > 0 => "failed"; blocked > 0 and failed == 0 => "blocked"; else "passed".
+export def compute-suite-status [passed: int, failed: int, blocked: int] {
+    if $failed > 0 { "failed" } else if $blocked > 0 { "blocked" } else { "passed" }
+}
+
+# Finalize a suite record: set status, counts, and finished_at.
+# blocked defaults to 0 so existing callers without a blocked count still work.
 export def finish-suite-record [
     suite_id: string,
     passed: int,
     failed: int,
+    blocked: int = 0,
 ] {
     let safe_id = (validate-suite-id $suite_id)
     let path = (suite-record-path $safe_id)
     if not ($path | path exists) {
         error make {msg: $"Suite record not found: ($path)"}
     }
-    let overall = if $failed > 0 { "failed" } else { "passed" }
+    let overall = (compute-suite-status $passed $failed $blocked)
     (open $path)
         | upsert status $overall
         | upsert finished_at (utc-now)
+        | upsert passed_count $passed
+        | upsert failed_count $failed
+        | upsert blocked_count $blocked
         | to json
         | save --force $path
 }

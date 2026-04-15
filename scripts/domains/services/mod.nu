@@ -123,11 +123,13 @@ def "main up run" [
     --verbose,     # Show all docker compose output; default is quiet mode
     --suite-id: string = "",
     --suite-kind: string = "single",
+    --execution-id: string = "",   # Override generated execution_id (used by CI)
 ] {
     let ctx = (setup-run-context
         $scenario $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version
-        --suite-id $suite_id --suite-kind $suite_kind)
+        --suite-id $suite_id --suite-kind $suite_kind
+        --execution-id $execution_id)
     let env_file = $ctx.env_file
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (

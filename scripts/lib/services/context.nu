@@ -3,7 +3,7 @@
 
 use ../cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
 use ../images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
-use ../execution-id.nu [new-execution-id]
+use ../execution-id.nu [new-execution-id validate-execution-id]
 use ../actors.nu [validate-actor-config]
 use ../compose-render.nu [write-compose-overlays]
 use ../run-metadata.nu [write-prepared-run utc-now]
@@ -24,6 +24,7 @@ export def setup-run-context [
     receiver_version: string = "",
     --suite-id: string = "",
     --suite-kind: string = "single",
+    --execution-id: string = "",   # Override generated execution_id when provided
 ] {
     let root = get-ocmts-root
     assert-scenario-enabled $scenario
@@ -44,7 +45,11 @@ export def setup-run-context [
         resolve-mitmproxy-image --scenario $scenario --flow-id $cell.flow_id
     } else { "" }
 
-    let execution_id = (new-execution-id)
+    let execution_id = if not ($execution_id | is-empty) {
+        validate-execution-id $execution_id
+    } else {
+        new-execution-id
+    }
     # Default suite_id to execution_id for uniform metadata on single runs.
     let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
     let artifacts_base = (init-artifact-dirs $cell.flow_id $cell.pair $execution_id)

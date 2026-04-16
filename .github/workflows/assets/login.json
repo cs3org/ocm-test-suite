@@ -1,0 +1,42 @@
+[
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v32",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "artifact_name": "cell-login-nextcloud-v32",
+    "cell_id": "login__nextcloud-v32",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v33",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "artifact_name": "cell-login-nextcloud-v33",
+    "cell_id": "login__nextcloud-v33",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v34",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "artifact_name": "cell-login-nextcloud-v34",
+    "cell_id": "login__nextcloud-v34",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login-ocmgo",
+    "sender_platform": "ocmgo",
+    "sender_version": "v1",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "artifact_name": "cell-login-ocmgo-v1",
+    "cell_id": "login__ocmgo-v1",
+    "cell_depends_on": ""
+  }
+]

@@ -34,10 +34,16 @@ writes `meta/run.json` and `meta/result.json`, then tears down unless
 and leaves `meta/run.json` in `open` state until `services down`.
 - `nu scripts/ocmts.nu test run ...` runs Cypress against an already-up stack
 and updates `meta/run.json` plus `meta/result.json`.
+- `nu scripts/ocmts.nu test suite ...` runs the full enabled matrix suite
+sequentially. Add `--publish-site` to publish the exact suite that just ran.
+Add `--site-dir <path>` with `--publish-site` to target an existing local
+`ocm-web-site` worktree without cloning or fetching it.
 - Video recording is enabled by default. To opt out, pass `--no-video` to
 `services up`, `services up run`, or `services up open`. `test run` reuses the
 pre-rendered runner overlay from `services up` / `services up open`, so the
 video setting is inherited.
+- Local `test suite --publish-site` publishes observed suite state. It does not
+inject CI-style synthetic `missing` results for planned cells that never ran.
 
 ## Flow identity
 
@@ -75,8 +81,8 @@ Default layout:
   - `compose/` rendered compose inputs
   - `cypress/` screenshots, videos, downloads
     - `videos/*.mp4` (when video is enabled)
-    - `screenshots/*.png` on failure, plus any explicit `cy.screenshot(...)`
-    calls in tests (for example share-with takes on-success screenshots)
+    - `screenshots/**/*.png` on failure, plus explicit proof screenshots from
+    the shared Cypress evidence helper
   - `docker/logs/` docker compose logs and runner output
     - `cypress-run.log` stdout+stderr from `docker compose run --rm cypress`
     (captured by both `services up run` and `test run`).
@@ -95,6 +101,12 @@ Where `pair` is role-ordered and opaque:
 (example: `nextcloud-v33`)
 - 2-party: `<sender_platform>-<sender_version>-<receiver_platform>-<receiver_version>`
 (example: `nextcloud-v33-nextcloud-v33`)
+
+Evidence policy and site publication details live in:
+
+- `docs/architecture/evidence-standard.md`
+- `docs/testing/cypress-evidence.md`
+- `docs/operations/site-publish.md`
 
 ## Image overrides
 
@@ -123,6 +135,8 @@ toolchain source of truth.
 - `package.json` here is allowed to exist as host editor and tooling metadata.
 - This repo does not require a lockfile solely because `package.json` exists.
 - `OCMTS_NEXTCLOUD_IMAGE`
+- `OCMTS_OCIS_IMAGE`
+- `OCMTS_OPENCLOUD_IMAGE`
 - `OCMTS_CYPRESS_CI_IMAGE`
 - `OCMTS_CYPRESS_DEV_IMAGE`
 - `OCMTS_MARIADB_IMAGE`
@@ -135,6 +149,9 @@ Human test accounts live under `config/actors/`:
 
 - `config/actors/platforms/nextcloud.nuon` defines person-shaped Nextcloud
 accounts such as `michiel` and `marie`.
+- `config/actors/platforms/ocis.nuon` and
+`config/actors/platforms/opencloud.nuon` define demo users supplied by the
+platform images.
 - `config/actors/scenarios/login.nuon` selects which account the login
 scenario uses.
 - `config/actors/scenarios/share-with.nuon` binds sender and receiver accounts
@@ -232,4 +249,3 @@ Exception policy:
 - Any exception must be explicit and flow-specific.
 - The only known legacy `cy.origin()` use is a deprecated ownCloud group flow
 and must not be treated as a general pattern.
-

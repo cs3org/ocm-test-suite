@@ -7,6 +7,18 @@
         "default": "opencloudmesh-go:v1.0.0"
       }
     },
+    "ocis": {
+      "override_env": "OCMTS_OCIS_IMAGE",
+      "v8": {
+        "default": "ocis:v8.0.1"
+      }
+    },
+    "opencloud": {
+      "override_env": "OCMTS_OPENCLOUD_IMAGE",
+      "v6": {
+        "default": "opencloud:v6.1.0"
+      }
+    },
     "nextcloud": {
       "override_env": "OCMTS_NEXTCLOUD_IMAGE",
       "v32": {

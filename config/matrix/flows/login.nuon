@@ -8,7 +8,9 @@
   "include": {
     "senders": [
       "nextcloud",
-      "ocmgo"
+      "ocmgo",
+      "ocis",
+      "opencloud"
     ]
   },
   "versions_sender": {
@@ -19,6 +21,12 @@
     ],
     "ocmgo": [
       "v1"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
     ]
   }
 }

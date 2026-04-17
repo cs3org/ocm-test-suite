@@ -1,0 +1,10 @@
+{
+  "accounts": {
+    "alan": {
+      "username": "alan",
+      "password": "demo",
+      "display_name": "Alan Turing",
+      "email": "alan@example.test"
+    }
+  }
+}

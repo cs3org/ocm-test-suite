@@ -96,6 +96,36 @@
       "receiver": null,
       "mitm": false
     },
+    "login-ocis": {
+      "enabled": true,
+      "flow_id": "login",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "receiver": null,
+      "mitm": false
+    },
+    "login-opencloud": {
+      "enabled": true,
+      "flow_id": "login",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "receiver": null,
+      "mitm": false
+    },
     "share-with": {
       "enabled": true,
       "flow_id": "share-with",

@@ -4,7 +4,9 @@
       "actor": {
         "by_platform": {
           "nextcloud": "michiel",
-          "ocmgo": "marie"
+          "ocmgo": "marie",
+          "ocis": "einstein",
+          "opencloud": "alan"
         }
       }
     },

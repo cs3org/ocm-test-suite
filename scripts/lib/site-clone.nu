@@ -15,12 +15,19 @@ export def resolve-site-repo-url [] {
 
 # Resolve the local site clone directory.
 # override wins; default is ../ocm-web-site relative to this repo root.
+# Absolute overrides pass through unchanged; relative overrides resolve
+# from the OTS repo root, not from the caller's shell cwd.
 export def resolve-site-dir [override: string] {
-    if not ($override | is-empty) {
-        return ($override | path expand)
-    }
     let root = get-ocmts-root
-    ($root | path dirname) | path join "ocm-web-site"
+    if not ($override | is-empty) {
+        if ($override | str starts-with "/") {
+            $override
+        } else {
+            $root | path join $override
+        }
+    } else {
+        ($root | path dirname) | path join "ocm-web-site"
+    }
 }
 
 # Clone fresh, or fetch + checkout an existing clone.

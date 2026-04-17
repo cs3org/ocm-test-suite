@@ -8,8 +8,11 @@ use ../../lib/execution-id.nu [execution-artifacts-path]
 use ../../lib/run-metadata.nu [write-terminal-run write-compact-result utc-now]
 use ../../lib/publish-envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/site-clone.nu [resolve-site-dir]
+use ../../lib/site-publish.nu [run-site-publish]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/compose-files.nu [build-f-args build-run-files]
+use ../../lib/services/postrun-artifacts.nu [normalize-cypress-video]
 use ../../lib/suite-index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record]
 use ../../lib/ci/planner.nu [plan-suite]
 use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact]
@@ -53,6 +56,11 @@ def main [] {
     print "    nu scripts/ocmts.nu artifacts collect --include-logs ..."
     print "  Platform log collection is otherwise tied to the teardown"
     print "  path ('services up run') which calls 'services down'."
+    print ""
+    print "  'test suite' can optionally publish the completed suite into"
+    print "  the results site. Pass --publish-site to enable. By default"
+    print "  the site repo is cloned automatically; pass --site-dir <path>"
+    print "  to use a local worktree instead (requires --publish-site)."
 }
 
 def "main run" [
@@ -146,6 +154,11 @@ def "main run" [
         $images)
     (write-compact-result $artifacts_base $exec_id
         $cell.cell_id $status $cypress_exit $finished_at)
+    try {
+        normalize-cypress-video $artifacts_base $cell.cell_id
+    } catch {|e|
+        print $"WARNING: video normalization error: ($e.msg)"
+    }
     emit-publish-envelope $artifacts_base
 
     exit $cypress_exit
@@ -156,13 +169,28 @@ def "main run" [
 # dependencies. When a cell fails, downstream dependent cells are marked
 # `blocked` and skipped - no Docker stack is started for them.
 # Default: continue after failures.
+# Pass --publish-site to push results into the site after the suite finishes.
+# Use --site-dir <path> to point at a local worktree instead of cloning
+# (requires --publish-site).
 def "main suite" [
     --suite-id: string = "",  # Override generated suite_id for this run
     --stop-on-fail,           # Stop on first failure (default: continue)
     --continue-on-fail,       # Compat alias: continue after failures (now the default)
     --max: int = 0,           # Limit runs to N cells (0 = unlimited)
     --verbose,                # Pass --verbose to services up run
+    --publish-site,           # Publish site after suite finalization
+    --site-dir: string = "",  # Local site worktree path (requires --publish-site; skips clone/fetch)
 ] {
+    if (not ($site_dir | is-empty)) and (not $publish_site) {
+        error make {msg: "--site-dir requires --publish-site"}
+    }
+    if $publish_site and (not ($site_dir | is-empty)) {
+        let resolved = (resolve-site-dir $site_dir)
+        if not ($resolved | path exists) {
+            error make {msg: $"--site-dir path does not exist: ($resolved)"}
+        }
+    }
+
     let root = get-ocmts-root
     let rules = open ($root | path join "config/matrix-rules.nuon")
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
@@ -279,6 +307,22 @@ def "main suite" [
         for c in $failed_cells {
             print $"  - ($c)"
         }
+    }
+
+    mut publish_exit = 0
+    if $publish_site {
+        let skip_clone = not ($site_dir | is-empty)
+        print "\n=== Publishing site ==="
+        $publish_exit = (try {
+            run-site-publish $site_dir "" $skip_clone "" $eff_suite_id false
+            0
+        } catch {|e|
+            print $"ERROR: site publish failed: ($e.msg)"
+            1
+        })
+    }
+
+    if (not ($failed_cells | is-empty)) or ($publish_exit != 0) {
         exit 1
     }
 }

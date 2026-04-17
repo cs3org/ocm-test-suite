@@ -62,6 +62,97 @@ def detect-execution-context [] {
     }
 }
 
+# Compute a stable evidence_id slug from a relative artifact path.
+# Strips the file extension and replaces path separators with --.
+export def path-to-evidence-id [rel: string] {
+    let p = ($rel | path parse)
+    let no_ext = if ($p.parent | is-empty) {
+        $p.stem
+    } else {
+        ($p.parent | path join $p.stem)
+    }
+    $no_ext | str replace --all "/" "--"
+}
+
+# Parse a screenshot filename stem in <cell_id>--<NNN>--<actor>--<checkpoint> shape.
+# Returns null when the stem does not match the convention.
+export def parse-screenshot-stem [stem: string] {
+    let m = ($stem | parse --regex '^(?P<cell_id>.+)--(?P<order>\d{3})--(?P<actor>single|sender|receiver)--(?P<checkpoint>.+)$')
+    if ($m | is-empty) { return null }
+    let r = ($m | first)
+    {cell_id: $r.cell_id, order: ($r.order | into int), actor: $r.actor, checkpoint: $r.checkpoint}
+}
+
+# Parse a video filename stem in <cell_id>--run shape.
+# Returns null when the stem does not follow the convention.
+export def parse-video-stem [stem: string] {
+    let m = ($stem | parse --regex '^(?P<cell_id>.+)--run$')
+    if ($m | is-empty) { return null }
+    let cell_id = ($m | first | get cell_id)
+    if ($cell_id | is-empty) { return null }
+    {cell_id: $cell_id}
+}
+
+# Enrich one evidence row with evidence_id and classification fields.
+# Screenshots: capture_class proof|failure-auto; order/actor/checkpoint/cell_id when parseable.
+# Videos: capture_class run|legacy; cell_id from filename or manifest fallback.
+# Other kinds: evidence_id only.
+# manifest_cell_id is the fallback cell_id from the run manifest (meta/cell.json).
+export def enrich-ev-row [row: record, manifest_cell_id: string] {
+    let ev_id = (path-to-evidence-id $row.path)
+    let base = ($row | upsert evidence_id $ev_id)
+    if $row.kind == "screenshot" {
+        let stem = (($row.logical_name | path parse) | get stem)
+        let parsed = (parse-screenshot-stem $stem)
+        if $parsed != null {
+            let cid = if ($parsed.cell_id | is-empty) { $manifest_cell_id } else { $parsed.cell_id }
+            ($base
+                | upsert capture_class "proof"
+                | upsert order $parsed.order
+                | upsert actor $parsed.actor
+                | upsert checkpoint $parsed.checkpoint
+                | upsert cell_id $cid)
+        } else {
+            ($base
+                | upsert capture_class "failure-auto"
+                | upsert cell_id $manifest_cell_id)
+        }
+    } else if $row.kind == "video" {
+        let stem = (($row.logical_name | path parse) | get stem)
+        let parsed = (parse-video-stem $stem)
+        if $parsed != null {
+            ($base
+                | upsert capture_class "run"
+                | upsert cell_id $parsed.cell_id)
+        } else {
+            ($base
+                | upsert capture_class "legacy"
+                | upsert cell_id $manifest_cell_id)
+        }
+    } else {
+        $base
+    }
+}
+
+# Sort enriched evidence rows for stable, human-friendly gallery ordering.
+# Kind order: metadata < log < screenshot < video < download < mitm-flow < mitm-report.
+# Within screenshots: by cell_id then parsed order ascending, then path.
+# Rows without an order field sort after those with one; all ties break by path.
+export def sort-evidence-rows []: list -> list {
+    let kind_rank = {
+        metadata: 0, log: 1, screenshot: 2, video: 3,
+        download: 4, "mitm-flow": 5, "mitm-report": 6,
+    }
+    $in | sort-by {|r|
+        let rank = ($kind_rank | get --optional $r.kind | default 99
+            | into string | fill --width 2 --alignment right --character "0")
+        let cell = ($r.cell_id? | default "")
+        let ord = ($r.order? | default 999999
+            | into string | fill --width 9 --alignment right --character "0")
+        $"($rank):($cell):($ord):($r.path)"
+    }
+}
+
 # Classify a relative path into an evidence row.
 def path-to-row [rel: string] {
     let kind = (if ($rel | str starts-with "docker/logs/") { "log"
@@ -320,6 +411,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     let generated_at = (now-utc)
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $base)
+    let ev_rows = ($ev.rows | each {|row| enrich-ev-row $row $cell.cell_id} | sort-evidence-rows)
 
     # Suite grouping fields - optional, backward compatible with legacy runs.
     let suite_id = ($cell.suite_id? | default "")
@@ -386,7 +478,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         status: $result.status,
         exit_code: $result.exit_code,
         finished_at: $result.finished_at,
-        evidence: $ev.rows,
+        evidence: $ev_rows,
     }
     if $failure_reason_val != null {
         $result_entry = ($result_entry | upsert failure_reason $failure_reason_val)
@@ -445,7 +537,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     let summary = $summary
     $summary | to json --indent 2 | save --force ($meta_dir | path join "summary.json")
 
-    let md = (build-summary-md $summary $ev.rows)
+    let md = (build-summary-md $summary $ev_rows)
     $md | save --force ($meta_dir | path join "summary.md")
 
     # Throw after writing so the files exist for debugging.

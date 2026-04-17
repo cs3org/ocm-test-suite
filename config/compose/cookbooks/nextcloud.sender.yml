@@ -8,7 +8,6 @@ services:
       ocm-net:
         aliases:
           - ${SENDER_PARTY_HOST}
-          - ${SENDER_PRIMARY_HOST}
     healthcheck:
       test: ["CMD-SHELL", "curl -sfL http://localhost/status.php | grep -q '\"installed\":true'"]
       interval: 10s

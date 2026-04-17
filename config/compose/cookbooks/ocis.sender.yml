@@ -1,0 +1,48 @@
+# oCIS sender service (one-party: sole platform). Listens on 443 with TLS.
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  sender:
+    image: ${SENDER_IMAGE}
+    hostname: sender
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      ocm-net:
+        aliases:
+          - ${SENDER_PARTY_HOST}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -skf https://127.0.0.1/ >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 90s
+    environment:
+      - OCIS_URL=https://${SENDER_PARTY_HOST}
+      - OCIS_INSECURE=true
+      - OCIS_INIT=true
+      - OCIS_ADMIN_PASSWORD=admin
+      - IDM_CREATE_DEMO_USERS=true
+      - IDM_ADMIN_PASSWORD=admin
+      - OCIS_ADD_RUN_SERVICES=ocm
+      - PROXY_HTTP_ADDR=0.0.0.0:443
+      - PROXY_ENABLE_BASIC_AUTH=true
+      - NATS_NATS_HOST=0.0.0.0
+      - NATS_NATS_PORT=9233
+      - MICRO_REGISTRY_ADDRESS=127.0.0.1:9233
+      - GATEWAY_GRPC_ADDR=0.0.0.0:9142
+      - WEB_UI_CONFIG_FILE=/etc/ocis/web-ui-config.json
+      - FRONTEND_OCS_INCLUDE_OCM_SHAREES=true
+      - FRONTEND_OCS_LIST_OCM_SHARES=true
+      - FRONTEND_ENABLE_FEDERATED_SHARING_INCOMING=true
+      - FRONTEND_ENABLE_FEDERATED_SHARING_OUTGOING=true
+      - GRAPH_INCLUDE_OCM_SHAREES=true
+      - OCM_OCM_INVITE_MANAGER_INSECURE=true
+      - OCM_OCM_SHARE_PROVIDER_INSECURE=true
+      - OCM_OCM_STORAGE_PROVIDER_INSECURE=true
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}

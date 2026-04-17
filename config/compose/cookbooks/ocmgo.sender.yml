@@ -9,7 +9,6 @@ services:
       ocm-net:
         aliases:
           - ${SENDER_PARTY_HOST}
-          - ${SENDER_PRIMARY_HOST}
     healthcheck:
       test: ["CMD-SHELL", "HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= NO_PROXY= nu -c \"if ((http get --raw --insecure https://localhost/api/healthz | str contains '\\\"status\\\":\\\"ok\\\"')) { exit 0 } else { exit 1 }\""]
       interval: 5s

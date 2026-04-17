@@ -1,9 +1,71 @@
-# Post-run artifact collection: service logs and MITM summaries.
+# Post-run artifact collection: service logs, MITM summaries, and video normalization.
 # Best-effort: warns on individual failures but does not throw.
 
 use ../docker-logs.nu [collect-service-logs]
 use ../mitm-summary.nu [summarize-mitm-flows]
 use ../mitm-ocm-summary.nu [write-ocm-mitm-summaries]
+
+# Read cell_id from meta/cell.json; returns "" when missing or unreadable.
+def read-cell-id-from-meta [artifacts_base: string] {
+    let cell_json = ($artifacts_base | path join "meta" "cell.json")
+    if not ($cell_json | path exists) { return "" }
+    try { (open $cell_json).cell_id? | default "" } catch { "" }
+}
+
+# Move the first generated spec video to cypress/videos/<cell_id>--run.mp4,
+# removing the legacy source so only one video represents this cell.
+# Skips when: cell_id is empty, videos dir absent, no mp4s found.
+# When target already exists, removes any other .mp4 files best-effort.
+# When target is absent, moves the first sorted .mp4 to target, then removes extras.
+# Best-effort: warns on individual failures but does not throw.
+export def normalize-cypress-video [
+    artifacts_base: string,
+    cell_id: string,
+] {
+    if ($cell_id | is-empty) { return }
+    let videos_dir = ($artifacts_base | path join "cypress" "videos")
+    if not ($videos_dir | path exists) { return }
+    let target_name = $"($cell_id)--run.mp4"
+    let target_path = ($videos_dir | path join $target_name)
+    if ($target_path | path exists) {
+        let extras = (try {
+            glob $"($videos_dir)/*.mp4"
+            | where {|p| (($p | path type) == "file") and ($p != $target_path)}
+        } catch { [] })
+        for extra in $extras {
+            try {
+                rm $extra
+                print $"Removed extra video: ($extra | path basename)"
+            } catch {|e|
+                print $"WARNING: could not remove extra video: ($e.msg)"
+            }
+        }
+        return
+    }
+    let mp4s = (try {
+        glob $"($videos_dir)/*.mp4"
+        | where {|p| ($p | path type) == "file"}
+        | sort
+    } catch { [] })
+    if ($mp4s | is-empty) { return }
+    let src = ($mp4s | first)
+    try {
+        mv $src $target_path
+        print $"Normalized video: ($src | path basename) -> ($target_name)"
+    } catch {|e|
+        print $"WARNING: video normalization failed: ($e.msg)"
+        return
+    }
+    let remaining = ($mp4s | skip 1)
+    for leftover in $remaining {
+        try {
+            rm $leftover
+            print $"Removed extra video: ($leftover | path basename)"
+        } catch {|e|
+            print $"WARNING: could not remove extra video: ($e.msg)"
+        }
+    }
+}
 
 # Collect service logs and (for two-party runs) MITM flow summaries.
 export def collect-run-artifacts [
@@ -53,5 +115,12 @@ export def collect-run-artifacts [
         } catch {|e|
             print $"WARNING: OCM MITM summary failed: ($e.msg)"
         }
+    }
+
+    let vid_cell_id = (read-cell-id-from-meta $artifacts_base)
+    try {
+        normalize-cypress-video $artifacts_base $vid_cell_id
+    } catch {|e|
+        print $"WARNING: video normalization error: ($e.msg)"
     }
 }

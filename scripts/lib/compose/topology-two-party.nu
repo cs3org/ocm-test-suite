@@ -2,10 +2,11 @@
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
-use ./yaml.nu [platform-primary-host platform-party-host yaml-env-entry]
+use ./yaml.nu [platform-party-host yaml-env-entry]
 use ../actors.nu [load-sender-for-scenario load-receiver-for-scenario]
 use ../cell.nu [validate-browser]
 use ../execution-id.nu [execution-temp-path]
+use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines]
 
 # Write stack.env for a two-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -13,6 +14,8 @@ def write-two-party-env [
     art_inputs: string,
     sender_platform: string,
     receiver_platform: string,
+    sender_version: string,
+    receiver_version: string,
     sender_image_ref: string,
     receiver_image_ref: string,
     mariadb_image: string,
@@ -23,7 +26,6 @@ def write-two-party-env [
     receiver_actor: any,
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
-    let sender_primary_host = (platform-primary-host $sender_platform)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
     let record_str = if $record_video { "true" } else { "false" }
     let sender_short_host = ($sender_party_host | str replace --regex '\.docker$' '')
@@ -34,7 +36,7 @@ def write-two-party-env [
         [
             "localhost" "127.0.0.1" "mitm"
             "sender" "sender-db" "sender-cache"
-            $sender_party_host $sender_primary_host
+            $sender_party_host
         ] | str join ","
     )
     let receiver_no_proxy = (
@@ -45,6 +47,10 @@ def write-two-party-env [
         ] | str join ","
     )
 
+    let sender_provider = (resolve-ocm-provider $root $sender_platform 1 $sender_version)
+    let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
+    let ocm_provider_lines = (provider-env-lines [$sender_provider $receiver_provider])
+
     mut lines = [
         $"OCMTS_ROOT=($root)"
         $"OCMTS_ARTIFACTS_BASE=($artifacts_base)"
@@ -53,7 +59,6 @@ def write-two-party-env [
         $"MARIADB_IMAGE=($mariadb_image)"
         $"VALKEY_IMAGE=($valkey_image)"
         $"SENDER_PARTY_HOST=($sender_party_host)"
-        $"SENDER_PRIMARY_HOST=($sender_primary_host)"
         "SENDER_MYSQL_HOST=sender-db"
         "SENDER_REDIS_HOST=sender-cache"
         "SENDER_HTTP_PROXY=http://mitm:8080"
@@ -62,7 +67,6 @@ def write-two-party-env [
         $"SENDER_PLATFORM=($sender_platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($sender_party_host)"
         $"RECEIVER_PARTY_HOST=($receiver_party_host)"
-        "RECEIVER_PRIMARY_HOST="
         "RECEIVER_MYSQL_HOST=receiver-db"
         "RECEIVER_REDIS_HOST=receiver-cache"
         "RECEIVER_HTTP_PROXY=http://mitm:8080"
@@ -122,6 +126,7 @@ def write-two-party-env [
             $"CYPRESS_receiver_password=($receiver_actor.password)"
         ])
     }
+    $lines = ($lines | append $ocm_provider_lines)
 
     let env_path = ($art_inputs | path join "stack.env")
     $lines | str join "\n" | save --force $env_path
@@ -149,6 +154,8 @@ export def write-two-party-overlays [
     root: string,
     artifacts_base: string,
     flow_id: string = "",
+    sender_version: string = "",
+    receiver_version: string = "",
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
@@ -183,6 +190,7 @@ export def write-two-party-overlays [
     # Write stack.env with all substitution variables
     let env_file = (write-two-party-env
         $art_inputs $sender_platform $receiver_platform
+        $sender_version $receiver_version
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
         $record_video $root $sender_actor $receiver_actor)
 

@@ -29,6 +29,8 @@ export def write-compose-overlays [
     receiver_image_ref: string = "",
     mitmproxy_image: string = "",
     flow_id: string = "",
+    sender_version: string = "",
+    receiver_version: string = "",
     --cell-id: string = "",
 ] {
     let is_two_party = (not ($receiver_platform | is-empty))
@@ -41,7 +43,7 @@ export def write-compose-overlays [
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
-            $flow_id
+            $flow_id $sender_version $receiver_version
             --cell-id $cell_id)
     } else {
         (write-one-party-overlays
@@ -51,6 +53,7 @@ export def write-compose-overlays [
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
+            $sender_version
             --cell-id $cell_id)
     }
 }

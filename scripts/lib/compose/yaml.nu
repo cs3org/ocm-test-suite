@@ -1,10 +1,5 @@
 # Shared YAML building helpers for compose overlay generation.
 
-# Returns the primary (classy) hostname for a platform: <platform>.docker
-export def platform-primary-host [platform: string] {
-    $"($platform).docker"
-}
-
 # Returns the numbered party hostname: <platform><index>.docker
 export def platform-party-host [platform: string, index: int] {
     $"($platform)($index).docker"

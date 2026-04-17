@@ -71,7 +71,7 @@ export def write-mitm-peers [
         roles: {
             sender: {
                 ipv4: $sender_ip,
-                hosts: [$"($sp)1.docker" $"($sp).docker"],
+                hosts: [$"($sp)1.docker"],
             },
             receiver: {
                 ipv4: $receiver_ip,

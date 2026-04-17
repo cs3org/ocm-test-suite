@@ -2,16 +2,18 @@
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
-use ./yaml.nu [platform-primary-host platform-party-host yaml-env-entry]
+use ./yaml.nu [platform-party-host yaml-env-entry]
 use ../actors.nu [load-actor-for-scenario]
 use ../cell.nu [validate-browser]
 use ../execution-id.nu [execution-temp-path]
+use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines]
 
 # Write stack.env for a one-party run into art_inputs/.
 # Returns the absolute path to the written file.
 def write-one-party-env [
     art_inputs: string,
     platform: string,
+    sender_version: string,
     image_ref: string,
     mariadb_image: string,
     valkey_image: string,
@@ -20,10 +22,12 @@ def write-one-party-env [
     actor: any,
 ]: nothing -> string {
     let party_host = (platform-party-host $platform 1)
-    let primary_host = (platform-primary-host $platform)
     let record_str = if $record_video { "true" } else { "false" }
     let short_host = ($party_host | str replace --regex '\.docker$' '')
     let artifacts_base = ($art_inputs | path dirname | path dirname)
+
+    let sender_provider = (resolve-ocm-provider $root $platform 1 $sender_version)
+    let ocm_provider_lines = (provider-env-lines [$sender_provider])
 
     mut lines = [
         $"OCMTS_ROOT=($root)"
@@ -32,7 +36,6 @@ def write-one-party-env [
         $"MARIADB_IMAGE=($mariadb_image)"
         $"VALKEY_IMAGE=($valkey_image)"
         $"SENDER_PARTY_HOST=($party_host)"
-        $"SENDER_PRIMARY_HOST=($primary_host)"
         "SENDER_MYSQL_HOST=sender-db"
         "SENDER_REDIS_HOST=sender-cache"
         "SENDER_HTTP_PROXY="
@@ -41,7 +44,6 @@ def write-one-party-env [
         $"SENDER_PLATFORM=($platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($party_host)"
         "RECEIVER_PARTY_HOST="
-        "RECEIVER_PRIMARY_HOST="
         "RECEIVER_PLATFORM="
         "RECEIVER_PUBLIC_ORIGIN="
         $"CYPRESS_baseUrl=https://($party_host)"
@@ -72,6 +74,7 @@ def write-one-party-env [
             $"CYPRESS_($actor.platform)_password=($actor.password)"
         ])
     }
+    $lines = ($lines | append $ocm_provider_lines)
 
     let env_path = ($art_inputs | path join "stack.env")
     $lines | str join "\n" | save --force $env_path
@@ -95,6 +98,7 @@ export def write-one-party-overlays [
     record_video: bool,
     root: string,
     artifacts_base: string,
+    sender_version: string = "",
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
@@ -120,7 +124,7 @@ export def write-one-party-overlays [
 
     # Write stack.env with all substitution variables
     let env_file = (write-one-party-env
-        $art_inputs $platform $image_ref $mariadb_image $valkey_image
+        $art_inputs $platform $sender_version $image_ref $mariadb_image $valkey_image
         $record_video $root $actor)
 
     let party_host = (platform-party-host $platform 1)

@@ -5,6 +5,12 @@
       "password": "relativity",
       "display_name": "Albert Einstein",
       "email": "einstein@example.test"
+    },
+    "marie": {
+      "username": "marie",
+      "password": "radioactivity",
+      "display_name": "Marie Sklodowska Curie",
+      "email": "marie@example.test"
     }
   }
 }

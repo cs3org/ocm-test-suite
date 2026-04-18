@@ -39,12 +39,16 @@
     "contact-token": {
       "sender": {
         "by_platform": {
-          "nextcloud": "michiel"
+          "nextcloud": "michiel",
+          "ocis": "einstein",
+          "opencloud": "alan"
         }
       },
       "receiver": {
         "by_platform": {
-          "nextcloud": "marie"
+          "nextcloud": "marie",
+          "ocis": "marie",
+          "opencloud": "lynn"
         }
       }
     }

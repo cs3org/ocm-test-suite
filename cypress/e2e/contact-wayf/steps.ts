@@ -9,10 +9,10 @@ import {
   readRuntime,
   requireString,
   runtimePath,
-  screenshot,
   setBaseUrl,
   writeRuntime,
 } from "../../support/shared/procedural-flow";
+import { takeEvidenceScreenshot } from "../../support/shared/evidence";
 
 type RuntimeState = {
   acceptedContactUrl?: string;
@@ -40,12 +40,22 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
         .then((senderCredentials) => {
           scenarioCase.senderLogin.login(senderCredentials);
           scenarioCase.senderLogin.assertLoggedIn();
-          screenshot(scenarioCase.id, "sender", "after-login");
+          takeEvidenceScreenshot({
+            scenarioId: scenarioCase.id,
+            sequence: 1,
+            actor: "sender",
+            checkpoint: "authenticated",
+          });
 
           return scenarioCase.contactWayfSender.createInviteLink({
             note: `cypress ${scenarioCase.id}`,
           }).then((inviteLink) => {
-            screenshot(scenarioCase.id, "sender", "after-invite-created");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 2,
+              actor: "sender",
+              checkpoint: "invite-created",
+            });
 
             const providerUrl = scenarioCase.receiverIdentity.getProviderUrl({
               inviteLink,
@@ -72,7 +82,12 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
 
         scenarioCase.receiverLogin.login(receiverCredentials);
         scenarioCase.receiverLogin.assertLoggedIn();
-        screenshot(scenarioCase.id, "receiver", "after-login");
+        takeEvidenceScreenshot({
+          scenarioId: scenarioCase.id,
+          sequence: 3,
+          actor: "receiver",
+          checkpoint: "authenticated",
+        });
 
         return readRuntime(scenarioRuntimePath).then((runtime) => {
           const redirectUrl = requireString(
@@ -84,11 +99,21 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
           return scenarioCase.contactWayfReceiver.acceptInviteFromRedirect({
             redirectUrl,
           }).then((acceptedContactUrl) => {
-            screenshot(scenarioCase.id, "receiver", "after-invite-accepted");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 4,
+              actor: "receiver",
+              checkpoint: "invite-accepted",
+            });
             scenarioCase.contactWayfReceiver.assertAcceptedContactExists({
               acceptedContactUrl,
             });
-            screenshot(scenarioCase.id, "receiver", "accepted-contact-exists");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 5,
+              actor: "receiver",
+              checkpoint: "contact-visible",
+            });
 
             return writeRuntime(scenarioRuntimePath, {
               ...runtime,
@@ -116,7 +141,6 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
 
             scenarioCase.senderLogin.login(senderCredentials);
             scenarioCase.senderLogin.assertLoggedIn();
-            screenshot(scenarioCase.id, "sender", "after-login");
 
             scenarioCase.senderShareWith.prepareShareFile({
               sourceFileName: "welcome.txt",
@@ -128,7 +152,12 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
               federatedRecipientId,
             });
 
-            screenshot(scenarioCase.id, "sender", "after-share-saved");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 6,
+              actor: "sender",
+              checkpoint: "share-saved",
+            });
           });
         });
       });
@@ -140,7 +169,6 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
 
         scenarioCase.receiverLogin.login(receiverCredentials);
         scenarioCase.receiverLogin.assertLoggedIn();
-        screenshot(scenarioCase.id, "receiver", "after-login");
 
         return readRuntime(scenarioRuntimePath).then((runtime) => {
           const sharedFileName = requireString(
@@ -150,7 +178,12 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
           );
 
           scenarioCase.receiverShareWith.acceptIncomingShare({ sharedFileName });
-          screenshot(scenarioCase.id, "receiver", "after-share-visible");
+          takeEvidenceScreenshot({
+            scenarioId: scenarioCase.id,
+            sequence: 7,
+            actor: "receiver",
+            checkpoint: "share-visible",
+          });
         });
       });
     });

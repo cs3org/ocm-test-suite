@@ -76,7 +76,3 @@ export function requireString(
 export function setBaseUrl(baseUrl: string): void {
   Cypress.config("baseUrl", baseUrl);
 }
-
-export function screenshot(scenarioId: string, phase: string, step: string): void {
-  cy.screenshot(`${scenarioId}--${phase}--${step}`);
-}

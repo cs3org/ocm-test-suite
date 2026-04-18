@@ -2,14 +2,11 @@
 
 import { resolveActorCredentials } from "../../support/actors/credentials";
 import type { ScenarioCase } from "../../support/contracts/share-with";
+import { takeEvidenceScreenshot } from "../../support/shared/evidence";
 
 export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
   describe(scenarioCase.id, () => {
     const originalBaseUrl = Cypress.config("baseUrl");
-
-    function takeStepScreenshot(stepLabel: string) {
-      cy.screenshot(`${scenarioCase.id}--${stepLabel}`);
-    }
 
     beforeEach(() => {
       cy.task("runtime:clear");
@@ -33,7 +30,12 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
 
             scenarioCase.senderLogin.login(senderCredentials);
             scenarioCase.senderLogin.assertLoggedIn();
-            takeStepScreenshot("sender--after-login");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 1,
+              actor: "sender",
+              checkpoint: "authenticated",
+            });
 
             scenarioCase.senderAdapter.prepareShareFile({
               sourceFileName: "welcome.txt",
@@ -45,7 +47,12 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
               federatedRecipientId,
             });
 
-            takeStepScreenshot("sender--after-share-saved");
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 2,
+              actor: "sender",
+              checkpoint: "share-saved",
+            });
           },
         );
       });
@@ -57,9 +64,19 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
 
         scenarioCase.receiverLogin.login(receiverCredentials);
         scenarioCase.receiverLogin.assertLoggedIn();
-        takeStepScreenshot("receiver--after-login");
+        takeEvidenceScreenshot({
+          scenarioId: scenarioCase.id,
+          sequence: 3,
+          actor: "receiver",
+          checkpoint: "authenticated",
+        });
         scenarioCase.receiverAdapter.acceptIncomingShare({ sharedFileName });
-        takeStepScreenshot("receiver--after-share-visible");
+        takeEvidenceScreenshot({
+          scenarioId: scenarioCase.id,
+          sequence: 4,
+          actor: "receiver",
+          checkpoint: "share-visible",
+        });
       });
     });
   });

@@ -17,9 +17,23 @@ const ocmgoActor: ActorRef = {
   passwordEnvKeys: ["ocmgo_password"],
 };
 
+const ocisActor: ActorRef = {
+  id: "ocis",
+  usernameEnvKeys: ["ocis_username"],
+  passwordEnvKeys: ["ocis_password"],
+};
+
+const opencloudActor: ActorRef = {
+  id: "opencloud",
+  usernameEnvKeys: ["opencloud_username"],
+  passwordEnvKeys: ["opencloud_password"],
+};
+
 const actorByPlatform: Record<string, ActorRef> = {
   nextcloud: nextcloudMichielActor,
   ocmgo: ocmgoActor,
+  ocis: ocisActor,
+  opencloud: opencloudActor,
 };
 
 function parsePlatformVersionToken(token: string): AdapterRef {

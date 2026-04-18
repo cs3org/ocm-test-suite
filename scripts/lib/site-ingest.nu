@@ -59,14 +59,18 @@ def compute-matrix-cells [rules: record] {
 
 # Derive requirements and blockers for one cell against the adapter capability
 # map. Returns {requirements: list, blockers: list}.
-def derive-cell-impl-info [cell: record, adapters: record] {
+export def derive-cell-impl-info [cell: record, adapters: record] {
     let flow_id = $cell.flow_id
     let sender_key = $"($cell.sender_platform)/($cell.sender_version)"
 
     let flow_sender_caps = if $flow_id == "login" {
         ["login"]
-    } else if $flow_id in ["share-with", "contact-wayf", "contact-token"] {
+    } else if $flow_id == "share-with" {
         ["login", "share-with.sender"]
+    } else if $flow_id == "contact-token" {
+        ["login", "contact-token.sender", "share-with.sender"]
+    } else if $flow_id == "contact-wayf" {
+        ["login", "contact-wayf.sender", "share-with.sender"]
     } else {
         null
     }
@@ -98,8 +102,12 @@ def derive-cell-impl-info [cell: record, adapters: record] {
 
     if $cell.is_two_party {
         let receiver_key = $"($cell.receiver_platform)/($cell.receiver_version)"
-        let flow_receiver_caps = if $flow_id in ["share-with", "contact-wayf", "contact-token"] {
+        let flow_receiver_caps = if $flow_id == "share-with" {
             ["login", "share-with.receiver"]
+        } else if $flow_id == "contact-token" {
+            ["login", "contact-token.receiver", "provider-identity", "share-with.receiver"]
+        } else if $flow_id == "contact-wayf" {
+            ["login", "contact-wayf.receiver", "provider-identity", "share-with.receiver"]
         } else {
             []
         }

@@ -16,7 +16,7 @@ export def resolve-site-repo-url [] {
 # Resolve the local site clone directory.
 # override wins; default is ../ocm-web-site relative to this repo root.
 # Absolute overrides pass through unchanged; relative overrides resolve
-# from the OTS repo root, not from the caller's shell cwd.
+# from the OCM Test Suite repo root, not from the caller's shell cwd.
 export def resolve-site-dir [override: string] {
     let root = get-ocmts-root
     if not ($override | is-empty) {

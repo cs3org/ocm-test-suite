@@ -6,7 +6,7 @@ use ./yaml.nu [platform-party-host yaml-env-entry]
 use ../actors.nu [load-actor-for-scenario]
 use ../cell.nu [validate-browser]
 use ../execution-id.nu [execution-temp-path]
-use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines]
+use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
 
 # Write stack.env for a one-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -28,6 +28,9 @@ def write-one-party-env [
 
     let sender_provider = (resolve-ocm-provider $root $platform 1 $sender_version)
     let ocm_provider_lines = (provider-env-lines [$sender_provider])
+    # Blank slot 1 so Compose files that reference OCM_PROVIDER_1_* always
+    # find a defined (empty) variable rather than an unset-substitution error.
+    let ocm_blank_1_lines = (provider-env-blank-lines 1)
 
     mut lines = [
         $"OCMTS_ROOT=($root)"
@@ -74,7 +77,7 @@ def write-one-party-env [
             $"CYPRESS_($actor.platform)_password=($actor.password)"
         ])
     }
-    $lines = ($lines | append $ocm_provider_lines)
+    $lines = ($lines | append $ocm_provider_lines | append $ocm_blank_1_lines)
 
     let env_path = ($art_inputs | path join "stack.env")
     $lines | str join "\n" | save --force $env_path

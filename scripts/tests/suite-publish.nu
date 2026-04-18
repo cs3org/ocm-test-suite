@@ -51,7 +51,7 @@ def test-resolve-site-dir-empty-default [] {
     ]
 }
 
-# Relative override is joined to OTS root (not left as relative).
+# Relative override is joined to OCMTS root (not left as relative).
 def test-resolve-site-dir-relative [] {
     print "\n[test-resolve-site-dir-relative]"
     let result = (resolve-site-dir "my/site")
@@ -59,7 +59,7 @@ def test-resolve-site-dir-relative [] {
         (assert-truthy (not ($result | str starts-with "my/"))
             "relative path is resolved to an absolute path")
         (assert-truthy ($result | str ends-with "my/site")
-            "relative path is appended to OTS root")
+            "relative path is appended to OCMTS root")
     ]
 }
 

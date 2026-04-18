@@ -156,6 +156,26 @@ export def resolve-ocm-provider [
     }
 }
 
+# Return 12 blank OCM_PROVIDER_<index>_* KEY= lines for Docker Compose
+# substitution. Use when a stack slot is unused but the Compose file still
+# needs the variable defined to avoid unset-variable substitution errors.
+export def provider-env-blank-lines [index: int]: nothing -> list<string> {
+    [
+        $"OCM_PROVIDER_($index)_NAME=",
+        $"OCM_PROVIDER_($index)_FULL_NAME=",
+        $"OCM_PROVIDER_($index)_ORGANIZATION=",
+        $"OCM_PROVIDER_($index)_DESCRIPTION=",
+        $"OCM_PROVIDER_($index)_DOMAIN=",
+        $"OCM_PROVIDER_($index)_HOMEPAGE=",
+        $"OCM_PROVIDER_($index)_OCM_ENDPOINT=",
+        $"OCM_PROVIDER_($index)_OCM_PATH=",
+        $"OCM_PROVIDER_($index)_OCM_HOST=",
+        $"OCM_PROVIDER_($index)_WEBDAV_ENDPOINT=",
+        $"OCM_PROVIDER_($index)_WEBDAV_PATH=",
+        $"OCM_PROVIDER_($index)_WEBDAV_HOST=",
+    ]
+}
+
 # Convert a list of provider records into indexed KEY=VALUE env var lines
 # suitable for appending to stack.env.
 # Provider at index 0 maps to env vars OCM_PROVIDER_0_*, index 1 to

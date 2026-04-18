@@ -2,7 +2,7 @@
 # Run: nu scripts/tests/ocm-endpoints.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
-use ../lib/ocm-endpoints.nu [resolve-ocm-provider provider-env-lines]
+use ../lib/ocm-endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
 
 def PASS [] { "PASS" }
 def FAIL [msg: string] { $"FAIL: ($msg)" }
@@ -412,6 +412,51 @@ def test-real-defaults-use-party-role [] {
     $results
 }
 
+def test-provider-env-blank-lines [] {
+    print "\n[test-provider-env-blank-lines]"
+    let lines = (provider-env-blank-lines 1)
+    let joined = ($lines | str join "\n")
+    # Index parameter check: index 0 must use OCM_PROVIDER_0_ prefix.
+    let lines0 = (provider-env-blank-lines 0)
+    let joined0 = ($lines0 | str join "\n")
+    [
+        (assert-eq ($lines | length) 12
+            "blank lines for index 1 emits exactly 12 lines")
+        (assert-contains $joined "OCM_PROVIDER_1_NAME="
+            "blank lines contain OCM_PROVIDER_1_NAME=")
+        (assert-contains $joined "OCM_PROVIDER_1_FULL_NAME="
+            "blank lines contain OCM_PROVIDER_1_FULL_NAME=")
+        (assert-contains $joined "OCM_PROVIDER_1_ORGANIZATION="
+            "blank lines contain OCM_PROVIDER_1_ORGANIZATION=")
+        (assert-contains $joined "OCM_PROVIDER_1_DESCRIPTION="
+            "blank lines contain OCM_PROVIDER_1_DESCRIPTION=")
+        (assert-contains $joined "OCM_PROVIDER_1_DOMAIN="
+            "blank lines contain OCM_PROVIDER_1_DOMAIN=")
+        (assert-contains $joined "OCM_PROVIDER_1_HOMEPAGE="
+            "blank lines contain OCM_PROVIDER_1_HOMEPAGE=")
+        (assert-contains $joined "OCM_PROVIDER_1_OCM_ENDPOINT="
+            "blank lines contain OCM_PROVIDER_1_OCM_ENDPOINT=")
+        (assert-contains $joined "OCM_PROVIDER_1_OCM_PATH="
+            "blank lines contain OCM_PROVIDER_1_OCM_PATH=")
+        (assert-contains $joined "OCM_PROVIDER_1_OCM_HOST="
+            "blank lines contain OCM_PROVIDER_1_OCM_HOST=")
+        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_ENDPOINT="
+            "blank lines contain OCM_PROVIDER_1_WEBDAV_ENDPOINT=")
+        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_PATH="
+            "blank lines contain OCM_PROVIDER_1_WEBDAV_PATH=")
+        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_HOST="
+            "blank lines contain OCM_PROVIDER_1_WEBDAV_HOST=")
+        (assert-truthy (not ($joined | str contains "OCM_PROVIDER_0_"))
+            "blank lines for index 1 do not contain OCM_PROVIDER_0_")
+        (assert-truthy ($lines | all {|l| ($l | str ends-with "=")})
+            "every blank line has an empty value")
+        (assert-contains $joined0 "OCM_PROVIDER_0_NAME="
+            "blank lines for index 0 use OCM_PROVIDER_0_ prefix")
+        (assert-truthy (not ($joined0 | str contains "OCM_PROVIDER_1_"))
+            "blank lines for index 0 do not contain OCM_PROVIDER_1_")
+    ]
+}
+
 def test-no-authorizer-providers-file-in-env [] {
     print "\n[test-no-authorizer-providers-file-in-env]"
     # Verify that provider-env-lines never emits the file-based authorizer key.
@@ -443,6 +488,7 @@ def main [] {
         | append (test-provider-record-has-identity-fields)
         | append (test-provider-env-lines-one-party)
         | append (test-provider-env-lines-two-party)
+        | append (test-provider-env-blank-lines)
         | append (test-unknown-platform-errors)
         | append (test-empty-platform-errors)
         | append (test-no-authorizer-providers-file-in-env)

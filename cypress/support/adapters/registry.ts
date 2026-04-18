@@ -15,6 +15,8 @@ import type {
 import { ocmgoV1LoginAdapter } from "./ocmgo/v1/login-adapter";
 import { ocmgoV1ShareWithReceiverAdapter } from "./ocmgo/v1/share-with-receiver-adapter";
 import { ocmgoV1ShareWithSenderAdapter } from "./ocmgo/v1/share-with-sender-adapter";
+import { ocisV8LoginAdapter } from "./ocis/v8/login-adapter";
+import { opencloudV6LoginAdapter } from "./opencloud/v6/login-adapter";
 import { nextcloudV32LoginAdapter } from "./nextcloud/v32/login-adapter";
 import {
   nextcloudV32ShareWithReceiverAdapter,
@@ -51,6 +53,12 @@ const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
   },
   ocmgo: {
     v1: ocmgoV1LoginAdapter,
+  },
+  ocis: {
+    v8: ocisV8LoginAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6LoginAdapter,
   },
 };
 

@@ -13,6 +13,8 @@ export type ActorCredentials = {
 
 export type LoginAdapter = {
   key: string;
+  openLoginPage(): void;
+  submitLogin(credentials: ActorCredentials): void;
   login(credentials: ActorCredentials): void;
   assertLoggedIn(): void;
 };

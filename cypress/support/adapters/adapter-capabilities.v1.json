@@ -25,6 +25,12 @@
       "login",
       "share-with.sender",
       "share-with.receiver"
+    ],
+    "ocis/v8": [
+      "login"
+    ],
+    "opencloud/v6": [
+      "login"
     ]
   }
 }

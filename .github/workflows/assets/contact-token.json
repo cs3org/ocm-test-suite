@@ -8,5 +8,85 @@
     "artifact_name": "cell-contact-token-nextcloud-v34-nextcloud-v34",
     "cell_id": "contact-token__nextcloud-v34__nextcloud-v34",
     "cell_depends_on": "cell-login-nextcloud-v34"
+  },
+  {
+    "scenario": "contact-token-nc-ocis",
+    "sender_platform": "nextcloud",
+    "sender_version": "v34",
+    "receiver_platform": "ocis",
+    "receiver_version": "v8",
+    "artifact_name": "cell-contact-token-nextcloud-v34-ocis-v8",
+    "cell_id": "contact-token__nextcloud-v34__ocis-v8",
+    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-ocis-v8"
+  },
+  {
+    "scenario": "contact-token-nc-opencloud",
+    "sender_platform": "nextcloud",
+    "sender_version": "v34",
+    "receiver_platform": "opencloud",
+    "receiver_version": "v6",
+    "artifact_name": "cell-contact-token-nextcloud-v34-opencloud-v6",
+    "cell_id": "contact-token__nextcloud-v34__opencloud-v6",
+    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-opencloud-v6"
+  },
+  {
+    "scenario": "contact-token-ocis-nc",
+    "sender_platform": "ocis",
+    "sender_version": "v8",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v34",
+    "artifact_name": "cell-contact-token-ocis-v8-nextcloud-v34",
+    "cell_id": "contact-token__ocis-v8__nextcloud-v34",
+    "cell_depends_on": "cell-login-ocis-v8,cell-login-nextcloud-v34"
+  },
+  {
+    "scenario": "contact-token-ocis-ocis",
+    "sender_platform": "ocis",
+    "sender_version": "v8",
+    "receiver_platform": "ocis",
+    "receiver_version": "v8",
+    "artifact_name": "cell-contact-token-ocis-v8-ocis-v8",
+    "cell_id": "contact-token__ocis-v8__ocis-v8",
+    "cell_depends_on": "cell-login-ocis-v8"
+  },
+  {
+    "scenario": "contact-token-ocis-opencloud",
+    "sender_platform": "ocis",
+    "sender_version": "v8",
+    "receiver_platform": "opencloud",
+    "receiver_version": "v6",
+    "artifact_name": "cell-contact-token-ocis-v8-opencloud-v6",
+    "cell_id": "contact-token__ocis-v8__opencloud-v6",
+    "cell_depends_on": "cell-login-ocis-v8,cell-login-opencloud-v6"
+  },
+  {
+    "scenario": "contact-token-opencloud-nc",
+    "sender_platform": "opencloud",
+    "sender_version": "v6",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v34",
+    "artifact_name": "cell-contact-token-opencloud-v6-nextcloud-v34",
+    "cell_id": "contact-token__opencloud-v6__nextcloud-v34",
+    "cell_depends_on": "cell-login-opencloud-v6,cell-login-nextcloud-v34"
+  },
+  {
+    "scenario": "contact-token-opencloud-ocis",
+    "sender_platform": "opencloud",
+    "sender_version": "v6",
+    "receiver_platform": "ocis",
+    "receiver_version": "v8",
+    "artifact_name": "cell-contact-token-opencloud-v6-ocis-v8",
+    "cell_id": "contact-token__opencloud-v6__ocis-v8",
+    "cell_depends_on": "cell-login-opencloud-v6,cell-login-ocis-v8"
+  },
+  {
+    "scenario": "contact-token-opencloud-opencloud",
+    "sender_platform": "opencloud",
+    "sender_version": "v6",
+    "receiver_platform": "opencloud",
+    "receiver_version": "v6",
+    "artifact_name": "cell-contact-token-opencloud-v6-opencloud-v6",
+    "cell_id": "contact-token__opencloud-v6__opencloud-v6",
+    "cell_depends_on": "cell-login-opencloud-v6"
   }
 ]

@@ -44,6 +44,166 @@
       },
       "mitm": true
     },
+    "contact-token-nc-ocis": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v34"
+        ]
+      },
+      "receiver": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-nc-opencloud": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v34"
+        ]
+      },
+      "receiver": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-ocis-nc": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v34"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-ocis-ocis": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "receiver": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-ocis-opencloud": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "receiver": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-opencloud-nc": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "receiver": {
+        "platform": "nextcloud",
+        "version_lines": [
+          "v34"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-opencloud-ocis": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "receiver": {
+        "platform": "ocis",
+        "version_lines": [
+          "v8"
+        ]
+      },
+      "mitm": true
+    },
+    "contact-token-opencloud-opencloud": {
+      "enabled": true,
+      "flow_id": "contact-token",
+      "browsers": [
+        "chrome"
+      ],
+      "sender": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "receiver": {
+        "platform": "opencloud",
+        "version_lines": [
+          "v6"
+        ]
+      },
+      "mitm": true
+    },
     "contact-wayf": {
       "enabled": true,
       "flow_id": "contact-wayf",

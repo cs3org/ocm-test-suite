@@ -8,21 +8,37 @@
   "include": [
     {
       "sender": [
-        "nextcloud"
+        "nextcloud",
+        "ocis",
+        "opencloud"
       ],
       "receiver": [
-        "nextcloud"
+        "nextcloud",
+        "ocis",
+        "opencloud"
       ]
     }
   ],
   "versions_sender": {
     "nextcloud": [
       "v34"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
     ]
   },
   "versions_receiver": {
     "nextcloud": [
       "v34"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
     ]
   }
 }

@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 import { cssEscapeAttributeValue } from "../../../shared/selectors";
+import { resolveCypressDownloadPath } from "../../../shared/downloads";
 
 const filesTableSelector = "table.files-list__table";
 
@@ -83,8 +84,8 @@ function clickRenameAction(): void {
       return;
     }
 
-    // Some Nextcloud versions mount Rename as a visible menu item (text) rather
-    // than a row action button with stable selectors.
+    // Some versions mount Rename as a visible menu item rather than a row
+    // action button with a stable attribute selector.
     cy.contains("button, a, [role=\"menuitem\"], li", /^\s*Rename\s*$/, { timeout: 20000 })
       .filter(":visible")
       .first()
@@ -103,7 +104,7 @@ function getRenameInput(): Cypress.Chainable<JQuery<HTMLInputElement>> {
     if (!selector) {
       throw new Error(
         [
-          "Could not find Nextcloud rename input.",
+          "Could not find rename input.",
           `Tried selectors: ${candidates.join(", ")}`,
         ].join(" "),
       );
@@ -125,7 +126,7 @@ export function renameFile(sourceFileName: string, sharedFileName: string): void
       .click();
   });
 
-  // Nextcloud versions differ in where the rename action is mounted (row vs global popover).
+  // Rename action location varies across versions (row action vs popover).
   clickRenameAction();
 
   getRenameInput()
@@ -135,4 +136,44 @@ export function renameFile(sourceFileName: string, sharedFileName: string): void
     .type("{enter}");
 
   cy.wait("@davMove", { timeout: 20000 });
+}
+
+// Downloads fileName via the Files list name link and returns the content.
+// Cleans any existing download first so stale files cannot satisfy the read.
+// Content proof is download-only; no WebDAV or online viewer is used.
+export function downloadAndReadNextcloudFile(fileName: string): Cypress.Chainable<string> {
+  cy.exec(`rm -f "${resolveCypressDownloadPath(fileName)}"`, {
+    log: false,
+    failOnNonZeroExit: false,
+  });
+
+  ensureFilesAppActive();
+  ensureFileExists(fileName);
+
+  getFileRow(fileName).within(() => {
+    cy.get("[data-cy-files-list-row-name-link]")
+      .first()
+      .should("be.visible")
+      .click({ force: true });
+  });
+
+  return cy.readFile<string>(resolveCypressDownloadPath(fileName), { timeout: 30000 });
+}
+
+// Downloads fileName and asserts its content.
+// When expectedContent is provided, asserts exact equality (trimmed).
+// Otherwise asserts the file is non-empty.
+export function downloadAndAssertNextcloudSharedFile(
+  fileName: string,
+  expectedContent?: string,
+): void {
+  downloadAndReadNextcloudFile(fileName).should((content: string) => {
+    if (expectedContent !== undefined) {
+      expect(content.trim(), "downloaded file content must match expected").to.equal(
+        expectedContent.trim(),
+      );
+    } else {
+      expect(content.trim().length, "downloaded file must be non-empty").to.be.at.least(1);
+    }
+  });
 }

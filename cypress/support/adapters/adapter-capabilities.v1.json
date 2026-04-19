@@ -27,10 +27,20 @@
       "share-with.receiver"
     ],
     "ocis/v8": [
-      "login"
+      "contact-token.receiver",
+      "contact-token.sender",
+      "login",
+      "provider-identity",
+      "share-with.receiver",
+      "share-with.sender"
     ],
     "opencloud/v6": [
-      "login"
+      "contact-token.receiver",
+      "contact-token.sender",
+      "login",
+      "provider-identity",
+      "share-with.receiver",
+      "share-with.sender"
     ]
   }
 }

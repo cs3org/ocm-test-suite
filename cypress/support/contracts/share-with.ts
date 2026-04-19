@@ -7,7 +7,7 @@ export type ShareWithSenderAdapter = {
   prepareShareFile(params: {
     sharedFileName: string;
     sourceFileName?: string;
-  }): void;
+  }): Cypress.Chainable<{ expectedContent?: string }>;
   shareWithFederatedRecipient(params: {
     sharedFileName: string;
     federatedRecipientId: string;
@@ -17,6 +17,10 @@ export type ShareWithSenderAdapter = {
 export type ShareWithReceiverAdapter = {
   key: string;
   acceptIncomingShare(params: { sharedFileName: string }): void;
+  assertSharedFileContent?(params: {
+    sharedFileName: string;
+    expectedContent: string;
+  }): void;
 };
 
 export type ScenarioCase = {

@@ -15,6 +15,10 @@ export const ocmgoV1ShareWithSenderAdapter: ShareWithSenderAdapter = {
       `OCMGo shared file: ${sharedFileName}\n`,
       { log: false },
     );
+    // OCMGo writes a known content string but the receiver (OCMGo) has no
+    // assertSharedFileContent. Return no expectedContent so cross-platform
+    // flows skip content assertion when OCMGo is the sender.
+    return cy.wrap({});
   },
 
   shareWithFederatedRecipient({ sharedFileName, federatedRecipientId }) {

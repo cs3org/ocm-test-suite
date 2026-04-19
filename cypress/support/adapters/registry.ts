@@ -16,7 +16,25 @@ import { ocmgoV1LoginAdapter } from "./ocmgo/v1/login-adapter";
 import { ocmgoV1ShareWithReceiverAdapter } from "./ocmgo/v1/share-with-receiver-adapter";
 import { ocmgoV1ShareWithSenderAdapter } from "./ocmgo/v1/share-with-sender-adapter";
 import { ocisV8LoginAdapter } from "./ocis/v8/login-adapter";
+import {
+  ocisV8ContactTokenReceiverAdapter,
+  ocisV8ContactTokenSenderAdapter,
+  ocisV8ProviderIdentityAdapter,
+} from "./ocis/v8/contact-adapter";
+import {
+  ocisV8ShareWithReceiverAdapter,
+  ocisV8ShareWithSenderAdapter,
+} from "./ocis/v8/share-with-adapter";
 import { opencloudV6LoginAdapter } from "./opencloud/v6/login-adapter";
+import {
+  opencloudV6ContactTokenReceiverAdapter,
+  opencloudV6ContactTokenSenderAdapter,
+  opencloudV6ProviderIdentityAdapter,
+} from "./opencloud/v6/contact-adapter";
+import {
+  opencloudV6ShareWithReceiverAdapter,
+  opencloudV6ShareWithSenderAdapter,
+} from "./opencloud/v6/share-with-adapter";
 import { nextcloudV32LoginAdapter } from "./nextcloud/v32/login-adapter";
 import {
   nextcloudV32ShareWithReceiverAdapter,
@@ -71,6 +89,12 @@ const shareWithSenderAdapters: Record<string, Record<string, ShareWithSenderAdap
   ocmgo: {
     v1: ocmgoV1ShareWithSenderAdapter,
   },
+  ocis: {
+    v8: ocisV8ShareWithSenderAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6ShareWithSenderAdapter,
+  },
 };
 
 const shareWithReceiverAdapters: Record<string, Record<string, ShareWithReceiverAdapter>> = {
@@ -82,17 +106,35 @@ const shareWithReceiverAdapters: Record<string, Record<string, ShareWithReceiver
   ocmgo: {
     v1: ocmgoV1ShareWithReceiverAdapter,
   },
+  ocis: {
+    v8: ocisV8ShareWithReceiverAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6ShareWithReceiverAdapter,
+  },
 };
 
 const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSenderAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactTokenSenderAdapter,
   },
+  ocis: {
+    v8: ocisV8ContactTokenSenderAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6ContactTokenSenderAdapter,
+  },
 };
 
 const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenReceiverAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactTokenReceiverAdapter,
+  },
+  ocis: {
+    v8: ocisV8ContactTokenReceiverAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6ContactTokenReceiverAdapter,
   },
 };
 
@@ -111,6 +153,12 @@ const contactWayfReceiverAdapters: Record<string, Record<string, ContactWayfRece
 const providerIdentityAdapters: Record<string, Record<string, ProviderIdentityAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ProviderIdentityAdapter,
+  },
+  ocis: {
+    v8: ocisV8ProviderIdentityAdapter,
+  },
+  opencloud: {
+    v6: opencloudV6ProviderIdentityAdapter,
   },
 };
 

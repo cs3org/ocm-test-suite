@@ -1,4 +1,4 @@
-# OTS Docs
+# OCM Test Suite Docs
 
 This directory holds the human-readable contracts for the OCM Test Suite.
 The root `README.md` stays focused on quickstart usage; docs here explain the
@@ -10,6 +10,8 @@ architecture and authoring rules that should remain stable across flows.
   evidence, screenshot naming, and retention policy.
 - `testing/cypress-evidence.md` explains how Cypress tests capture proof
   screenshots and how evidence names must be formed.
+- `testing/contact-token-platforms.md` records the actor and provider JSON
+  contracts for Reva-based contact-token cells.
 - `operations/site-publish.md` documents the run-to-site path for artifacts,
   manifests, CI aggregation, and public publication.
 

@@ -108,7 +108,7 @@ The proof video for a cell should be normalized to:
 <cell_id>--run.mp4
 ```
 
-OTS performs that normalization after Cypress finishes, before the evidence
+`ocmts` performs that normalization after Cypress finishes, before the evidence
 envelope is written.
 
 ## Review Checklist

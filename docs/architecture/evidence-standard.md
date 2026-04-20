@@ -1,9 +1,9 @@
 # Evidence Standard
 
-OTS treats screenshots, videos, logs, metadata, and selected protocol captures
-as test evidence. Evidence is not a replacement for assertions; it is the
-reviewable record that lets a human understand what a run proved after the
-containers are gone.
+The OCM Test Suite treats screenshots, videos, logs, metadata, and selected
+protocol captures as test evidence. Evidence is not a replacement for
+assertions; it is the reviewable record that lets a human understand what a run
+proved after the containers are gone.
 
 ## Terms
 
@@ -79,7 +79,7 @@ sortable before Cypress writes the file.
 
 ## Video Naming
 
-Cypress creates videos from spec names. OTS normalizes proof-run videos to:
+Cypress creates videos from spec names. `ocmts` normalizes proof-run videos to:
 
 ```text
 <cell_id>--run.mp4
@@ -88,7 +88,7 @@ Cypress creates videos from spec names. OTS normalizes proof-run videos to:
 Videos are secondary evidence, but they are published by default because they
 are important for manual review.
 
-If Cypress writes the video under its spec filename, OTS renames that file
+If Cypress writes the video under its spec filename, `ocmts` renames that file
 before writing the run envelope.
 
 ## Run Selection For The Site

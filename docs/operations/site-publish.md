@@ -1,8 +1,9 @@
 # Site Publish
 
-OTS publishes test evidence by carrying run artifacts through a small number of
-stable stages: Cypress writes files, the run envelope indexes evidence, CI
-aggregates envelopes, and site ingest copies the published evidence set.
+The OCM Test Suite publishes test evidence by carrying run artifacts through a
+small number of stable stages: Cypress writes files, the run envelope indexes
+evidence, CI aggregates envelopes, and site ingest copies the published evidence
+set.
 
 ## Local Run Path
 
@@ -21,7 +22,7 @@ Important paths:
 - `docker/logs/`
 - `meta/`
 
-At the end of a terminal run, OTS writes:
+At the end of a terminal run, `ocmts` writes:
 
 - `meta/run.json`
 - `meta/result.json`

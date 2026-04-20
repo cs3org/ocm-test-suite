@@ -65,10 +65,16 @@ Legacy naming note:
 - Legacy names such as `invite-link` and standalone `wayf` are comparison-only
 terms for the old suite. This suite must not emit them as `flow_id` values.
 
-Placeholder note:
+Contact flows:
 
-- `config/matrix-rules.nuon` includes placeholder rows for `contact-token`,
-`contact-wayf`, and `code-flow`. Those scenarios are not runnable yet.
+- `contact-token` is a full UI E2E flow: invite, accept contact, prove contact,
+create and save a file, share with the established contact, and prove receiver
+visibility.
+- Reva-based contact-token cells use distinct sender and receiver demo users.
+See `docs/testing/contact-token-platforms.md` for the actor and provider JSON
+contract.
+- `contact-wayf` stays scoped to platforms that expose a WAYF UI.
+- `code-flow` remains placeholder-only.
 
 ## Local artifacts
 
@@ -166,6 +172,11 @@ environment injection:
 - share-with: `CYPRESS_sender_username`, `CYPRESS_sender_password`,
 `CYPRESS_receiver_username`, `CYPRESS_receiver_password`
 
+`contact-token` uses the same sender/receiver env keys as `share-with`, but
+the actors are flow-specific. Same-platform oCIS/OpenCloud contact-token cells
+intentionally use two different demo users so screenshots and contact/share
+assertions show two people, not one account on two hosts.
+
 For manual overrides, pass the matching Cypress env keys (without the
 `CYPRESS_` prefix), for example `nextcloud_username` or `sender_username`.
 
@@ -185,8 +196,8 @@ in the browser context. Values come from the `expose` map in
 
 ## Cypress matrix selection
 
-OTS dev mode injects `CYPRESS_proof_cell` and Cypress spec entrypoints require
-it. In Cypress/VNC, select the flow spec (`login`, `share-with`,
+`ocmts` dev mode injects `CYPRESS_proof_cell` and Cypress spec entrypoints
+require it. In Cypress/VNC, select the flow spec (`login`, `share-with`,
 `contact-token`, or `contact-wayf`), not a platform/version combination.
 
 Direct host Cypress without `CYPRESS_proof_cell` is not a supported path.

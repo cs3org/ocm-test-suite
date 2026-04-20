@@ -15,6 +15,9 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
 
     const sharedFileName = `share-with-${scenarioCase.id}.txt`;
 
+    // Captured in the sender it, read in the receiver it (describe-level closure).
+    let capturedExpectedContent: string | undefined;
+
     const receiverBaseUrl = resolveRequiredBaseUrl("receiver_baseUrl");
     const receiverHost = new URL(receiverBaseUrl).host;
 
@@ -37,10 +40,14 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
               checkpoint: "authenticated",
             });
 
-            scenarioCase.senderAdapter.prepareShareFile({
-              sourceFileName: "welcome.txt",
-              sharedFileName,
-            });
+            scenarioCase.senderAdapter
+              .prepareShareFile({
+                sourceFileName: "welcome.txt",
+                sharedFileName,
+              })
+              .then(({ expectedContent }) => {
+                capturedExpectedContent = expectedContent;
+              });
 
             scenarioCase.senderAdapter.shareWithFederatedRecipient({
               sharedFileName,
@@ -77,6 +84,16 @@ export function defineShareWithScenarioCase(scenarioCase: ScenarioCase) {
           actor: "receiver",
           checkpoint: "share-visible",
         });
+
+        if (
+          scenarioCase.receiverAdapter.assertSharedFileContent !== undefined &&
+          capturedExpectedContent !== undefined
+        ) {
+          scenarioCase.receiverAdapter.assertSharedFileContent({
+            sharedFileName,
+            expectedContent: capturedExpectedContent,
+          });
+        }
       });
     });
   });

@@ -18,6 +18,7 @@ type RuntimeState = {
   acceptedContactUrl?: string;
   inviteToken: string;
   sharedFileName: string;
+  expectedContent?: string;
 };
 
 export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
@@ -133,10 +134,17 @@ export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
             scenarioCase.senderLogin.login(senderCredentials);
             scenarioCase.senderLogin.assertLoggedIn();
 
-            scenarioCase.senderShareWith.prepareShareFile({
-              sourceFileName: "welcome.txt",
-              sharedFileName,
-            });
+            scenarioCase.senderShareWith
+              .prepareShareFile({
+                sourceFileName: "welcome.txt",
+                sharedFileName,
+              })
+              .then(({ expectedContent }) => {
+                if (expectedContent !== undefined) {
+                  return writeRuntime(scenarioRuntimePath, { ...runtime, expectedContent });
+                }
+                return undefined;
+              });
 
             scenarioCase.senderShareWith.shareWithFederatedRecipient({
               sharedFileName,
@@ -175,6 +183,21 @@ export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
             actor: "receiver",
             checkpoint: "share-visible",
           });
+
+          const expectedContent =
+            typeof runtime["expectedContent"] === "string"
+              ? runtime["expectedContent"]
+              : undefined;
+
+          if (
+            scenarioCase.receiverShareWith.assertSharedFileContent !== undefined &&
+            expectedContent !== undefined
+          ) {
+            scenarioCase.receiverShareWith.assertSharedFileContent({
+              sharedFileName,
+              expectedContent,
+            });
+          }
         });
       });
     });

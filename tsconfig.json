@@ -2,12 +2,12 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
-    "types": ["cypress"],
+    "types": ["bun", "cypress"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
     "skipLibCheck": true,
     "strict": false
   },
-  "include": ["cypress/**/*.ts"]
+  "include": ["cypress/**/*.ts", "scripts/typescript/**/*.ts"]
 }

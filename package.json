@@ -2,11 +2,11 @@
   "name": "ocm-test-suite",
   "private": true,
   "scripts": {
-    "check:adapter-capabilities": "tsx scripts/check-adapter-capabilities.ts"
+    "check:adapter-capabilities": "bun run scripts/typescript/check-adapter-capabilities.ts"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.13",
     "cypress": "15.14.1",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.2"
   }
 }

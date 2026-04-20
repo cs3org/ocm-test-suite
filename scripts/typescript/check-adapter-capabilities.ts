@@ -1,4 +1,3 @@
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as ts from "typescript";
 
@@ -140,13 +139,22 @@ function setDiff(a: ReadonlySet<string>, b: ReadonlySet<string>): string[] {
   return out;
 }
 
-async function main(): Promise<number> {
-  const scriptPath = process.argv[1];
-  if (!scriptPath) {
-    throw new Error("Missing script path in argv[1].");
+function resolveRepoRoot(): string {
+  const fromEnv = Bun.env.OCMTS_ROOT;
+  if (fromEnv && fromEnv.length > 0) {
+    return path.resolve(fromEnv);
   }
-  const scriptDir = path.dirname(path.resolve(scriptPath));
-  const repoRoot = path.resolve(scriptDir, "..");
+  const scriptPath = Bun.main;
+  if (!scriptPath) {
+    throw new Error("Cannot resolve script path (Bun.main empty) and OCMTS_ROOT is not set.");
+  }
+  // Script lives at <repo>/scripts/typescript/check-adapter-capabilities.ts.
+  // Walk up two levels from Bun.main to reach the repo root.
+  return path.resolve(path.dirname(path.resolve(scriptPath)), "..", "..");
+}
+
+async function main(): Promise<number> {
+  const repoRoot = resolveRepoRoot();
 
   const jsonPath = path.join(
     repoRoot,
@@ -158,8 +166,8 @@ async function main(): Promise<number> {
   const registryPath = path.join(repoRoot, "cypress", "support", "adapters", "registry.ts");
 
   const [jsonRaw, registryRaw] = await Promise.all([
-    fs.readFile(jsonPath, "utf8"),
-    fs.readFile(registryPath, "utf8"),
+    Bun.file(jsonPath).text(),
+    Bun.file(registryPath).text(),
   ]);
 
   const capabilitiesJson = parseAdapterCapabilitiesJsonV1(jsonRaw);

@@ -29,7 +29,7 @@ export function requireMatrixProofCell<T extends string>({
         "This flow now runs exactly one generated matrix cell per spec invocation.",
         'Use "nu scripts/ocmts.nu services up run",',
         '"nu scripts/ocmts.nu services up open", and',
-        '"nu scripts/ocmts.nu test run" to start services, inspect them, and run a single matrix cell.',
+        '"nu scripts/ocmts.nu test cypress run" to start services, inspect them, and run a single matrix cell.',
       ].join(" "),
     );
   }

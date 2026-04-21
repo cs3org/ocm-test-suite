@@ -5,8 +5,7 @@
 # merged into one tree. The aggregated manifest preserves all runs, results,
 # cells, flows, and the suite-level index.
 
-use ../run-metadata.nu [utc-now]
-use ../publish-envelope.nu []
+use ../run/metadata.nu [utc-now]
 
 # Merge two suite-manifest records together (right-biased for top-level fields;
 # maps under flows/cells/runs/results/indexes are union-merged).

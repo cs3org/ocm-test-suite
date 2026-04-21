@@ -5,9 +5,9 @@
 # "not-implemented". A blocked cell carries a failure_reason that names the
 # specific prerequisite cell_id that triggered the block.
 
-use ../run-metadata.nu [utc-now write-compact-result]
-use ../execution-id.nu [execution-artifacts-path]
-use ../publish-envelope.nu [publish-envelope-safe]
+use ../run/metadata.nu [utc-now write-compact-result]
+use ../run/execution-id.nu [execution-artifacts-path]
+use ../publish/envelope.nu [publish-envelope-safe]
 
 # Evaluate the block state for every planned cell given a set of
 # already-failed cell_ids. Returns a list of records:
@@ -94,8 +94,6 @@ export def emit-blocked-cell-artifact [
     --suite-id: string = "",
     --suite-kind: string = "suite",
 ] {
-    use ../execution-id.nu [execution-artifacts-path]
-
     let exec_id = $planned_cell.execution_id
     let artifacts_base = (execution-artifacts-path
         $root $planned_cell.flow_id $planned_cell.pair $exec_id)

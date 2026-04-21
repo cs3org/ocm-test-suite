@@ -1,17 +1,19 @@
 # CI planner, blocker, workflow-gen, and suite-index tests.
-# Run: nu scripts/tests/ci-planner.nu
+# Run: nu scripts/tests/ci/planner.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
-use ../lib/ci/planner.nu [
+const SUITE_PATH = path self
+
+use ../../lib/ci/planner.nu [
     plan-suite
     compute-capability-id
     compute-cell-capabilities-produced
     compute-cell-depends-on
 ]
-use ../lib/ci/blocker.nu [eval-blocked-cells]
-use ../lib/ci/aggregate.nu [aggregate-suite-manifests build-aggregate-summary aggregate-status reconstruct-suite-index]
-use ../lib/ci/flow-order.nu [sort-cells-by-flow-order]
-use ../lib/ci/workflow-gen.nu [
+use ../../lib/ci/blocker.nu [eval-blocked-cells]
+use ../../lib/ci/aggregate.nu [aggregate-suite-manifests build-aggregate-summary aggregate-status reconstruct-suite-index]
+use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
+use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml
     build-run-wave-yml
     build-run-cell-yml
@@ -19,55 +21,10 @@ use ../lib/ci/workflow-gen.nu [
     build-flow-assets
     build-flow-asset-content
 ]
-use ../lib/ci/template-renderer.nu [render-template]
-use ../lib/suite-index.nu [compute-suite-status]
-
-def PASS [] { "PASS" }
-def FAIL [msg: string] { $"FAIL: ($msg)" }
-
-def assert-eq [got: any, want: any, label: string] {
-    if $got == $want {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    got:  ($got | to json)"
-        print $"    want: ($want | to json)"
-        FAIL $label
-    }
-}
-
-def assert-contains [got: list, item: any, label: string] {
-    if ($item in $got) {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    item ($item | to json) not in ($got | to json)"
-        FAIL $label
-    }
-}
-
-def assert-not-contains [got: list, item: any, label: string] {
-    if not ($item in $got) {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    unexpected item ($item | to json) found in ($got | to json)"
-        FAIL $label
-    }
-}
-
-def assert-truthy [got: bool, label: string] {
-    if $got {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected truthy"
-        FAIL $label
-    }
-}
+use ../../lib/ci/template-renderer.nu [render-template]
+use ../../lib/suite/index.nu [compute-suite-status]
+use ../../lib/tests/assert.nu *
+use ../../lib/tests/runner.nu [run-suite]
 
 # Minimal matrix rules fixture covering key cases.
 def fixture-rules [] {
@@ -124,7 +81,7 @@ def fixture-prereqs [] {
 # ---- tests ----
 
 def test-capability-id [] {
-    print "\n[test-capability-id]"
+    test-log "\n[test-capability-id]"
     let results = [
         (assert-eq
             (compute-capability-id "login" "nextcloud" "v34")
@@ -143,7 +100,7 @@ def test-capability-id [] {
 }
 
 def test-cell-capabilities-produced [] {
-    print "\n[test-cell-capabilities-produced]"
+    test-log "\n[test-cell-capabilities-produced]"
     let prereqs = fixture-prereqs
     let login_cell = {
         cell_id: "login__nextcloud-v34",
@@ -166,13 +123,13 @@ def test-cell-capabilities-produced [] {
     let login_caps = (compute-cell-capabilities-produced $login_cell $prereqs)
     let share_caps = (compute-cell-capabilities-produced $share_cell $prereqs)
     [
-        (assert-contains $login_caps "login__nextcloud-v34" "login cell produces login capability")
+        (assert-list-contains $login_caps "login__nextcloud-v34" "login cell produces login capability")
         (assert-eq ($share_caps | length) 0 "share-with cell produces no capabilities")
     ]
 }
 
 def test-cell-depends-on [] {
-    print "\n[test-cell-depends-on]"
+    test-log "\n[test-cell-depends-on]"
     let prereqs = fixture-prereqs
     # login cells from the matrix
     let login_v33_cell = {
@@ -206,25 +163,25 @@ def test-cell-depends-on [] {
     let share_deps = (compute-cell-depends-on $share_cell $all_cells $prereqs)
     let login_deps = (compute-cell-depends-on $login_v34_cell $all_cells $prereqs)
     [
-        (assert-contains $share_deps "login__nextcloud-v34"
+        (assert-list-contains $share_deps "login__nextcloud-v34"
             "share-with v34-v34 depends on login__nextcloud-v34")
-        (assert-not-contains $share_deps "login__nextcloud-v33"
+        (assert-list-not-contains $share_deps "login__nextcloud-v33"
             "share-with v34-v34 does NOT depend on login__nextcloud-v33")
         (assert-eq ($login_deps | length) 0 "login cell has no dependencies")
     ]
 }
 
 def test-plan-suite [] {
-    print "\n[test-plan-suite]"
+    test-log "\n[test-plan-suite]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
     let cell_ids = ($plan.cells | each {|c| $c.cell_id})
     [
         (assert-truthy (($plan.suite_id | str length) > 0) "plan has suite_id")
-        (assert-contains $cell_ids "login__nextcloud-v34"
+        (assert-list-contains $cell_ids "login__nextcloud-v34"
             "plan includes login__nextcloud-v34")
-        (assert-not-contains $cell_ids "disabled-flow__nextcloud-v33"
+        (assert-list-not-contains $cell_ids "disabled-flow__nextcloud-v33"
             "disabled cells excluded from plan")
         (assert-truthy (
             $plan.cells
@@ -236,19 +193,19 @@ def test-plan-suite [] {
 }
 
 def test-plan-suite-nextcloud-v34-login-is-producer [] {
-    print "\n[test-plan-suite-nextcloud-v34-login-is-producer]"
+    test-log "\n[test-plan-suite-nextcloud-v34-login-is-producer]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
     let login_v34 = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v34"} | first)
     [
-        (assert-contains $login_v34.capabilities_produced "login__nextcloud-v34"
+        (assert-list-contains $login_v34.capabilities_produced "login__nextcloud-v34"
             "login__nextcloud-v34 cell produces login capability for nextcloud-v34")
     ]
 }
 
 def test-blocked-eval [] {
-    print "\n[test-blocked-eval]"
+    test-log "\n[test-blocked-eval]"
     let prereqs = fixture-prereqs
     let login_v34_cell = {
         cell_id: "login__nextcloud-v34",
@@ -296,7 +253,7 @@ def test-blocked-eval [] {
 }
 
 def test-blocked-result-status [] {
-    print "\n[test-blocked-result-status]"
+    test-log "\n[test-blocked-result-status]"
     # The blocked record shape: status == "blocked", failure_reason non-empty
     let planned_cells = [
         {
@@ -324,7 +281,7 @@ def test-blocked-result-status [] {
 }
 
 def test-workflow-no-baked-ids [] {
-    print "\n[test-workflow-no-baked-ids]"
+    test-log "\n[test-workflow-no-baked-ids]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -368,7 +325,7 @@ def test-workflow-no-baked-ids [] {
 }
 
 def test-transitive-blocked [] {
-    print "\n[test-transitive-blocked]"
+    test-log "\n[test-transitive-blocked]"
     # Three-level chain: A (fails) -> B (blocked) -> C (should be transitively blocked)
     let cell_a = {
         cell_id: "a",
@@ -433,7 +390,7 @@ def test-transitive-blocked [] {
 }
 
 def test-suite-status-with-blocked [] {
-    print "\n[test-suite-status-with-blocked]"
+    test-log "\n[test-suite-status-with-blocked]"
     [
         (assert-eq (compute-suite-status 5 0 0) "passed"
             "all passed -> passed")
@@ -451,7 +408,7 @@ def test-suite-status-with-blocked [] {
 }
 
 def test-no-generated-timestamp [] {
-    print "\n[test-no-generated-timestamp]"
+    test-log "\n[test-no-generated-timestamp]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -466,7 +423,7 @@ def test-no-generated-timestamp [] {
 }
 
 def test-setup-failure-guard [] {
-    print "\n[test-setup-failure-guard]"
+    test-log "\n[test-setup-failure-guard]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -478,7 +435,7 @@ def test-setup-failure-guard [] {
 }
 
 def test-blocked-output-check [] {
-    print "\n[test-blocked-output-check]"
+    test-log "\n[test-blocked-output-check]"
     let run_wave_yml = (build-run-wave-yml)
     # Per-cell prereq checking runs at runtime inside ci-run-cell.yml.
     # ci-run-wave.yml passes cell_depends_on so ci-run-cell.yml can download
@@ -490,7 +447,7 @@ def test-blocked-output-check [] {
 }
 
 def test-site-env-names [] {
-    print "\n[test-site-env-names]"
+    test-log "\n[test-site-env-names]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -508,7 +465,7 @@ def test-site-env-names [] {
 }
 
 def test-aggregate-summary-counts [] {
-    print "\n[test-aggregate-summary-counts]"
+    test-log "\n[test-aggregate-summary-counts]"
     let mock_manifest = {
         aggregate_status: "failed",
         results: {
@@ -534,7 +491,7 @@ def test-aggregate-summary-counts [] {
 }
 
 def test-aggregate-summary-empty [] {
-    print "\n[test-aggregate-summary-empty]"
+    test-log "\n[test-aggregate-summary-empty]"
     let mock_manifest = {
         aggregate_status: "passed",
         results: {},
@@ -548,7 +505,7 @@ def test-aggregate-summary-empty [] {
 }
 
 def test-aggregate-upload-step [] {
-    print "\n[test-aggregate-upload-step]"
+    test-log "\n[test-aggregate-upload-step]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -564,7 +521,7 @@ def test-aggregate-upload-step [] {
 }
 
 def test-site-publish-downloads-cell-artifacts [] {
-    print "\n[test-site-publish-downloads-cell-artifacts]"
+    test-log "\n[test-site-publish-downloads-cell-artifacts]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -586,7 +543,7 @@ def test-site-publish-downloads-cell-artifacts [] {
 }
 
 def test-site-publish-artifacts-root [] {
-    print "\n[test-site-publish-artifacts-root]"
+    test-log "\n[test-site-publish-artifacts-root]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -600,7 +557,7 @@ def test-site-publish-artifacts-root [] {
 }
 
 def test-aggregate-status-cleanup-failed [] {
-    print "\n[test-aggregate-status-cleanup-failed]"
+    test-log "\n[test-aggregate-status-cleanup-failed]"
     [
         (assert-eq (aggregate-status ["cleanup-failed"])
             "failed"
@@ -615,7 +572,7 @@ def test-aggregate-status-cleanup-failed [] {
 }
 
 def test-nushell-version-from-config [] {
-    print "\n[test-nushell-version-from-config]"
+    test-log "\n[test-nushell-version-from-config]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -638,7 +595,7 @@ def test-nushell-version-from-config [] {
 }
 
 def test-no-unresolved-placeholders [] {
-    print "\n[test-no-unresolved-placeholders]"
+    test-log "\n[test-no-unresolved-placeholders]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -659,7 +616,7 @@ def test-no-unresolved-placeholders [] {
 }
 
 def test-render-template-fails-on-unresolved [] {
-    print "\n[test-render-template-fails-on-unresolved]"
+    test-log "\n[test-render-template-fails-on-unresolved]"
     let caught = (try {
         render-template "hello {{placeholder:missing}}" {}
         false
@@ -672,7 +629,7 @@ def test-render-template-fails-on-unresolved [] {
 }
 
 def test-render-template-replaces-all [] {
-    print "\n[test-render-template-replaces-all]"
+    test-log "\n[test-render-template-replaces-all]"
     let result = (render-template "a={{placeholder:a}}, b={{placeholder:b}}" {a: "1", b: "2"})
     [
         (assert-eq $result "a=1, b=2" "render-template replaces all placeholders")
@@ -680,7 +637,7 @@ def test-render-template-replaces-all [] {
 }
 
 def test-cell-visual-job-order [] {
-    print "\n[test-cell-visual-job-order]"
+    test-log "\n[test-cell-visual-job-order]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -699,7 +656,7 @@ def test-cell-visual-job-order [] {
 }
 
 def test-sort-cells-by-flow-order [] {
-    print "\n[test-sort-cells-by-flow-order]"
+    test-log "\n[test-sort-cells-by-flow-order]"
     let cells = [
         {cell_id: "contact-token__nextcloud-v34__nextcloud-v34", flow_id: "contact-token"}
         {cell_id: "login__nextcloud-v34", flow_id: "login"}
@@ -722,7 +679,7 @@ def test-sort-cells-by-flow-order [] {
 # This mirrors what local `test suite --max N` does: sort first, then take
 # the first N, so that --max 1 always picks the first flow-ordered cell.
 def test-suite-sort-then-max-respects-flow-order [] {
-    print "\n[test-suite-sort-then-max-respects-flow-order]"
+    test-log "\n[test-suite-sort-then-max-respects-flow-order]"
     # Reverse order relative to job_order to simulate unordered planner output.
     let cells = [
         {cell_id: "share-with__nextcloud-v34__nextcloud-v34", flow_id: "share-with"}
@@ -746,7 +703,7 @@ def test-suite-sort-then-max-respects-flow-order [] {
 }
 
 def test-aggregate-needs-block-format [] {
-    print "\n[test-aggregate-needs-block-format]"
+    test-log "\n[test-aggregate-needs-block-format]"
     let block = (build-aggregate-needs-block ["login_nextcloud_v34" "share_with_nextcloud_v34_nextcloud_v34"])
     [
         (assert-truthy ($block | str contains "needs:")
@@ -761,7 +718,7 @@ def test-aggregate-needs-block-format [] {
 }
 
 def test-generated-header-command [] {
-    print "\n[test-generated-header-command]"
+    test-log "\n[test-generated-header-command]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -779,7 +736,7 @@ def test-generated-header-command [] {
 }
 
 def test-workflow-deterministic [] {
-    print "\n[test-workflow-deterministic]"
+    test-log "\n[test-workflow-deterministic]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan1 = (plan-suite $rules $prereqs --suite-id "fixed-suite-id")
@@ -798,7 +755,7 @@ def test-workflow-deterministic [] {
 }
 
 def test-flow-based-no-wave-jobs [] {
-    print "\n[test-flow-based-no-wave-jobs]"
+    test-log "\n[test-flow-based-no-wave-jobs]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -816,8 +773,8 @@ def test-flow-based-no-wave-jobs [] {
 }
 
 def test-wave-plan-aware-aggregate [] {
-    print "\n[test-wave-plan-aware-aggregate]"
-    use ../lib/ci/aggregate.nu [build-aggregate-summary aggregate-status]
+    test-log "\n[test-wave-plan-aware-aggregate]"
+    use ../../lib/ci/aggregate.nu [build-aggregate-summary aggregate-status]
     # Simulate a manifest with one passed and two missing cells.
     let mock_manifest = {
         aggregate_status: "missing",
@@ -837,8 +794,8 @@ def test-wave-plan-aware-aggregate [] {
 }
 
 def test-plan-aware-aggregate-injects-missing [] {
-    print "\n[test-plan-aware-aggregate-injects-missing]"
-    use ../lib/ci/aggregate.nu [aggregate-suite-manifests-plan-aware build-aggregate-summary]
+    test-log "\n[test-plan-aware-aggregate-injects-missing]"
+    use ../../lib/ci/aggregate.nu [aggregate-suite-manifests-plan-aware build-aggregate-summary]
     let tmp = (^mktemp -d | str trim)
     let cell_a_dir = ($tmp | path join "cell-a")
     mkdir ($cell_a_dir | path join "meta")
@@ -883,7 +840,7 @@ def test-plan-aware-aggregate-injects-missing [] {
 }
 
 def test-wave-gen-yaml-properties [] {
-    print "\n[test-wave-gen-yaml-properties]"
+    test-log "\n[test-wave-gen-yaml-properties]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -956,7 +913,7 @@ def fixture-plan-with-multi-dep [] {
 }
 
 def test-matrix-calls-run-wave [] {
-    print "\n[test-matrix-calls-run-wave]"
+    test-log "\n[test-matrix-calls-run-wave]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -968,7 +925,7 @@ def test-matrix-calls-run-wave [] {
 }
 
 def test-run-wave-calls-run-cell [] {
-    print "\n[test-run-wave-calls-run-cell]"
+    test-log "\n[test-run-wave-calls-run-cell]"
     let run_wave_yml = (build-run-wave-yml)
     [
         (assert-truthy ($run_wave_yml | str contains "./.github/workflows/ci-run-cell.yml")
@@ -977,7 +934,7 @@ def test-run-wave-calls-run-cell [] {
 }
 
 def test-run-wave-properties [] {
-    print "\n[test-run-wave-properties]"
+    test-log "\n[test-run-wave-properties]"
     let run_wave_yml = (build-run-wave-yml)
     [
         (assert-truthy ($run_wave_yml | str contains "fromJson(needs['load-cells'].outputs['cells-json'])")
@@ -990,7 +947,7 @@ def test-run-wave-properties [] {
 }
 
 def test-aggregate-needs-flow-jobs [] {
-    print "\n[test-aggregate-needs-flow-jobs]"
+    test-log "\n[test-aggregate-needs-flow-jobs]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1008,7 +965,7 @@ def test-aggregate-needs-flow-jobs [] {
 }
 
 def test-flow-separation [] {
-    print "\n[test-flow-separation]"
+    test-log "\n[test-flow-separation]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1046,7 +1003,7 @@ def test-flow-separation [] {
 }
 
 def test-multi-dep-cell-depends-on [] {
-    print "\n[test-multi-dep-cell-depends-on]"
+    test-log "\n[test-multi-dep-cell-depends-on]"
     let plan = fixture-plan-with-multi-dep
     let flow_assets = (build-flow-assets $plan)
     # cells are now in asset files, not inline in the YAML.
@@ -1067,7 +1024,7 @@ def test-multi-dep-cell-depends-on [] {
 }
 
 def test-run-cell-iterates-all-deps [] {
-    print "\n[test-run-cell-iterates-all-deps]"
+    test-log "\n[test-run-cell-iterates-all-deps]"
     let yml = (build-run-cell-yml)
     [
         (assert-truthy ($yml | str contains "IFS=','")
@@ -1080,7 +1037,7 @@ def test-run-cell-iterates-all-deps [] {
 }
 
 def test-run-cell-download-uses-current-run-id [] {
-    print "\n[test-run-cell-download-uses-current-run-id]"
+    test-log "\n[test-run-cell-download-uses-current-run-id]"
     let yml = (build-run-cell-yml)
     [
         (assert-truthy ($yml | str contains "gh run download \"${{ github.run_id }}\"")
@@ -1091,7 +1048,7 @@ def test-run-cell-download-uses-current-run-id [] {
 }
 
 def test-cells-path-in-matrix [] {
-    print "\n[test-cells-path-in-matrix]"
+    test-log "\n[test-cells-path-in-matrix]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1107,7 +1064,7 @@ def test-cells-path-in-matrix [] {
 }
 
 def test-load-cells-job-in-run-wave [] {
-    print "\n[test-load-cells-job-in-run-wave]"
+    test-log "\n[test-load-cells-job-in-run-wave]"
     let run_wave_yml = (build-run-wave-yml)
     [
         (assert-truthy ($run_wave_yml | str contains "load-cells:")
@@ -1122,7 +1079,7 @@ def test-load-cells-job-in-run-wave [] {
 }
 
 def test-asset-file-paths [] {
-    print "\n[test-asset-file-paths]"
+    test-log "\n[test-asset-file-paths]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1143,7 +1100,7 @@ def test-asset-file-paths [] {
 }
 
 def test-asset-content-valid-json [] {
-    print "\n[test-asset-content-valid-json]"
+    test-log "\n[test-asset-content-valid-json]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1163,7 +1120,7 @@ def test-asset-content-valid-json [] {
 }
 
 def test-asset-content-is-pretty-printed [] {
-    print "\n[test-asset-content-is-pretty-printed]"
+    test-log "\n[test-asset-content-is-pretty-printed]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1175,7 +1132,7 @@ def test-asset-content-is-pretty-printed [] {
 }
 
 def test-matrix-flow-job-asset-path-matches-flow-id [] {
-    print "\n[test-matrix-flow-job-asset-path-matches-flow-id]"
+    test-log "\n[test-matrix-flow-job-asset-path-matches-flow-id]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1194,26 +1151,27 @@ def test-matrix-flow-job-asset-path-matches-flow-id [] {
 }
 
 def test-suite-publish-flags-in-mod-source [] {
-    print "\n[test-suite-publish-flags-in-mod-source]"
+    test-log "\n[test-suite-publish-flags-in-mod-source]"
     let mod_source = (open --raw "scripts/domains/test/mod.nu")
+    let suite_source = (open --raw "scripts/domains/test/cypress-suite.nu")
     [
         (assert-truthy ($mod_source | str contains "--publish-site")
-            "test mod.nu declares --publish-site flag")
+            "test mod.nu usage advertises --publish-site flag")
         (assert-truthy ($mod_source | str contains "--site-dir")
-            "test mod.nu declares --site-dir flag")
-        (assert-truthy ($mod_source | str contains "--site-dir requires --publish-site")
-            "test mod.nu has guardrail message for --site-dir without --publish-site")
-        (assert-truthy ($mod_source | str contains "run-site-publish")
-            "test mod.nu calls run-site-publish after suite finalization")
-        (assert-truthy ($mod_source | str contains "eff_suite_id")
-            "test mod.nu passes eff_suite_id (not latest-suite) to publish")
-        (assert-truthy ($mod_source | str contains "publish_exit")
-            "test mod.nu tracks publish exit code separately from suite exit")
+            "test mod.nu usage advertises --site-dir flag")
+        (assert-truthy ($suite_source | str contains "--site-dir requires --publish-site")
+            "test cypress-suite.nu has guardrail message for --site-dir without --publish-site")
+        (assert-truthy ($suite_source | str contains "run-site-publish")
+            "test cypress-suite.nu calls run-site-publish after suite finalization")
+        (assert-truthy ($suite_source | str contains "eff_suite_id")
+            "test cypress-suite.nu passes eff_suite_id (not latest-suite) to publish")
+        (assert-truthy ($suite_source | str contains "publish_exit")
+            "test cypress-suite.nu tracks publish exit code separately from suite exit")
     ]
 }
 
 def test-aggregate-archive-no-skip-warning [] {
-    print "\n[test-aggregate-archive-no-skip-warning]"
+    test-log "\n[test-aggregate-archive-no-skip-warning]"
     let mod_source = (open --raw "scripts/domains/ci/mod.nu")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
@@ -1233,7 +1191,7 @@ def test-aggregate-archive-no-skip-warning [] {
 # LATEST_SUITE_ID, and that all result types (passed, blocked, missing)
 # appear as run entries in the suite record.
 def test-reconstruct-suite-index [] {
-    print "\n[test-reconstruct-suite-index]"
+    test-log "\n[test-reconstruct-suite-index]"
     let tmp = (^mktemp -d | str trim)
     let artifacts_root = ($tmp | path join "artifacts")
     let ts = "2026-01-01T00:00:00Z"
@@ -1373,7 +1331,7 @@ def test-reconstruct-suite-index [] {
 
 # Test that reconstruct-suite-index returns null for non-standard suite_ids.
 def test-reconstruct-suite-index-skips-invalid-id [] {
-    print "\n[test-reconstruct-suite-index-skips-invalid-id]"
+    test-log "\n[test-reconstruct-suite-index-skips-invalid-id]"
     let tmp = (^mktemp -d | str trim)
     let manifest_unknown = {
         suite_id: "unknown-suite",
@@ -1398,7 +1356,7 @@ def test-reconstruct-suite-index-skips-invalid-id [] {
 }
 
 def test-hardened-cell-expressions [] {
-    print "\n[test-hardened-cell-expressions]"
+    test-log "\n[test-hardened-cell-expressions]"
     let run_cell_yml = (build-run-cell-yml)
     [
         (assert-truthy ($run_cell_yml | str contains "inputs['failure-reason']")
@@ -1423,7 +1381,7 @@ def test-hardened-cell-expressions [] {
 }
 
 def test-hardened-wave-expressions [] {
-    print "\n[test-hardened-wave-expressions]"
+    test-log "\n[test-hardened-wave-expressions]"
     let run_wave_yml = (build-run-wave-yml)
     [
         (assert-truthy ($run_wave_yml | str contains "inputs['cells-path']")
@@ -1442,7 +1400,7 @@ def test-hardened-wave-expressions [] {
 }
 
 def test-hardened-matrix-expressions [] {
-    print "\n[test-hardened-matrix-expressions]"
+    test-log "\n[test-hardened-matrix-expressions]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs)
@@ -1458,8 +1416,8 @@ def test-hardened-matrix-expressions [] {
 }
 
 def test-ingest-missing-injection [] {
-    print "\n[test-ingest-missing-injection]"
-    use ../lib/site-ingest.nu [ingest-site]
+    test-log "\n[test-ingest-missing-injection]"
+    use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
@@ -1568,8 +1526,8 @@ def test-ingest-missing-injection [] {
 }
 
 def test-ingest-missing-injection-cell-list-fallback [] {
-    print "\n[test-ingest-missing-injection-cell-list-fallback]"
-    use ../lib/site-ingest.nu [ingest-site]
+    test-log "\n[test-ingest-missing-injection-cell-list-fallback]"
+    use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
@@ -1688,7 +1646,7 @@ def test-ingest-missing-injection-cell-list-fallback [] {
 }
 
 def test-suite-publish-exit-semantics [] {
-    print "\n[test-suite-publish-exit-semantics]"
+    test-log "\n[test-suite-publish-exit-semantics]"
     # Exit combination: 0 only when both suite and publish exit 0.
     let combine = {|s, p| if ($s == 0 and $p == 0) { 0 } else { 1 } }
     [
@@ -1700,7 +1658,7 @@ def test-suite-publish-exit-semantics [] {
 }
 
 def test-suite-publish-guardrail-logic [] {
-    print "\n[test-suite-publish-guardrail-logic]"
+    test-log "\n[test-suite-publish-guardrail-logic]"
     # --site-dir without --publish-site must raise a clear error.
     let caught_no_publish = (try {
         let site_dir = "some/path"
@@ -1732,7 +1690,7 @@ def test-suite-publish-guardrail-logic [] {
 }
 
 def main [] {
-    print "=== CI Planner Tests ==="
+    test-log "=== CI Planner Tests ==="
     let results = (
         (test-capability-id)
         | append (test-cell-capabilities-produced)
@@ -1793,15 +1751,6 @@ def main [] {
         | append (test-suite-publish-flags-in-mod-source)
         | append (test-suite-publish-exit-semantics)
         | append (test-suite-publish-guardrail-logic)
-    )
-    let failures = ($results | where {|r| $r != "PASS"})
-    let total = ($results | length)
-    let passed = ($total - ($failures | length))
-    print $"\n=== ($passed)/($total) passed ==="
-    if not ($failures | is-empty) {
-        print "Failures:"
-        for f in $failures { print $"  ($f)" }
-        exit 1
-    }
-    print "All tests passed."
+    ) | flatten
+    run-suite "ci/planner" $SUITE_PATH $results
 }

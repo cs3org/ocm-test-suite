@@ -8,10 +8,10 @@
 #               receiver_platform, receiver_version,
 #               is_two_party, capabilities_produced, depends_on}] }
 
-use ../matrix-cells.nu [expand-matrix-cells]
-use ../execution-id.nu [new-execution-id]
-use ../suite-index.nu [new-suite-id]
-use ../run-metadata.nu [utc-now]
+use ../matrix/cells.nu [expand-matrix-cells]
+use ../run/execution-id.nu [new-execution-id]
+use ../suite/index.nu [new-suite-id]
+use ../run/metadata.nu [utc-now]
 
 # Build the canonical capability_id for a login-type capability.
 # Format: "<capability_flow>__<platform>-<version>"

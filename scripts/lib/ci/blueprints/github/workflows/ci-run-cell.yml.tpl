@@ -60,7 +60,7 @@ jobs:
       - name: Generate execution ID
         id: cell
         run: |
-          EXEC_ID=$(nu -c "use scripts/lib/execution-id.nu [new-execution-id]; new-execution-id | print")
+          EXEC_ID=$(nu -c "use scripts/lib/run/execution-id.nu [new-execution-id]; new-execution-id | print")
           echo "execution-id=$EXEC_ID" >> $GITHUB_OUTPUT
       - name: Download prerequisite artifacts
         id: prereq_dl

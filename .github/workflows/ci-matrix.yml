@@ -15,7 +15,21 @@ on:
         default: ''
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Adapter capabilities drift check
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: bun run scripts/typescript/check-adapter-capabilities.ts
+
   setup:
+    needs: [preflight]
     runs-on: ubuntu-latest
     outputs:
       suite-id: ${{ steps.gen.outputs['suite-id'] }}
@@ -30,7 +44,7 @@ jobs:
         run: |
           SUITE_ID="${{ inputs['suite-id'] }}"
           if [ -z "$SUITE_ID" ]; then
-            SUITE_ID=$(nu -c "use scripts/lib/suite-index.nu [new-suite-id]; new-suite-id | print")
+            SUITE_ID=$(nu -c "use scripts/lib/suite/index.nu [new-suite-id]; new-suite-id | print")
           fi
           echo "suite-id=$SUITE_ID" >> $GITHUB_OUTPUT
 

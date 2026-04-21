@@ -32,18 +32,28 @@ writes `meta/run.json` and `meta/result.json`, then tears down unless
 `meta/run.json` in `active` state.
 - `nu scripts/ocmts.nu services up open ...` starts the dev Cypress workspace
 and leaves `meta/run.json` in `open` state until `services down`.
-- `nu scripts/ocmts.nu test run ...` runs Cypress against an already-up stack
-and updates `meta/run.json` plus `meta/result.json`.
-- `nu scripts/ocmts.nu test suite ...` runs the full enabled matrix suite
-sequentially. Add `--publish-site` to publish the exact suite that just ran.
-Add `--site-dir <path>` with `--publish-site` to target an existing local
-`ocm-web-site` worktree without cloning or fetching it.
+- `nu scripts/ocmts.nu test cypress run ...` runs Cypress against an
+already-up stack and updates `meta/run.json` plus `meta/result.json`.
+- `nu scripts/ocmts.nu test cypress suite ...` runs the full enabled matrix
+suite sequentially. Add `--publish-site` to publish the exact suite that just
+ran. Add `--site-dir <path>` with `--publish-site` to target an existing local
+`ocm-web-site` worktree without cloning or fetching it. Add `--preview` (with
+`--publish-site`) to start the Astro preview server after publish.
+- `nu scripts/ocmts.nu test units` runs the internal Nushell unit-test suite
+for the `ocmts` CLI library code. This is distinct from the Cypress E2E suite
+above and runs in seconds with no Docker. Use `--suite <area/topic>` to scope
+to one suite, `--list` to discover suites, `--human` for human-readable
+output.
 - Video recording is enabled by default. To opt out, pass `--no-video` to
-`services up`, `services up run`, or `services up open`. `test run` reuses the
-pre-rendered runner overlay from `services up` / `services up open`, so the
-video setting is inherited.
-- Local `test suite --publish-site` publishes observed suite state. It does not
-inject CI-style synthetic `missing` results for planned cells that never ran.
+`services up`, `services up run`, or `services up open`. `test cypress run`
+reuses the pre-rendered runner overlay from `services up` / `services up
+open`, so the video setting is inherited.
+- Local `test cypress suite --publish-site` publishes observed suite state.
+It does not inject CI-style synthetic `missing` results for planned cells
+that never ran.
+- When `--site-dir` is omitted with `--publish-site`, the site directory is
+auto-resolved from `OCM_WEB_SITE_DIR` (env), then `<repo>/../ocm-web-site`
+(if present), then cloned by the publish path.
 
 ## Flow identity
 
@@ -91,7 +101,7 @@ Default layout:
     the shared Cypress evidence helper
   - `docker/logs/` docker compose logs and runner output
     - `cypress-run.log` stdout+stderr from `docker compose run --rm cypress`
-    (captured by both `services up run` and `test run`).
+    (captured by both `services up run` and `test cypress run`).
     - `platform.log`, `platform-db.log`, `platform-cache.log` collected by
     `services up run` before teardown, or by
     `nu scripts/ocmts.nu artifacts collect --include-logs ...` while the
@@ -201,8 +211,8 @@ require it. In Cypress/VNC, select the flow spec (`login`, `share-with`,
 `contact-token`, or `contact-wayf`), not a platform/version combination.
 
 Direct host Cypress without `CYPRESS_proof_cell` is not a supported path.
-Use `nu scripts/ocmts.nu services up run`, `services up open`, or `test run`
-so `ocmts` selects one generated matrix cell for the spec.
+Use `nu scripts/ocmts.nu services up run`, `services up open`, or
+`test cypress run` so `ocmts` selects one generated matrix cell for the spec.
 
 ## Slice 1
 

@@ -2,7 +2,7 @@
 # Path contract: artifacts/<flow_id>/<pair>/<execution_id>
 # Suites live under artifacts/suites/ and are excluded from enumeration.
 
-use ./execution-id.nu [validate-execution-id]
+use ../run/execution-id.nu [validate-execution-id]
 
 # Determine the latest execution_id for a flow_id+pair.
 # Prefers LAST_EXECUTION_ID marker when valid and pointing to an existing dir.

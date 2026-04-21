@@ -1,7 +1,7 @@
 # Set up artifact directories for a test run.
 
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-use ./execution-id.nu [validate-pair validate-path-segment validate-execution-id]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../run/execution-id.nu [validate-pair validate-path-segment validate-execution-id]
 
 # Create all subdirectories under artifacts/<flow_id>/<pair>/<execution_id>.
 # Returns the artifacts base path.

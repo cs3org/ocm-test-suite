@@ -1,7 +1,4 @@
-# Resolve image refs from config/images.nuon (schema v2).
-#
-# Platform images support by_scenario/by_flow/role-level precedence at the
-# version leaf. Non-platform leaves also support scenario/flow overrides.
+# Pure precedence resolvers for image ref lookups (no I/O, no config loading).
 #
 # Platform image precedence (11 levels, role = sender or receiver):
 #   1.  by_scenario[scenario].<role>_override_env -> env lookup
@@ -15,15 +12,6 @@
 #   9.  by_scenario[scenario].default
 #   10. by_flow[flow_id].default
 #   11. version default
-
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-
-# Keys at the platform spec level that are not version identifiers.
-const PLATFORM_RESERVED_KEYS = [
-    "override_env"
-    "sender_override_env"
-    "receiver_override_env"
-]
 
 # Attempt an env lookup. Returns the env value when non-empty; null otherwise.
 def try-env-override [env_key: any] {
@@ -40,7 +28,7 @@ def try-env-override [env_key: any] {
 #   4. by_scenario[scenario].default
 #   5. by_flow[flow_id].default
 #   6. leaf default
-def resolve-image [
+export def resolve-image [
     spec: record,
     scenario: string = "",
     flow_id: string = "",
@@ -75,7 +63,7 @@ def resolve-image [
 
 # Resolve a platform version for role (sender/receiver) using the 11-level
 # precedence. scenario and flow_id are optional context; pass "" to skip.
-def resolve-platform-image [
+export def resolve-platform-image [
     platform_spec: record,
     version_spec: record,
     role: string,
@@ -129,98 +117,4 @@ def resolve-platform-image [
         $version_spec.default
     ]
     $candidates | where {|x| $x != null} | first
-}
-
-def load-images-cfg [] {
-    let root = get-ocmts-root
-    open ($root | path join "config/images.nuon")
-}
-
-# Return all configured platforms and versions as a table.
-export def list-platforms-versions [] {
-    let imgs = load-images-cfg
-    $imgs.platforms | items {|plat, plat_spec|
-        let version_keys = (
-            $plat_spec | columns | where {|k| not ($k in $PLATFORM_RESERVED_KEYS)}
-        )
-        $version_keys | each {|ver|
-            let spec = ($plat_spec | get $ver)
-            let effective_env = (
-                $spec.override_env?
-                | default ($plat_spec.override_env? | default "")
-            )
-            {
-                platform: $plat,
-                version: $ver,
-                default_image: $spec.default,
-                env_override: $effective_env,
-            }
-        }
-    } | flatten
-}
-
-# Validate platform+version exist in config/images.nuon; readable error on bad input.
-export def validate-platform-version [platform: string, version: string] {
-    let imgs = load-images-cfg
-    let known_platforms = ($imgs.platforms | columns)
-    if not ($platform in $known_platforms) {
-        error make {msg: $"Platform '($platform)' not in config/images.nuon. Known: ($known_platforms | str join ', ')"}
-    }
-    let plat_spec = ($imgs.platforms | get $platform)
-    let known_versions = (
-        $plat_spec | columns | where {|k| not ($k in $PLATFORM_RESERVED_KEYS)}
-    )
-    if not ($version in $known_versions) {
-        error make {msg: $"Version '($version)' not known for platform '($platform)'. Known: ($known_versions | str join ', ')"}
-    }
-}
-
-# Resolve sender platform images plus shared helper images.
-# Returns {platform, cypress_ci, cypress_dev, mariadb, valkey}.
-# Pass --scenario and --flow-id to enable by_scenario/by_flow precedence.
-export def resolve-images [
-    platform: string,
-    version: string,
-    --scenario: string = "",
-    --flow-id: string = "",
-] {
-    validate-platform-version $platform $version
-    let imgs = load-images-cfg
-    let plat_spec = ($imgs.platforms | get $platform)
-    let ver_spec = ($plat_spec | get $version)
-    {
-        platform: (resolve-platform-image $plat_spec $ver_spec "sender" $scenario $flow_id),
-        cypress_ci: (resolve-image $imgs.cypress.ci $scenario $flow_id),
-        cypress_dev: (resolve-image $imgs.cypress.dev $scenario $flow_id),
-        mariadb: (resolve-image $imgs.helpers.mariadb $scenario $flow_id),
-        valkey: (resolve-image $imgs.helpers.valkey $scenario $flow_id),
-    }
-}
-
-# Resolve image ref for a receiver platform/version.
-# Pass --scenario and --flow-id to enable by_scenario/by_flow precedence.
-export def resolve-receiver-image [
-    platform: string,
-    version: string,
-    --scenario: string = "",
-    --flow-id: string = "",
-] {
-    validate-platform-version $platform $version
-    let imgs = load-images-cfg
-    let plat_spec = ($imgs.platforms | get $platform)
-    let ver_spec = ($plat_spec | get $version)
-    resolve-platform-image $plat_spec $ver_spec "receiver" $scenario $flow_id
-}
-
-# Resolve the mitmproxy image ref from config/images.nuon.
-export def resolve-mitmproxy-image [
-    --scenario: string = "",
-    --flow-id: string = "",
-] {
-    let imgs = load-images-cfg
-    let spec = $imgs.mitmproxy?
-    if $spec == null {
-        error make {msg: "config/images.nuon missing mitmproxy leaf"}
-    }
-    resolve-image $spec $scenario $flow_id
 }

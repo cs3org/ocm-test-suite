@@ -1,12 +1,7 @@
 # Images domain: container image configuration queries.
 
-use ../../lib/images.nu [
-    list-platforms-versions
-    validate-platform-version
-    resolve-images
-    resolve-receiver-image
-    resolve-mitmproxy-image
-]
+use ../../lib/images/config.nu [list-platforms-versions validate-platform-version]
+use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [] {

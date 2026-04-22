@@ -1,10 +1,11 @@
 # Shared site publish orchestration: optional clone, ingest, and build.
 # Used by the site domain CLI and reusable for future test-suite publish flows.
 
-use ./site-clone.nu [resolve-site-dir, clone-or-refresh-site]
-use ./site-ingest.nu [ingest-site, run-site-build]
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-use ./matrix-rules-gen.nu [write-generated-matrix-rules]
+use ./clone.nu [resolve-site-dir, clone-or-refresh-site]
+use ./ingest.nu [ingest-site]
+use ./build.nu [run-site-build]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../matrix/rules-gen.nu [write-generated-matrix-rules]
 
 # Run the full site publish pipeline: optional clone, ingest, and build.
 #

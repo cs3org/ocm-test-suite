@@ -1,10 +1,12 @@
-# Site domain: clone, ingest, build, and publish the ocm-web-site.
+# Site domain: clone, ingest, build, publish, and preview the ocm-web-site.
 
-use ../../lib/site-clone.nu [resolve-site-dir, clone-or-refresh-site]
-use ../../lib/site-ingest.nu [ingest-site, run-site-build]
+use ../../lib/site/clone.nu [resolve-site-dir, clone-or-refresh-site]
+use ../../lib/site/ingest.nu [ingest-site]
+use ../../lib/site/build.nu [run-site-build]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/matrix-rules-gen.nu [write-generated-matrix-rules]
-use ../../lib/site-publish.nu [run-site-publish]
+use ../../lib/matrix/rules-gen.nu [write-generated-matrix-rules]
+use ../../lib/site/publish.nu [run-site-publish]
+use ../../lib/site/preview.nu [run-site-preview]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu site <verb> [flags]"
@@ -14,11 +16,13 @@ def main [] {
     print "  ingest   Generate site JSON inputs and copy artifacts"
     print "  build    Build the Astro site"
     print "  publish  clone + ingest + build (CI entrypoint)"
+    print "  preview  Start a local preview server for a built site"
     print ""
     print "Environment variables:"
     print "  OCMTS_SITE_REPO_SLUG  default: MahdiBaghbani/ocm-web-site"
     print "  OCMTS_SITE_REPO_URL   optional full URL override"
     print "  OCMTS_SITE_REF        git ref to checkout (default: main)"
+    print "  OCM_WEB_SITE_DIR      default site dir override for preview"
 }
 
 # Clone or refresh the ocm-web-site repo.
@@ -87,6 +91,27 @@ def "main build" [
     }
     run-site-build $site
     print "Build complete."
+}
+
+# Start a local preview server for a built site directory.
+# Blocks until Ctrl+C. Requires a completed `site build` first.
+def "main preview" [
+    --site-dir: string = "",    # Site repo dir (default: OCM_WEB_SITE_DIR, then ../ocm-web-site)
+    --host: string = "localhost", # Host address to bind
+    --port: int = 4321,           # Port to listen on
+] {
+    let root = get-ocmts-root
+    let eff_site_dir = if not ($site_dir | is-empty) {
+        resolve-site-dir $site_dir
+    } else {
+        let env_dir = ($env.OCM_WEB_SITE_DIR? | default "")
+        if not ($env_dir | is-empty) {
+            $env_dir
+        } else {
+            (($root | path dirname) | path join "ocm-web-site")
+        }
+    }
+    run-site-preview $eff_site_dir $host $port
 }
 
 # Orchestrate clone (optional), ingest, and build in one step.

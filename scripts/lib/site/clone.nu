@@ -1,6 +1,6 @@
 # Git clone and refresh helpers for the site domain.
 
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
 
 # Resolve the site repo URL from env or default slug.
 # OCMTS_SITE_REPO_URL overrides; otherwise builds from OCMTS_SITE_REPO_SLUG.

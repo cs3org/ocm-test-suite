@@ -1,33 +1,12 @@
 # derive-cell-impl-info gating tests for site-ingest.nu.
-# Run: nu scripts/tests/site-ingest.nu
+# Run: nu scripts/tests/site/cell-impl.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
-use ../lib/site-ingest.nu [derive-cell-impl-info]
+const SUITE_PATH = path self
 
-def PASS [] { "PASS" }
-def FAIL [msg: string] { $"FAIL: ($msg)" }
-
-def assert-eq [got: any, want: any, label: string] {
-    if $got == $want {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    got:  ($got | to json)"
-        print $"    want: ($want | to json)"
-        FAIL $label
-    }
-}
-
-def assert-truthy [got: bool, label: string] {
-    if $got {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected true"
-        FAIL $label
-    }
-}
+use ../../lib/site/cell-impl.nu [derive-cell-impl-info]
+use ../../lib/tests/assert.nu *
+use ../../lib/tests/runner.nu [run-suite]
 
 # Adapter map covering all capability names used in tests.
 def fixture-adapters [] {
@@ -79,7 +58,7 @@ def make-two-party-cell [
 
 # login: only requires login cap; no receiver caps.
 def test-login-implemented [] {
-    print "\n[test-login-implemented]"
+    test-log "\n[test-login-implemented]"
     let adapters = fixture-adapters
     let cell = (make-one-party-cell "login" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters)
@@ -93,7 +72,7 @@ def test-login-implemented [] {
 # share-with: sender needs login+share-with.sender; receiver needs
 # login+share-with.receiver. Behavior must be unchanged after the fix.
 def test-share-with-implemented [] {
-    print "\n[test-share-with-implemented]"
+    test-log "\n[test-share-with-implemented]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "share-with"
         "nextcloud" "v34" "nextcloud" "v34")
@@ -112,7 +91,7 @@ def test-share-with-implemented [] {
 
 # share-with on v33 (which has share-with caps) must also be implemented.
 def test-share-with-v33-implemented [] {
-    print "\n[test-share-with-v33-implemented]"
+    test-log "\n[test-share-with-v33-implemented]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "share-with"
         "nextcloud" "v33" "nextcloud" "v33")
@@ -127,7 +106,7 @@ def test-share-with-v33-implemented [] {
 # receiver needs login+contact-token.receiver+provider-identity+share-with.receiver.
 # v34 has all caps.
 def test-contact-token-implemented [] {
-    print "\n[test-contact-token-implemented]"
+    test-log "\n[test-contact-token-implemented]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-token"
         "nextcloud" "v34" "nextcloud" "v34")
@@ -147,7 +126,7 @@ def test-contact-token-implemented [] {
 # contact-token on v33 must be blocked: v33 lacks contact-token.sender,
 # contact-token.receiver, and provider-identity.
 def test-contact-token-v33-blocked [] {
-    print "\n[test-contact-token-v33-blocked]"
+    test-log "\n[test-contact-token-v33-blocked]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-token"
         "nextcloud" "v33" "nextcloud" "v33")
@@ -168,7 +147,7 @@ def test-contact-token-v33-blocked [] {
 # contact-token resolves senderShareWith/receiverShareWith adapters at runtime,
 # so share-with caps must appear in requirements.
 def test-contact-token-share-with-required [] {
-    print "\n[test-contact-token-share-with-required]"
+    test-log "\n[test-contact-token-share-with-required]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-token"
         "nextcloud" "v34" "nextcloud" "v34")
@@ -186,7 +165,7 @@ def test-contact-token-share-with-required [] {
 # receiver needs login+contact-wayf.receiver+provider-identity+share-with.receiver.
 # v34 has all caps.
 def test-contact-wayf-implemented [] {
-    print "\n[test-contact-wayf-implemented]"
+    test-log "\n[test-contact-wayf-implemented]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-wayf"
         "nextcloud" "v34" "nextcloud" "v34")
@@ -205,7 +184,7 @@ def test-contact-wayf-implemented [] {
 
 # contact-wayf on v33 must be blocked.
 def test-contact-wayf-v33-blocked [] {
-    print "\n[test-contact-wayf-v33-blocked]"
+    test-log "\n[test-contact-wayf-v33-blocked]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-wayf"
         "nextcloud" "v33" "nextcloud" "v33")
@@ -226,7 +205,7 @@ def test-contact-wayf-v33-blocked [] {
 # contact-wayf resolves senderShareWith/receiverShareWith adapters at runtime,
 # so share-with caps must appear in requirements.
 def test-contact-wayf-share-with-required [] {
-    print "\n[test-contact-wayf-share-with-required]"
+    test-log "\n[test-contact-wayf-share-with-required]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-wayf"
         "nextcloud" "v34" "nextcloud" "v34")
@@ -242,7 +221,7 @@ def test-contact-wayf-share-with-required [] {
 
 # Unknown flow_id returns an unknown_flow_id blocker.
 def test-unknown-flow-id [] {
-    print "\n[test-unknown-flow-id]"
+    test-log "\n[test-unknown-flow-id]"
     let adapters = fixture-adapters
     let cell = (make-one-party-cell "no-such-flow" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters)
@@ -257,7 +236,7 @@ def test-unknown-flow-id [] {
 
 # Missing adapter bundle: sender key not in adapters.
 def test-missing-adapter-bundle [] {
-    print "\n[test-missing-adapter-bundle]"
+    test-log "\n[test-missing-adapter-bundle]"
     let adapters = {}
     let cell = (make-two-party-cell "share-with"
         "nextcloud" "v99" "nextcloud" "v99")
@@ -270,7 +249,7 @@ def test-missing-adapter-bundle [] {
 }
 
 def main [] {
-    print "=== site-ingest derive-cell-impl-info Tests ==="
+    test-log "=== site-ingest derive-cell-impl-info Tests ==="
     let results = (
         (test-login-implemented)
         | append (test-share-with-implemented)
@@ -283,15 +262,6 @@ def main [] {
         | append (test-contact-wayf-share-with-required)
         | append (test-unknown-flow-id)
         | append (test-missing-adapter-bundle)
-    )
-    let failures = ($results | where {|r| $r != "PASS"})
-    let total = ($results | length)
-    let passed = ($total - ($failures | length))
-    print $"\n=== ($passed)/($total) passed ==="
-    if not ($failures | is-empty) {
-        print "Failures:"
-        for f in $failures { print $"  ($f)" }
-        exit 1
-    }
-    print "All tests passed."
+    ) | flatten
+    run-suite "site/cell-impl" $SUITE_PATH $results
 }

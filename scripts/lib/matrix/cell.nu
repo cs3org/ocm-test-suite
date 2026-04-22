@@ -1,8 +1,9 @@
 # Compute deterministic cell and artifact identifiers.
 
-use ./execution-id.nu [validate-path-segment]
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-use ./flow-ids.nu [PUBLIC_FLOW_IDS]
+use ../run/execution-id.nu [validate-path-segment]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
+use ./topology.nu [assert-topology-matches]
 
 # Error if scenario.enabled != true in config/matrix-rules.nuon.
 # Call from run entrypoints to reject placeholder scenarios early.
@@ -57,6 +58,7 @@ export def compute-cell [
     let v = (validate-path-segment $sender_version "sender_version")
     let b = (validate-browser $browser)
     let is_two_party = (not ($receiver_platform | is-empty))
+    assert-topology-matches $effective_flow_id $is_two_party "compute-cell args (receiver_platform empty=one-party, present=two-party)"
     if $is_two_party {
         let rp = (validate-path-segment $receiver_platform "receiver_platform")
         let rv = (validate-path-segment $receiver_version "receiver_version")

@@ -1,11 +1,11 @@
 # Matrix domain: test matrix management.
 
-use ../../lib/cell.nu [compute-cell validate-cell-rules]
-use ../../lib/images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
+use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
+use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/matrix-rules-gen.nu [generate-matrix-rules write-generated-matrix-rules]
-use ../../lib/matrix-cypress-gen.nu [write-cypress-matrix-files check-cypress-matrix-files]
-use ../../lib/matrix-cells.nu [expand-matrix-cells]
+use ../../lib/matrix/rules-gen.nu [generate-matrix-rules write-generated-matrix-rules]
+use ../../lib/matrix/cypress-gen.nu [write-cypress-matrix-files check-cypress-matrix-files]
+use ../../lib/matrix/cells.nu [expand-matrix-cells]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu matrix <verb> [flags]"

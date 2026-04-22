@@ -2,7 +2,7 @@
 # compute-cell failures propagate immediately; no catching or null suppression.
 
 use ./cell.nu [compute-cell]
-use ./matrix-expand.nu [expand-version-pairs]
+use ./expand.nu [expand-version-pairs]
 
 # Build a flat cell list from a matrix-rules record.
 # Merges enabled and mitm from the scenario config onto each cell.

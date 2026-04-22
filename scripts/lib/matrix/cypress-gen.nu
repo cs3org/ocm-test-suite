@@ -1,8 +1,7 @@
 # Cypress matrix generator: produces cypress/e2e/<flow>/matrix.ts files
 # from config/matrix-rules.nuon (enabled cells only, sorted by cell_id).
 
-use ./matrix-cells.nu [expand-matrix-cells]
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
+use ./cells.nu [expand-matrix-cells]
 
 # Allowlist of flow IDs that have a cypress/e2e/<flow>/ spec folder.
 # Only flows listed here get a generated matrix.ts file.

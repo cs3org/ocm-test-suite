@@ -1,8 +1,8 @@
 # Matrix rules generator: produces config/matrix-rules.nuon from the
 # modular SSOT under config/matrix/.
 
-use ./execution-id.nu [validate-path-segment]
-use ./flow-ids.nu [PUBLIC_FLOW_IDS]
+use ../run/execution-id.nu [validate-path-segment]
+use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 
 # Resolve version_lines for a role, falling back to the platform catalog.
 def resolve-vl [flow_vl_map: record, platform: string, platforms: record] {

@@ -1,10 +1,7 @@
 # Actors domain: operator actor configuration queries and validation.
 
-use ../../lib/actors.nu [
-    list-scenario-names
-    load-actor-for-scenario
-    validate-actor-config
-]
+use ../../lib/actors/load.nu [list-scenario-names load-actor-for-scenario]
+use ../../lib/actors/validate.nu [validate-actor-config]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [] {
@@ -55,7 +52,11 @@ def "main validate" [
     --receiver-platform: string = "",   # Optional: expected receiver platform (two-party)
 ] {
     let root = get-ocmts-root
-    validate-actor-config $scenario $root $sender_platform $receiver_platform
+    let rules_path = ($root | path join "config/matrix-rules.nuon")
+    let fid = if ($rules_path | path exists) {
+        (open $rules_path).scenarios | get --optional $scenario | default {} | get flow_id? | default $scenario
+    } else { $scenario }
+    validate-actor-config $scenario $root $sender_platform $receiver_platform --flow-id $fid
     print $"actor config for '($scenario)': ok"
 }
 
@@ -66,7 +67,7 @@ def "main validate-all" [] {
     let root = get-ocmts-root
     let rules_path = ($root | path join "config/matrix-rules.nuon")
     if not ($rules_path | path exists) {
-        error make {msg: "config/matrix-rules.nuon not found; generate it first with 'matrix generate'"}
+        error make {msg: "config/matrix-rules.nuon not found; generate it first with 'matrix gen'"}
     }
     let rules = (open $rules_path)
     let all_scenarios = ($rules.scenarios | transpose name rule)
@@ -76,7 +77,8 @@ def "main validate-all" [] {
         let rule = $item.rule
         let sp = (if $rule.sender? == null { "" } else { $rule.sender.platform? | default "" })
         let rp = (if $rule.receiver? == null { "" } else { $rule.receiver.platform? | default "" })
-        validate-actor-config $name $root $sp $rp
+        let fid = ($rule.flow_id? | default $name)
+        validate-actor-config $name $root $sp $rp --flow-id $fid
         print $"  ($name): ok"
     }
 }

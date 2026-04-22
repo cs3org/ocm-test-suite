@@ -3,10 +3,17 @@
 # stack.env for docker compose variable substitution.
 
 use ./yaml.nu [platform-party-host yaml-env-entry]
-use ../actors.nu [load-sender-for-scenario load-receiver-for-scenario]
-use ../cell.nu [validate-browser]
-use ../execution-id.nu [execution-temp-path]
-use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines]
+use ./topology-common.nu [
+    make-stack-context
+    write-exec-yml
+    copy-platform-cookbook
+    copy-overlays-to-artifacts
+    write-stack-id-and-files
+    ocmgo-env-lines
+]
+use ../actors/load.nu [load-sender-for-scenario load-receiver-for-scenario]
+use ../matrix/cell.nu [validate-browser]
+use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
 # Write stack.env for a two-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -82,38 +89,8 @@ def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    if $sender_platform == "ocmgo" {
-        if $sender_actor == null {
-            error make {msg: "sender platform 'ocmgo' requires a sender actor (admin credentials); none configured for this scenario"}
-        }
-        $lines = ($lines | append [
-            $"OCM_GO_SENDER_HOST=($sender_short_host)"
-            $"OCM_GO_SENDER_ADMIN_USER=($sender_actor.username)"
-            $"OCM_GO_SENDER_ADMIN_PASSWORD=($sender_actor.password)"
-        ])
-    } else {
-        $lines = ($lines | append [
-            "OCM_GO_SENDER_HOST="
-            "OCM_GO_SENDER_ADMIN_USER="
-            "OCM_GO_SENDER_ADMIN_PASSWORD="
-        ])
-    }
-    if $receiver_platform == "ocmgo" {
-        if $receiver_actor == null {
-            error make {msg: "receiver platform 'ocmgo' requires a receiver actor (admin credentials); none configured for this scenario"}
-        }
-        $lines = ($lines | append [
-            $"OCM_GO_RECEIVER_HOST=($receiver_short_host)"
-            $"OCM_GO_RECEIVER_ADMIN_USER=($receiver_actor.username)"
-            $"OCM_GO_RECEIVER_ADMIN_PASSWORD=($receiver_actor.password)"
-        ])
-    } else {
-        $lines = ($lines | append [
-            "OCM_GO_RECEIVER_HOST="
-            "OCM_GO_RECEIVER_ADMIN_USER="
-            "OCM_GO_RECEIVER_ADMIN_PASSWORD="
-        ])
-    }
+    $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host))
+    $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host))
     if $sender_actor != null {
         $lines = ($lines | append [
             $"CYPRESS_sender_username=($sender_actor.username)"
@@ -163,29 +140,18 @@ export def write-two-party-overlays [
     let sender_actor = (load-sender-for-scenario $scenario $root $sender_platform)
     let receiver_actor = (load-receiver-for-scenario $scenario $root $receiver_platform)
 
-    let stack_id = $"ocmts--($artifact_name)--($execution_id)"
-    let compose_d = (execution-temp-path $execution_id | path join "compose.d")
-    mkdir $compose_d
-    let art_inputs = ($artifacts_base | path join "compose" "inputs")
-    mkdir $art_inputs
-    let base_yml = ($root | path join "config/compose/base.yml")
+    let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
+    let stack_id = $ctx.stack_id
+    let compose_d = $ctx.compose_d
+    let art_inputs = $ctx.art_inputs
+    let base_yml = $ctx.base_yml
 
     # exec.yml: network name binding
-    (["networks:" "  ocm-net:" $"    name: ($stack_id)"] | str join "\n")
-        | save --force ($compose_d | path join "exec.yml")
+    write-exec-yml $compose_d $stack_id
 
     # Copy sender and receiver cookbook YAMLs
-    let sender_cookbook = ($root | path join "config/compose/cookbooks" $"($sender_platform).sender.yml")
-    if not ($sender_cookbook | path exists) {
-        error make {msg: $"No sender cookbook for platform '($sender_platform)': config/compose/cookbooks/($sender_platform).sender.yml not found"}
-    }
-    open --raw $sender_cookbook | save --force ($compose_d | path join "sender.yml")
-
-    let receiver_cookbook = ($root | path join "config/compose/cookbooks" $"($receiver_platform).receiver.yml")
-    if not ($receiver_cookbook | path exists) {
-        error make {msg: $"No receiver cookbook for platform '($receiver_platform)': config/compose/cookbooks/($receiver_platform).receiver.yml not found"}
-    }
-    open --raw $receiver_cookbook | save --force ($compose_d | path join "receiver.yml")
+    copy-platform-cookbook $root $sender_platform "sender" $compose_d
+    copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
 
     # Write stack.env with all substitution variables
     let env_file = (write-two-party-env
@@ -215,7 +181,7 @@ export def write-two-party-overlays [
         $"      - OCMTS_EXECUTION_ID=($execution_id)"
         "    volumes:"
         $"      - ($artifacts_base)/mitm:/mitm"
-        $"      - ($root)/scripts/lib/mitmproxy-jsonl.py:/ocmts/mitmproxy-jsonl.py:ro"
+        $"      - ($root)/scripts/python/lib/mitm/mitmproxy_jsonl.py:/ocmts/mitmproxy_jsonl.py:ro"
     ] | str join "\n") | save --force ($compose_d | path join "mitm.yml")
 
     # Create MITM artifact placeholder files and confdir with config.yaml.
@@ -224,7 +190,7 @@ export def write-two-party-overlays [
     "" | save --force ($artifacts_base | path join "mitm" "flows" "session.json")
     "" | save --force ($artifacts_base | path join "mitm" "redaction-report.json")
     mkdir ($artifacts_base | path join "mitm" "conf")
-    "scripts:\n  - /ocmts/mitmproxy-jsonl.py\n"
+    "scripts:\n  - /ocmts/mitmproxy_jsonl.py\n"
         | save --force ($artifacts_base | path join "mitm" "conf" "config.yaml")
 
     let record_str = if $record_video { "true" } else { "false" }
@@ -330,16 +296,9 @@ export def write-two-party-overlays [
     let base_overlay_fnames = ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"]
 
     # Copy all overlays to artifacts for durable access.
-    for fname in ([$base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]] | flatten) {
-        open --raw ($compose_d | path join $fname)
-        | save --force ($art_inputs | path join $fname)
-    }
+    copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]
 
-    $stack_id | save --force ($artifacts_base | path join "compose" "stack_id.txt")
-
-    # files.txt: base file set including mitm overlay.
-    ([$base_yml] | append ($base_overlay_fnames | each {|f| $art_inputs | path join $f}))
-        | str join "\n" | save --force ($artifacts_base | path join "compose" "files.txt")
+    write-stack-id-and-files $artifacts_base $stack_id $base_yml $art_inputs $base_overlay_fnames
 
     {
         stack_id: $stack_id,

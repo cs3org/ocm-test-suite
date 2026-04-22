@@ -1,9 +1,9 @@
 # Post-run artifact collection: service logs, MITM summaries, and video normalization.
 # Best-effort: warns on individual failures but does not throw.
 
-use ../docker-logs.nu [collect-service-logs]
-use ../mitm-summary.nu [summarize-mitm-flows]
-use ../mitm-ocm-summary.nu [write-ocm-mitm-summaries]
+use ../compose/logs.nu [collect-service-logs]
+use ../mitm/summary.nu [summarize-mitm-flows]
+use ../mitm/ocm-summary.nu [write-ocm-mitm-summaries]
 
 # Read cell_id from meta/cell.json; returns "" when missing or unreadable.
 def read-cell-id-from-meta [artifacts_base: string] {
@@ -35,9 +35,9 @@ export def normalize-cypress-video [
         for extra in $extras {
             try {
                 rm $extra
-                print $"Removed extra video: ($extra | path basename)"
+                print --stderr $"Removed extra video: ($extra | path basename)"
             } catch {|e|
-                print $"WARNING: could not remove extra video: ($e.msg)"
+                print --stderr $"WARNING: could not remove extra video: ($e.msg)"
             }
         }
         return
@@ -51,18 +51,18 @@ export def normalize-cypress-video [
     let src = ($mp4s | first)
     try {
         mv $src $target_path
-        print $"Normalized video: ($src | path basename) -> ($target_name)"
+        print --stderr $"Normalized video: ($src | path basename) -> ($target_name)"
     } catch {|e|
-        print $"WARNING: video normalization failed: ($e.msg)"
+        print --stderr $"WARNING: video normalization failed: ($e.msg)"
         return
     }
     let remaining = ($mp4s | skip 1)
     for leftover in $remaining {
         try {
             rm $leftover
-            print $"Removed extra video: ($leftover | path basename)"
+            print --stderr $"Removed extra video: ($leftover | path basename)"
         } catch {|e|
-            print $"WARNING: could not remove extra video: ($e.msg)"
+            print --stderr $"WARNING: could not remove extra video: ($e.msg)"
         }
     }
 }
@@ -89,7 +89,7 @@ export def collect-run-artifacts [
                 | each {|s| $s.service}
                 | str join ", "
             )
-            print $"WARNING: docker log collection failed for services: ($failed_svcs)"
+            print --stderr $"WARNING: docker log collection failed for services: ($failed_svcs)"
             let warn_lines = (
                 $log_result.services
                 | where {|s| not $s.ok}
@@ -98,22 +98,22 @@ export def collect-run-artifacts [
             )
             try {
                 $warn_lines | save --force ($artifacts_base | path join "meta/docker-log-warning.txt")
-            } catch {|se| print $"WARNING: could not write docker-log-warning.txt: ($se.msg)" }
+            } catch {|se| print --stderr $"WARNING: could not write docker-log-warning.txt: ($se.msg)" }
         }
     } catch {|e|
-        print $"WARNING: docker log collection threw an error: ($e.msg)"
+        print --stderr $"WARNING: docker log collection threw an error: ($e.msg)"
     }
 
     if $is_two_party {
         try {
             summarize-mitm-flows $artifacts_base
         } catch {|e|
-            print $"WARNING: MITM summary failed: ($e.msg)"
+            print --stderr $"WARNING: MITM summary failed: ($e.msg)"
         }
         try {
             write-ocm-mitm-summaries $artifacts_base
         } catch {|e|
-            print $"WARNING: OCM MITM summary failed: ($e.msg)"
+            print --stderr $"WARNING: OCM MITM summary failed: ($e.msg)"
         }
     }
 
@@ -121,6 +121,6 @@ export def collect-run-artifacts [
     try {
         normalize-cypress-video $artifacts_base $vid_cell_id
     } catch {|e|
-        print $"WARNING: video normalization error: ($e.msg)"
+        print --stderr $"WARNING: video normalization error: ($e.msg)"
     }
 }

@@ -1,13 +1,13 @@
 # Shared run context setup: validate, compute cell, create dirs, render overlays,
 # write initial metadata.
 
-use ../cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
-use ../images.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
-use ../execution-id.nu [new-execution-id validate-execution-id]
-use ../actors.nu [validate-actor-config]
-use ../compose-render.nu [write-compose-overlays]
-use ../run-metadata.nu [write-prepared-run utc-now]
-use ../artifacts-init.nu [init-artifact-dirs write-last-execution-id]
+use ../matrix/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
+use ../images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
+use ../run/execution-id.nu [new-execution-id validate-execution-id]
+use ../actors/validate.nu [validate-actor-config]
+use ../compose/render.nu [write-compose-overlays]
+use ../run/metadata.nu [write-prepared-run utc-now]
+use ../artifacts/init.nu [init-artifact-dirs write-last-execution-id]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 
 # Compute IDs, create dirs, generate overlays, write initial metadata.

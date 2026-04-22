@@ -3,10 +3,17 @@
 # stack.env for docker compose variable substitution.
 
 use ./yaml.nu [platform-party-host yaml-env-entry]
-use ../actors.nu [load-actor-for-scenario]
-use ../cell.nu [validate-browser]
-use ../execution-id.nu [execution-temp-path]
-use ../ocm-endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
+use ./topology-common.nu [
+    make-stack-context
+    write-exec-yml
+    copy-platform-cookbook
+    copy-overlays-to-artifacts
+    write-stack-id-and-files
+    ocmgo-env-lines
+]
+use ../actors/load.nu [load-actor-for-scenario]
+use ../matrix/cell.nu [validate-browser]
+use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
 
 # Write stack.env for a one-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -55,22 +62,7 @@ def write-one-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    if $platform == "ocmgo" {
-        if $actor == null {
-            error make {msg: "platform 'ocmgo' requires an actor (admin credentials); none configured for this scenario"}
-        }
-        $lines = ($lines | append [
-            $"OCM_GO_SENDER_HOST=($short_host)"
-            $"OCM_GO_SENDER_ADMIN_USER=($actor.username)"
-            $"OCM_GO_SENDER_ADMIN_PASSWORD=($actor.password)"
-        ])
-    } else {
-        $lines = ($lines | append [
-            "OCM_GO_SENDER_HOST="
-            "OCM_GO_SENDER_ADMIN_USER="
-            "OCM_GO_SENDER_ADMIN_PASSWORD="
-        ])
-    }
+    $lines = ($lines | append (ocmgo-env-lines "sender" $platform $actor $short_host))
     if $actor != null {
         $lines = ($lines | append [
             $"CYPRESS_($actor.platform)_username=($actor.username)"
@@ -107,23 +99,17 @@ export def write-one-party-overlays [
     let safe_browser = (validate-browser $browser)
     let actor = (load-actor-for-scenario $scenario $root $platform)
 
-    let stack_id = $"ocmts--($artifact_name)--($execution_id)"
-    let compose_d = (execution-temp-path $execution_id | path join "compose.d")
-    mkdir $compose_d
-    let art_inputs = ($artifacts_base | path join "compose" "inputs")
-    mkdir $art_inputs
-    let base_yml = ($root | path join "config/compose/base.yml")
+    let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
+    let stack_id = $ctx.stack_id
+    let compose_d = $ctx.compose_d
+    let art_inputs = $ctx.art_inputs
+    let base_yml = $ctx.base_yml
 
     # exec.yml: binds the docker-global network name to the stack_id
-    (["networks:" "  ocm-net:" $"    name: ($stack_id)"] | str join "\n")
-        | save --force ($compose_d | path join "exec.yml")
+    write-exec-yml $compose_d $stack_id
 
     # Copy sender cookbook YAML from config/compose/cookbooks/
-    let cookbook_src = ($root | path join "config/compose/cookbooks" $"($platform).sender.yml")
-    if not ($cookbook_src | path exists) {
-        error make {msg: $"No sender cookbook for platform '($platform)': config/compose/cookbooks/($platform).sender.yml not found"}
-    }
-    open --raw $cookbook_src | save --force ($compose_d | path join "sender.yml")
+    copy-platform-cookbook $root $platform "sender" $compose_d
 
     # Write stack.env with all substitution variables
     let env_file = (write-one-party-env
@@ -214,17 +200,9 @@ export def write-one-party-overlays [
     let base_overlay_fnames = ["exec.yml" "sender.yml"]
 
     # Copy all overlays to artifacts for durable access.
-    for fname in ([$base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]] | flatten) {
-        open --raw ($compose_d | path join $fname)
-        | save --force ($art_inputs | path join $fname)
-    }
+    copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]
 
-    # stack_id.txt: used by `down` and `test run` to reconstruct the compose invocation
-    $stack_id | save --force ($artifacts_base | path join "compose" "stack_id.txt")
-
-    # files.txt: base file set; base_yml is the live config path, overlays are artifact input paths
-    ([$base_yml] | append ($base_overlay_fnames | each {|f| $art_inputs | path join $f}))
-        | str join "\n" | save --force ($artifacts_base | path join "compose" "files.txt")
+    write-stack-id-and-files $artifacts_base $stack_id $base_yml $art_inputs $base_overlay_fnames
 
     {
         stack_id: $stack_id,

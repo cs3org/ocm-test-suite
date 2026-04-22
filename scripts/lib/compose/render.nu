@@ -4,8 +4,8 @@
 # durable access.
 # Dispatches to topology-specific writers; see compose/ subdirectory for details.
 
-use ./compose/topology-two-party.nu [write-two-party-overlays]
-use ./compose/topology-one-party.nu [write-one-party-overlays]
+use ./topology-two-party.nu [write-two-party-overlays]
+use ./topology-one-party.nu [write-one-party-overlays]
 
 # Write all compose overlay fragments for one execution.
 # Dispatches to one-party or two-party path based on receiver_platform.

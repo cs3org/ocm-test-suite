@@ -117,6 +117,54 @@ export def update-run-lifecycle [
     $r | to json | save --force $run_path
 }
 
+# Write terminal run.json and result.json together in one call.
+# Convenience wrapper: replaces paired write-terminal-run + write-compact-result calls.
+export def write-terminal-outcome [
+    artifacts_base: string,
+    execution_id: string,
+    cell_id: string,
+    artifact_name: string,
+    started_at: string,
+    finished_at: string,
+    status: string,
+    exit_code: int,
+    stack_id: string,
+    images: any = null,
+    --phase: string = "",
+    --fail-error: string = "",
+    --suite-id: string = "",
+    --suite-kind: string = "",
+] {
+    (write-terminal-run $artifacts_base $execution_id $cell_id $artifact_name
+        $started_at $finished_at $status $exit_code $stack_id $images
+        --phase $phase --fail-error $fail_error
+        --suite-id $suite_id --suite-kind $suite_kind)
+    (write-compact-result $artifacts_base $execution_id $cell_id
+        $status $exit_code $finished_at
+        --suite-id $suite_id --suite-kind $suite_kind)
+}
+
+# Write meta/final-verdict.json with structured stage and verdict data.
+# base and final are records with shape {status: string, exit_code: int}.
+#   base:  outcome derived directly from Cypress exit (unchanged by validators).
+#   final: resolved outcome after validators (equals base when no override ran).
+# validators: names of validators that ran (empty when none are registered).
+export def write-final-verdict [
+    artifacts_base: string,
+    stage: string,
+    base: record,
+    final: record,
+    validators: list = [],
+] {
+    {
+        schema_version: 2,
+        stage: $stage,
+        base: $base,
+        final: $final,
+        validators: $validators,
+    } | to json | save --force ($artifacts_base | path join "meta/final-verdict.json")
+}
+
 # Write compact result.json (terminal outcome projection).
 export def write-compact-result [
     artifacts_base: string,

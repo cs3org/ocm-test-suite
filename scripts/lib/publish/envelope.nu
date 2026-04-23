@@ -4,7 +4,7 @@
 # evidence rows on result, indexes. Banned fields: backend, executor,
 # provenance, trust, publication_state, published_at.
 
-use ./flow-ids.nu [PUBLIC_FLOW_IDS]
+use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 
 def now-utc [] {
     date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"

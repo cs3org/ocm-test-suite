@@ -1,66 +1,25 @@
 # Evidence enrichment tests for publish-envelope helpers.
-# Run: nu scripts/tests/publish-envelope.nu
+# Run: nu scripts/tests/publish/envelope.nu
 # Returns exit 0 on all pass, exit 1 with details on any failure.
 
-use ../lib/publish-envelope.nu [
+const SUITE_PATH = path self
+
+use ../../lib/publish/envelope.nu [
     path-to-evidence-id
     parse-screenshot-stem
     parse-video-stem
     enrich-ev-row
     sort-evidence-rows
 ]
-use ../lib/site-ingest.nu [copy-allowlisted-artifacts]
-use ../lib/services/postrun-artifacts.nu [normalize-cypress-video]
-
-def PASS [] { "PASS" }
-def FAIL [msg: string] { $"FAIL: ($msg)" }
-
-def assert-eq [got: any, want: any, label: string] {
-    if $got == $want {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    got:  ($got | to json)"
-        print $"    want: ($want | to json)"
-        FAIL $label
-    }
-}
-
-def assert-null [got: any, label: string] {
-    if $got == null {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected null, got ($got | to json)"
-        FAIL $label
-    }
-}
-
-def assert-not-null [got: any, label: string] {
-    if $got != null {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected non-null, got null"
-        FAIL $label
-    }
-}
-
-def assert-truthy [got: bool, label: string] {
-    if $got {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected true, got false"
-        FAIL $label
-    }
-}
+use ../../lib/site/copy.nu [copy-allowlisted-artifacts]
+use ../../lib/services/postrun-artifacts.nu [normalize-cypress-video]
+use ../../lib/tests/assert.nu *
+use ../../lib/tests/runner.nu [run-suite]
 
 # --- path-to-evidence-id ---
 
 def test-path-to-evidence-id [] {
-    print "\n[test-path-to-evidence-id]"
+    test-log "\n[test-path-to-evidence-id]"
     [
         (assert-eq
             (path-to-evidence-id "cypress/screenshots/login__opencloud-v6--001--single--authenticated.png")
@@ -92,7 +51,7 @@ def test-path-to-evidence-id [] {
 # --- parse-screenshot-stem ---
 
 def test-parse-screenshot-stem [] {
-    print "\n[test-parse-screenshot-stem]"
+    test-log "\n[test-parse-screenshot-stem]"
     let simple = (parse-screenshot-stem "login__opencloud-v6--001--single--login-page-ready")
     let two_party = (parse-screenshot-stem "share-with__nextcloud-v34__nextcloud-v34--004--receiver--share-visible")
     let multi_checkpoint = (parse-screenshot-stem "contact-token__nc__nc--007--sender--share-saved")
@@ -130,7 +89,7 @@ def test-parse-screenshot-stem [] {
 # --- parse-video-stem ---
 
 def test-parse-video-stem [] {
-    print "\n[test-parse-video-stem]"
+    test-log "\n[test-parse-video-stem]"
     let ok = (parse-video-stem "login__opencloud-v6--run")
     let two_party = (parse-video-stem "share-with__nextcloud-v34__nextcloud-v34--run")
     mut results = [
@@ -159,7 +118,7 @@ def test-parse-video-stem [] {
 # --- enrich-ev-row ---
 
 def test-enrich-ev-row [] {
-    print "\n[test-enrich-ev-row]"
+    test-log "\n[test-enrich-ev-row]"
     let fallback_cell = "login__opencloud-v6"
 
     let ss_proof = {
@@ -256,7 +215,7 @@ def test-enrich-ev-row [] {
 # Tests that downloads are excluded from the site copy without needing Docker or live runs.
 
 def test-download-filtering [] {
-    print "\n[test-download-filtering]"
+    test-log "\n[test-download-filtering]"
     let tmp = (^mktemp -d | str trim)
     let src = ($tmp | path join "src")
     let dst = ($tmp | path join "dst")
@@ -303,7 +262,7 @@ def test-download-filtering [] {
 # Tests filesystem behavior: move, idempotency, empty cell_id, no videos dir.
 
 def test-normalize-cypress-video [] {
-    print "\n[test-normalize-cypress-video]"
+    test-log "\n[test-normalize-cypress-video]"
     let cell_id = "login__opencloud-v6"
 
     # Case 1: legacy video moved to normalized name; source removed.
@@ -376,7 +335,7 @@ def test-normalize-cypress-video [] {
 # among screenshots and break ties by path.
 
 def test-sort-evidence-rows [] {
-    print "\n[test-sort-evidence-rows]"
+    test-log "\n[test-sort-evidence-rows]"
     let cell = "login__opencloud-v6"
 
     let ss_002 = {
@@ -444,7 +403,7 @@ def test-sort-evidence-rows [] {
 }
 
 def main [] {
-    print "=== Publish Envelope Evidence Tests ==="
+    test-log "=== Publish Envelope Evidence Tests ==="
     let results = (
         (test-path-to-evidence-id)
         | append (test-parse-screenshot-stem)
@@ -453,15 +412,6 @@ def main [] {
         | append (test-sort-evidence-rows)
         | append (test-download-filtering)
         | append (test-normalize-cypress-video)
-    )
-    let failures = ($results | where {|r| $r != "PASS"})
-    let total = ($results | length)
-    let passed = ($total - ($failures | length))
-    print $"\n=== ($passed)/($total) passed ==="
-    if not ($failures | is-empty) {
-        print "Failures:"
-        for f in $failures { print $"  ($f)" }
-        exit 1
-    }
-    print "All tests passed."
+    ) | flatten
+    run-suite "publish/envelope" $SUITE_PATH $results
 }

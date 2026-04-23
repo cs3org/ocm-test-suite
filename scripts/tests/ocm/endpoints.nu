@@ -1,48 +1,16 @@
 # OCM endpoint resolver tests.
-# Run: nu scripts/tests/ocm-endpoints.nu
+# Run: nu scripts/tests/ocm/endpoints.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
-use ../lib/ocm-endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
+const SUITE_PATH = path self
 
-def PASS [] { "PASS" }
-def FAIL [msg: string] { $"FAIL: ($msg)" }
-
-def assert-eq [got: any, want: any, label: string] {
-    if $got == $want {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    got:  ($got | to json)"
-        print $"    want: ($want | to json)"
-        FAIL $label
-    }
-}
-
-def assert-truthy [got: bool, label: string] {
-    if $got {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label) - expected truthy"
-        FAIL $label
-    }
-}
-
-def assert-contains [got: string, sub: string, label: string] {
-    if ($got | str contains $sub) {
-        print $"  ok: ($label)"
-        PASS
-    } else {
-        print $"  FAIL: ($label)"
-        print $"    string ($got | to json) does not contain ($sub | to json)"
-        FAIL $label
-    }
-}
+use ../../lib/ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
+use ../../lib/tests/assert.nu *
+use ../../lib/tests/runner.nu [run-suite]
 
 # Locate the repo root by walking up from the script location.
 def find-repo-root [] {
-    let here = ($env.CURRENT_FILE | path dirname | path dirname | path dirname)
+    let here = ($env.CURRENT_FILE | path dirname | path dirname | path dirname | path dirname)
     $here
 }
 
@@ -57,7 +25,7 @@ def make-temp-manifest-root [platforms: record]: nothing -> string {
 }
 
 def test-nextcloud-sender-defaults [] {
-    print "\n[test-nextcloud-sender-defaults]"
+    test-log "\n[test-nextcloud-sender-defaults]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "nextcloud" 1)
     [
@@ -81,7 +49,7 @@ def test-nextcloud-sender-defaults [] {
 }
 
 def test-nextcloud-receiver-defaults [] {
-    print "\n[test-nextcloud-receiver-defaults]"
+    test-log "\n[test-nextcloud-receiver-defaults]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "nextcloud" 2)
     [
@@ -93,7 +61,7 @@ def test-nextcloud-receiver-defaults [] {
 }
 
 def test-ocis-defaults [] {
-    print "\n[test-ocis-defaults]"
+    test-log "\n[test-ocis-defaults]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "ocis" 1)
     [
@@ -107,7 +75,7 @@ def test-ocis-defaults [] {
 }
 
 def test-ocmgo-defaults [] {
-    print "\n[test-ocmgo-defaults]"
+    test-log "\n[test-ocmgo-defaults]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "ocmgo" 1)
     [
@@ -121,7 +89,7 @@ def test-ocmgo-defaults [] {
 }
 
 def test-version-line-no-override [] {
-    print "\n[test-version-line-no-override]"
+    test-log "\n[test-version-line-no-override]"
     let root = find-repo-root
     # Real platforms.nuon has no ocm_endpoints; version line has no effect.
     let p_plain = (resolve-ocm-provider $root "nextcloud" 1)
@@ -138,7 +106,7 @@ def test-version-line-no-override [] {
 # Temp manifest used so the test is self-contained and does not depend on
 # platforms.nuon having the section yet.
 def test-manifest-default-consumed [] {
-    print "\n[test-manifest-default-consumed]"
+    test-log "\n[test-manifest-default-consumed]"
     let tmp = (make-temp-manifest-root {
         testplat: {
             slug: "tp",
@@ -170,7 +138,7 @@ def test-manifest-default-consumed [] {
 # Prove that ocm_endpoints.version_lines override wins over default, and that
 # an unrecognised version line falls back to the manifest default.
 def test-manifest-version-override [] {
-    print "\n[test-manifest-version-override]"
+    test-log "\n[test-manifest-version-override]"
     let tmp = (make-temp-manifest-root {
         testplat: {
             slug: "tp",
@@ -206,7 +174,7 @@ def test-manifest-version-override [] {
 }
 
 def test-provider-record-has-identity-fields [] {
-    print "\n[test-provider-record-has-identity-fields]"
+    test-log "\n[test-provider-record-has-identity-fields]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "nextcloud" 1)
     [
@@ -222,33 +190,33 @@ def test-provider-record-has-identity-fields [] {
 }
 
 def test-provider-env-lines-one-party [] {
-    print "\n[test-provider-env-lines-one-party]"
+    test-log "\n[test-provider-env-lines-one-party]"
     let root = find-repo-root
     let p = (resolve-ocm-provider $root "nextcloud" 1)
     let lines = (provider-env-lines [$p])
     let joined = ($lines | str join "\n")
     [
-        (assert-contains $joined "OCM_PROVIDER_0_NAME=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_NAME=nextcloud1.docker"
             "one-party env lines contain OCM_PROVIDER_0_NAME")
-        (assert-contains $joined "OCM_PROVIDER_0_FULL_NAME=nextcloud1.docker provider"
+        (assert-string-contains $joined "OCM_PROVIDER_0_FULL_NAME=nextcloud1.docker provider"
             "one-party env lines contain OCM_PROVIDER_0_FULL_NAME")
-        (assert-contains $joined "OCM_PROVIDER_0_ORGANIZATION=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_ORGANIZATION=nextcloud1.docker"
             "one-party env lines contain OCM_PROVIDER_0_ORGANIZATION")
-        (assert-contains $joined "OCM_PROVIDER_0_DESCRIPTION=nextcloud1.docker cloud storage"
+        (assert-string-contains $joined "OCM_PROVIDER_0_DESCRIPTION=nextcloud1.docker cloud storage"
             "one-party env lines contain OCM_PROVIDER_0_DESCRIPTION")
-        (assert-contains $joined "OCM_PROVIDER_0_DOMAIN=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_DOMAIN=nextcloud1.docker"
             "one-party env lines contain OCM_PROVIDER_0_DOMAIN")
-        (assert-contains $joined "OCM_PROVIDER_0_OCM_ENDPOINT=https://nextcloud1.docker/ocm/"
+        (assert-string-contains $joined "OCM_PROVIDER_0_OCM_ENDPOINT=https://nextcloud1.docker/ocm/"
             "one-party env lines contain OCM_PROVIDER_0_OCM_ENDPOINT")
-        (assert-contains $joined "OCM_PROVIDER_0_OCM_PATH=/ocm/"
+        (assert-string-contains $joined "OCM_PROVIDER_0_OCM_PATH=/ocm/"
             "one-party env lines contain OCM_PROVIDER_0_OCM_PATH")
-        (assert-contains $joined "OCM_PROVIDER_0_OCM_HOST=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_OCM_HOST=nextcloud1.docker"
             "one-party env lines contain OCM_PROVIDER_0_OCM_HOST")
-        (assert-contains $joined "OCM_PROVIDER_0_WEBDAV_ENDPOINT=https://nextcloud1.docker/remote.php/webdav/"
+        (assert-string-contains $joined "OCM_PROVIDER_0_WEBDAV_ENDPOINT=https://nextcloud1.docker/remote.php/webdav/"
             "one-party env lines contain OCM_PROVIDER_0_WEBDAV_ENDPOINT")
-        (assert-contains $joined "OCM_PROVIDER_0_WEBDAV_PATH=/remote.php/webdav/"
+        (assert-string-contains $joined "OCM_PROVIDER_0_WEBDAV_PATH=/remote.php/webdav/"
             "one-party env lines contain OCM_PROVIDER_0_WEBDAV_PATH")
-        (assert-contains $joined "OCM_PROVIDER_0_WEBDAV_HOST=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_WEBDAV_HOST=nextcloud1.docker"
             "one-party env lines contain OCM_PROVIDER_0_WEBDAV_HOST")
         (assert-truthy (not ($joined | str contains "OCM_PROVIDER_1_"))
             "one-party env lines do not contain OCM_PROVIDER_1_")
@@ -258,18 +226,18 @@ def test-provider-env-lines-one-party [] {
 }
 
 def test-provider-env-lines-two-party [] {
-    print "\n[test-provider-env-lines-two-party]"
+    test-log "\n[test-provider-env-lines-two-party]"
     let root = find-repo-root
     let sender = (resolve-ocm-provider $root "nextcloud" 1)
     let receiver = (resolve-ocm-provider $root "nextcloud" 2)
     let lines = (provider-env-lines [$sender $receiver])
     let joined = ($lines | str join "\n")
     [
-        (assert-contains $joined "OCM_PROVIDER_0_DOMAIN=nextcloud1.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_0_DOMAIN=nextcloud1.docker"
             "two-party: sender at index 0")
-        (assert-contains $joined "OCM_PROVIDER_1_DOMAIN=nextcloud2.docker"
+        (assert-string-contains $joined "OCM_PROVIDER_1_DOMAIN=nextcloud2.docker"
             "two-party: receiver at index 1")
-        (assert-contains $joined "OCM_PROVIDER_1_OCM_ENDPOINT=https://nextcloud2.docker/ocm/"
+        (assert-string-contains $joined "OCM_PROVIDER_1_OCM_ENDPOINT=https://nextcloud2.docker/ocm/"
             "two-party: receiver OCM endpoint uses party index 2 hostname")
         (assert-eq ($lines | length) 24
             "two-party: 12 env vars per provider, 24 total")
@@ -279,7 +247,7 @@ def test-provider-env-lines-two-party [] {
 }
 
 def test-unknown-platform-errors [] {
-    print "\n[test-unknown-platform-errors]"
+    test-log "\n[test-unknown-platform-errors]"
     let root = find-repo-root
     let caught = (try {
         resolve-ocm-provider $root "nonexistent-platform" 1
@@ -293,7 +261,7 @@ def test-unknown-platform-errors [] {
 }
 
 def test-empty-platform-errors [] {
-    print "\n[test-empty-platform-errors]"
+    test-log "\n[test-empty-platform-errors]"
     let root = find-repo-root
     let caught = (try {
         resolve-ocm-provider $root "" 1
@@ -309,7 +277,7 @@ def test-empty-platform-errors [] {
 # Prove that split host roles work: ocm_host_role=reva-party while
 # webdav_host_role=party gives different hosts for the two endpoints.
 def test-split-host-roles [] {
-    print "\n[test-split-host-roles]"
+    test-log "\n[test-split-host-roles]"
     let tmp = (make-temp-manifest-root {
         testplat: {
             slug: "tp",
@@ -346,7 +314,7 @@ def test-split-host-roles [] {
 # the manifest default, and that the default role still wins when the version
 # line does not carry a role key.
 def test-version-override-changes-roles [] {
-    print "\n[test-version-override-changes-roles]"
+    test-log "\n[test-version-override-changes-roles]"
     let tmp = (make-temp-manifest-root {
         testplat: {
             slug: "tp",
@@ -397,7 +365,7 @@ def test-version-override-changes-roles [] {
 
 # Guard that real default platforms still resolve with party role (no regressions).
 def test-real-defaults-use-party-role [] {
-    print "\n[test-real-defaults-use-party-role]"
+    test-log "\n[test-real-defaults-use-party-role]"
     let root = find-repo-root
     let platforms = ["nextcloud" "ocis" "ocmgo"]
     let results = ($platforms | each {|plat|
@@ -413,7 +381,7 @@ def test-real-defaults-use-party-role [] {
 }
 
 def test-provider-env-blank-lines [] {
-    print "\n[test-provider-env-blank-lines]"
+    test-log "\n[test-provider-env-blank-lines]"
     let lines = (provider-env-blank-lines 1)
     let joined = ($lines | str join "\n")
     # Index parameter check: index 0 must use OCM_PROVIDER_0_ prefix.
@@ -422,35 +390,35 @@ def test-provider-env-blank-lines [] {
     [
         (assert-eq ($lines | length) 12
             "blank lines for index 1 emits exactly 12 lines")
-        (assert-contains $joined "OCM_PROVIDER_1_NAME="
+        (assert-string-contains $joined "OCM_PROVIDER_1_NAME="
             "blank lines contain OCM_PROVIDER_1_NAME=")
-        (assert-contains $joined "OCM_PROVIDER_1_FULL_NAME="
+        (assert-string-contains $joined "OCM_PROVIDER_1_FULL_NAME="
             "blank lines contain OCM_PROVIDER_1_FULL_NAME=")
-        (assert-contains $joined "OCM_PROVIDER_1_ORGANIZATION="
+        (assert-string-contains $joined "OCM_PROVIDER_1_ORGANIZATION="
             "blank lines contain OCM_PROVIDER_1_ORGANIZATION=")
-        (assert-contains $joined "OCM_PROVIDER_1_DESCRIPTION="
+        (assert-string-contains $joined "OCM_PROVIDER_1_DESCRIPTION="
             "blank lines contain OCM_PROVIDER_1_DESCRIPTION=")
-        (assert-contains $joined "OCM_PROVIDER_1_DOMAIN="
+        (assert-string-contains $joined "OCM_PROVIDER_1_DOMAIN="
             "blank lines contain OCM_PROVIDER_1_DOMAIN=")
-        (assert-contains $joined "OCM_PROVIDER_1_HOMEPAGE="
+        (assert-string-contains $joined "OCM_PROVIDER_1_HOMEPAGE="
             "blank lines contain OCM_PROVIDER_1_HOMEPAGE=")
-        (assert-contains $joined "OCM_PROVIDER_1_OCM_ENDPOINT="
+        (assert-string-contains $joined "OCM_PROVIDER_1_OCM_ENDPOINT="
             "blank lines contain OCM_PROVIDER_1_OCM_ENDPOINT=")
-        (assert-contains $joined "OCM_PROVIDER_1_OCM_PATH="
+        (assert-string-contains $joined "OCM_PROVIDER_1_OCM_PATH="
             "blank lines contain OCM_PROVIDER_1_OCM_PATH=")
-        (assert-contains $joined "OCM_PROVIDER_1_OCM_HOST="
+        (assert-string-contains $joined "OCM_PROVIDER_1_OCM_HOST="
             "blank lines contain OCM_PROVIDER_1_OCM_HOST=")
-        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_ENDPOINT="
+        (assert-string-contains $joined "OCM_PROVIDER_1_WEBDAV_ENDPOINT="
             "blank lines contain OCM_PROVIDER_1_WEBDAV_ENDPOINT=")
-        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_PATH="
+        (assert-string-contains $joined "OCM_PROVIDER_1_WEBDAV_PATH="
             "blank lines contain OCM_PROVIDER_1_WEBDAV_PATH=")
-        (assert-contains $joined "OCM_PROVIDER_1_WEBDAV_HOST="
+        (assert-string-contains $joined "OCM_PROVIDER_1_WEBDAV_HOST="
             "blank lines contain OCM_PROVIDER_1_WEBDAV_HOST=")
         (assert-truthy (not ($joined | str contains "OCM_PROVIDER_0_"))
             "blank lines for index 1 do not contain OCM_PROVIDER_0_")
         (assert-truthy ($lines | all {|l| ($l | str ends-with "=")})
             "every blank line has an empty value")
-        (assert-contains $joined0 "OCM_PROVIDER_0_NAME="
+        (assert-string-contains $joined0 "OCM_PROVIDER_0_NAME="
             "blank lines for index 0 use OCM_PROVIDER_0_ prefix")
         (assert-truthy (not ($joined0 | str contains "OCM_PROVIDER_1_"))
             "blank lines for index 0 do not contain OCM_PROVIDER_1_")
@@ -458,7 +426,7 @@ def test-provider-env-blank-lines [] {
 }
 
 def test-no-authorizer-providers-file-in-env [] {
-    print "\n[test-no-authorizer-providers-file-in-env]"
+    test-log "\n[test-no-authorizer-providers-file-in-env]"
     # Verify that provider-env-lines never emits the file-based authorizer key.
     let root = find-repo-root
     let platforms = ["nextcloud" "ocis" "ocmgo"]
@@ -473,7 +441,7 @@ def test-no-authorizer-providers-file-in-env [] {
 }
 
 def main [] {
-    print "=== OCM Endpoint Resolver Tests ==="
+    test-log "=== OCM Endpoint Resolver Tests ==="
     let results = (
         (test-nextcloud-sender-defaults)
         | append (test-nextcloud-receiver-defaults)
@@ -492,15 +460,6 @@ def main [] {
         | append (test-unknown-platform-errors)
         | append (test-empty-platform-errors)
         | append (test-no-authorizer-providers-file-in-env)
-    )
-    let failures = ($results | where {|r| $r != "PASS"})
-    let total = ($results | length)
-    let passed = ($total - ($failures | length))
-    print $"\n=== ($passed)/($total) passed ==="
-    if not ($failures | is-empty) {
-        print "Failures:"
-        for f in $failures { print $"  ($f)" }
-        exit 1
-    }
-    print "All tests passed."
+    ) | flatten
+    run-suite "ocm/endpoints" $SUITE_PATH $results
 }

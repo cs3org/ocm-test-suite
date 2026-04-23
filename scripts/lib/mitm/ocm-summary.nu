@@ -8,8 +8,8 @@
 # Loads mitm/peers.json when present to resolve role names.
 # Identity backfill from meta/cell.json and meta/run.json when flow fields empty.
 
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-use ./mitm-report-utils.nu [
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ./report-utils.nu [
     participants-from-roles role-primary-host md-participants-preface mk-md-row
     infer-from-role infer-to-role load-meta-identity compute-id-hoist
 ]

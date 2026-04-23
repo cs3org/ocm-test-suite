@@ -7,7 +7,7 @@
 # Identity backfill from meta/cell.json and meta/run.json when flow fields empty.
 # Safe when the jsonl file is missing or empty.
 
-use ./mitm-report-utils.nu [
+use ./report-utils.nu [
     participants-from-roles role-primary-host md-participants-preface mk-md-row
     infer-from-role infer-to-role load-meta-identity compute-id-hoist
 ]

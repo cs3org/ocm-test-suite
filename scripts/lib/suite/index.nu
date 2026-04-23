@@ -3,8 +3,8 @@
 #   artifacts/suites/LATEST_SUITE_ID
 #   artifacts/suites/runs/<suite_id>.json
 
-use ./domain/core/ocmts-root.nu [get-ocmts-root]
-use ./run-metadata.nu [utc-now]
+use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../run/metadata.nu [utc-now]
 
 def suites-dir [] {
     (get-ocmts-root) | path join "artifacts/suites"
@@ -100,6 +100,27 @@ export def record-suite-run [
     ($rec | upsert runs ($rec.runs | append $entry)) | to json | save --force $path
 }
 
+# Append a skipped run entry for a planned cell that was never executed.
+# Used by stop-on-fail tail to record unexecuted cells cleanly.
+# cell must have flow_id, pair, execution_id, cell_id, artifact_name fields.
+export def record-skipped-run [
+    suite_id: string,
+    cell: record,
+    skipped_at: string,
+] {
+    try {
+        (record-suite-run $suite_id
+            ($cell.flow_id? | default "")
+            ($cell.pair? | default "")
+            ($cell.execution_id? | default "")
+            $cell.cell_id
+            ($cell.artifact_name? | default "")
+            "skipped" (-1) "" $skipped_at)
+    } catch {|e|
+        print $"WARNING: record-skipped-run failed for ($suite_id)/($cell.cell_id): ($e.msg)"
+    }
+}
+
 # Safe variant of record-suite-run - prints a warning instead of erroring.
 export def record-suite-run-safe [
     suite_id: string,
@@ -129,11 +150,13 @@ export def compute-suite-status [passed: int, failed: int, blocked: int] {
 
 # Finalize a suite record: set status, counts, and finished_at.
 # blocked defaults to 0 so existing callers without a blocked count still work.
+# skipped defaults to 0; skipped count is persisted but does not affect status.
 export def finish-suite-record [
     suite_id: string,
     passed: int,
     failed: int,
     blocked: int = 0,
+    skipped: int = 0,
 ] {
     let safe_id = (validate-suite-id $suite_id)
     let path = (suite-record-path $safe_id)
@@ -147,6 +170,7 @@ export def finish-suite-record [
         | upsert passed_count $passed
         | upsert failed_count $failed
         | upsert blocked_count $blocked
+        | upsert skipped_count $skipped
         | to json
         | save --force $path
 }

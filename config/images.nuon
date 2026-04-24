@@ -58,6 +58,10 @@
     "valkey": {
       "default": "valkey/valkey:9.0-alpine",
       "override_env": "OCMTS_VALKEY_IMAGE"
+    },
+    "media_optimizer": {
+      "default": "linuxserver/ffmpeg:version-8.1-cli",
+      "override_env": "OCMTS_MEDIA_OPTIMIZER_IMAGE"
     }
   },
   "mitmproxy": {

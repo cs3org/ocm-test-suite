@@ -52,3 +52,16 @@ export def resolve-mitmproxy-image [
     }
     resolve-image $spec $scenario $flow_id
 }
+
+# Resolve the media optimizer image ref from config/images.nuon.
+export def resolve-media-optimizer-image [
+    --scenario: string = "",
+    --flow-id: string = "",
+] {
+    let imgs = load-images-cfg
+    let spec = $imgs.helpers.media_optimizer?
+    if $spec == null {
+        error make {msg: "config/images.nuon missing helpers.media_optimizer leaf"}
+    }
+    resolve-image $spec $scenario $flow_id
+}

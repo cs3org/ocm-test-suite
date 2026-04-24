@@ -120,6 +120,11 @@ def load-ci-config [root: string]: any -> record {
     {toolchain: $toolchain, workflows: $workflows}
 }
 
+# Load site config from config/site.nuon.
+def load-site-config [root: string]: any -> record {
+    open ($root | path join "config/site.nuon")
+}
+
 # Blueprint path helpers.
 def bp-path [root: string, rel: string]: any -> string {
     $root | path join "scripts/lib/ci/blueprints" $rel
@@ -135,9 +140,12 @@ def bp-path [root: string, rel: string]: any -> string {
 export def build-ci-matrix-yml [plan: record] {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
+    let site_cfg = (load-site-config $root)
     let gh = $cfg.workflows.github
     let nu_ver = $cfg.toolchain.nushell.version
     let run_wave_filename = ($gh.filenames.run_wave? | default "ci-run-wave.yml")
+    let site_filename = ($gh.filenames.site? | default "ci-site.yml")
+    let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
 
     let ordered_cells = (sort-cells-by-flow-order $plan.cells $gh.job_order)
     let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
@@ -169,6 +177,8 @@ export def build-ci-matrix-yml [plan: record] {
         "nushell.version": $nu_ver
         "flow.jobs": $"\n\n($flow_jobs_text)"
         "aggregate.needs.block": $aggregate_needs_block
+        "publish.branch.gate": $publish_branch_gate
+        "site.workflow.filename": $site_filename
     }
 }
 
@@ -201,8 +211,10 @@ export def build-run-wave-yml [] {
 export def build-run-cell-yml [] {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
+    let site_cfg = (load-site-config $root)
     let gh = $cfg.workflows.github
     let nu_ver = $cfg.toolchain.nushell.version
+    let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
     let run_cell_tpl = (bp-path $root "github/workflows/ci-run-cell.yml.tpl")
 
     render-blueprint $run_cell_tpl {
@@ -210,5 +222,41 @@ export def build-run-cell-yml [] {
         "runner.label": $gh.runner
         "setup.nu.action": $gh.setup_nu_action
         "nushell.version": $nu_ver
+        "publish.branch.gate": $publish_branch_gate
+    }
+}
+
+# Generate ci-site.yml YAML content.
+# Supports workflow_call (called from ci-matrix after aggregate) and
+# workflow_dispatch (manual rebuild: resolves latest successful source run).
+export def build-ci-site-yml [] {
+    let root = get-ocmts-root
+    let cfg = (load-ci-config $root)
+    let site_cfg = (load-site-config $root)
+    let gh = $cfg.workflows.github
+    let nu_ver = $cfg.toolchain.nushell.version
+    let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
+    let raw_agg_name = ($site_cfg.raw_aggregate_artifact_name? | default "aggregate-summary")
+    let opt_pattern = ($site_cfg.optimized_artifact_pattern? | default "optimized-media-cell-*")
+    let opt_agg_name = ($site_cfg.optimized_aggregate_artifact_name? | default "optimized-media-summary")
+    let rebuild_src = ($site_cfg.rebuild_source_workflow? | default "ci-matrix.yml")
+    # CI-owned site checkout dir (relative to the GitHub Actions working dir = repo root).
+    # The site publish step clones here when no --site-dir is passed.
+    let ci_site_checkout_dir = "../ocm-web-site"
+    let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
+    let build_out = ($ci_site_checkout_dir | path join $site_output_subpath)
+    let ci_site_tpl = (bp-path $root "github/workflows/ci-site.yml.tpl")
+
+    render-blueprint $ci_site_tpl {
+        "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
+        "runner.label": $gh.runner
+        "setup.nu.action": $gh.setup_nu_action
+        "nushell.version": $nu_ver
+        "publish.branch.gate": $publish_branch_gate
+        "raw.aggregate.artifact.name": $raw_agg_name
+        "optimized.artifact.pattern": $opt_pattern
+        "optimized.aggregate.artifact.name": $opt_agg_name
+        "site.rebuild.source.workflow": $rebuild_src
+        "site.build.output.path": $build_out
     }
 }

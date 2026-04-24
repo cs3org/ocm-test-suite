@@ -7,6 +7,7 @@
             matrix: "ci-matrix.yml"
             run_wave: "ci-run-wave.yml"
             run_cell: "ci-run-cell.yml"
+            site: "ci-site.yml"
         }
         runner: "ubuntu-latest"
         setup_nu_action: "hustcer/setup-nu@v3"

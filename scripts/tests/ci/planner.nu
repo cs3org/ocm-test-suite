@@ -17,6 +17,7 @@ use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml
     build-run-wave-yml
     build-run-cell-yml
+    build-ci-site-yml
     build-aggregate-needs-block
     build-flow-assets
     build-flow-asset-content
@@ -414,11 +415,14 @@ def test-no-generated-timestamp [] {
     let plan = (plan-suite $rules $prereqs)
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_cell_yml = (build-run-cell-yml)
+    let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy (not ($matrix_yml | str contains "Generated at:"))
             "ci-matrix.yml has no 'Generated at:' timestamp")
         (assert-truthy (not ($run_cell_yml | str contains "Generated at:"))
             "ci-run-cell.yml has no 'Generated at:' timestamp")
+        (assert-truthy (not ($ci_site_yml | str contains "Generated at:"))
+            "ci-site.yml has no 'Generated at:' timestamp")
     ]
 }
 
@@ -448,19 +452,16 @@ def test-blocked-output-check [] {
 
 def test-site-env-names [] {
     test-log "\n[test-site-env-names]"
-    let rules = fixture-rules
-    let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
-    let yml = (build-ci-matrix-yml $plan)
+    let ci_site_yml = (build-ci-site-yml)
     [
-        (assert-truthy ($yml | str contains "OCMTS_SITE_REPO_SLUG")
-            "site-publish uses OCMTS_SITE_REPO_SLUG env name")
-        (assert-truthy ($yml | str contains "OCMTS_SITE_REF")
-            "site-publish uses OCMTS_SITE_REF env name")
-        (assert-truthy ($yml | str contains "OCMTS_SITE_REPO_URL")
-            "site-publish uses OCMTS_SITE_REPO_URL env name")
-        (assert-truthy (not ($yml | str contains "SITE_REPO:"))
-            "site-publish does not use old SITE_REPO env name")
+        (assert-truthy ($ci_site_yml | str contains "OCMTS_SITE_REPO_SLUG")
+            "ci-site.yml uses OCMTS_SITE_REPO_SLUG env name")
+        (assert-truthy ($ci_site_yml | str contains "OCMTS_SITE_REF")
+            "ci-site.yml uses OCMTS_SITE_REF env name")
+        (assert-truthy ($ci_site_yml | str contains "OCMTS_SITE_REPO_URL")
+            "ci-site.yml uses OCMTS_SITE_REPO_URL env name")
+        (assert-truthy (not ($ci_site_yml | str contains "SITE_REPO:"))
+            "ci-site.yml does not use old SITE_REPO env name")
     ]
 }
 
@@ -522,37 +523,31 @@ def test-aggregate-upload-step [] {
 
 def test-site-publish-downloads-cell-artifacts [] {
     test-log "\n[test-site-publish-downloads-cell-artifacts]"
-    let rules = fixture-rules
-    let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
-    let yml = (build-ci-matrix-yml $plan)
-    # site-publish now consumes the aggregate bundle instead of re-downloading
-    # all cell-* artifacts. It downloads aggregate-summary and unpacks the archive.
-    let site_publish_pos = ($yml | str index-of "  site-publish:")
-    let site_publish_section = ($yml | str substring $site_publish_pos..)
+    let ci_site_yml = (build-ci-site-yml)
+    # ci-site.yml downloads the raw aggregate bundle and unpacks it, then
+    # downloads optimized-media-cell-* artifacts separately.
     [
-        (assert-truthy ($site_publish_section | str contains "Download aggregate bundle")
-            "site-publish has Download aggregate bundle step")
-        (assert-truthy ($site_publish_section | str contains "Extract aggregate archive")
-            "site-publish has Extract aggregate archive step")
-        (assert-truthy ($site_publish_section | str contains "tar -x -I zstd")
-            "site-publish extract step uses tar with zstd decompression")
-        (assert-truthy (not ($site_publish_section | str contains "pattern: 'cell-*'"))
-            "site-publish does not re-download cell-* artifacts directly")
+        (assert-truthy ($ci_site_yml | str contains "Download raw aggregate artifact")
+            "ci-site.yml has Download raw aggregate artifact step")
+        (assert-truthy ($ci_site_yml | str contains "Extract aggregate archive")
+            "ci-site.yml has Extract aggregate archive step")
+        (assert-truthy ($ci_site_yml | str contains "tar -x -I zstd")
+            "ci-site.yml extract step uses tar with zstd decompression")
+        (assert-truthy (not ($ci_site_yml | str contains "pattern: 'cell-*'"))
+            "ci-site.yml does not download raw cell-* artifacts directly")
     ]
 }
 
 def test-site-publish-artifacts-root [] {
     test-log "\n[test-site-publish-artifacts-root]"
-    let rules = fixture-rules
-    let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
-    let yml = (build-ci-matrix-yml $plan)
+    let ci_site_yml = (build-ci-site-yml)
     [
-        (assert-truthy ($yml | str contains "--artifacts-root artifacts")
-            "site publish command uses --artifacts-root artifacts")
-        (assert-truthy ($yml | str contains "--latest-suite")
-            "site publish command uses --latest-suite for suite-based ingest")
+        (assert-truthy ($ci_site_yml | str contains "--artifacts-root artifacts")
+            "ci-site.yml publish command uses --artifacts-root artifacts")
+        (assert-truthy ($ci_site_yml | str contains "--latest-suite")
+            "ci-site.yml publish command uses --latest-suite for suite-based ingest")
+        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir")
+            "ci-site.yml publish command passes --optimized-media-dir")
     ]
 }
 
@@ -602,9 +597,11 @@ def test-no-unresolved-placeholders [] {
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
+    let ci_site_yml = (build-ci-site-yml)
     let matrix_placeholders = ($matrix_yml | parse --regex '\{\{placeholder:([^}]+)\}\}' | length)
     let run_wave_placeholders = ($run_wave_yml | parse --regex '\{\{placeholder:([^}]+)\}\}' | length)
     let run_cell_placeholders = ($run_cell_yml | parse --regex '\{\{placeholder:([^}]+)\}\}' | length)
+    let ci_site_placeholders = ($ci_site_yml | parse --regex '\{\{placeholder:([^}]+)\}\}' | length)
     [
         (assert-eq $matrix_placeholders 0
             "ci-matrix.yml has no unresolved {{placeholder:...}} tokens")
@@ -612,6 +609,8 @@ def test-no-unresolved-placeholders [] {
             "ci-run-wave.yml has no unresolved {{placeholder:...}} tokens")
         (assert-eq $run_cell_placeholders 0
             "ci-run-cell.yml has no unresolved {{placeholder:...}} tokens")
+        (assert-eq $ci_site_placeholders 0
+            "ci-site.yml has no unresolved {{placeholder:...}} tokens")
     ]
 }
 
@@ -725,6 +724,7 @@ def test-generated-header-command [] {
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
+    let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy ($matrix_yml | str contains "nu scripts/ocmts.nu ci workflows generate github")
             "ci-matrix.yml header uses new generator command")
@@ -732,6 +732,8 @@ def test-generated-header-command [] {
             "ci-run-wave.yml header uses new generator command")
         (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu ci workflows generate github")
             "ci-run-cell.yml header uses new generator command")
+        (assert-truthy ($ci_site_yml | str contains "nu scripts/ocmts.nu ci workflows generate github")
+            "ci-site.yml header uses new generator command")
     ]
 }
 
@@ -747,10 +749,13 @@ def test-workflow-deterministic [] {
     let rw_yml2 = (build-run-wave-yml)
     let rc_yml1 = (build-run-cell-yml)
     let rc_yml2 = (build-run-cell-yml)
+    let cs_yml1 = (build-ci-site-yml)
+    let cs_yml2 = (build-ci-site-yml)
     [
         (assert-eq $yml1 $yml2 "ci-matrix.yml generation is deterministic")
         (assert-eq $rw_yml1 $rw_yml2 "ci-run-wave.yml generation is deterministic")
         (assert-eq $rc_yml1 $rc_yml2 "ci-run-cell.yml generation is deterministic")
+        (assert-eq $cs_yml1 $cs_yml2 "ci-site.yml generation is deterministic")
     ]
 }
 
@@ -846,17 +851,17 @@ def test-wave-gen-yaml-properties [] {
     let plan = (plan-suite $rules $prereqs)
     let yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
-    let site_publish_pos = ($yml | str index-of "  site-publish:")
-    let before_site_publish = ($yml | str substring 0..$site_publish_pos)
+    let ci_site_pos = ($yml | str index-of "  ci-site:")
+    let before_ci_site = ($yml | str substring 0..$ci_site_pos)
     [
         (assert-truthy ($run_wave_yml | str contains "fail-fast: false")
             "ci-run-wave.yml has strategy.fail-fast: false")
         (assert-truthy ($yml | str contains "--archive")
             "aggregate job runs aggregate command with --archive flag")
         (assert-truthy ($yml | str contains "github.ref == 'refs/heads/main'")
-            "site-publish job is gated on main branch")
-        (assert-truthy (not ($before_site_publish | str contains "github.ref"))
-            "aggregate job is NOT gated on main branch (no github.ref before site-publish)")
+            "ci-site job is gated on main branch")
+        (assert-truthy (not ($before_ci_site | str contains "github.ref"))
+            "aggregate job is NOT gated on main branch (no github.ref before ci-site)")
     ]
 }
 
@@ -1657,6 +1662,270 @@ def test-suite-publish-exit-semantics [] {
     ]
 }
 
+def test-ci-matrix-calls-ci-site [] {
+    test-log "\n[test-ci-matrix-calls-ci-site]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs)
+    let yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy ($yml | str contains "  ci-site:")
+            "ci-matrix.yml has ci-site reusable workflow job")
+        (assert-truthy ($yml | str contains "./.github/workflows/ci-site.yml")
+            "ci-matrix.yml ci-site job calls ci-site.yml")
+        (assert-truthy (not ($yml | str contains "  site-publish:"))
+            "ci-matrix.yml does not have inline site-publish job")
+        (assert-truthy ($yml | str contains "needs: [aggregate]")
+            "ci-site job needs aggregate")
+        (assert-truthy ($yml | str contains "source-run-id: ${{ github.run_id }}")
+            "ci-matrix.yml passes caller run ID to ci-site reusable workflow")
+    ]
+}
+
+def test-ci-matrix-branch-gate-from-config [] {
+    test-log "\n[test-ci-matrix-branch-gate-from-config]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs)
+    let yml = (build-ci-matrix-yml $plan)
+    # Branch gate must come from config/site.nuon (publish_branch_gate: "main"),
+    # not hardcoded in multiple places.
+    let ci_site_pos = ($yml | str index-of "  ci-site:")
+    let ci_site_section = ($yml | str substring $ci_site_pos..)
+    [
+        (assert-truthy ($ci_site_section | str contains "refs/heads/main")
+            "ci-site if condition uses publish_branch_gate from config")
+        (assert-truthy (not ($yml | str contains "refs/heads/main\n      runs-on:"))
+            "ci-matrix.yml has no inline runner after branch gate (site is reusable call)")
+    ]
+}
+
+def test-ci-site-has-both-triggers [] {
+    test-log "\n[test-ci-site-has-both-triggers]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "workflow_call:")
+            "ci-site.yml accepts workflow_call trigger")
+        (assert-truthy ($ci_site_yml | str contains "workflow_dispatch:")
+            "ci-site.yml accepts workflow_dispatch trigger")
+    ]
+}
+
+def test-ci-site-resolves-source-run [] {
+    test-log "\n[test-ci-site-resolves-source-run]"
+    let ci_site_yml = (build-ci-site-yml)
+    # For workflow_call: caller passes source-run-id input (its own github.run_id).
+    # For workflow_dispatch: gh run list resolves the latest eligible source run.
+    [
+        (assert-truthy ($ci_site_yml | str contains "Resolve artifact source run")
+            "ci-site.yml has source run resolution step")
+        (assert-truthy ($ci_site_yml | str contains "workflow_dispatch")
+            "ci-site.yml source resolution branches on workflow_dispatch")
+        (assert-truthy ($ci_site_yml | str contains "gh run list")
+            "ci-site.yml uses gh run list to find source run for manual rebuild")
+        (assert-truthy ($ci_site_yml | str contains "inputs['source-run-id']")
+            "ci-site.yml uses source-run-id input as source for workflow_call")
+        (assert-truthy ($ci_site_yml | str contains "source-run-id")
+            "ci-site.yml passes source-run-id between prepare and downstream jobs")
+    ]
+}
+
+def test-ci-site-downloads-optimized-media [] {
+    test-log "\n[test-ci-site-downloads-optimized-media]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "Download optimized media artifacts")
+            "ci-site.yml downloads optimized media artifacts")
+        (assert-truthy ($ci_site_yml | str contains "optimized-media-cell-")
+            "ci-site.yml references optimized-media-cell- pattern")
+        (assert-truthy ($ci_site_yml | str contains "Aggregate optimized media")
+            "ci-site.yml has aggregate optimized media step")
+        (assert-truthy ($ci_site_yml | str contains "aggregate-optimized-media")
+            "ci-site.yml runs aggregate-optimized-media command")
+        (assert-truthy ($ci_site_yml | str contains "Upload optimized media summary")
+            "ci-site.yml uploads optimized media summary artifact")
+    ]
+}
+
+def test-ci-site-config-values-injected [] {
+    test-log "\n[test-ci-site-config-values-injected]"
+    let ci_site_yml = (build-ci-site-yml)
+    # Values come from config/site.nuon.
+    # gh run list takes a bare branch name (not refs/heads/ prefix).
+    [
+        (assert-truthy ($ci_site_yml | str contains "ci-matrix.yml")
+            "ci-site.yml uses rebuild_source_workflow from site config")
+        (assert-truthy ($ci_site_yml | str contains "aggregate-summary")
+            "ci-site.yml uses raw_aggregate_artifact_name from site config")
+        (assert-truthy ($ci_site_yml | str contains "optimized-media-cell-*")
+            "ci-site.yml uses optimized_artifact_pattern from site config")
+        (assert-truthy ($ci_site_yml | str contains "--branch main")
+            "ci-site.yml uses publish_branch_gate from site config in gh run list")
+        (assert-truthy ($ci_site_yml | str contains "optimized-media-summary")
+            "ci-site.yml uses optimized_aggregate_artifact_name from site config")
+        (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
+            "ci-site.yml upload path is CI-owned site checkout dir joined with site output subpath")
+    ]
+}
+
+def test-run-cell-has-optimize-media-step [] {
+    test-log "\n[test-run-cell-has-optimize-media-step]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($run_cell_yml | str contains "Optimize cell media")
+            "ci-run-cell.yml has Optimize cell media step")
+        (assert-truthy ($run_cell_yml | str contains "optimize-media")
+            "ci-run-cell.yml calls optimize-media command")
+        (assert-truthy ($run_cell_yml | str contains "--raw-dir artifacts/")
+            "ci-run-cell.yml passes --raw-dir to optimize-media")
+        (assert-truthy ($run_cell_yml | str contains "--out-dir artifacts-optimized/")
+            "ci-run-cell.yml passes --out-dir artifacts-optimized/ to optimize-media")
+        (assert-truthy ($run_cell_yml | str contains "continue-on-error: true")
+            "optimize-media step has continue-on-error: true")
+    ]
+}
+
+def test-run-cell-uploads-optimized-media-artifact [] {
+    test-log "\n[test-run-cell-uploads-optimized-media-artifact]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($run_cell_yml | str contains "Upload optimized media artifact")
+            "ci-run-cell.yml has Upload optimized media artifact step")
+        (assert-truthy ($run_cell_yml | str contains "optimized-media-${{ inputs['artifact-name'] }}")
+            "ci-run-cell.yml uploads artifact named optimized-media-<artifact-name> (no doubled cell-)")
+        (assert-truthy (not ($run_cell_yml | str contains "cell-cell-"))
+            "ci-run-cell.yml artifact name does not contain doubled cell-cell- prefix")
+        (assert-truthy ($run_cell_yml | str contains "path: artifacts-optimized/")
+            "ci-run-cell.yml uploads artifacts-optimized/ directory")
+        (assert-truthy ($run_cell_yml | str contains "if-no-files-found: ignore")
+            "optimized upload uses if-no-files-found: ignore")
+    ]
+}
+
+def test-run-cell-has-prepull-optimizer-step [] {
+    test-log "\n[test-run-cell-has-prepull-optimizer-step]"
+    let run_cell_yml = (build-run-cell-yml)
+    let prepull_pos = ($run_cell_yml | str index-of "Pre-pull optimizer image")
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let prepull_section = ($run_cell_yml | str substring $prepull_pos..$optimize_pos)
+    [
+        (assert-truthy ($run_cell_yml | str contains "Pre-pull optimizer image")
+            "ci-run-cell.yml has Pre-pull optimizer image step")
+        (assert-truthy ($prepull_section | str contains "docker pull")
+            "Pre-pull optimizer image step runs docker pull")
+        (assert-truthy ($prepull_section | str contains "always()")
+            "Pre-pull optimizer image step has always() semantics")
+        (assert-truthy ($prepull_section | str contains "refs/heads/main")
+            "Pre-pull optimizer image step is gated on publish branch")
+        (assert-truthy ($prepull_pos < $optimize_pos)
+            "Pre-pull optimizer image step appears before Optimize cell media")
+    ]
+}
+
+def test-run-cell-optimize-branch-gated [] {
+    test-log "\n[test-run-cell-optimize-branch-gated]"
+    let run_cell_yml = (build-run-cell-yml)
+    # Both optimize and upload steps must be gated on publish_branch_gate.
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let upload_opt_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
+    let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_opt_pos)
+    let upload_opt_section = ($run_cell_yml | str substring $upload_opt_pos..)
+    [
+        (assert-truthy ($optimize_section | str contains "always()")
+            "optimize-media step has always() semantics")
+        (assert-truthy ($optimize_section | str contains "refs/heads/main")
+            "optimize-media step is gated on publish branch gate")
+        (assert-truthy ($upload_opt_section | str contains "refs/heads/main")
+            "upload optimized media step is gated on publish branch gate")
+        (assert-truthy ($upload_opt_section | str contains "always()")
+            "upload optimized media step has always() semantics")
+    ]
+}
+
+def test-ci-site-job-topology [] {
+    test-log "\n[test-ci-site-job-topology]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "  prepare:")
+            "ci-site.yml has prepare job")
+        (assert-truthy ($ci_site_yml | str contains "  aggregate-media:")
+            "ci-site.yml has aggregate-media job")
+        (assert-truthy ($ci_site_yml | str contains "  build:")
+            "ci-site.yml has build job")
+        (assert-truthy ($ci_site_yml | str contains "  deploy:")
+            "ci-site.yml has deploy job")
+        (assert-truthy ($ci_site_yml | str contains "needs: [prepare]")
+            "aggregate-media needs prepare")
+        (assert-truthy ($ci_site_yml | str contains "needs: [prepare, aggregate-media]")
+            "build needs prepare and aggregate-media")
+        (assert-truthy ($ci_site_yml | str contains "needs: [build]")
+            "deploy needs build")
+    ]
+}
+
+def test-ci-site-build-job [] {
+    test-log "\n[test-ci-site-build-job]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "Publish site")
+            "ci-site.yml build job has Publish site step")
+        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir artifacts/optimized-summary/")
+            "ci-site.yml build job passes --optimized-media-dir to site publish")
+        (assert-truthy ($ci_site_yml | str contains "Download optimized media summary")
+            "ci-site.yml build job downloads optimized media summary from aggregate-media job")
+        (assert-truthy ($ci_site_yml | str contains "Upload built site")
+            "ci-site.yml build job uploads built site artifact")
+        (assert-truthy ($ci_site_yml | str contains "actions/upload-pages-artifact@v3")
+            "ci-site.yml build job uses upload-pages-artifact action")
+        (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
+            "ci-site.yml upload-pages-artifact path is CI checkout dir joined with site output subpath")
+    ]
+}
+
+def test-ci-site-deploy-job [] {
+    test-log "\n[test-ci-site-deploy-job]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "Deploy to GitHub Pages")
+            "ci-site.yml deploy job has Deploy to GitHub Pages step")
+        (assert-truthy ($ci_site_yml | str contains "actions/deploy-pages@v4")
+            "ci-site.yml deploy job uses deploy-pages action")
+        (assert-truthy ($ci_site_yml | str contains "pages: write")
+            "ci-site.yml deploy job has pages: write permission")
+        (assert-truthy ($ci_site_yml | str contains "id-token: write")
+            "ci-site.yml deploy job has id-token: write permission")
+        (assert-truthy ($ci_site_yml | str contains "name: github-pages")
+            "ci-site.yml deploy job uses github-pages environment")
+        (assert-truthy ($ci_site_yml | str contains "page_url")
+            "ci-site.yml deploy job exposes page_url via environment url")
+    ]
+}
+
+def test-ci-site-has-optimizer-probe-step [] {
+    test-log "\n[test-ci-site-has-optimizer-probe-step]"
+    let ci_site_yml = (build-ci-site-yml)
+    let probe_pos = ($ci_site_yml | str index-of "Probe optimizer image")
+    let download_pos = ($ci_site_yml | str index-of "Download optimized media artifacts")
+    let probe_section = ($ci_site_yml | str substring $probe_pos..$download_pos)
+    [
+        (assert-truthy ($ci_site_yml | str contains "Probe optimizer image")
+            "ci-site.yml aggregate-media job has Probe optimizer image step")
+        (assert-truthy ($probe_section | str contains "nu scripts/ocmts.nu artifacts probe-optimizer")
+            "Probe optimizer image step runs nu scripts/ocmts.nu artifacts probe-optimizer")
+        (assert-truthy ($probe_pos < $download_pos)
+            "Probe optimizer image step appears before Download optimized media artifacts")
+    ]
+}
+
+def test-ci-site-download-no-or-true [] {
+    test-log "\n[test-ci-site-download-no-or-true]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy (not ($ci_site_yml | str contains "--dir artifacts/optimized/ || true"))
+            "ci-site.yml gh run download line does not contain || true fallback")
+    ]
+}
+
 def test-suite-publish-guardrail-logic [] {
     test-log "\n[test-suite-publish-guardrail-logic]"
     # --site-dir without --publish-site must raise a clear error.
@@ -1751,6 +2020,21 @@ def main [] {
         | append (test-suite-publish-flags-in-mod-source)
         | append (test-suite-publish-exit-semantics)
         | append (test-suite-publish-guardrail-logic)
+        | append (test-ci-matrix-calls-ci-site)
+        | append (test-ci-matrix-branch-gate-from-config)
+        | append (test-ci-site-has-both-triggers)
+        | append (test-ci-site-resolves-source-run)
+        | append (test-ci-site-downloads-optimized-media)
+        | append (test-ci-site-config-values-injected)
+        | append (test-run-cell-has-optimize-media-step)
+        | append (test-run-cell-uploads-optimized-media-artifact)
+        | append (test-run-cell-has-prepull-optimizer-step)
+        | append (test-run-cell-optimize-branch-gated)
+        | append (test-ci-site-job-topology)
+        | append (test-ci-site-build-job)
+        | append (test-ci-site-deploy-job)
+        | append (test-ci-site-has-optimizer-probe-step)
+        | append (test-ci-site-download-no-or-true)
     ) | flatten
     run-suite "ci/planner" $SUITE_PATH $results
 }

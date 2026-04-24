@@ -82,27 +82,9 @@ jobs:
           path: artifacts/suites/aggregated/
           if-no-files-found: warn
 
-  site-publish:
+  ci-site:
     needs: [aggregate]
-    if: github.ref == 'refs/heads/main' && needs.aggregate.result == 'success'
-    runs-on: {{placeholder:runner.label}}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Nushell
-        uses: {{placeholder:setup.nu.action}}
-        with:
-          version: '{{placeholder:nushell.version}}'
-      - name: Download aggregate bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: aggregate-summary
-          path: artifacts/suites/aggregated/
-      - name: Extract aggregate archive
-        run: |
-          tar -x -I zstd -f artifacts/suites/aggregated/suite-artifacts.tar.zst
-      - name: Publish site
-        env:
-          OCMTS_SITE_REPO_SLUG: ${{ vars.OCMTS_SITE_REPO_SLUG || '' }}
-          OCMTS_SITE_REF: ${{ vars.OCMTS_SITE_REF || 'main' }}
-          OCMTS_SITE_REPO_URL: ${{ vars.OCMTS_SITE_REPO_URL || '' }}
-        run: nu scripts/ocmts.nu site publish --artifacts-root artifacts --latest-suite
+    if: github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}' && needs.aggregate.result == 'success'
+    uses: ./.github/workflows/{{placeholder:site.workflow.filename}}
+    with:
+      source-run-id: ${{ github.run_id }}

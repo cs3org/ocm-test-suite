@@ -3,17 +3,20 @@
 #   .github/workflows/ci-matrix.yml                - orchestration workflow (flow-id jobs)
 #   .github/workflows/ci-run-wave.yml              - reusable per-flow matrix runner
 #   .github/workflows/ci-run-cell.yml              - reusable single-cell runner
+#   .github/workflows/ci-site.yml                  - site publish (workflow_call + workflow_dispatch)
 #   .github/workflows/assets/<flow>.json           - per-flow cell data (one per active flow)
 #
 # Stale asset files are removed automatically. The assets directory is
 # generator-owned; do not add files there manually.
 #
 # To regenerate after changing config/matrix-rules.nuon,
-# config/ci/prerequisites.nuon, or config/ci/toolchain.nuon, run:
+# config/ci/prerequisites.nuon, config/ci/toolchain.nuon, or config/site.nuon, run:
 #   nu scripts/ocmts.nu ci workflows generate github
 
 use ../../lib/ci/planner.nu [plan-suite]
-use ../../lib/ci/workflow-gen.nu [build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-flow-assets]
+use ../../lib/ci/workflow-gen.nu [
+    build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-ci-site-yml build-flow-assets
+]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [
@@ -27,6 +30,7 @@ def main [
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
+    let ci_site_yml = (build-ci-site-yml)
     let flow_assets = (build-flow-assets $plan)
 
     if $dry_run {
@@ -36,6 +40,8 @@ def main [
         print $run_wave_yml
         print "\n# === ci-run-cell.yml ==="
         print $run_cell_yml
+        print "\n# === ci-site.yml ==="
+        print $ci_site_yml
         for asset in $flow_assets {
             print $"\n# === ($asset.path) ==="
             print $asset.content
@@ -49,6 +55,7 @@ def main [
     $matrix_yml | save --force ($wf_dir | path join "ci-matrix.yml")
     $run_wave_yml | save --force ($wf_dir | path join "ci-run-wave.yml")
     $run_cell_yml | save --force ($wf_dir | path join "ci-run-cell.yml")
+    $ci_site_yml | save --force ($wf_dir | path join "ci-site.yml")
 
     # Write per-flow asset files.
     for asset in $flow_assets {
@@ -72,6 +79,7 @@ def main [
     print $"  ($wf_dir | path join 'ci-matrix.yml')"
     print $"  ($wf_dir | path join 'ci-run-wave.yml')"
     print $"  ($wf_dir | path join 'ci-run-cell.yml')"
+    print $"  ($wf_dir | path join 'ci-site.yml')"
     for asset in $flow_assets {
         print $"  ($root | path join $asset.path)"
     }

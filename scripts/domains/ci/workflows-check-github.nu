@@ -3,7 +3,9 @@
 # detected. Also reports stale asset files in the generator-owned assets dir.
 
 use ../../lib/ci/planner.nu [plan-suite]
-use ../../lib/ci/workflow-gen.nu [build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-flow-assets]
+use ../../lib/ci/workflow-gen.nu [
+    build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-ci-site-yml build-flow-assets
+]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [] {
@@ -15,6 +17,7 @@ def main [] {
     let expected_matrix = (build-ci-matrix-yml $plan)
     let expected_run_wave = (build-run-wave-yml)
     let expected_run_cell = (build-run-cell-yml)
+    let expected_ci_site = (build-ci-site-yml)
     let flow_assets = (build-flow-assets $plan)
 
     let wf_dir = ($root | path join ".github/workflows")
@@ -22,6 +25,7 @@ def main [] {
     let matrix_path = ($wf_dir | path join "ci-matrix.yml")
     let run_wave_path = ($wf_dir | path join "ci-run-wave.yml")
     let run_cell_path = ($wf_dir | path join "ci-run-cell.yml")
+    let ci_site_path = ($wf_dir | path join "ci-site.yml")
 
     mut drift = false
 
@@ -61,6 +65,19 @@ def main [] {
             $drift = true
         } else {
             print $"ok: ($run_cell_path)"
+        }
+    }
+
+    if not ($ci_site_path | path exists) {
+        print $"DRIFT: ($ci_site_path) does not exist -- run: nu scripts/ocmts.nu ci workflows generate github"
+        $drift = true
+    } else {
+        let committed_ci_site = (open --raw $ci_site_path)
+        if $committed_ci_site != $expected_ci_site {
+            print $"DRIFT: ($ci_site_path) is out of date -- run: nu scripts/ocmts.nu ci workflows generate github"
+            $drift = true
+        } else {
+            print $"ok: ($ci_site_path)"
         }
     }
 

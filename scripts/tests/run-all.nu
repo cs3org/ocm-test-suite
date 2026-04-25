@@ -13,6 +13,8 @@ def main [] {
     let suites = (
         glob $"($tests_dir)/**/*.nu"
         | where {|p| ($p | path basename) != "run-all.nu"}
+        # Exclude opt-in manual tests (e.g. heavy Docker/ffmpeg suites).
+        | where {|p| not ($p | str contains "/manual/")}
         | sort
     )
 

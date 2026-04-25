@@ -1,7 +1,7 @@
 # Run the full enabled matrix suite sequentially.
 
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/site/clone.nu [resolve-site-dir]
+use ../../lib/site/clone.nu [resolve-site-dir, site-dir-is-local]
 use ../../lib/site/publish.nu [run-site-publish]
 use ../../lib/site/preview.nu [run-site-preview]
 use ../../lib/ci/planner.nu [plan-suite]
@@ -10,6 +10,10 @@ use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
 use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run]
 use ../../lib/run/metadata.nu [utc-now]
+use ../../lib/images/resolve.nu [resolve-media-optimizer-image]
+use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
+use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-cells]
+use ../../lib/artifacts/optimizer-probe.nu [probe-optimizer-image]
 
 # Run the full enabled matrix suite sequentially via `services up run`.
 # Uses the shared CI planner to assign execution_ids and compute prerequisite
@@ -21,6 +25,11 @@ use ../../lib/run/metadata.nu [utc-now]
 # (requires --publish-site).
 # Pass --preview (requires --publish-site) to start a local preview server
 # after a successful publish. Blocks until Ctrl+C.
+# When --publish-site is set and --skip-optimize is NOT set, the suite
+# automatically runs per-cell media optimization and aggregation before
+# publishing, so site publish can receive the optimized media aggregate.
+# Pass --skip-optimize to disable auto-optimization (site publish will
+# hard-fail if the manifest contains media rows).
 def main [
     --suite-id: string = "",  # Override generated suite_id for this run
     --stop-on-fail,           # Stop on first failure (default: continue)
@@ -32,6 +41,7 @@ def main [
     --preview,                # Start preview server after successful publish (requires --publish-site)
     --preview-host: string = "localhost",  # Preview server host (requires --preview)
     --preview-port: int = 4321,            # Preview server port (requires --preview)
+    --skip-optimize,          # Skip auto-optimize+aggregate; site publish will fail if media rows exist
 ] {
     if (not ($site_dir | is-empty)) and (not $publish_site) {
         error make {msg: "--site-dir requires --publish-site"}
@@ -202,17 +212,39 @@ def main [
     } else {
         $site_dir
     }
-    let skip_clone = not ($site_dir | is-empty)
+    let skip_clone = (site-dir-is-local $site_dir)
     mut publish_exit = 0
     if $publish_site {
-        print "\n=== Publishing site ==="
-        $publish_exit = (try {
-            run-site-publish $eff_site_dir "" $skip_clone "" $eff_suite_id false
-            0
-        } catch {|e|
-            print $"ERROR: site publish failed: ($e.msg)"
-            1
-        })
+        let optimized_media_dir = if (not $skip_optimize) {
+            print "\n=== Optimizing cell media ==="
+            let work_dir = ($nu.temp-path | path join $"ots-cypress-suite-optimize-($eff_suite_id)")
+            let result = (try {
+                run-suite-optimize-aggregate $cells_to_run $root $work_dir
+            } catch {|e|
+                print $"ERROR: media optimization failed: ($e.msg)"
+                print $"  work dir preserved at: ($work_dir)"
+                null
+            })
+            if $result == null {
+                $publish_exit = 1
+                ""
+            } else {
+                $result
+            }
+        } else {
+            ""
+        }
+
+        if $publish_exit == 0 {
+            print "\n=== Publishing site ==="
+            $publish_exit = (try {
+                run-site-publish $eff_site_dir "" $skip_clone "" $eff_suite_id false $optimized_media_dir
+                0
+            } catch {|e|
+                print $"ERROR: site publish failed: ($e.msg)"
+                1
+            })
+        }
     }
 
     if $preview and ($failed_cells | is-empty) and ($publish_exit == 0) {
@@ -223,4 +255,111 @@ def main [
     if (not ($failed_cells | is-empty)) or ($publish_exit != 0) {
         exit 1
     }
+}
+
+# Run per-cell media optimization and aggregate into one bundle.
+# Creates work_dir with cells/ and aggregate/ subdirs.
+# Returns the aggregate output directory path, or errors on probe failure.
+def run-suite-optimize-aggregate [
+    cells_to_run: list<record>,
+    root: string,
+    work_dir: string,
+]: nothing -> string {
+    let cells_work = ($work_dir | path join "cells")
+    let agg_work = ($work_dir | path join "aggregate")
+    mkdir $cells_work
+    mkdir $agg_work
+
+    let image = (resolve-media-optimizer-image)
+    let probe = (probe-optimizer-image $image)
+    if not $probe.ok {
+        let missing_enc = ($probe.encoders | items {|k v| if not $v { $k } else { null }} | where {|x| $x != null} | str join ", ")
+        let missing_mux = ($probe.muxers | items {|k v| if not $v { $k } else { null }} | where {|x| $x != null} | str join ", ")
+        error make {msg: (
+            $"run-suite-optimize-aggregate: optimizer probe failed for ($image): "
+            + (if not ($missing_enc | is-empty) { $"missing encoders: ($missing_enc); " } else { "" })
+            + (if not ($missing_mux | is-empty) { $"missing muxers: ($missing_mux)" } else { "" })
+        )}
+    }
+
+    print $"  optimizer image: ($image)"
+    print $"  work dir: ($work_dir)"
+
+    mut optimized_cell_dirs = []
+
+    for cell in $cells_to_run {
+        let exec_id = ($cell.execution_id? | default "")
+        if ($exec_id | is-empty) {
+            print $"  skip ($cell.cell_id): no execution_id"
+            continue
+        }
+        let flow_id = ($cell.flow_id? | default "")
+        let pair = ($cell.pair? | default "")
+        let run_dir = ($root | path join "artifacts" $flow_id $pair $exec_id)
+        if not ($run_dir | path exists) {
+            print $"  skip ($cell.cell_id): run dir not found at ($run_dir)"
+            continue
+        }
+
+        # Build staging dir by copying only the publishable cypress subtrees
+        # (screenshots and videos). Symlinks cannot be used here: nu's glob
+        # does not recurse into symlinked directories, and Docker bind mounts
+        # cannot read through host symlinks pointing at host-absolute paths.
+        let staging = ($cells_work | path join $cell.cell_id "staging")
+        let staging_run_dir = ($staging | path join "artifacts" $flow_id $pair $exec_id)
+        let staging_cypress = ($staging_run_dir | path join "cypress")
+        mkdir $staging_cypress
+
+        let src_screens = ($run_dir | path join "cypress/screenshots")
+        if ($src_screens | path exists) {
+            let cp_result = (try {
+                ^cp -R $src_screens ($staging_cypress | path join "screenshots") | complete
+            } catch {|e| {exit_code: 1, stderr: $e.msg}})
+            if $cp_result.exit_code != 0 {
+                error make {msg: $"run-suite-optimize-aggregate: copy failed ($src_screens) -> staging: ($cp_result.stderr)"}
+            }
+        }
+
+        let src_videos = ($run_dir | path join "cypress/videos")
+        if ($src_videos | path exists) {
+            let cp_result = (try {
+                ^cp -R $src_videos ($staging_cypress | path join "videos") | complete
+            } catch {|e| {exit_code: 1, stderr: $e.msg}})
+            if $cp_result.exit_code != 0 {
+                error make {msg: $"run-suite-optimize-aggregate: copy failed ($src_videos) -> staging: ($cp_result.stderr)"}
+            }
+        }
+
+        let opt_cell_out = ($cells_work | path join $cell.cell_id "optimized")
+        let t_start = (date now)
+        try {
+            optimize-cell-media $staging $opt_cell_out $image
+        } catch {|e|
+            print $"  WARNING: optimize-cell-media failed for ($cell.cell_id): ($e.msg)"
+        }
+        let elapsed_ms = ((date now) - $t_start | into int) / 1_000_000
+        print $"  optimized ($cell.cell_id) in ($elapsed_ms)ms"
+
+        $optimized_cell_dirs = ($optimized_cell_dirs | append $opt_cell_out)
+    }
+
+    if ($optimized_cell_dirs | is-empty) {
+        print "  no cells produced optimized media; creating empty aggregate placeholder"
+        let fake_cell = ($cells_work | path join "empty-cell")
+        mkdir ($fake_cell | path join "meta")
+        {
+            schema_version: 1,
+            generated_at: (date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"),
+            status: "no-source-media",
+            optimizer_image: $image,
+            items: [],
+        } | to json --indent 2 | save --force ($fake_cell | path join "meta/optimized-media-cell.v1.json")
+        $optimized_cell_dirs = [$fake_cell]
+    }
+
+    let result = (aggregate-optimized-media-cells $optimized_cell_dirs $agg_work --no-archive)
+    print $"  aggregate: ($result.optimized_item_count) items optimized, ($result.failed_item_count) failed, ($result.cells_with_media) cells with media"
+    print $"  aggregate dir: ($agg_work)"
+
+    $agg_work
 }

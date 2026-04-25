@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "repo_slug": "MahdiBaghbani/ocm-web-site",
+  "repo_url_override": "",
+  "ref": "main",
+  "publish_branch_gate": "main",
+  "site_build_output_path": "dist",
+  "raw_aggregate_artifact_name": "aggregate-summary",
+  "optimized_artifact_pattern": "optimized-media-cell-*",
+  "optimized_aggregate_artifact_name": "optimized-media-summary",
+  "rebuild_source_workflow": "ci-matrix.yml"
+}

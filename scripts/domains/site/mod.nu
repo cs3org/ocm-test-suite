@@ -22,12 +22,12 @@ def main [] {
     print "  OCMTS_SITE_REPO_SLUG  default: MahdiBaghbani/ocm-web-site"
     print "  OCMTS_SITE_REPO_URL   optional full URL override"
     print "  OCMTS_SITE_REF        git ref to checkout (default: main)"
-    print "  OCM_WEB_SITE_DIR      default site dir override for preview"
+    print "  OCM_WEB_SITE_DIR      local site dir override for all verbs; skips clone"
 }
 
 # Clone or refresh the ocm-web-site repo.
 def "main clone" [
-    --site-dir: string = "",  # Destination dir (default: ../ocm-web-site)
+    --site-dir: string = "",  # Destination dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site)
     --ref: string = "",       # Git ref; falls back to OCMTS_SITE_REF, then main
 ] {
     let effective_ref = if not ($ref | is-empty) {
@@ -43,7 +43,7 @@ def "main clone" [
 # Generate suite-manifest.v1.json, matrix-rules.v1.json, and copy allowlisted
 # artifacts into the site public/ directory.
 def "main ingest" [
-    --site-dir: string = "",       # Site repo dir (default: ../ocm-web-site)
+    --site-dir: string = "",       # Site repo dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site)
     --artifacts-root: string = "", # OCMTS artifacts root (default: <ocmts-root>/artifacts)
     --public-dir: string = "",     # Output dir (default: <site-dir>/public)
     --suite-id: string = "",       # Ingest runs from this suite_id only
@@ -83,7 +83,7 @@ def "main ingest" [
 
 # Build the Astro site (bun preferred, npm fallback). Does not start a dev server.
 def "main build" [
-    --site-dir: string = "",  # Site repo dir (default: ../ocm-web-site)
+    --site-dir: string = "",  # Site repo dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site)
 ] {
     let site = (resolve-site-dir $site_dir)
     if not ($site | path exists) {
@@ -96,35 +96,28 @@ def "main build" [
 # Start a local preview server for a built site directory.
 # Blocks until Ctrl+C. Requires a completed `site build` first.
 def "main preview" [
-    --site-dir: string = "",    # Site repo dir (default: OCM_WEB_SITE_DIR, then ../ocm-web-site)
+    --site-dir: string = "",    # Site repo dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site)
     --host: string = "localhost", # Host address to bind
     --port: int = 4321,           # Port to listen on
 ] {
-    let root = get-ocmts-root
-    let eff_site_dir = if not ($site_dir | is-empty) {
-        resolve-site-dir $site_dir
-    } else {
-        let env_dir = ($env.OCM_WEB_SITE_DIR? | default "")
-        if not ($env_dir | is-empty) {
-            $env_dir
-        } else {
-            (($root | path dirname) | path join "ocm-web-site")
-        }
-    }
+    let eff_site_dir = (resolve-site-dir $site_dir)
     run-site-preview $eff_site_dir $host $port
 }
 
-# Orchestrate clone (optional), ingest, and build in one step.
+# Orchestrate clone (optional), ingest, optional media projection, and build.
 def "main publish" [
-    --site-dir: string = "",       # Site repo dir (default: ../ocm-web-site)
-    --artifacts-root: string = "", # OCMTS artifacts root (default: <ocmts-root>/artifacts)
-    --skip-clone,                  # Skip git clone/refresh
-    --ref: string = "",            # Git ref; falls back to OCMTS_SITE_REF, then main
-    --suite-id: string = "",       # Ingest runs from this suite_id only
-    --latest-suite,                # Ingest runs from the latest suite (LATEST_SUITE_ID)
+    --site-dir: string = "",            # Site repo dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site; skips clone when set)
+    --artifacts-root: string = "",      # OCMTS artifacts root (default: <ocmts-root>/artifacts)
+    --skip-clone,                       # Skip git clone/refresh
+    --ref: string = "",                 # Git ref; falls back to OCMTS_SITE_REF, then main
+    --suite-id: string = "",            # Ingest runs from this suite_id only
+    --latest-suite,                     # Ingest runs from the latest suite (LATEST_SUITE_ID)
+    --optimized-media-dir: string = "", # Optimized media aggregate dir (skip projection if empty)
 ] {
     if (not ($suite_id | is-empty)) and $latest_suite {
         error make {msg: "--suite-id and --latest-suite are mutually exclusive"}
     }
-    run-site-publish $site_dir $artifacts_root $skip_clone $ref $suite_id $latest_suite
+    (run-site-publish
+        $site_dir $artifacts_root $skip_clone $ref $suite_id $latest_suite
+        $optimized_media_dir)
 }

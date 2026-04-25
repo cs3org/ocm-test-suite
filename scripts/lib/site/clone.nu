@@ -1,20 +1,17 @@
 # Git clone and refresh helpers for the site domain.
 
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ./config.nu [resolve-effective-site-repo-url]
 
-# Resolve the site repo URL from env or default slug.
-# OCMTS_SITE_REPO_URL overrides; otherwise builds from OCMTS_SITE_REPO_SLUG.
+# Resolve the site repo URL from env or config/site.nuon.
+# Priority: OCMTS_SITE_REPO_URL env > config repo_url_override >
+# OCMTS_SITE_REPO_SLUG env > config repo_slug.
 export def resolve-site-repo-url [] {
-    let url_override = ($env.OCMTS_SITE_REPO_URL? | default "")
-    if not ($url_override | is-empty) {
-        return $url_override
-    }
-    let slug = ($env.OCMTS_SITE_REPO_SLUG? | default "MahdiBaghbani/ocm-web-site")
-    $"https://github.com/($slug).git"
+    resolve-effective-site-repo-url
 }
 
 # Resolve the local site clone directory.
-# override wins; default is ../ocm-web-site relative to this repo root.
+# Priority: explicit override arg > OCM_WEB_SITE_DIR env > default sibling path.
 # Absolute overrides pass through unchanged; relative overrides resolve
 # from the OCM Test Suite repo root, not from the caller's shell cwd.
 export def resolve-site-dir [override: string] {
@@ -26,8 +23,20 @@ export def resolve-site-dir [override: string] {
             $root | path join $override
         }
     } else {
-        ($root | path dirname) | path join "ocm-web-site"
+        let env_dir = ($env.OCM_WEB_SITE_DIR? | default "")
+        if not ($env_dir | is-empty) {
+            $env_dir
+        } else {
+            ($root | path dirname) | path join "ocm-web-site"
+        }
     }
+}
+
+# Returns true when the site dir was explicitly provided (arg or OCM_WEB_SITE_DIR env).
+# Callers use this to decide whether to skip git clone/refresh for a local source.
+export def site-dir-is-local [override: string] {
+    let env_dir = ($env.OCM_WEB_SITE_DIR? | default "")
+    (not ($override | is-empty)) or (not ($env_dir | is-empty))
 }
 
 # Clone fresh, or fetch + checkout an existing clone.

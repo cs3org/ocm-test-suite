@@ -1,5 +1,6 @@
 # Site ingest orchestrator: aggregates manifests and copies artifacts.
-# See /temp/ocm-web-site-observatory-contract-v1.md for the data contract.
+# Data contract: suite-manifest.v1.json and matrix-rules.v1.json written to
+# the site public/ dir. Input config from config/matrix-rules.nuon.
 
 use ../suite/index.nu [load-suite-entry]
 use ../ci/aggregate.nu [aggregate-status]

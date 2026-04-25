@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "cell_key": "login-nextcloud-v34",
+  "suite_id": "suite-fixture",
+  "execution_id": "exec-fixture",
+  "status": "optimized",
+  "optimizer": {
+    "image": "linuxserver/ffmpeg:version-8.1-cli"
+  },
+  "items": [
+    {
+      "source_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/screenshots/sample.png",
+      "optimized_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/screenshots/sample.avif",
+      "kind": "screenshot",
+      "status": "optimized",
+      "role": "primary",
+      "format": "avif",
+      "mime": "image/avif"
+    },
+    {
+      "source_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/screenshots/sample.png",
+      "optimized_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/screenshots/sample.webp",
+      "kind": "screenshot",
+      "status": "optimized",
+      "role": "fallback",
+      "format": "webp",
+      "mime": "image/webp"
+    },
+    {
+      "source_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/videos/sample.mp4",
+      "optimized_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/videos/sample.av1.webm",
+      "kind": "video",
+      "status": "optimized",
+      "role": "primary",
+      "format": "av1-webm",
+      "mime": "video/webm",
+      "codecs": "av01"
+    },
+    {
+      "source_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/videos/sample.mp4",
+      "optimized_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/videos/sample.vp9.webm",
+      "kind": "video",
+      "status": "optimized",
+      "role": "fallback",
+      "format": "vp9-webm",
+      "mime": "video/webm",
+      "codecs": "vp9"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "capabilities": [
+    "login",
+    "provider-identity",
+    "share-with.sender",
+    "share-with.receiver",
+    "contact-token.sender",
+    "contact-token.receiver",
+    "contact-wayf.sender",
+    "contact-wayf.receiver",
+    "code-flow.sender",
+    "code-flow.receiver"
+  ]
+}

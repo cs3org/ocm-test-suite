@@ -61,6 +61,22 @@ Published evidence includes metadata, screenshots, videos, Docker logs, MITM
 flows, and MITM reports. Downloads remain local/per-run evidence and are not
 copied to the public site by default.
 
+## Optimized Media Projection
+
+Public screenshots and videos in the published tree are derived assets
+(AVIF + WebP for screenshots, AV1 WebM + VP9 WebM for videos), not the raw
+PNG and MP4 captured by Cypress. The raw bytes remain available in raw
+artifacts and the raw aggregate, but they are not exposed under
+`public/artifacts/`. The optimized lane runs in parallel with raw test
+execution; the public manifest is rewritten so media rows point at the
+derived files while keeping `source_path` set to the raw provenance.
+
+For commands, configuration, manifest shapes, the CI workflow surface, and
+the local development workflow, see
+`docs/operations/optimized-media.md`. For the design rationale (raw vs
+derived, format choices, two-lane parallel design), see
+`docs/architecture/media-projection.md`.
+
 ## Latest-Per-Cell Rule
 
 The site is a review surface, not a retry browser. It presents the latest
@@ -76,6 +92,11 @@ maintenance commands when storage pressure matters.
 
 After pruning, regenerate the run envelope so evidence counts and paths match
 the remaining files.
+
+Pruning raw evidence does not regenerate the public site. Public derived
+media is built from the optimized aggregate during a publish run; if you
+prune raw and want the public site to match, rerun the suite or trigger a
+manual rebuild via `ci-site.yml`.
 
 ## Operator Guidance
 

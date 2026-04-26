@@ -14,6 +14,14 @@ architecture and authoring rules that should remain stable across flows.
   contracts for Reva-based contact-token cells.
 - `operations/site-publish.md` documents the run-to-site path for artifacts,
   manifests, CI aggregation, and public publication.
+- `operations/optimized-media.md` documents the AVIF/WebP/WebM optimized
+  media lane, configuration, CLI commands, and CI workflow surface.
+
+## Architecture
+
+- `architecture/evidence-standard.md` for the broader evidence contract.
+- `architecture/media-projection.md` for the raw-vs-derived publish
+  projection rationale and format choices.
 
 ## Implementation Pointers
 
@@ -22,3 +30,5 @@ architecture and authoring rules that should remain stable across flows.
 - Artifact envelope generation lives in `scripts/lib/publish-envelope.nu`.
 - Site ingestion lives in `scripts/lib/site-ingest.nu`.
 - CI aggregation lives in `scripts/lib/ci/aggregate.nu`.
+- Optimized media production lives in `scripts/lib/artifacts/`.
+- Public media projection lives in `scripts/lib/site/project-media.nu`.

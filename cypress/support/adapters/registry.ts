@@ -21,20 +21,12 @@ import {
   ocisV8ContactTokenSenderAdapter,
   ocisV8ProviderIdentityAdapter,
 } from "./ocis/v8/contact-adapter";
-import {
-  ocisV8ShareWithReceiverAdapter,
-  ocisV8ShareWithSenderAdapter,
-} from "./ocis/v8/share-with-adapter";
 import { opencloudV6LoginAdapter } from "./opencloud/v6/login-adapter";
 import {
   opencloudV6ContactTokenReceiverAdapter,
   opencloudV6ContactTokenSenderAdapter,
   opencloudV6ProviderIdentityAdapter,
 } from "./opencloud/v6/contact-adapter";
-import {
-  opencloudV6ShareWithReceiverAdapter,
-  opencloudV6ShareWithSenderAdapter,
-} from "./opencloud/v6/share-with-adapter";
 import { nextcloudV32LoginAdapter } from "./nextcloud/v32/login-adapter";
 import {
   nextcloudV32ShareWithReceiverAdapter,
@@ -89,12 +81,6 @@ const shareWithSenderAdapters: Record<string, Record<string, ShareWithSenderAdap
   ocmgo: {
     v1: ocmgoV1ShareWithSenderAdapter,
   },
-  ocis: {
-    v8: ocisV8ShareWithSenderAdapter,
-  },
-  opencloud: {
-    v6: opencloudV6ShareWithSenderAdapter,
-  },
 };
 
 const shareWithReceiverAdapters: Record<string, Record<string, ShareWithReceiverAdapter>> = {
@@ -105,12 +91,6 @@ const shareWithReceiverAdapters: Record<string, Record<string, ShareWithReceiver
   },
   ocmgo: {
     v1: ocmgoV1ShareWithReceiverAdapter,
-  },
-  ocis: {
-    v8: ocisV8ShareWithReceiverAdapter,
-  },
-  opencloud: {
-    v6: opencloudV6ShareWithReceiverAdapter,
   },
 };
 

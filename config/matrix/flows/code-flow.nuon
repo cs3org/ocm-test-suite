@@ -5,6 +5,10 @@
   "enabled": false,
   "mitm": true,
   "browsers": null,
+  "required_capabilities": {
+    "sender": [],
+    "receiver": []
+  },
   "include": [
     { "sender": ["nextcloud"], "receiver": ["nextcloud"] }
   ],

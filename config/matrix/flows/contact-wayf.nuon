@@ -5,6 +5,19 @@
   "enabled": true,
   "mitm": true,
   "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "login",
+      "contact-wayf.sender",
+      "share-with.sender"
+    ],
+    "receiver": [
+      "login",
+      "contact-wayf.receiver",
+      "provider-identity",
+      "share-with.receiver"
+    ]
+  },
   "include": [
     {
       "sender": [

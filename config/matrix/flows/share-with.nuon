@@ -5,6 +5,16 @@
   "enabled": true,
   "mitm": true,
   "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "login",
+      "share-with.sender"
+    ],
+    "receiver": [
+      "login",
+      "share-with.receiver"
+    ]
+  },
   "include": [
     {
       "sender": [

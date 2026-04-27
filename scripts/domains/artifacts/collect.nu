@@ -6,7 +6,9 @@ use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/compose/validate.nu [validate-compose-strict]
 use ../../lib/compose/logs.nu [collect-service-logs]
-use ../../lib/services/compose-files.nu [read-active-compose-files]
+use ../../lib/services/compose-files.nu [
+    read-compose-files-from-manifest
+]
 
 def main [
     --scenario: string,
@@ -31,11 +33,14 @@ def main [
     }
     let base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
-    let stack_id_file = ($base | path join "compose" "stack_id.txt")
-    if not ($stack_id_file | path exists) {
-        error make {msg: $"No stack_id found for execution_id=($exec_id). Artifacts may be missing."}
+    let run_meta_path = ($base | path join "meta/run.json")
+    if not ($run_meta_path | path exists) {
+        error make {msg: $"No meta/run.json found for execution_id=($exec_id). Artifacts may be missing."}
     }
-    let stack_id = (open --raw $stack_id_file | str trim)
+    let stack_id = ((open $run_meta_path).stack_id? | default "")
+    if ($stack_id | is-empty) {
+        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
+    }
 
     if not $include_logs {
         print "Hint: pass --include-logs to collect docker service logs."
@@ -45,7 +50,7 @@ def main [
 
     # Determine expected services for this topology.
     let log_services = if $cell.is_two_party {
-        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache" "mitm"]
+        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache"]
     } else {
         ["sender" "sender-db" "sender-cache"]
     }
@@ -63,8 +68,7 @@ def main [
     }
 
     # Some or all logs are missing; attempt live collection.
-    let base_yml = ($root | path join "config/compose/base.yml")
-    let compose_files = (read-active-compose-files $base $base_yml)
+    let compose_files = (read-compose-files-from-manifest $base $root)
 
     # Optional: validate compose file set before collecting logs.
     let logs_resolved_path = ($base | path join "compose" "compose.resolved.logs.yml")

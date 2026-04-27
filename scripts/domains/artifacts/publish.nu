@@ -41,6 +41,4 @@ def main [
     emit-publish-envelope $base
     print $"Published envelope for ($base)"
     print $"  meta/suite-manifest.v1.json"
-    print $"  meta/summary.json"
-    print $"  meta/summary.md"
 }

@@ -9,7 +9,7 @@ def main [] {
     print "  list              List artifact runs for a cell"
     print "  show              Show metadata for a run"
     print "  collect           Collect artifacts for a run (use --include-logs for docker logs)"
-    print "  publish           Regenerate suite-manifest.v1.json, summary.json, summary.md"
+    print "  publish           Regenerate suite-manifest.v1.json"
     print "  prune             Prune run directories or evidence files across artifact runs"
     print "                    Default mode (runs): deletes entire run dirs except the latest."
     print "                    Evidence mode (--mode evidence): deletes videos/logs and republishes."

@@ -26,7 +26,7 @@ def main [
         $execution_id
     }
     let base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
-    let result_file = ($base | path join "meta/result.json")
+    let result_file = ($base | path join "meta/result.v1.json")
     let run_file = ($base | path join "meta/run.json")
     mut summary = {artifacts_base: $base}
     if ($run_file | path exists) { $summary = ($summary | upsert run (open $run_file)) }

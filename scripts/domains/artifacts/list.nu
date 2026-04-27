@@ -29,7 +29,7 @@ def main [
         if not $valid_id {
             {execution_id: $exec_id, modified: $row.modified, status: "invalid-id", exit_code: ""}
         } else {
-            let result_file = ($row.name | path join "meta/result.json")
+            let result_file = ($row.name | path join "meta/result.v1.json")
             if ($result_file | path exists) {
                 let r = (open $result_file)
                 {

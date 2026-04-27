@@ -1,8 +1,7 @@
 # OCM Test Suite
 
-This repository is a greenfield rewrite workspace for the OCM test suite. It is
-intentionally built from scratch and does not carry over legacy harness
-structure or scripts.
+This repository is the OCM test suite. It is built from scratch and does not
+carry over the legacy harness structure or scripts.
 
 Legacy policy:
 

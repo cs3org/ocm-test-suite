@@ -1,29 +1,42 @@
 # Actors domain: operator actor configuration queries and validation.
 
-use ../../lib/actors/load.nu [list-scenario-names load-actor-for-scenario]
+use ../../lib/actors/load.nu [list-matrix-scenarios list-override-files load-actor-for-scenario]
 use ../../lib/actors/validate.nu [validate-actor-config]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu actors <verb> [flags]"
     print ""
     print "Verbs:"
-    print "  list              List scenarios with actor configs"
-    print "  show              Show actor config for a scenario"
+    print "  list              List scenarios enabled in the matrix SSOT"
+    print "  list overrides    List scenarios with override files"
+    print "  show              Show resolved actor config for a scenario"
     print "  validate          Validate actor config; optionally check platform match"
     print "  validate-all      Validate actor configs for all enabled scenarios"
 }
 
-# List all scenarios that have actor config files.
+# List scenarios enabled in the matrix SSOT.
 def "main list" [] {
     let root = get-ocmts-root
-    let scenarios = (list-scenario-names $root)
+    let scenarios = (list-matrix-scenarios $root)
     if ($scenarios | is-empty) {
-        print "No actor configs found in config/actors/scenarios/"
+        print "No enabled scenarios in matrix SSOT."
     } else {
-        for s in $scenarios {
-            print $"  ($s)"
-        }
+        for s in $scenarios { print $"  ($s)" }
+    }
+}
+
+# List scenarios that have an override file under config/actors/scenarios/.
+# File presence means "override exists", not "scenario enabled". Use
+# `actors list` to enumerate enabled scenarios from the matrix SSOT.
+def "main list overrides" [] {
+    let root = get-ocmts-root
+    let files = (list-override-files $root)
+    if ($files | is-empty) {
+        print "No override files in config/actors/scenarios/."
+    } else {
+        for s in $files { print $"  ($s)" }
     }
 }
 
@@ -44,32 +57,26 @@ def "main show" [
 }
 
 # Validate actor config for a scenario without starting Docker.
-# Checks: scenario file exists, platform config exists, account exists,
-# username/password non-empty. With --sender-platform, also checks platform match.
+# Checks: platform config exists, account exists, username/password non-empty.
+# With --sender-platform, also checks platform match.
 def "main validate" [
     --scenario: string,                 # Scenario name (e.g. login)
     --sender-platform: string = "",     # Optional: expected actor/sender platform
     --receiver-platform: string = "",   # Optional: expected receiver platform (two-party)
 ] {
     let root = get-ocmts-root
-    let rules_path = ($root | path join "config/matrix-rules.nuon")
-    let fid = if ($rules_path | path exists) {
-        (open $rules_path).scenarios | get --optional $scenario | default {} | get flow_id? | default $scenario
-    } else { $scenario }
+    let rules = (load-matrix-rules $root)
+    let fid = ($rules.scenarios | get --optional $scenario | default {} | get flow_id? | default $scenario)
     validate-actor-config $scenario $root $sender_platform $receiver_platform --flow-id $fid
     print $"actor config for '($scenario)': ok"
 }
 
-# Validate actor configs for all enabled scenarios in config/matrix-rules.nuon.
+# Validate actor configs for all enabled scenarios in the matrix SSOT under config/matrix/.
 # For each enabled scenario, expected platforms are taken from matrix rules.
 # Prints one ok line per scenario; errors on first failure.
 def "main validate-all" [] {
     let root = get-ocmts-root
-    let rules_path = ($root | path join "config/matrix-rules.nuon")
-    if not ($rules_path | path exists) {
-        error make {msg: "config/matrix-rules.nuon not found; generate it first with 'matrix gen'"}
-    }
-    let rules = (open $rules_path)
+    let rules = (load-matrix-rules $root)
     let all_scenarios = ($rules.scenarios | transpose name rule)
     let enabled = ($all_scenarios | where {|row| $row.rule.enabled})
     for item in $enabled {

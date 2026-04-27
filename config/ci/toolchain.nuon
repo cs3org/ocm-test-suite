@@ -1,8 +1,5 @@
 {
-    # Pinned tool versions for CI workflow generation.
-    # Regenerate workflows after changing these:
-    #   nu scripts/ocmts.nu ci workflows generate github
-    nushell: {
-        version: "0.108.0"
+    "nushell": {
+        "version": "0.108.0"
     }
 }

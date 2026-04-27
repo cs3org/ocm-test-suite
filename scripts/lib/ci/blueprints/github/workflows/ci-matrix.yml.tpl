@@ -19,6 +19,10 @@ jobs:
     runs-on: {{placeholder:runner.label}}
     steps:
       - uses: actions/checkout@v4
+      - name: Install Nushell
+        uses: {{placeholder:setup.nu.action}}
+        with:
+          version: '{{placeholder:nushell.version}}'
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
       - name: Install dependencies
@@ -26,7 +30,7 @@ jobs:
       - name: Adapter capabilities drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}
-        run: bun run scripts/typescript/check-adapter-capabilities.ts
+        run: nu scripts/ocmts.nu matrix check capabilities
 
   setup:
     needs: [preflight]

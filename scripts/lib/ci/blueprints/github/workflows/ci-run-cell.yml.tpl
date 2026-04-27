@@ -85,7 +85,7 @@ jobs:
           for dep in "${DEPS[@]}"; do
             dep="${dep// /}"
             [ -z "$dep" ] && continue
-            result_file=$(find "prereqs/$dep" -name 'result.json' -path '*/meta/*' 2>/dev/null | head -1)
+            result_file=$(find "prereqs/$dep" -name 'result.v1.json' -path '*/meta/*' 2>/dev/null | head -1)
             if [ -z "$result_file" ]; then
               FAILURE_REASON="prerequisite $dep artifact missing or download failed"
               break

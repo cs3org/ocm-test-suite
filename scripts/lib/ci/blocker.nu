@@ -5,9 +5,9 @@
 # "not-implemented". A blocked cell carries a failure_reason that names the
 # specific prerequisite cell_id that triggered the block.
 
-use ../run/metadata.nu [utc-now write-compact-result]
+use ../run/metadata.nu [utc-now]
 use ../run/execution-id.nu [execution-artifacts-path]
-use ../publish/envelope.nu [publish-envelope-safe]
+use ../publish/envelope.nu [publish-envelope-safe detect-execution-context collect-evidence]
 
 # Evaluate the block state for every planned cell given a set of
 # already-failed cell_ids. Returns a list of records:
@@ -40,7 +40,7 @@ export def eval-blocked-cells [
     }
 }
 
-# Write blocked run.json and result.json into the cell's artifact directory.
+# Write blocked run.json and result.v1.json into the cell's artifact directory.
 # The artifact directory must already exist with meta/cell.json present.
 # blocked_at is the timestamp to use; defaults to utc-now.
 export def write-blocked-artifacts [
@@ -70,22 +70,37 @@ export def write-blocked-artifacts [
     }
     $run | to json | save --force ($meta_dir | path join "run.json")
 
+    let ctx = (detect-execution-context)
+    let ev = (collect-evidence $artifacts_base)
     let result = {
         schema_version: 1,
         id: $"result-($execution_id)",
         run_id: $execution_id,
         execution_id: $execution_id,
         cell_id: $cell_id,
-        exit_code: 0,
-        status: "blocked",
+        artifact_name: $artifact_name,
+        started_at: $ts,
         finished_at: $ts,
+        status: "blocked",
+        exit_code: 0,
+        execution_context: $ctx,
+        evidence: {
+            total_count: $ev.counts.total,
+            mitm_present: $ev.mitm_present,
+            docker_logs_count: $ev.counts.docker_logs,
+            cypress_screenshots_count: $ev.counts.cypress_screenshots,
+            cypress_videos_count: $ev.counts.cypress_videos,
+            cypress_downloads_count: $ev.counts.cypress_downloads,
+            mitm_files_count: $ev.counts.mitm_files,
+        },
+        warnings: [],
         failure_reason: $failure_reason,
     }
-    $result | to json | save --force ($meta_dir | path join "result.json")
+    $result | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
 }
 
 # Emit a complete blocked artifact set for a planned cell.
-# Initializes the artifact directory, writes cell.json, run.json, result.json,
+# Initializes the artifact directory, writes cell.json, run.json, result.v1.json,
 # and the publish envelope.
 export def emit-blocked-cell-artifact [
     root: string,

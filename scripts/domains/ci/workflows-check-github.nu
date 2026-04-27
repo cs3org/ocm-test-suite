@@ -7,10 +7,11 @@ use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-ci-site-yml build-flow-assets
 ]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let plan = plan-suite $rules $prereqs
 

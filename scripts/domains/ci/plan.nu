@@ -1,9 +1,11 @@
 # Compute and print the CI execution plan as JSON.
-# The plan expands all enabled matrix cells, pre-assigns execution_ids, and
-# resolves prerequisite dependencies from config/ci/prerequisites.nuon.
+# Emits a CI plan record (suite_id, scenarios, cells) that expands every
+# enabled matrix cell, pre-assigns execution_ids, and resolves prerequisite
+# dependencies from config/ci/prerequisites.nuon.
 
 use ../../lib/ci/planner.nu [plan-suite]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [
     --suite-id: string = "",   # Override generated suite_id
@@ -11,7 +13,7 @@ def main [
     --cell-ids,                # Output only comma-separated cell_ids (for scripting)
 ] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let plan = if ($suite_id | is-empty) {
         plan-suite $rules $prereqs

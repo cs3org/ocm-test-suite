@@ -9,7 +9,7 @@
 # Stale asset files are removed automatically. The assets directory is
 # generator-owned; do not add files there manually.
 #
-# To regenerate after changing config/matrix-rules.nuon,
+# To regenerate after changing config/matrix/,
 # config/ci/prerequisites.nuon, config/ci/toolchain.nuon, or config/site.nuon, run:
 #   nu scripts/ocmts.nu ci workflows generate github
 
@@ -18,12 +18,13 @@ use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml build-run-wave-yml build-run-cell-yml build-ci-site-yml build-flow-assets
 ]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [
     --dry-run,  # Print generated YAML and JSON to stdout instead of writing files
 ] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let plan = plan-suite $rules $prereqs
 

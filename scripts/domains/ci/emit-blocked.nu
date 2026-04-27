@@ -9,6 +9,7 @@
 use ../../lib/ci/blocker.nu [emit-blocked-cell-artifact]
 use ../../lib/matrix/cell.nu [compute-cell]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [
     --cell-id: string = "",         # cell_id; derived from scenario+participants if omitted
@@ -27,11 +28,11 @@ def main [
 ] {
     let root = get-ocmts-root
 
-    # Look up flow_id from matrix-rules.nuon when not explicitly provided.
+    # Look up flow_id from the matrix rules SSOT when not explicitly provided.
     let eff_flow_id = if not ($flow_id | is-empty) {
         $flow_id
     } else {
-        let rules = open ($root | path join "config/matrix-rules.nuon")
+        let rules = (load-matrix-rules $root)
         let sc_rules = ($rules.scenarios? | default {} | get? $scenario | default {})
         $sc_rules.flow_id? | default $scenario
     }

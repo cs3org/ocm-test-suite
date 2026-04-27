@@ -1,36 +1,54 @@
 # scripts/typescript/ - TypeScript sidecars
 
 TypeScript lives here when Nushell can't reach the answer cheaply. Today
-that means walking the Cypress TypeScript AST to validate adapter
-capabilities. Bun is the runtime; no compile step.
+that means walking the Cypress TypeScript AST to extract adapter registry
+keys. Bun is the runtime; no compile step.
 
 ```text
-scripts/typescript/check-adapter-capabilities.ts  # adapter-registry vs JSON drift check
+extract-registry-keys.ts  # AST dumper: registry.ts table keys -> JSON
 ```
 
-## Run
+## Files
 
-From the repo root:
+### extract-registry-keys.ts
+
+Accepts one CLI arg: path to a Cypress `registry.ts` source file.
 
 ```sh
-bun run scripts/typescript/check-adapter-capabilities.ts
+bun run scripts/typescript/extract-registry-keys.ts \
+  cypress/support/adapters/registry.ts
 ```
 
-The script prints `[check-adapter-capabilities] OK` on stdout and exits 0
-when the adapter registry matches the JSON capability table. On drift it
-prints a structured diff to stderr and exits 1; on internal errors it
-exits 2.
+Stdout: a single-line JSON record. Keys are the 8 adapter table names
+found in `cypress/support/adapters/registry.ts`:
 
-The script resolves the repo root in this order:
+- `loginAdapters`
+- `shareWithSenderAdapters`
+- `shareWithReceiverAdapters`
+- `contactTokenSenderAdapters`
+- `contactTokenReceiverAdapters`
+- `contactWayfSenderAdapters`
+- `contactWayfReceiverAdapters`
+- `providerIdentityAdapters`
 
-1. `OCMTS_ROOT` env var (set by CI to `${{ github.workspace }}`).
-2. Walk up two levels from the script's own location (works for local
-   `bun run scripts/typescript/...` from the repo root).
+Each value is a sorted array of `"<platform>/<version>"` strings.
 
-CI wires it as a `preflight` job in
-`scripts/lib/ci/blueprints/github/workflows/ci-matrix.yml.tpl`. Setup,
-flow jobs, aggregation, and site publishing all transitively depend on
-preflight passing.
+Exit codes: `0` on success, `2` on argument or parse error (one-line
+message to stderr).
+
+This is a pure AST dumper; it knows nothing about capabilities, schemas,
+or matrices. Its only consumer is `nu scripts/ocmts.nu matrix check
+capabilities`, which performs the actual drift logic in Nushell.
+
+The full adapter-capabilities drift check runs via:
+
+```sh
+nu scripts/ocmts.nu matrix check capabilities
+```
+
+That command calls this helper internally, then composes its output with
+platform, capability, flow, and provenance checks in Nushell. CI runs
+the same command in the preflight job.
 
 ## Conventions
 
@@ -52,6 +70,6 @@ preflight passing.
    `scripts/typescript/lib/<area>/<topic>.ts`.
 2. Confirm it picks up `tsconfig.json` (the `include` array covers this
    tree).
-3. If it should run in CI, add a job (or extend the preflight) in the
-   appropriate blueprint under `scripts/lib/ci/blueprints/`.
+3. If it should run in CI, add a job (or extend an existing CI job) in
+   the appropriate blueprint under `scripts/lib/ci/blueprints/`.
 4. Update this README so the next agent can find it.

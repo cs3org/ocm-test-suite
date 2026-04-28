@@ -4,7 +4,7 @@ use ../../lib/site/clone.nu [resolve-site-dir, clone-or-refresh-site]
 use ../../lib/site/ingest.nu [ingest-site]
 use ../../lib/site/build.nu [run-site-build]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/matrix/rules-gen.nu [write-generated-matrix-rules]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 use ../../lib/site/publish.nu [run-site-publish]
 use ../../lib/site/preview.nu [run-site-preview]
 
@@ -64,20 +64,13 @@ def "main ingest" [
     } else {
         $site | path join "public"
     }
-    let matrix_dir = ($root | path join "config/matrix")
-    let rules_path = ($root | path join "config/matrix-rules.nuon")
-    if ($matrix_dir | path exists) {
-        write-generated-matrix-rules $matrix_dir $rules_path
-    }
-    if not ($rules_path | path exists) {
-        error make {msg: $"Matrix rules not found: ($rules_path)"}
-    }
+    let rules = (load-matrix-rules $root)
     if $latest_suite {
-        ingest-site $art_root $rules_path $pub_dir --latest-suite
+        ingest-site $art_root $rules $root $pub_dir --latest-suite
     } else if not ($suite_id | is-empty) {
-        ingest-site $art_root $rules_path $pub_dir --suite-id $suite_id
+        ingest-site $art_root $rules $root $pub_dir --suite-id $suite_id
     } else {
-        ingest-site $art_root $rules_path $pub_dir
+        ingest-site $art_root $rules $root $pub_dir
     }
 }
 

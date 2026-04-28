@@ -1,13 +1,16 @@
 # Site ingest orchestrator: aggregates manifests and copies artifacts.
 # Data contract: suite-manifest.v1.json and matrix-rules.v1.json written to
-# the site public/ dir. Input config from config/matrix-rules.nuon.
+# the site public/ dir. Input config from the in-memory matrix rules record
+# (see `load-matrix-rules`).
 
 use ../suite/index.nu [load-suite-entry]
 use ../ci/aggregate.nu [aggregate-status]
 use ./copy.nu [copy-allowlisted-artifacts]
 use ./cell-impl.nu [build-implemented-cells-json]
+use ./flow-caps.nu [load-flow-caps]
 use ./manifest.nu [build-aggregated-manifest build-matrix-rules-json compute-latest-index]
 use ./internal.nu [compute-matrix-cells]
+use ../matrix/rules-gen.nu [apply-display-rule build-matrix-not-in-scope-json]
 
 # Main ingest: aggregate manifests, write suite-manifest.v1.json and
 # matrix-rules.v1.json, copy artifacts.
@@ -15,12 +18,12 @@ use ./internal.nu [compute-matrix-cells]
 # reads the suite index and ingests exactly the runs listed there.
 export def ingest-site [
     artifacts_root: string,    # e.g. <ocmts-root>/artifacts
-    matrix_rules_path: string, # e.g. <ocmts-root>/config/matrix-rules.nuon
+    rules: record,             # matrix rules record from load-matrix-rules
+    root: string,              # ots-rebooted repo root (resolves adapters path and source info)
     public_dir: string,        # e.g. <site-dir>/public
     --suite-id: string = "",   # ingest runs from this suite_id only
     --latest-suite,            # ingest runs from the latest suite (LATEST_SUITE_ID)
 ] {
-    let rules = (open $matrix_rules_path)
     let cell_list = (compute-matrix-cells $rules)
     let suite_active = (not ($suite_id | is-empty)) or $latest_suite
     mut entries = []
@@ -84,7 +87,7 @@ export def ingest-site [
 
     mkdir $public_dir
 
-    let base_aggregated = (build-aggregated-manifest $entries)
+    let base_aggregated = (build-aggregated-manifest $entries $root)
     # When suite mode is active, inject missing results from the CI aggregated
     # manifest so that planned-but-unrun cells appear in the site manifest.
     let aggregated = if $suite_active {
@@ -176,20 +179,39 @@ export def ingest-site [
         | save --force ($public_dir | path join "suite-manifest.v1.json"))
     print --stderr $"Wrote suite-manifest.v1.json \(($entries | length) runs\)"
 
-    let matrix_json = (build-matrix-rules-json $rules $matrix_rules_path)
+    let ocmts_root = $root
+    let cap_map_abs = ($ocmts_root | path join "config/adapters/capabilities.v1.nuon")
+    let adapters = if ($cap_map_abs | path exists) {
+        (open $cap_map_abs).adapters? | default {}
+    } else {
+        print --stderr $"WARNING: capability map not found at ($cap_map_abs); display rule will treat all caps as missing"
+        {}
+    }
+    let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
+
+    let matrix_json = (build-matrix-rules-json $rules "config/matrix" $adapters $flow_caps $root)
     ($matrix_json | to json --indent 2
         | save --force ($public_dir | path join "matrix-rules.v1.json"))
     print --stderr $"Wrote matrix-rules.v1.json \(($matrix_json.scenarios | length) scenarios\)"
 
-    let ots_root = ($matrix_rules_path | path expand | path dirname | path dirname)
-    let cap_map_path = ($ots_root | path join "cypress/support/adapters/adapter-capabilities.v1.json")
-    if ($cap_map_path | path exists) {
-        let impl_cells_json = (build-implemented-cells-json $rules $matrix_rules_path $cap_map_path)
+    # build-matrix-rules-json returns only the scenarios list; recompute
+    # apply-display-rule here to access the not_in_scope output without
+    # widening that API.
+    let display_cells = (compute-matrix-cells $rules)
+    let display_result = (apply-display-rule $display_cells $adapters $flow_caps)
+    let not_in_scope_json = (build-matrix-not-in-scope-json $display_result.not_in_scope $root)
+    ($not_in_scope_json | to json --indent 2
+        | save --force ($public_dir | path join "matrix-not-in-scope.v1.json"))
+    let nis_total = ($display_result.not_in_scope | length)
+    print --stderr $"Wrote matrix-not-in-scope.v1.json \(($nis_total) entries\)"
+
+    if ($cap_map_abs | path exists) {
+        let impl_cells_json = (build-implemented-cells-json $rules $adapters $flow_caps $root)
         ($impl_cells_json | to json --indent 2
             | save --force ($public_dir | path join "implemented-cells.v1.json"))
         print --stderr $"Wrote implemented-cells.v1.json \(($impl_cells_json.cells | columns | length) cells\)"
     } else {
-        print --stderr $"WARNING: capability map not found at ($cap_map_path), skipping implemented-cells.v1.json"
+        print --stderr $"WARNING: capability map not found at ($cap_map_abs), skipping implemented-cells.v1.json"
     }
 
     mut total_files = 0

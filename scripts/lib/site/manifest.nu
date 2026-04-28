@@ -1,28 +1,54 @@
 # Manifest aggregation: matrix-rules JSON, image provenance, and suite manifest.
 
-use ./internal.nu [now-utc evidence-path-allowed compute-matrix-cells]
+use ./internal.nu [evidence-path-allowed compute-matrix-cells]
+use ./provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
+use ../images/inspect.nu [inspect-one-image]
+use ../matrix/rules-gen.nu [apply-display-rule]
 
-# Build matrix-rules.v1.json content (placeholder universe for the UI).
-export def build-matrix-rules-json [rules: record, rules_path: string] {
+# Build matrix-rules.v1.json content.
+# Cells are filtered through apply-display-rule: vendor-out-of-scope cells
+# are excluded and each kept scenario carries a display_status enum value.
+export def build-matrix-rules-json [
+    rules: record,
+    rules_path: string,
+    adapters: record,
+    flow_caps: record,
+    ocmts_root: string,
+] {
     let cell_list = (compute-matrix-cells $rules)
-    {
-        schema_version: 1,
-        generated_at: (now-utc),
+    let result = (apply-display-rule $cell_list $adapters $flow_caps)
+    let prov = (build-provenance-block {
+        generator: "scripts/lib/site/manifest.nu#build-matrix-rules-json",
+        producer: {name: "ocmts", version: "0.1.0"},
+        sources: $SITE_PROVENANCE_SOURCES,
+        ocmts_root: $ocmts_root,
+    })
+    $prov | merge {
         source: $rules_path,
-        scenarios: ($cell_list | each {|c| {
-            scenario: $c.scenario,
-            flow_id: $c.flow_id,
-            pair: $c.pair,
-            enabled: $c.enabled,
-            browser: $c.browser,
-            sender_platform: $c.sender_platform,
-            sender_version: $c.sender_version,
-            receiver_platform: $c.receiver_platform,
-            receiver_version: $c.receiver_version,
-            mitm: $c.mitm,
-            cell_id: $c.cell_id,
-            artifact_name: $c.artifact_name,
-        }}),
+        scenarios: ($result.kept_cells | each {|c|
+            mut out = {
+                scenario: $c.scenario,
+                flow_id: $c.flow_id,
+                pair: $c.pair,
+                enabled: $c.enabled,
+                browser: $c.browser,
+                sender_platform: $c.sender_platform,
+                sender_version: $c.sender_version,
+                receiver_platform: $c.receiver_platform,
+                receiver_version: $c.receiver_version,
+                mitm: $c.mitm,
+                cell_id: $c.cell_id,
+                artifact_name: $c.artifact_name,
+                display_status: $c.display_status,
+            }
+            let tu = ($c.tracking_url? | default null)
+            let tn = ($c.tracking_note? | default null)
+            let rt = ($c.rationale? | default null)
+            if $tu != null { $out = ($out | upsert tracking_url $tu) }
+            if $tn != null { $out = ($out | upsert tracking_note $tn) }
+            if $rt != null { $out = ($out | upsert rationale $rt) }
+            $out
+        }),
     }
 }
 
@@ -57,25 +83,6 @@ export def compute-latest-index [results: record] {
     $pairs | into record
 }
 
-# Best-effort docker image inspect for one ref.
-# Returns {local_image_id, repo_digests} or null on any failure.
-export def inspect-one-image [ref: string] {
-    if ($ref | is-empty) { return null }
-    let result = (try {
-        ^docker image inspect $ref | complete
-    } catch {
-        {exit_code: 127, stdout: "", stderr: ""}
-    })
-    if $result.exit_code != 0 { return null }
-    let parsed = (try { $result.stdout | from json } catch { return null })
-    if ($parsed | is-empty) { return null }
-    let info = ($parsed | first)
-    {
-        local_image_id: ($info.Id? | default null),
-        repo_digests: ($info.RepoDigests? | default []),
-    }
-}
-
 # For each image ref in the images record, attempt docker inspect.
 # Returns a record with the same keys; per-entry value is provenance or null.
 export def build-images-provenance [images: record] {
@@ -88,27 +95,10 @@ export def build-images-provenance [images: record] {
     } | into record
 }
 
-# Stable sha256 of sorted file contents under compose/inputs/.
-# Returns null if the inputs dir is absent or empty.
-export def compute-stack-def-sha256 [run_dir: string] {
-    let inputs_dir = ($run_dir | path join "compose/inputs")
-    if not ($inputs_dir | path exists) { return null }
-    let files = (try {
-        glob $"($inputs_dir)/*"
-        | where {|p| ($p | path type) == "file"}
-        | sort
-    } catch { return null })
-    if ($files | is-empty) { return null }
-    let combined = ($files | each {|f|
-        try { open --raw $f } catch { "" }
-    } | str join "")
-    $combined | hash sha256
-}
-
 # Merge per-run entries into a single aggregated suite-manifest.v1.json.
 # Injects run.execution_context from top-level per-run execution_context.
 # Filters evidence[] to allowlisted paths only.
-export def build-aggregated-manifest [entries: list] {
+export def build-aggregated-manifest [entries: list, ocmts_root: string] {
     let selected = (pick-latest-per-cell $entries)
     mut flows = {}
     mut cells = {}
@@ -127,12 +117,20 @@ export def build-aggregated-manifest [entries: list] {
             {}
         }
         let run_provenance = (build-images-provenance $run_images)
-        let stack_hash = (compute-stack-def-sha256 $entry.run_dir)
+        let compose_manifest_path = ($entry.run_dir | path join "compose/manifest.v1.json")
+        let compose_manifest = if ($compose_manifest_path | path exists) {
+            open $compose_manifest_path
+        } else {
+            null
+        }
+        let stack_def_sha256 = if $compose_manifest != null { $compose_manifest.stack_def_sha256 } else { null }
+        let stack_env_sha256 = if $compose_manifest != null { $compose_manifest.stack_env_sha256 } else { null }
         let run_entry = ($m.runs | get $run_id
             | upsert execution_context $m.execution_context
             | upsert images $run_images
             | upsert images_provenance $run_provenance
-            | upsert stack_def_sha256 $stack_hash)
+            | upsert stack_def_sha256 $stack_def_sha256
+            | upsert stack_env_sha256 $stack_env_sha256)
         $runs = ($runs | upsert $run_id $run_entry)
         # Filter evidence to allowlisted paths only (no download, no compose).
         let result_id = ($m.results | columns | first)
@@ -141,10 +139,14 @@ export def build-aggregated-manifest [entries: list] {
             | where {|ev| evidence-path-allowed ($ev.path? | default "")})
         $results = ($results | upsert $result_id ($raw_res | upsert evidence $ev_filtered))
     }
-    {
-        schema_version: 1,
-        generated_at: (now-utc),
+    # Aggregator has no fixed input files; per-run provenance lives inside runs[] (stack_def_sha256, stack_env_sha256, images_provenance).
+    let prov = (build-provenance-block {
+        generator: "scripts/lib/site/manifest.nu#build-aggregated-manifest",
         producer: {name: "ocmts", version: "0.1.0"},
+        sources: [],
+        ocmts_root: $ocmts_root,
+    })
+    $prov | merge {
         execution_context: {},
         flows: $flows,
         cells: $cells,

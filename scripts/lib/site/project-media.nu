@@ -12,7 +12,6 @@
 #   manifest-has-media-rows                   - true when public manifest has screenshot/video evidence
 #   assert-under-pub-dir                      - reject a path that escapes pub_dir (exported for tests)
 #   assert-projected-media-row-derived-only   - reject any row that leaks raw .png/.mp4 into displayable fields
-#   require-optimized-media-when-needed       - gate: error when manifest has media rows but no opt dir
 #   apply-media-projection                    - top-level: read manifest, project, copy, save
 
 # Validate a relative path used in evidence or optimized data.
@@ -371,23 +370,6 @@ export def assert-projected-media-row-derived-only [row: record] {
         $"assert-projected-media-row-derived-only: row violates derived-only invariant for kind=($kind), path=($path_display):\n"
         + $lines
     )}
-}
-
-# Assert that an optimized aggregate dir was supplied when the public
-# manifest contains media rows. No-op when there are no media rows or when
-# an aggregate dir was supplied; errors otherwise.
-export def require-optimized-media-when-needed [
-    pub_dir: string,
-    optimized_media_dir: string,
-] {
-    if not ($optimized_media_dir | is-empty) { return }
-    if (manifest-has-media-rows $pub_dir) {
-        error make {msg: (
-            "site publish: public manifest contains media rows but "
-            + "--optimized-media-dir was not provided; "
-            + "provide the optimized media aggregate to proceed"
-        )}
-    }
 }
 
 # Apply optimized media projection to the public suite manifest.

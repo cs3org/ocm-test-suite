@@ -4,11 +4,6 @@
 use ../matrix/cell.nu [compute-cell]
 use ../matrix/expand.nu [expand-version-pairs]
 
-# RFC-3339 UTC timestamp ("YYYY-MM-DDTHH:MM:SSZ").
-export def now-utc [] {
-    date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
-}
-
 # True when a relative artifact path falls inside the publish allowlist.
 export def evidence-path-allowed [rel: string] {
     (($rel | str starts-with "meta/")
@@ -21,7 +16,7 @@ export def evidence-path-allowed [rel: string] {
         or ($rel | str starts-with "mitm/reports/"))
 }
 
-# Build a flat cell list from matrix-rules.nuon.
+# Build a flat cell list from the in-memory matrix rules record.
 # Mirrors `matrix list --json`: one row per
 # (scenario, sender_version, receiver_version, browser) for two-party,
 # or (scenario, sender_version, browser) for one-party. Includes disabled

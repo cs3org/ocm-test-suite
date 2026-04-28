@@ -5,21 +5,23 @@ use ./clone.nu [resolve-site-dir, clone-or-refresh-site, site-dir-is-local]
 use ./config.nu [resolve-effective-site-ref]
 use ./ingest.nu [ingest-site]
 use ./build.nu [run-site-build]
-use ./project-media.nu [apply-media-projection manifest-has-media-rows require-optimized-media-when-needed]
+use ./project-media.nu [apply-media-projection manifest-has-media-rows]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
-use ../matrix/rules-gen.nu [write-generated-matrix-rules]
+use ../matrix/rules-gen.nu [load-matrix-rules]
 
 # Run the full site publish pipeline: optional clone, ingest, and build.
 #
 # site_dir:            site dir override ("" = OCM_WEB_SITE_DIR env, then ../ocm-web-site)
-# artifacts_root:      artifacts root override ("" = <ots-root>/artifacts)
+# artifacts_root:      artifacts root override ("" = <ocmts-root>/artifacts)
 # skip_clone:          skip git clone/refresh step; also auto-skipped when
 #                      site_dir or OCM_WEB_SITE_DIR signals a local source
 # ref:                 git ref ("" = OCMTS_SITE_REF env or main)
 # suite_id:            ingest from this suite only ("" = all suites)
 # latest_suite:        ingest from the latest suite (LATEST_SUITE_ID)
-# optimized_media_dir: optimized media aggregate dir; required when manifest
-#                      has media rows, ignored when manifest has none
+# optimized_media_dir: optional optimized media aggregate dir. If provided,
+#                      apply-media-projection rewrites the public manifest to
+#                      reference web-optimized variants. If omitted, the
+#                      publish keeps the raw media that ingest-site copied.
 export def run-site-publish [
     site_dir: string,
     artifacts_root: string,
@@ -36,8 +38,6 @@ export def run-site-publish [
     } else {
         $root | path join "artifacts"
     }
-    let matrix_dir = ($root | path join "config/matrix")
-    let rules_path = ($root | path join "config/matrix-rules.nuon")
     let pub_dir = ($site | path join "public")
 
     # Auto-skip clone when a local source was specified (explicit arg or env).
@@ -47,21 +47,18 @@ export def run-site-publish [
         clone-or-refresh-site $site $effective_ref
     }
 
-    if ($matrix_dir | path exists) {
-        write-generated-matrix-rules $matrix_dir $rules_path
-    }
-    if not ($rules_path | path exists) {
-        error make {msg: $"Matrix rules not found: ($rules_path)"}
-    }
+    let rules = (load-matrix-rules $root)
     if $latest_suite {
-        ingest-site $art_root $rules_path $pub_dir --latest-suite
+        ingest-site $art_root $rules $root $pub_dir --latest-suite
     } else if not ($suite_id | is-empty) {
-        ingest-site $art_root $rules_path $pub_dir --suite-id $suite_id
+        ingest-site $art_root $rules $root $pub_dir --suite-id $suite_id
     } else {
-        ingest-site $art_root $rules_path $pub_dir
+        ingest-site $art_root $rules $root $pub_dir
     }
 
-    require-optimized-media-when-needed $pub_dir $optimized_media_dir
+    if ($optimized_media_dir | is-empty) and (manifest-has-media-rows $pub_dir) {
+        print --stderr "Publishing with raw media; pass --optimized-media-dir to apply web-optimized projection."
+    }
     if not ($optimized_media_dir | is-empty) {
         print --stderr $"Applying media projection from: ($optimized_media_dir)"
         apply-media-projection $pub_dir $optimized_media_dir

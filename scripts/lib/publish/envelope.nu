@@ -1,14 +1,11 @@
 # Emit publish envelope after a terminal run.
-# Writes meta/suite-manifest.v1.json, meta/summary.json, meta/summary.md.
+# Writes meta/suite-manifest.v1.json.
 # Prompt 6 SSOT: stable IDs, observed state, mandatory execution_context,
 # evidence rows on result, indexes. Banned fields: backend, executor,
 # provenance, trust, publication_state, published_at.
 
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
-
-def now-utc [] {
-    date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
-}
+use ../time/utc.nu [now-utc]
 
 def flow-description [flow_id: string] {
     match $flow_id {
@@ -44,7 +41,7 @@ def build-github-env [] {
     $gh
 }
 
-def detect-execution-context [] {
+export def detect-execution-context [] {
     # ACT takes priority; GITHUB_ACTIONS signals real CI; else local.
     #
     # Detect act via ACT=true (case-insensitive). Treat other non-empty values
@@ -162,7 +159,9 @@ def path-to-row [rel: string] {
         } else if ($rel | str starts-with "mitm/flows/") { "mitm-flow"
         } else if ($rel | str starts-with "mitm/redaction") { "mitm-report"
         } else if ($rel | str starts-with "mitm/reports/") { "mitm-report"
+        } else if ($rel | str starts-with "mitm/") { "mitm-report"
         } else if ($rel | str starts-with "meta/") { "metadata"
+        } else if ($rel | str starts-with "compose/") { "metadata"
         } else { "" })
     if ($kind | is-empty) {
         error make {msg: $"Unsupported evidence kind for path: ($rel). Allowed kinds: metadata, log, screenshot, video, download, mitm-flow, mitm-report."}
@@ -171,6 +170,7 @@ def path-to-row [rel: string] {
         } else if ($rel | str starts-with "cypress/") { "cypress"
         } else if ($rel | str starts-with "mitm/") { "mitm"
         } else if ($rel | str starts-with "meta/") { "meta"
+        } else if ($rel | str starts-with "compose/") { "compose"
         } else { "other" })
     {
         kind: $kind,
@@ -182,13 +182,22 @@ def path-to-row [rel: string] {
 }
 
 # Collect evidence rows, MITM presence, and counts.
-def collect-evidence [base: string] {
+export def collect-evidence [base: string] {
     let abs_base = ($base | path expand)
     let prefix = $"($abs_base)/"
     mut rels = []
 
-    for rel in ["meta/run.json" "meta/result.json"] {
+    for rel in [
+        "meta/run.json"
+        "meta/result.v1.json"
+        "meta/cell.json"
+        "meta/images.v1.json"
+    ] {
         if (($abs_base | path join $rel) | path exists) { $rels = ($rels | append $rel) }
+    }
+
+    if (($abs_base | path join "compose/manifest.v1.json") | path exists) {
+        $rels = ($rels | append "compose/manifest.v1.json")
     }
 
     let log_abs = (try { glob ($abs_base | path join "docker/logs/*.log") } catch { [] })
@@ -225,6 +234,9 @@ def collect-evidence [base: string] {
         "mitm/reports/03-02-ocm-details.json"
         "mitm/reports/03-03-ocm-details.tsv"
         "mitm/reports/99-traffic-pretty.json"
+        "mitm/peers.json"
+        "mitm/startup.v1.json"
+        "mitm/connect-errors.v1.jsonl"
     ]
     let mitm_rel = ($mitm_candidates | where {|p|
         ($abs_base | path join $p) | path exists
@@ -357,56 +369,18 @@ def consistency-errors [manifest: record] {
     ($key_errors | append $run_cell_errors | append $ref_errors | append $idx_errors | append $run_result_errors)
 }
 
-def build-summary-md [summary: record, ev_rows: list] {
-    let mitm_txt = if $summary.evidence.mitm_present { "present" } else { "not present" }
-    let ev_lines = if ($ev_rows | is-empty) {
-        "(none)"
-    } else {
-        $ev_rows | each {|r| $"- ($r.path)"} | str join "\n"
-    }
-    let warn_section = if ($summary.warnings | is-empty) {
-        ""
-    } else {
-        let lines = ($summary.warnings | each {|w| $"- ($w)"} | str join "\n")
-        $"\n## Warnings\n\n($lines)"
-    }
-    [
-        "# Cell Run Summary"
-        ""
-        $"- **Cell**: ($summary.cell_id)"
-        $"- **Artifact**: ($summary.artifact_name)"
-        $"- **Execution ID**: ($summary.execution_id)"
-        $"- **Status**: ($summary.status) \(exit ($summary.exit_code)\)"
-        $"- **Started**: ($summary.started_at)"
-        $"- **Finished**: ($summary.finished_at)"
-        $"- **Context**: ($summary.execution_context.kind)"
-        ""
-        "## Evidence"
-        ""
-        $"- Docker logs: ($summary.evidence.docker_logs_count)"
-        $"- Cypress screenshots: ($summary.evidence.cypress_screenshots_count)"
-        $"- Cypress videos: ($summary.evidence.cypress_videos_count)"
-        $"- Cypress downloads: ($summary.evidence.cypress_downloads_count)"
-        $"- MITM traffic: ($mitm_txt)"
-        ""
-        "## Evidence Paths"
-        ""
-        $ev_lines
-        $warn_section
-    ] | str join "\n"
-}
 
-# Emit suite-manifest.v1.json, summary.json, and summary.md into
-# <artifacts_base>/meta/. Reads meta/cell.json, meta/run.json,
-# meta/result.json. Throws on missing inputs, write failures, or
-# consistency errors (after writing outputs for debuggability).
+# Emit suite-manifest.v1.json into <artifacts_base>/meta/.
+# Reads meta/cell.json, meta/run.json, meta/result.v1.json. Throws
+# on missing inputs, write failures, or consistency errors (after
+# writing outputs for debuggability).
 export def emit-publish-envelope [artifacts_base: string] {
     let base = ($artifacts_base | str trim --right --char "/" | path expand)
     let meta_dir = ($base | path join "meta")
 
     let cell = (open ($meta_dir | path join "cell.json"))
     let run = (open ($meta_dir | path join "run.json"))
-    let result = (open ($meta_dir | path join "result.json"))
+    let result = (open ($meta_dir | path join "result.v1.json"))
 
     let generated_at = (now-utc)
     let ctx = (detect-execution-context)
@@ -502,43 +476,10 @@ export def emit-publish-envelope [artifacts_base: string] {
     let manifest = $manifest
 
     let errs = (consistency-errors $manifest)
-    let warnings = ($errs | each {|e| $"consistency: ($e)"})
 
-    # Write outputs (all three, even on consistency failure, for debuggability).
+    # Write suite-manifest.v1.json even on consistency failure, for debuggability.
     $manifest | to json --indent 2
         | save --force ($meta_dir | path join "suite-manifest.v1.json")
-
-    mut summary = {
-        cell_id: $cell.cell_id,
-        artifact_name: $cell.artifact_name,
-        execution_id: $run.execution_id,
-        status: $result.status,
-        exit_code: $result.exit_code,
-        started_at: ($run.started_at? | default ""),
-        finished_at: $result.finished_at,
-        execution_context: {
-            kind: $ctx.kind,
-            is_ci: $ctx.is_ci,
-            is_act: $ctx.is_act,
-        },
-        evidence: {
-            total_count: $ev.counts.total,
-            mitm_present: $ev.mitm_present,
-            docker_logs_count: $ev.counts.docker_logs,
-            cypress_screenshots_count: $ev.counts.cypress_screenshots,
-            cypress_videos_count: $ev.counts.cypress_videos,
-            cypress_downloads_count: $ev.counts.cypress_downloads,
-            mitm_files_count: $ev.counts.mitm_files,
-        },
-        warnings: $warnings,
-    }
-    if not ($suite_id | is-empty) { $summary = ($summary | upsert suite_id $suite_id) }
-    if not ($suite_kind | is-empty) { $summary = ($summary | upsert suite_kind $suite_kind) }
-    let summary = $summary
-    $summary | to json --indent 2 | save --force ($meta_dir | path join "summary.json")
-
-    let md = (build-summary-md $summary $ev_rows)
-    $md | save --force ($meta_dir | path join "summary.md")
 
     # Throw after writing so the files exist for debugging.
     if not ($errs | is-empty) {

@@ -2,7 +2,7 @@
 # Reused by matrix list, site-ingest, and test suite expansion.
 
 # Expand (sender_version, receiver_version) pairs for a scenario record
-# from config/matrix-rules.nuon, honoring version_pairing policy.
+# from the in-memory matrix rules, honoring version_pairing policy.
 #
 # For cross_product (default): cartesian product of sender.version_lines x
 # receiver.version_lines. When receiver is null, receiver_version is "".

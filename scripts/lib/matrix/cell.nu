@@ -4,16 +4,17 @@ use ../run/execution-id.nu [validate-path-segment]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 use ./topology.nu [assert-topology-matches]
+use ./rules-gen.nu [load-matrix-rules]
 
-# Error if scenario.enabled != true in config/matrix-rules.nuon.
+# Error if scenario.enabled != true in the matrix SSOT under config/matrix/.
 # Call from run entrypoints to reject placeholder scenarios early.
 # Does not affect matrix cell (which must work for all scenarios).
 export def assert-scenario-enabled [scenario: string] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let known_scenarios = ($rules.scenarios | columns)
     if not ($scenario in $known_scenarios) {
-        error make {msg: $"Scenario '($scenario)' not in config/matrix-rules.nuon. Known: ($known_scenarios | str join ', ')"}
+        error make {msg: $"Scenario '($scenario)' not in config/matrix/. Known: ($known_scenarios | str join ', ')"}
     }
     let sc = ($rules.scenarios | get $scenario)
     let enabled = ($sc.enabled? | default false)
@@ -94,7 +95,7 @@ export def compute-cell [
     }
 }
 
-# Validate cell inputs against config/matrix-rules.nuon.
+# Validate cell inputs against the matrix SSOT under config/matrix/.
 # Errors readably when scenario, browser, platform, or version is not in rules.
 # When scenario has a receiver in the matrix rules, also validates receiver_platform/version.
 # Returns the resolved flow_id for downstream use.
@@ -107,10 +108,10 @@ export def validate-cell-rules [
     receiver_version: string = "",
 ] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let known_scenarios = ($rules.scenarios | columns)
     if not ($scenario in $known_scenarios) {
-        error make {msg: $"Scenario '($scenario)' not in config/matrix-rules.nuon. Known: ($known_scenarios | str join ', ')"}
+        error make {msg: $"Scenario '($scenario)' not in config/matrix/. Known: ($known_scenarios | str join ', ')"}
     }
     let sc = ($rules.scenarios | get $scenario)
 

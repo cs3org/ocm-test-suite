@@ -1,5 +1,5 @@
 # Cypress matrix generator: produces cypress/e2e/<flow>/matrix.ts files
-# from config/matrix-rules.nuon (enabled cells only, sorted by cell_id).
+# from the in-memory matrix rules (enabled cells only, sorted by cell_id).
 
 use ./cells.nu [expand-matrix-cells]
 

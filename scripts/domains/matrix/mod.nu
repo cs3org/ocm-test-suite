@@ -3,60 +3,27 @@
 use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/matrix/rules-gen.nu [generate-matrix-rules write-generated-matrix-rules]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 use ../../lib/matrix/cypress-gen.nu [write-cypress-matrix-files check-cypress-matrix-files]
 use ../../lib/matrix/cells.nu [expand-matrix-cells]
+use ../../lib/matrix/check/capabilities.nu [check-adapter-capabilities]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu matrix <verb> [flags]"
     print ""
     print "Verbs:"
-    print "  gen                Generate config/matrix-rules.nuon from config/matrix/"
-    print "  gen cypress        Generate cypress/e2e/<flow>/matrix.ts files"
-    print "  list               List all matrix cells from config/matrix-rules.nuon"
-    print "  cell               Compute cell_id and image refs for a matrix entry"
+    print "  gen cypress          Generate cypress/e2e/<flow>/matrix.ts files"
+    print "  list                 List all matrix cells from the matrix SSOT under config/matrix/"
+    print "  cell                 Compute cell_id and image refs for a matrix entry"
+    print "  check capabilities   Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files"
 }
 
-# Generate config/matrix-rules.nuon from the modular SSOT at config/matrix/.
-def "main gen" [
-    --matrix-dir: string = "", # SSOT folder (default: <root>/config/matrix)
-    --out-path: string = "",   # Output file (default: <root>/config/matrix-rules.nuon)
-    --check,                   # Compare generated output to existing file; error if different
-] {
-    let root = get-ocmts-root
-    let matrix_dir = if not ($matrix_dir | is-empty) {
-        $matrix_dir
-    } else {
-        $root | path join "config/matrix"
-    }
-    let out = if not ($out_path | is-empty) {
-        $out_path
-    } else {
-        $root | path join "config/matrix-rules.nuon"
-    }
-
-    if $check {
-        let generated = (generate-matrix-rules $matrix_dir)
-        if not ($out | path exists) {
-            error make {msg: $"matrix-rules check: output file not found: ($out)"}
-        }
-        let existing = open $out
-        if $generated != $existing {
-            error make {msg: "matrix-rules check: generated output differs from on-disk file; run `matrix gen` to update"}
-        }
-        print "matrix-rules check: OK"
-    } else {
-        write-generated-matrix-rules $matrix_dir $out
-        print $"Generated: ($out)"
-    }
-}
-
-# Generate cypress/e2e/<flow>/matrix.ts files from config/matrix-rules.nuon.
+# Generate cypress/e2e/<flow>/matrix.ts files from the matrix SSOT under config/matrix/.
 def "main gen cypress" [
     --check, # Compare generated output to existing files; error if different
 ] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     if $check {
         let results = (check-cypress-matrix-files $rules $root)
         let failures = ($results | where {|r| not $r.ok})
@@ -75,10 +42,10 @@ def "main gen cypress" [
     }
 }
 
-# List all matrix cells defined in config/matrix-rules.nuon.
+# List all matrix cells defined in the matrix SSOT under config/matrix/.
 def "main list" [--json] {
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let cells = (expand-matrix-cells $rules)
     if $json {
         $cells | to json
@@ -128,4 +95,59 @@ def "main cell" [
             print $"mitmproxy_image:   ($result.mitmproxy_image)"
         }
     }
+}
+
+# Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.
+def "main check capabilities" [] {
+    let root = (get-ocmts-root)
+    let result = (check-adapter-capabilities $root)
+
+    for $w in $result.warnings {
+        print --stderr $"[matrix check capabilities] WARNING: ($w.message)"
+    }
+    let nwarn = ($result.warnings | length)
+    if $nwarn > 0 {
+        print --stderr $"[matrix check capabilities] ($nwarn) warning\(s\)"
+    }
+
+    if $result.provenance.skipped {
+        print --stderr "[matrix check capabilities] INFO: site public dir not present; skipping provenance check"
+    }
+
+    if $result.ok {
+        print "[matrix check capabilities] OK"
+        return
+    }
+
+    print --stderr "[matrix check capabilities] FAIL"
+
+    if ($result.platforms.missing_from_json | length) > 0 {
+        print --stderr "Adapter keys missing from JSON (declared in platforms config):"
+        for $k in $result.platforms.missing_from_json { print --stderr $"  - ($k)" }
+    }
+    if ($result.platforms.extra_in_json | length) > 0 {
+        print --stderr "Adapter keys in JSON not in platforms config:"
+        for $k in $result.platforms.extra_in_json { print --stderr $"  - ($k)" }
+    }
+    if ($result.completeness.missing | length) > 0 {
+        print --stderr "Capabilities missing from adapter entries (declared in capability registry):"
+        for $m in $result.completeness.missing { print --stderr $"  - ($m.adapter_key) missing: ($m.capability_key)" }
+    }
+    if ($result.flow_drift.unknown_names | length) > 0 {
+        print --stderr "Capability names not in registry (used in flows or adapters):"
+        for $n in $result.flow_drift.unknown_names { print --stderr $"  - ($n)" }
+    }
+    let r = $result.registry_cross
+    if (($r.missing_keys | length) > 0) or (($r.extra_keys | length) > 0) or (($r.drift | length) > 0) {
+        print --stderr "Supported-set drift vs registry.ts:"
+        for $k in $r.missing_keys { print --stderr $"  - missing from supported set: ($k)" }
+        for $k in $r.extra_keys { print --stderr $"  - extra in supported set: ($k)" }
+        for $d in $r.drift { print --stderr $"  - ($d.key): expected [(($d.expected | str join ', '))], actual [(($d.actual | str join ', '))]" }
+    }
+    if ($result.provenance.violations | length) > 0 {
+        print --stderr "Public file provenance violations:"
+        for $v in $result.provenance.violations { print --stderr $"  - ($v.file): ($v.issue)" }
+    }
+
+    error make {msg: "matrix check capabilities: drift detected"}
 }

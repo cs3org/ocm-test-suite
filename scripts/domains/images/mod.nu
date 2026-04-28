@@ -3,6 +3,7 @@
 use ../../lib/images/config.nu [list-platforms-versions validate-platform-version]
 use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu images <verb> [flags]"
@@ -72,7 +73,7 @@ def "main resolve" [
     # Derive flow_id from matrix-rules when scenario is provided.
     let flow_id = if (not ($scenario | is-empty)) {
         let root = get-ocmts-root
-        let rules = open ($root | path join "config/matrix-rules.nuon")
+        let rules = (load-matrix-rules $root)
         let sc = ($rules.scenarios | get --optional $scenario | default null)
         if $sc != null {
             $sc.flow_id? | default $scenario

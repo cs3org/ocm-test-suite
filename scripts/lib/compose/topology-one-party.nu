@@ -8,7 +8,6 @@ use ./topology-common.nu [
     write-exec-yml
     copy-platform-cookbook
     copy-overlays-to-artifacts
-    write-stack-id-and-files
     ocmgo-env-lines
 ]
 use ../actors/load.nu [load-actor-for-scenario]
@@ -201,8 +200,6 @@ export def write-one-party-overlays [
 
     # Copy all overlays to artifacts for durable access.
     copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]
-
-    write-stack-id-and-files $artifacts_base $stack_id $base_yml $art_inputs $base_overlay_fnames
 
     {
         stack_id: $stack_id,

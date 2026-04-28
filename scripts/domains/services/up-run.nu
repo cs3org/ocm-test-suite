@@ -10,7 +10,7 @@ use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]
 use ../../lib/services/context.nu [setup-run-context]
 use ../../lib/services/compose-files.nu [
-    build-f-args write-active-files read-active-compose-files
+    build-f-args write-compose-manifest
 ]
 use ../../lib/services/lifecycle.nu [
     cleanup-temp
@@ -24,6 +24,7 @@ use ../../lib/compose/logs.nu [collect-service-logs]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/suite/index.nu [record-suite-run-safe]
 use ../../lib/run/finalize.nu [finalize-run]
+use ../../lib/images/cell-images.nu [emit-cell-images]
 
 def main [
     --scenario: string,
@@ -53,7 +54,8 @@ def main [
     let f_args_base = (build-f-args $base_files)
     let run_files = ($base_files | append ($ctx.compose_d | path join "runner-ci.yml"))
     let f_args_run = (build-f-args $run_files)
-    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
+    (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
+        $ctx.base_overlay_fnames "" ["compose.resolved.yml"])
 
     # Step 1: validate base file set strictly before touching Docker.
     try {
@@ -111,6 +113,8 @@ def main [
         error make {msg: $"docker compose up platform failed: ($up_err.msg)"}
     }
 
+    emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
+
     # Write peers.json before Cypress so it exists even if tests fail.
     if $ctx.is_two_party {
         try {
@@ -147,7 +151,9 @@ def main [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
     }
-    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames "runner-ci.yml"
+    (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
+        $ctx.base_overlay_fnames "runner-ci.yml"
+        ["compose.resolved.yml" "compose.resolved.run.yml" "compose.resolved.down.yml"])
 
     print $"Running tests for ($ctx.cell.cell_id) [execution_id=($ctx.execution_id)]..."
     let cy = (run-cypress-ci $ctx.artifacts_base $f_args_run $ctx.stack_id $verbose $env_file)
@@ -159,7 +165,7 @@ def main [
     mut down_err = null
     if not $keep_up {
         print "Tearing down services..."
-        let down_files = (read-active-compose-files $ctx.artifacts_base $ctx.base_yml)
+        let down_files = $base_files
         let f_args_down = (build-f-args $down_files)
         let down_validate_err = (try {
             (validate-compose-strict $down_files $ctx.stack_id

@@ -75,7 +75,7 @@ export def collect-run-artifacts [
     is_two_party: bool,
 ] {
     let log_services = if $is_two_party {
-        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache" "mitm"]
+        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache"]
     } else {
         ["sender" "sender-db" "sender-cache"]
     }

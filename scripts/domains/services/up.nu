@@ -7,13 +7,16 @@ use ../../lib/run/metadata.nu [
     utc-now
 ]
 use ../../lib/services/context.nu [setup-run-context]
-use ../../lib/services/compose-files.nu [build-f-args write-active-files]
+use ../../lib/services/compose-files.nu [
+    build-f-args write-compose-manifest
+]
 use ../../lib/services/lifecycle.nu [
     cleanup-temp
     cleanup-down
     overwrite-cleanup-failed
 ]
 use ../../lib/publish/envelope.nu [publish-envelope-safe]
+use ../../lib/images/cell-images.nu [emit-cell-images]
 
 def main [
     --scenario: string,
@@ -37,7 +40,8 @@ def main [
         $ctx.base_overlay_fnames | each {|f| $ctx.compose_d | path join $f}
     ))
     let f_args = (build-f-args $base_files)
-    write-active-files $ctx.artifacts_base $ctx.base_yml $ctx.base_overlay_fnames
+    (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
+        $ctx.base_overlay_fnames "" ["compose.resolved.yml"])
     try {
         (validate-compose-strict $base_files $ctx.stack_id
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
@@ -56,6 +60,7 @@ def main [
     let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     try {
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
+        emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
     } catch {|e|
         let finished_at = (utc-now)
         let up_exit = ($env.LAST_EXIT_CODE? | default 1)

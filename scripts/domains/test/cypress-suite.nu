@@ -1,6 +1,7 @@
 # Run the full enabled matrix suite sequentially.
 
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 use ../../lib/site/clone.nu [resolve-site-dir, site-dir-is-local]
 use ../../lib/site/publish.nu [run-site-publish]
 use ../../lib/site/preview.nu [run-site-preview]
@@ -57,7 +58,7 @@ def main [
     }
 
     let root = get-ocmts-root
-    let rules = open ($root | path join "config/matrix-rules.nuon")
+    let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let workflows_cfg = open ($root | path join "config/ci/workflows.nuon")
     let ocmts_script = ($root | path join "scripts/ocmts.nu")
@@ -217,7 +218,7 @@ def main [
     if $publish_site {
         let optimized_media_dir = if (not $skip_optimize) {
             print "\n=== Optimizing cell media ==="
-            let work_dir = ($nu.temp-path | path join $"ots-cypress-suite-optimize-($eff_suite_id)")
+            let work_dir = ($nu.temp-path | path join $"ocmts-cypress-suite-optimize-($eff_suite_id)")
             let result = (try {
                 run-suite-optimize-aggregate $cells_to_run $root $work_dir
             } catch {|e|

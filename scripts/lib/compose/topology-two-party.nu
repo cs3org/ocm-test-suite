@@ -8,7 +8,6 @@ use ./topology-common.nu [
     write-exec-yml
     copy-platform-cookbook
     copy-overlays-to-artifacts
-    write-stack-id-and-files
     ocmgo-env-lines
 ]
 use ../actors/load.nu [load-sender-for-scenario load-receiver-for-scenario]
@@ -179,6 +178,8 @@ export def write-two-party-overlays [
         $"      - OCMTS_FLOW_ID=($effective_flow_id)"
         $"      - OCMTS_RUN_ID=($execution_id)"
         $"      - OCMTS_EXECUTION_ID=($execution_id)"
+        "      - OCMTS_MITM_STARTUP_PATH=/mitm/startup.v1.json"
+        "      - OCMTS_MITM_CONNECT_ERRORS_PATH=/mitm/connect-errors.v1.jsonl"
         "    volumes:"
         $"      - ($artifacts_base)/mitm:/mitm"
         $"      - ($root)/scripts/python/lib/mitm/mitmproxy_jsonl.py:/ocmts/mitmproxy_jsonl.py:ro"
@@ -189,6 +190,8 @@ export def write-two-party-overlays [
     "" | save --force ($artifacts_base | path join "mitm" "flows" "traffic.jsonl")
     "" | save --force ($artifacts_base | path join "mitm" "flows" "session.json")
     "" | save --force ($artifacts_base | path join "mitm" "redaction-report.json")
+    "" | save --force ($artifacts_base | path join "mitm" "startup.v1.json")
+    "" | save --force ($artifacts_base | path join "mitm" "connect-errors.v1.jsonl")
     mkdir ($artifacts_base | path join "mitm" "conf")
     "scripts:\n  - /ocmts/mitmproxy_jsonl.py\n"
         | save --force ($artifacts_base | path join "mitm" "conf" "config.yaml")
@@ -297,8 +300,6 @@ export def write-two-party-overlays [
 
     # Copy all overlays to artifacts for durable access.
     copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]
-
-    write-stack-id-and-files $artifacts_base $stack_id $base_yml $art_inputs $base_overlay_fnames
 
     {
         stack_id: $stack_id,

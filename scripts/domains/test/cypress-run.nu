@@ -8,7 +8,10 @@ use ../../lib/run/metadata.nu [write-terminal-outcome utc-now]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
-use ../../lib/services/compose-files.nu [build-f-args build-run-files]
+use ../../lib/services/compose-files.nu [
+    build-f-args
+    read-compose-files-from-manifest
+]
 use ../../lib/services/postrun-artifacts.nu [normalize-cypress-video]
 use ../../lib/run/finalize.nu [finalize-run]
 
@@ -53,11 +56,6 @@ def main [
     }
     let artifacts_base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
     let art_compose = ($artifacts_base | path join "compose")
-    let stack_id_file = ($art_compose | path join "stack_id.txt")
-    if not ($stack_id_file | path exists) {
-        error make {msg: $"No stack_id found for execution_id=($exec_id). Run 'services up' first."}
-    }
-    let stack_id = (open --raw $stack_id_file | str trim)
     let base_yml = ($root | path join "config/compose/base.yml")
 
     let run_meta_path = ($artifacts_base | path join "meta/run.json")
@@ -65,6 +63,10 @@ def main [
         error make {msg: $"No run.json found for execution_id=($exec_id). Run 'services up' first."}
     }
     let prev_run = (open $run_meta_path)
+    let stack_id = ($prev_run.stack_id? | default "")
+    if ($stack_id | is-empty) {
+        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
+    }
     let cur_status = ($prev_run.status? | default "")
     let terminal_statuses = ["stopped" "infra-failed" "cleanup-failed" "down-failed"]
     let allowed_statuses = ["active" "open" "passed" "failed"]
@@ -74,11 +76,7 @@ def main [
         error make {msg: $"Cannot run tests: execution ($exec_id) has unexpected status '($cur_status)'."}
     }
     if ($cur_status in ["passed" "failed"]) {
-        let active_files_path = ($art_compose | path join "active-files.txt")
-        if not ($active_files_path | path exists) {
-            error make {msg: $"Cannot rerun tests: execution ($exec_id) has status '($cur_status)' but active-files marker not found. Use 'services up' for a new run."}
-        }
-        let check_files = (open --raw $active_files_path | lines | where {|l| not ($l | is-empty)})
+        let check_files = (read-compose-files-from-manifest $artifacts_base $root)
         let check_f_args = (build-f-args $check_files)
         if not (stack-platform-running $check_f_args $stack_id $cell.is_two_party) {
             error make {msg: $"Cannot rerun tests: execution ($exec_id) has status '($cur_status)' but platform service is not running. Run 'services down' then 'services up' for a new run."}
@@ -89,7 +87,8 @@ def main [
     let cell_meta = (open ($artifacts_base | path join "meta/cell.json"))
     let images = ($cell_meta.images? | default null)
 
-    let run_files = (build-run-files $artifacts_base $base_yml)
+    let base_files = (read-compose-files-from-manifest $artifacts_base $root)
+    let run_files = ($base_files | append ($root | path join "config/compose/runner-ci.yml"))
     let f_args = (build-f-args $run_files)
 
     # Validate runner-ci file set strictly before running Cypress.

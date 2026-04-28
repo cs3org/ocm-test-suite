@@ -60,19 +60,6 @@ export def copy-overlays-to-artifacts [
     }
 }
 
-# Write stack_id.txt and files.txt under <artifacts_base>/compose/.
-export def write-stack-id-and-files [
-    artifacts_base: string,
-    stack_id: string,
-    base_yml: string,
-    art_inputs: string,
-    base_overlay_fnames: list<string>,
-] {
-    $stack_id | save --force ($artifacts_base | path join "compose" "stack_id.txt")
-    ([$base_yml] | append ($base_overlay_fnames | each {|f| $art_inputs | path join $f}))
-        | str join "\n" | save --force ($artifacts_base | path join "compose" "files.txt")
-}
-
 # Return OCM_GO_<ROLE_UPPER>_* env lines for ocmgo platforms.
 # For non-ocmgo platforms returns blank slot lines.
 export def ocmgo-env-lines [

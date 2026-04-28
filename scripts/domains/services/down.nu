@@ -10,7 +10,8 @@ use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts/init.nu [read-last-execution-id]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/services/compose-files.nu [
-    build-f-args read-active-compose-files read-compose-env-file
+    build-f-args
+    read-compose-files-from-manifest read-compose-env-file
 ]
 use ../../lib/services/lifecycle.nu [
     cleanup-temp
@@ -40,19 +41,17 @@ def main [
     }
     let artifacts_base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
-    let stack_id_file = ($artifacts_base | path join "compose" "stack_id.txt")
-    if not ($stack_id_file | path exists) {
-        error make {msg: $"No stack_id found for execution_id=($exec_id). Artifacts may be missing."}
+    let run_meta_path = ($artifacts_base | path join "meta/run.json")
+    if not ($run_meta_path | path exists) {
+        error make {msg: $"No meta/run.json found for execution_id=($exec_id). Artifacts may be missing."}
     }
-    let stack_id = (open --raw $stack_id_file | str trim)
+    let stack_id = ((open $run_meta_path).stack_id? | default "")
+    if ($stack_id | is-empty) {
+        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
+    }
 
     print $"Tearing down ($cell.cell_id) [stack_id=($stack_id)]..."
-    let base_yml = ($root | path join "config/compose/base.yml")
-    let active_files_path = ($artifacts_base | path join "compose" "active-files.txt")
-    if not ($active_files_path | path exists) {
-        print "WARNING: active-files.txt not found; using base-only file set (legacy artifacts)"
-    }
-    let down_files = (read-active-compose-files $artifacts_base $base_yml)
+    let down_files = (read-compose-files-from-manifest $artifacts_base $root)
     let env_file = (read-compose-env-file $artifacts_base)
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let f_args_down = (build-f-args $down_files)

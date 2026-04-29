@@ -85,11 +85,41 @@ def _empty_body() -> Dict[str, Any]:
     }
 
 
+def _peer_address(conn: Any) -> Tuple[Optional[str], Optional[int]]:
+    """
+    Best-effort extraction of (host_or_ip, port) from a mitmproxy
+    Connection-like object. Returns (None, None) when no address is
+    available. Tries `peername` first (newer mitmproxy), then `address`.
+    """
+    if conn is None:
+        return None, None
+    try:
+        addr = getattr(conn, "peername", None) or getattr(conn, "address", None)
+        if not addr:
+            return None, None
+        host = addr[0] if len(addr) > 0 else None
+        port = addr[1] if len(addr) > 1 else None
+        host_s = str(host) if host is not None else None
+        port_i: Optional[int] = None
+        if port is not None:
+            try:
+                port_i = int(port)
+            except Exception:
+                port_i = None
+        return host_s, port_i
+    except Exception:
+        return None, None
+
+
 class OcmtsJsonlExporter:
     def __init__(self) -> None:
         self.traffic_path = os.environ.get("OCMTS_MITM_TRAFFIC_PATH", "/mitm/flows/traffic.jsonl")
         self.session_path = os.environ.get("OCMTS_MITM_SESSION_PATH", "/mitm/flows/session.json")
         self.redaction_path = os.environ.get("OCMTS_MITM_REDACTION_REPORT_PATH", "/mitm/redaction-report.json")
+        self.startup_path = os.environ.get("OCMTS_MITM_STARTUP_PATH", "/mitm/startup.v1.json")
+        self.connect_errors_path = os.environ.get(
+            "OCMTS_MITM_CONNECT_ERRORS_PATH", "/mitm/connect-errors.v1.jsonl"
+        )
         self.body_max_bytes = _parse_int_env(os.environ.get("OCMTS_MITM_BODY_MAX_BYTES"), 10240)
 
         self.cell_id = os.environ.get("OCMTS_CELL_ID", "")
@@ -103,6 +133,7 @@ class OcmtsJsonlExporter:
         self._error_count = 0
         self._record_count = 0
         self._event_seq = 0
+        self._connect_error_seq = 0
 
     def load(self, loader: Any) -> None:
         ctx.log.info(
@@ -114,6 +145,55 @@ class OcmtsJsonlExporter:
             f"flow_id={self.flow_id} "
             f"run_id={self.run_id}"
         )
+        # Write the startup record once per addon load.
+        try:
+            listen_host = "0.0.0.0"
+            listen_port = 8080
+            try:
+                opt_host = getattr(ctx.options, "listen_host", None)
+                opt_port = getattr(ctx.options, "listen_port", None)
+                if opt_host:
+                    listen_host = str(opt_host)
+                if opt_port:
+                    listen_port = int(opt_port)
+            except Exception:
+                pass
+
+            # mitmproxy verifies upstream certs by default unless ssl_insecure is set.
+            ssl_verify_upstream = True
+
+            confdir = os.environ.get("MITMPROXY_CONFDIR", "/mitm/conf")
+            overrides: list = []
+            if self.body_max_bytes != 10240:
+                overrides.append(f"body_max_bytes={self.body_max_bytes}")
+
+            startup = {
+                "schema_version": 1,
+                "emitted_at": _utc_now_iso(),
+                "cell_id": self.cell_id,
+                "run_id": self.run_id,
+                "addon": {"name": "ocmts_jsonl_exporter", "version": "1.0.0"},
+                "listen": {
+                    "host": listen_host,
+                    "port": listen_port,
+                    "tls": "intercept",
+                    "http2": True,
+                },
+                "ca": {
+                    "name": "dockypody",
+                    "cert": confdir + "/mitmproxy-ca.pem",
+                    "bundle": confdir + "/upstream-ca-bundle.pem",
+                },
+                "ssl_verify_upstream": ssl_verify_upstream,
+                "config_overrides": overrides,
+            }
+            os.makedirs(os.path.dirname(self.startup_path), exist_ok=True)
+            with open(self.startup_path, "w", encoding="utf-8") as f:
+                json.dump(startup, f, sort_keys=True, indent=2)
+                f.write("\n")
+        except Exception as e:
+            ctx.log.warn(f"ocmts jsonl exporter could not write startup record: {e}")
+
         # Make sure the traffic file starts fresh for the run.
         try:
             os.makedirs(os.path.dirname(self.traffic_path), exist_ok=True)
@@ -121,6 +201,16 @@ class OcmtsJsonlExporter:
                 f.write("")
         except Exception as e:
             ctx.log.warn(f"ocmts jsonl exporter could not initialize traffic file: {e}")
+
+        # Truncate the connect-errors file so each run starts clean.
+        try:
+            os.makedirs(os.path.dirname(self.connect_errors_path), exist_ok=True)
+            with open(self.connect_errors_path, "w", encoding="utf-8") as f:
+                f.write("")
+        except Exception as e:
+            ctx.log.warn(
+                f"ocmts jsonl exporter could not initialize connect-errors file: {e}"
+            )
 
     def response(self, flow: http.HTTPFlow) -> None:
         self._flow_count += 1
@@ -175,6 +265,123 @@ class OcmtsJsonlExporter:
             "error": str(flow.error) if getattr(flow, "error", None) else "unknown error",
         }
         self._append_jsonl(rec)
+
+    def tcp_error(self, flow) -> None:
+        try:
+            err = getattr(flow, "error", None)
+            msg = ""
+            if err is not None:
+                msg = getattr(err, "msg", None) or str(err)
+            kind = self._classify_tcp_error(msg)
+            host, port = _peer_address(getattr(flow, "server_conn", None))
+            client_ip, client_port = _peer_address(getattr(flow, "client_conn", None))
+            self._append_connect_error(
+                kind,
+                {
+                    "client": {"ip": client_ip, "port": client_port},
+                    "message": msg or "tcp error",
+                    "host": host,
+                    "port": port,
+                },
+            )
+        except Exception as e:
+            ctx.log.warn(f"ocmts jsonl exporter tcp_error hook failed: {e}")
+
+    def server_connect(self, data) -> None:
+        # Belt-and-suspenders: most server_connect failures surface via tcp_error.
+        # We only emit when an obvious DNS-style failure is attached to `data`.
+        try:
+            err = getattr(data, "error", None)
+            if err is None:
+                return
+            msg = getattr(err, "msg", None) or str(err)
+            low = msg.lower() if isinstance(msg, str) else ""
+            if (
+                "dns" in low
+                or "resolution" in low
+                or "resolve" in low
+                or err.__class__.__name__.lower().endswith("dnserror")
+            ):
+                kind = "name-resolution"
+            else:
+                kind = "other"
+            server = getattr(data, "server", None) or data
+            host, port = _peer_address(server)
+            self._append_connect_error(
+                kind,
+                {
+                    "client": {"ip": None, "port": None},
+                    "message": msg,
+                    "host": host,
+                    "port": port,
+                },
+            )
+        except Exception as e:
+            ctx.log.warn(f"ocmts jsonl exporter server_connect hook failed: {e}")
+
+    def client_disconnected(self, client) -> None:
+        # Only record when the client closed with an error attached
+        # (e.g. TLS handshake failure). Clean disconnects are silent.
+        try:
+            err = getattr(client, "error", None)
+            if err is None:
+                return
+            msg = getattr(err, "msg", None) or str(err)
+            low = msg.lower() if isinstance(msg, str) else ""
+            if "tls" in low or "handshake" in low or "ssl" in low:
+                kind = "tls-handshake"
+            else:
+                kind = "client-disconnect"
+            client_ip, client_port = _peer_address(client)
+            self._append_connect_error(
+                kind,
+                {
+                    "client": {"ip": client_ip, "port": client_port},
+                    "message": msg,
+                    "host": None,
+                    "port": None,
+                },
+            )
+        except Exception as e:
+            ctx.log.warn(
+                f"ocmts jsonl exporter client_disconnected hook failed: {e}"
+            )
+
+    def _classify_tcp_error(self, msg: Optional[str]) -> str:
+        if not isinstance(msg, str):
+            return "other"
+        low = msg.lower()
+        if "name resolution" in low or "resolve" in low or "resolution" in low:
+            return "name-resolution"
+        if "refused" in low:
+            return "server-connect-refused"
+        if "timed out" in low or "timeout" in low:
+            return "server-connect-timeout"
+        return "other"
+
+    def _append_connect_error(self, kind: str, payload: Dict[str, Any]) -> None:
+        with self._lock:
+            try:
+                self._connect_error_seq += 1
+                seq = self._connect_error_seq
+                rec: Dict[str, Any] = {
+                    "schema_version": 1,
+                    "event_id": f"err_{seq:06d}",
+                    "captured_at": _utc_now_iso(),
+                    "cell_id": self.cell_id,
+                    "run_id": self.run_id,
+                    "kind": kind,
+                }
+                rec.update(payload)
+                line = json.dumps(rec, sort_keys=True)
+                os.makedirs(os.path.dirname(self.connect_errors_path), exist_ok=True)
+                with open(self.connect_errors_path, "a", encoding="utf-8") as f:
+                    f.write(line)
+                    f.write("\n")
+            except Exception as e:
+                ctx.log.warn(
+                    f"ocmts jsonl exporter could not append connect-error: {e}"
+                )
 
     def done(self) -> None:
         finished_at = _utc_now_iso()

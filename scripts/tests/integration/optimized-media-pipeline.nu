@@ -6,7 +6,6 @@ const SUITE_PATH = path self
 
 use ../../lib/site/project-media.nu [
     apply-media-projection
-    require-optimized-media-when-needed
     manifest-has-media-rows
 ]
 use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-cells]
@@ -23,7 +22,7 @@ def get-fixtures-dir []: nothing -> string {
     (get-repo-root) | path join "scripts/tests/fixtures/optimized-media"
 }
 
-# --- 6c-A: full round-trip aggregate then project ---
+# --- full round-trip: aggregate then project ---
 
 def test-e2e-aggregate-then-project-success [] {
     test-log "\n[test-e2e-aggregate-then-project-success]"
@@ -100,7 +99,7 @@ def test-e2e-aggregate-then-project-success [] {
     ]
 }
 
-# --- 6c-A: no-media cell aggregate ---
+# --- aggregate with no-source-media cell ---
 
 def test-e2e-no-source-media-cell [] {
     test-log "\n[test-e2e-no-source-media-cell]"
@@ -135,37 +134,7 @@ def test-e2e-no-source-media-cell [] {
     ]
 }
 
-# --- 6d-2: require-optimized-media-when-needed gate ---
-
-def test-e2e-publish-fails-on-missing-opt-dir-with-media [] {
-    test-log "\n[test-e2e-publish-fails-on-missing-opt-dir-with-media]"
-    let work = (^mktemp -d | str trim)
-    let fixtures = (get-fixtures-dir)
-
-    mkdir ($work | path join "pub")
-    ^cp ($fixtures | path join "raw-public-manifest.json") ($work | path join "pub/suite-manifest.v1.json")
-
-    # Invoke gate with no opt dir - should error.
-    let err_msg = (try { require-optimized-media-when-needed ($work | path join "pub") ""; null } catch {|e| $e.msg})
-
-    # Sanity: gate is silent when an opt dir is provided (even if it doesn't exist yet).
-    let no_err = (try { require-optimized-media-when-needed ($work | path join "pub") "/some/dir"; true } catch { false })
-
-    let has_media = (manifest-has-media-rows ($work | path join "pub"))
-
-    ^rm -rf $work
-    [
-        (assert-not-null $err_msg "gate errors when manifest has media rows and no opt dir")
-        (assert-truthy ($err_msg | str contains "optimized-media-dir")
-            "error message contains optimized-media-dir")
-        (assert-truthy ($err_msg | str contains "media rows")
-            "error message contains media rows")
-        (assert-truthy $has_media "manifest-has-media-rows returns true for fixture manifest")
-        (assert-truthy $no_err "gate is silent when an opt dir string is provided")
-    ]
-}
-
-# --- 6d-3: apply-media-projection fails on empty opt dir ---
+# --- apply-media-projection fails on empty opt dir ---
 
 def test-e2e-publish-fails-on-empty-opt-dir-with-media [] {
     test-log "\n[test-e2e-publish-fails-on-empty-opt-dir-with-media]"
@@ -209,7 +178,6 @@ def main [] {
     let results = (
         (test-e2e-aggregate-then-project-success)
         | append (test-e2e-no-source-media-cell)
-        | append (test-e2e-publish-fails-on-missing-opt-dir-with-media)
         | append (test-e2e-publish-fails-on-empty-opt-dir-with-media)
     ) | flatten
     run-suite "integration/optimized-media-pipeline" $SUITE_PATH $results

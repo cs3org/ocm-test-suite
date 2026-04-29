@@ -44,7 +44,7 @@ def test-write-terminal-outcome-run-shape [] {
         "cell-login-nc-v34" $ts $ts "passed" 0 "stack-001" null)
 
     let run_path = ($tmp | path join "meta/run.json")
-    let result_path = ($tmp | path join "meta/result.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_exists = ($run_path | path exists)
     let result_exists = ($result_path | path exists)
     let run = if $run_exists { open $run_path } else { {} }
@@ -55,7 +55,7 @@ def test-write-terminal-outcome-run-shape [] {
         (assert-truthy $run_exists
             "write-terminal-outcome creates meta/run.json")
         (assert-truthy $result_exists
-            "write-terminal-outcome creates meta/result.json")
+            "write-terminal-outcome creates meta/result.v1.json")
         (assert-eq ($run.status? | default "") "passed"
             "run.json has correct status")
         (assert-eq ($run.exit_code? | default (-99)) 0
@@ -65,11 +65,29 @@ def test-write-terminal-outcome-run-shape [] {
         (assert-eq ($run.cell_id? | default "") "login__nc-v34"
             "run.json has cell_id")
         (assert-eq ($result.status? | default "") "passed"
-            "result.json has correct status")
+            "result.v1.json has correct status")
         (assert-eq ($result.exit_code? | default (-99)) 0
-            "result.json has exit_code 0")
+            "result.v1.json has exit_code 0")
         (assert-eq ($result.execution_id? | default "") "exec-001"
-            "result.json has execution_id")
+            "result.v1.json has execution_id")
+        (assert-eq ($result.id? | default "") "result-exec-001"
+            "result.v1.json has id=result-<execution_id>")
+        (assert-eq ($result.run_id? | default "") "exec-001"
+            "result.v1.json has run_id matching execution_id")
+        (assert-eq ($result.cell_id? | default "") "login__nc-v34"
+            "result.v1.json has cell_id")
+        (assert-eq ($result.artifact_name? | default "") "cell-login-nc-v34"
+            "result.v1.json has artifact_name")
+        (assert-eq ($result.schema_version? | default 0) 1
+            "result.v1.json has schema_version=1")
+        (assert-eq ($result.warnings? | default null) []
+            "result.v1.json has warnings=[]")
+        (assert-not-null ($result.execution_context? | default null)
+            "result.v1.json has execution_context")
+        (assert-not-null ($result.evidence? | default null)
+            "result.v1.json has evidence record")
+        (assert-truthy (not ($result | columns | any {|c| $c == "verdict"}))
+            "minimal result.v1.json (no Cypress run) omits verdict field")
     ]
 }
 
@@ -85,7 +103,7 @@ def test-write-terminal-outcome-failure-shape [] {
         --phase "platform-up" --fail-error "docker up failed")
 
     let run_path = ($tmp | path join "meta/run.json")
-    let result_path = ($tmp | path join "meta/result.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let result = if ($result_path | path exists) { open $result_path } else { {} }
 
@@ -100,9 +118,13 @@ def test-write-terminal-outcome-failure-shape [] {
         (assert-eq ($run.error? | default "") "docker up failed"
             "run.json has error field from --fail-error")
         (assert-eq ($result.status? | default "") "infra-failed"
-            "result.json mirrors status")
+            "result.v1.json mirrors status")
         (assert-eq ($result.exit_code? | default 0) 1
-            "result.json mirrors exit_code")
+            "result.v1.json mirrors exit_code")
+        (assert-truthy (not ($result | columns | any {|c| $c == "verdict"}))
+            "infra-failed result.v1.json omits verdict field")
+        (assert-eq ($result.warnings? | default null) []
+            "result.v1.json has warnings=[]")
     ]
 }
 
@@ -119,7 +141,7 @@ def test-write-terminal-outcome-suite-fields [] {
         --suite-id $sid --suite-kind "suite")
 
     let run_path = ($tmp | path join "meta/run.json")
-    let result_path = ($tmp | path join "meta/result.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let result = if ($result_path | path exists) { open $result_path } else { {} }
 
@@ -130,9 +152,9 @@ def test-write-terminal-outcome-suite-fields [] {
         (assert-eq ($run.suite_kind? | default "") "suite"
             "run.json has suite_kind")
         (assert-eq ($result.suite_id? | default "") $sid
-            "result.json has suite_id when provided")
+            "result.v1.json has suite_id when provided")
         (assert-eq ($result.suite_kind? | default "") "suite"
-            "result.json has suite_kind")
+            "result.v1.json has suite_kind")
     ]
 }
 

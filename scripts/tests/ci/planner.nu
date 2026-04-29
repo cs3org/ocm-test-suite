@@ -25,6 +25,7 @@ use ../../lib/ci/workflow-gen.nu [
 use ../../lib/ci/template-renderer.nu [render-template]
 use ../../lib/suite/index.nu [compute-suite-status]
 use ../../lib/tests/assert.nu *
+use ../../lib/tests/fixtures.nu [materialize-provenance-stubs]
 use ../../lib/tests/runner.nu [run-suite]
 
 # Minimal matrix rules fixture covering key cases.
@@ -288,7 +289,7 @@ def test-workflow-no-baked-ids [] {
     let plan = (plan-suite $rules $prereqs)
     let yml = (build-ci-matrix-yml $plan)
 
-    # The plan's suite_id (a timestamp+uuid) must NOT appear in the generated YAML.
+    # suite_id (a timestamp+uuid) must NOT appear in the generated YAML.
     # It is resolved at workflow runtime via the setup job output instead.
     let suite_id_baked = ($yml | str contains $plan.suite_id)
 
@@ -1424,14 +1425,14 @@ def test-ingest-missing-injection [] {
     test-log "\n[test-ingest-missing-injection]"
     use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
+    materialize-provenance-stubs $tmp
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
     let ts = "2026-01-01T00:00:00Z"
     let suite_id = "20260101t000000-aabbccdd"
 
-    # Write a minimal matrix-rules.nuon with no scenarios (ingest from suite only).
-    let rules_path = ($tmp | path join "matrix-rules.nuon")
-    {scenarios: {}} | to nuon | save --force $rules_path
+    # Inline matrix rules record with no scenarios (ingest from suite only).
+    let rules = {scenarios: {}}
 
     # Write a fake per-run manifest for cell-a (passed).
     let run_dir = ($artifacts_root | path join "login" "nextcloud-v34" "exec-aaa")
@@ -1503,7 +1504,7 @@ def test-ingest-missing-injection [] {
     }
     $ci_agg | to json --indent 2 | save --force ($agg_dir | path join "suite-manifest.v1.json")
 
-    ingest-site $artifacts_root $rules_path $public_dir --latest-suite
+    ingest-site $artifacts_root $rules $tmp $public_dir --latest-suite
 
     let site_manifest_path = ($public_dir | path join "suite-manifest.v1.json")
     let site_manifest_exists = ($site_manifest_path | path exists)
@@ -1534,19 +1535,19 @@ def test-ingest-missing-injection-cell-list-fallback [] {
     test-log "\n[test-ingest-missing-injection-cell-list-fallback]"
     use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
+    materialize-provenance-stubs $tmp
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
     let ts = "2026-01-01T00:00:00Z"
     let suite_id = "20260101t000000-aabbccee"
 
-    # Matrix rules produce one cell: login__nextcloud-v34 (flow_id=login, pair=nextcloud-v34).
-    let rules_path = ($tmp | path join "matrix-rules.nuon")
-    {scenarios: {login: {
+    # Matrix rules record with one cell: login__nextcloud-v34 (flow_id=login, pair=nextcloud-v34).
+    let rules = {scenarios: {login: {
         enabled: true,
         flow_id: "login",
         browsers: ["chrome"],
         sender: {platform: "nextcloud", version_lines: ["v34"]},
-    }}} | to nuon | save --force $rules_path
+    }}}
 
     # Per-run manifest for cell-a (passed).
     let run_dir = ($artifacts_root | path join "login" "nextcloud-v34" "exec-aaa")
@@ -1613,7 +1614,7 @@ def test-ingest-missing-injection-cell-list-fallback [] {
     }
     $ci_agg | to json --indent 2 | save --force ($agg_dir | path join "suite-manifest.v1.json")
 
-    ingest-site $artifacts_root $rules_path $public_dir --latest-suite
+    ingest-site $artifacts_root $rules $tmp $public_dir --latest-suite
 
     let site_manifest_path = ($public_dir | path join "suite-manifest.v1.json")
     let site_manifest_exists = ($site_manifest_path | path exists)

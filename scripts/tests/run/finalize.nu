@@ -1,11 +1,11 @@
-# Tests for finalize-run and write-final-verdict.
+# Tests for finalize-run.
 # Run: nu scripts/tests/run/finalize.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
 const SUITE_PATH = path self
 
 use ../../lib/run/finalize.nu [finalize-run]
-use ../../lib/run/metadata.nu [write-final-verdict utc-now]
+use ../../lib/run/metadata.nu [utc-now]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
@@ -36,85 +36,6 @@ def test-domain-sources-route-through-finalize-run [] {
     ]
 }
 
-# ---- write-final-verdict tests ----
-
-def test-write-final-verdict-pass-shape [] {
-    test-log "\n[test-write-final-verdict-pass-shape]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    let base_rec = {status: "passed", exit_code: 0}
-    let final_rec = {status: "passed", exit_code: 0}
-    write-final-verdict $tmp "after-down" $base_rec $final_rec []
-    let path = ($tmp | path join "meta/final-verdict.json")
-    let exists = ($path | path exists)
-    let doc = if $exists { open $path } else { {} }
-    let base = ($doc.base? | default {status: "", exit_code: (-99)})
-    let final = ($doc.final? | default {status: "", exit_code: (-99)})
-    ^rm -rf $tmp
-    [
-        (assert-truthy $exists "meta/final-verdict.json created")
-        (assert-eq ($doc.schema_version? | default 0) 2
-            "schema_version is 2")
-        (assert-eq ($doc.stage? | default "") "after-down"
-            "stage field preserved")
-        (assert-eq $base.status "passed"
-            "base.status is passed")
-        (assert-eq $base.exit_code 0
-            "base.exit_code is 0")
-        (assert-eq $final.status "passed"
-            "final.status is passed")
-        (assert-eq $final.exit_code 0
-            "final.exit_code is 0")
-        (assert-eq ($doc.validators? | default null) []
-            "validators is empty list")
-    ]
-}
-
-def test-write-final-verdict-fail-shape [] {
-    test-log "\n[test-write-final-verdict-fail-shape]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    write-final-verdict $tmp "after-cypress" {status: "failed", exit_code: 7} {status: "failed", exit_code: 7} []
-    let path = ($tmp | path join "meta/final-verdict.json")
-    let doc = if ($path | path exists) { open $path } else { {} }
-    let base = ($doc.base? | default {status: "", exit_code: (-99)})
-    let final = ($doc.final? | default {status: "", exit_code: (-99)})
-    ^rm -rf $tmp
-    [
-        (assert-eq ($doc.stage? | default "") "after-cypress"
-            "stage is after-cypress")
-        (assert-eq $base.exit_code 7
-            "base.exit_code preserves nonstandard code")
-        (assert-eq $final.exit_code 7
-            "final.exit_code preserves nonstandard code")
-    ]
-}
-
-def test-write-final-verdict-override-shape [] {
-    test-log "\n[test-write-final-verdict-override-shape]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    # base passed/0, final failed/2 (validator override with custom exit code)
-    write-final-verdict $tmp "after-down" {status: "passed", exit_code: 0} {status: "failed", exit_code: 2} ["ocm-validator"]
-    let path = ($tmp | path join "meta/final-verdict.json")
-    let doc = if ($path | path exists) { open $path } else { {} }
-    let base = ($doc.base? | default {status: "", exit_code: (-99)})
-    let final = ($doc.final? | default {status: "", exit_code: (-99)})
-    ^rm -rf $tmp
-    [
-        (assert-eq $base.status "passed"
-            "base.status tracks original cypress")
-        (assert-eq $base.exit_code 0
-            "base.exit_code tracks original cypress")
-        (assert-eq $final.status "failed"
-            "final.status reflects override")
-        (assert-eq $final.exit_code 2
-            "final.exit_code carries explicit override code")
-        (assert-eq ($doc.validators? | default []) ["ocm-validator"]
-            "validator name recorded")
-    ]
-}
-
 # ---- finalize-run tests ----
 
 def test-finalize-run-pass-no-override [] {
@@ -126,9 +47,10 @@ def test-finalize-run-pass-no-override [] {
     let exit_code = (finalize-run $tmp "exec-fv-001" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-001" 0 "after-down" null
         --validator-report $no_op_report)
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict = if ($verdict_path | path exists) { open $verdict_path } else { {} }
+    let result = if ($result_path | path exists) { open $result_path } else { {} }
+    let verdict = ($result.verdict? | default {})
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let final_rec = ($verdict.final? | default {status: "", exit_code: (-99)})
     let base_rec = ($verdict.base? | default {status: "", exit_code: (-99)})
@@ -137,13 +59,13 @@ def test-finalize-run-pass-no-override [] {
         (assert-eq $exit_code 0
             "finalize-run returns 0 when Cypress passed")
         (assert-eq $final_rec.status "passed"
-            "final-verdict.json final.status=passed")
+            "result.v1.json verdict.final.status=passed")
         (assert-eq $final_rec.exit_code 0
-            "final-verdict.json final.exit_code=0")
+            "result.v1.json verdict.final.exit_code=0")
         (assert-eq $base_rec.status "passed"
-            "final-verdict.json base.status=passed")
+            "result.v1.json verdict.base.status=passed")
         (assert-eq $base_rec.exit_code 0
-            "final-verdict.json base.exit_code=0")
+            "result.v1.json verdict.base.exit_code=0")
         (assert-eq ($run.status? | default "") "passed"
             "run.json status=passed")
         (assert-eq ($run.exit_code? | default (-99)) 0
@@ -160,9 +82,10 @@ def test-finalize-run-fail-no-override [] {
     let exit_code = (finalize-run $tmp "exec-fv-002" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-002" 1 "after-down" null
         --validator-report $no_op_report)
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict = if ($verdict_path | path exists) { open $verdict_path } else { {} }
+    let result = if ($result_path | path exists) { open $result_path } else { {} }
+    let verdict = ($result.verdict? | default {})
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let final_rec = ($verdict.final? | default {status: "", exit_code: (-99)})
     let base_rec = ($verdict.base? | default {status: "", exit_code: (-99)})
@@ -171,11 +94,11 @@ def test-finalize-run-fail-no-override [] {
         (assert-eq $exit_code 1
             "finalize-run returns 1 when Cypress failed with exit 1")
         (assert-eq $final_rec.status "failed"
-            "final-verdict.json final.status=failed")
+            "result.v1.json verdict.final.status=failed")
         (assert-eq $final_rec.exit_code 1
-            "final-verdict.json final.exit_code=1")
+            "result.v1.json verdict.final.exit_code=1")
         (assert-eq $base_rec.exit_code 1
-            "final-verdict.json base.exit_code=1")
+            "result.v1.json verdict.base.exit_code=1")
         (assert-eq ($run.exit_code? | default 0) 1
             "run.json exit_code=1")
     ]
@@ -191,9 +114,10 @@ def test-finalize-run-preserves-nonstandard-cypress-exit [] {
     let exit_code = (finalize-run $tmp "exec-fv-exit7" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-exit7" 7 "after-down" null
         --validator-report $no_op_report)
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict = if ($verdict_path | path exists) { open $verdict_path } else { {} }
+    let result = if ($result_path | path exists) { open $result_path } else { {} }
+    let verdict = ($result.verdict? | default {})
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let final_rec = ($verdict.final? | default {status: "", exit_code: (-99)})
     let base_rec = ($verdict.base? | default {status: "", exit_code: (-99)})
@@ -202,9 +126,9 @@ def test-finalize-run-preserves-nonstandard-cypress-exit [] {
         (assert-eq $exit_code 7
             "cypress exit 7 returned unchanged when no validator override")
         (assert-eq $base_rec.exit_code 7
-            "final-verdict.json base.exit_code=7")
+            "result.v1.json verdict.base.exit_code=7")
         (assert-eq $final_rec.exit_code 7
-            "final-verdict.json final.exit_code=7 preserved")
+            "result.v1.json verdict.final.exit_code=7 preserved")
         (assert-eq ($run.exit_code? | default (-99)) 7
             "run.json exit_code=7 preserved")
     ]
@@ -225,9 +149,10 @@ def test-finalize-run-validator-override-fail-to-pass [] {
     let exit_code = (finalize-run $tmp "exec-fv-003" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-003" 1 "after-down" null
         --validator-report $override_report)
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict = if ($verdict_path | path exists) { open $verdict_path } else { {} }
+    let result = if ($result_path | path exists) { open $result_path } else { {} }
+    let verdict = ($result.verdict? | default {})
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let final_rec = ($verdict.final? | default {status: "", exit_code: (-99)})
     let base_rec = ($verdict.base? | default {status: "", exit_code: (-99)})
@@ -267,9 +192,10 @@ def test-finalize-run-validator-override-pass-to-fail [] {
     let exit_code = (finalize-run $tmp "exec-fv-p2f" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-p2f" 0 "after-down" null
         --validator-report $override_report)
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict = if ($verdict_path | path exists) { open $verdict_path } else { {} }
+    let result = if ($result_path | path exists) { open $result_path } else { {} }
+    let verdict = ($result.verdict? | default {})
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let final_rec = ($verdict.final? | default {status: "", exit_code: (-99)})
     let base_rec = ($verdict.base? | default {status: "", exit_code: (-99)})
@@ -303,10 +229,13 @@ def test-finalize-run-auto-dispatch-no-op [] {
     let exit_code = (finalize-run $tmp "exec-fv-004" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-004" 0 "after-down")
     let run_path = ($tmp | path join "meta/run.json")
-    let verdict_path = ($tmp | path join "meta/final-verdict.json")
-    let result_path = ($tmp | path join "meta/result.json")
-    let verdict_exists = ($verdict_path | path exists)
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let result_exists = ($result_path | path exists)
+    let result_verdict_present = if $result_exists {
+        ((open $result_path) | columns | any {|c| $c == "verdict"})
+    } else {
+        false
+    }
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     ^rm -rf $tmp
     [
@@ -314,14 +243,14 @@ def test-finalize-run-auto-dispatch-no-op [] {
             "auto-dispatch no-op: cypress pass -> exit 0")
         (assert-eq ($run.status? | default "") "passed"
             "auto-dispatch no-op: run.json status=passed")
-        (assert-truthy $verdict_exists
-            "auto-dispatch writes final-verdict.json")
         (assert-truthy $result_exists
-            "auto-dispatch writes result.json via write-terminal-outcome")
+            "auto-dispatch writes result.v1.json")
+        (assert-truthy $result_verdict_present
+            "auto-dispatch result.v1.json includes verdict block")
     ]
 }
 
-# Suite fields pass through to run.json / result.json unchanged.
+# Suite fields pass through to run.json / result.v1.json unchanged.
 def test-finalize-run-suite-fields-passthrough [] {
     test-log "\n[test-finalize-run-suite-fields-passthrough]"
     let tmp = (^mktemp -d | str trim)
@@ -334,7 +263,7 @@ def test-finalize-run-suite-fields-passthrough [] {
         --suite-id $sid --suite-kind "suite"
         --validator-report $no_op_report)
     let run_path = ($tmp | path join "meta/run.json")
-    let result_path = ($tmp | path join "meta/result.json")
+    let result_path = ($tmp | path join "meta/result.v1.json")
     let run = if ($run_path | path exists) { open $run_path } else { {} }
     let result = if ($result_path | path exists) { open $result_path } else { {} }
     ^rm -rf $tmp
@@ -344,19 +273,16 @@ def test-finalize-run-suite-fields-passthrough [] {
         (assert-eq ($run.suite_kind? | default "") "suite"
             "run.json has suite_kind")
         (assert-eq ($result.suite_id? | default "") $sid
-            "result.json has suite_id")
+            "result.v1.json has suite_id")
         (assert-eq ($result.suite_kind? | default "") "suite"
-            "result.json has suite_kind")
+            "result.v1.json has suite_kind")
     ]
 }
 
 def main [] {
-    test-log "=== Finalize Run + Final Verdict Tests ==="
+    test-log "=== Finalize Run Tests ==="
     let results = (
-        (test-write-final-verdict-pass-shape)
-        | append (test-write-final-verdict-fail-shape)
-        | append (test-write-final-verdict-override-shape)
-        | append (test-finalize-run-pass-no-override)
+        (test-finalize-run-pass-no-override)
         | append (test-finalize-run-fail-no-override)
         | append (test-finalize-run-preserves-nonstandard-cypress-exit)
         | append (test-finalize-run-validator-override-fail-to-pass)

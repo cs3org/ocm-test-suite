@@ -14,7 +14,6 @@ use ../../lib/site/project-media.nu [
     assert-under-pub-dir
     assert-projected-media-row-derived-only
     apply-media-projection
-    require-optimized-media-when-needed
 ]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
@@ -206,7 +205,7 @@ def make-ev [kind: string, ev_path: string] {
 
 def test-project-non-media-passthrough [] {
     test-log "\n[test-project-non-media-passthrough]"
-    let ev = {kind: "metadata", scope: "meta", path: "meta/result.json", logical_name: "result.json"}
+    let ev = {kind: "metadata", scope: "meta", path: "meta/result.v1.json", logical_name: "result.v1.json"}
     let out = (project-one-evidence-item $ev "artifacts/f/p/e" "/nonexistent")
     [
         (assert-eq $out.error "" "non-media item has no error")
@@ -410,8 +409,8 @@ def test-apply-media-projection-full [] {
                     {
                         kind: "metadata"
                         scope: "meta"
-                        logical_name: "result.json"
-                        path: "meta/result.json"
+                        logical_name: "result.v1.json"
+                        path: "meta/result.v1.json"
                         availability: "artifact"
                         evidence_id: "ev-meta"
                     }
@@ -465,7 +464,7 @@ def test-apply-media-projection-full [] {
             "media_variants first item is avif primary")
         (assert-eq ($ss_ev.media_variants | last).format "webp"
             "media_variants second item is webp fallback")
-        (assert-eq $meta_ev.path "meta/result.json"
+        (assert-eq $meta_ev.path "meta/result.v1.json"
             "non-media evidence path unchanged")
         (assert-truthy $avif_exists "avif file copied to public tree")
         (assert-truthy $webp_exists "webp file copied to public tree")
@@ -550,7 +549,7 @@ def test-manifest-has-media-rows-true [] {
             r1: {
                 evidence: [
                     {kind: "screenshot", path: "cypress/screenshots/foo.png"}
-                    {kind: "metadata", path: "meta/result.json"}
+                    {kind: "metadata", path: "meta/result.v1.json"}
                 ]
             }
         }
@@ -569,7 +568,7 @@ def test-manifest-has-media-rows-false-no-media [] {
     let manifest = {
         schema_version: 1
         results: {
-            r1: {evidence: [{kind: "metadata", path: "meta/result.json"}]}
+            r1: {evidence: [{kind: "metadata", path: "meta/result.v1.json"}]}
         }
     }
     $manifest | to json --indent 2 | save ($pub_dir | path join "suite-manifest.v1.json")

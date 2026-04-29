@@ -45,10 +45,10 @@
         {
           "kind": "metadata",
           "scope": "meta",
-          "logical_name": "result.json",
-          "path": "meta/result.json",
+          "logical_name": "result.v1.json",
+          "path": "meta/result.v1.json",
           "availability": "artifact",
-          "evidence_id": "meta--result"
+          "evidence_id": "meta--result.v1"
         },
         {
           "kind": "log",

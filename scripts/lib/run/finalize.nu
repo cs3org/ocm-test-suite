@@ -2,8 +2,8 @@
 #
 # Callers must not treat raw Cypress exit as the final verdict for the last step.
 # This helper computes the resolved verdict from Cypress exit plus post-flow
-# validators, writes meta/final-verdict.json, and writes the canonical terminal
-# run.json / result.json via write-terminal-outcome.
+# validators, writes meta/run.json via write-terminal-run, then writes the
+# consolidated meta/result.v1.json with the embedded verdict block.
 #
 # To inject a validator report in tests, pass --validator-report with a non-null
 # record of the same shape dispatch-validators returns. Pass nothing (or null)
@@ -17,8 +17,10 @@
 #     notes:              list<string>  - diagnostic strings
 #   }
 
-use ./metadata.nu [write-terminal-outcome write-final-verdict]
+use ./metadata.nu [write-terminal-run]
 use ../mitm/validator-dispatcher.nu [dispatch-validators]
+use ../publish/envelope.nu [detect-execution-context collect-evidence]
+use ../publish/evidence.nu [emit-evidence]
 
 # Compute final verdict, write all terminal metadata, return resolved exit code.
 #
@@ -79,11 +81,51 @@ export def finalize-run [
     let final = {status: $final_status, exit_code: $final_exit}
     let validators = ($report.validators? | default [])
 
-    write-final-verdict $artifacts_base $stage $base $final $validators
-
-    (write-terminal-outcome $artifacts_base $execution_id $cell_id $artifact_name
+    (write-terminal-run $artifacts_base $execution_id $cell_id $artifact_name
         $started_at $finished_at $final_status $final_exit $stack_id $images
         --suite-id $suite_id --suite-kind $suite_kind)
+
+    let ctx = (detect-execution-context)
+    let ev = (collect-evidence $artifacts_base)
+    let verdict = {
+        stage: $stage,
+        base: $base,
+        final: $final,
+        validators: $validators,
+    }
+    mut r = {
+        schema_version: 1,
+        id: $"result-($execution_id)",
+        run_id: $execution_id,
+        execution_id: $execution_id,
+        cell_id: $cell_id,
+        artifact_name: $artifact_name,
+        started_at: $started_at,
+        finished_at: $finished_at,
+        status: $final_status,
+        exit_code: $final_exit,
+        verdict: $verdict,
+        execution_context: $ctx,
+        evidence: {
+            total_count: $ev.counts.total,
+            mitm_present: $ev.mitm_present,
+            docker_logs_count: $ev.counts.docker_logs,
+            cypress_screenshots_count: $ev.counts.cypress_screenshots,
+            cypress_videos_count: $ev.counts.cypress_videos,
+            cypress_downloads_count: $ev.counts.cypress_downloads,
+            mitm_files_count: $ev.counts.mitm_files,
+        },
+        warnings: [],
+    }
+    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
+    if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
+    $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
+
+    try {
+        emit-evidence $artifacts_base $cell_id $execution_id
+    } catch {|e|
+        print --stderr $"WARNING: evidence sidecar emit failed: ($e.msg)"
+    }
 
     $final_exit
 }

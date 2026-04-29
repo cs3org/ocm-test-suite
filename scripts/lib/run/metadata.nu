@@ -1,6 +1,5 @@
-# Shared run metadata writer.
-# run.json  = lifecycle SSOT
-# result.json = compact terminal outcome projection
+# Per-cell run metadata writers: writes meta/run.json (terminal run record)
+# and minimal meta/result.v1.json for error paths.
 #
 # Lifecycle statuses used in run.json:
 #   prepared      - initial state after setup-run-context
@@ -12,6 +11,8 @@
 #   failed        - Cypress run failed (services up run)
 #   infra-failed  - infrastructure failure before Cypress (services up run)
 #   cleanup-failed - teardown failed after Cypress run (services up run)
+
+use ../publish/envelope.nu [detect-execution-context collect-evidence]
 
 # Return current time as UTC ISO-8601 with a literal Z suffix.
 export def utc-now [] {
@@ -86,7 +87,7 @@ export def write-terminal-run [
 
 # Update existing meta/run.json for non-terminal lifecycle transitions.
 # No-op when run.json does not exist; callers check before calling when needed.
-# Does not write result.json - manual up/open/down do not produce result.json.
+# Does not write result.v1.json - manual up/open/down do not produce result.v1.json.
 #
 # Clean statuses (active, open, stopped) must not carry stale error/exit_code
 # from prior failure states. Those fields are removed on transition to a clean
@@ -117,8 +118,10 @@ export def update-run-lifecycle [
     $r | to json | save --force $run_path
 }
 
-# Write terminal run.json and result.json together in one call.
-# Convenience wrapper: replaces paired write-terminal-run + write-compact-result calls.
+# Write terminal run.json and the consolidated meta/result.v1.json together
+# in one call. The result.v1.json is "minimal": no verdict block (no Cypress
+# ran on these error paths). finalize-run overwrites it with a full,
+# verdict-aware version on the happy path.
 export def write-terminal-outcome [
     artifacts_base: string,
     execution_id: string,
@@ -139,54 +142,33 @@ export def write-terminal-outcome [
         $started_at $finished_at $status $exit_code $stack_id $images
         --phase $phase --fail-error $fail_error
         --suite-id $suite_id --suite-kind $suite_kind)
-    (write-compact-result $artifacts_base $execution_id $cell_id
-        $status $exit_code $finished_at
-        --suite-id $suite_id --suite-kind $suite_kind)
-}
 
-# Write meta/final-verdict.json with structured stage and verdict data.
-# base and final are records with shape {status: string, exit_code: int}.
-#   base:  outcome derived directly from Cypress exit (unchanged by validators).
-#   final: resolved outcome after validators (equals base when no override ran).
-# validators: names of validators that ran (empty when none are registered).
-export def write-final-verdict [
-    artifacts_base: string,
-    stage: string,
-    base: record,
-    final: record,
-    validators: list = [],
-] {
-    {
-        schema_version: 2,
-        stage: $stage,
-        base: $base,
-        final: $final,
-        validators: $validators,
-    } | to json | save --force ($artifacts_base | path join "meta/final-verdict.json")
-}
-
-# Write compact result.json (terminal outcome projection).
-export def write-compact-result [
-    artifacts_base: string,
-    execution_id: string,
-    cell_id: string,
-    status: string,
-    exit_code: int,
-    finished_at: string,
-    --suite-id: string = "",
-    --suite-kind: string = "",
-] {
+    let ctx = (detect-execution-context)
+    let ev = (collect-evidence $artifacts_base)
     mut r = {
         schema_version: 1,
         id: $"result-($execution_id)",
         run_id: $execution_id,
         execution_id: $execution_id,
         cell_id: $cell_id,
-        exit_code: $exit_code,
-        status: $status,
+        artifact_name: $artifact_name,
+        started_at: $started_at,
         finished_at: $finished_at,
+        status: $status,
+        exit_code: $exit_code,
+        execution_context: $ctx,
+        evidence: {
+            total_count: $ev.counts.total,
+            mitm_present: $ev.mitm_present,
+            docker_logs_count: $ev.counts.docker_logs,
+            cypress_screenshots_count: $ev.counts.cypress_screenshots,
+            cypress_videos_count: $ev.counts.cypress_videos,
+            cypress_downloads_count: $ev.counts.cypress_downloads,
+            mitm_files_count: $ev.counts.mitm_files,
+        },
+        warnings: [],
     }
     if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
     if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
-    $r | to json | save --force ($artifacts_base | path join "meta/result.json")
+    $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
 }

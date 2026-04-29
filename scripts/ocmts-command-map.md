@@ -10,12 +10,13 @@ Run from the repo root.
 
 ## actors
 
-| Command                                       | Purpose                                    |
-| --------------------------------------------- | ------------------------------------------ |
-| `nu scripts/ocmts.nu actors list`             | List actor IDs from `config/actors.nuon`.  |
-| `nu scripts/ocmts.nu actors show <actor>`     | Show one actor record.                     |
-| `nu scripts/ocmts.nu actors validate <actor>` | Validate one actor against matrix rules.   |
-| `nu scripts/ocmts.nu actors validate-all`     | Validate every actor against matrix rules. |
+| Command                                              | Purpose                                                           |
+| ---------------------------------------------------- | ----------------------------------------------------------------- |
+| `nu scripts/ocmts.nu actors list`                    | List scenarios enabled in the matrix SSOT.                        |
+| `nu scripts/ocmts.nu actors list overrides`          | List scenarios with override files in `config/actors/scenarios/`. |
+| `nu scripts/ocmts.nu actors show <scenario>`         | Show resolved actor record for a one-party scenario.              |
+| `nu scripts/ocmts.nu actors validate <args>`         | Validate one scenario's resolution.                               |
+| `nu scripts/ocmts.nu actors validate-all`            | Validate every matrix-enabled scenario.                           |
 
 ## artifacts
 
@@ -47,12 +48,12 @@ Run from the repo root.
 
 ## matrix
 
-| Command                                    | Purpose                                             |
-| ------------------------------------------ | --------------------------------------------------- |
-| `nu scripts/ocmts.nu matrix gen`           | Regenerate `config/matrix-rules.nuon` from sources. |
-| `nu scripts/ocmts.nu matrix gen cypress`   | Regenerate `cypress/e2e/<flow>/matrix.ts` files.    |
-| `nu scripts/ocmts.nu matrix list [--json]` | List enabled cells.                                 |
-| `nu scripts/ocmts.nu matrix cell ...`      | Show one cell record.                               |
+| Command                                         | Purpose                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `nu scripts/ocmts.nu matrix gen cypress`        | Regenerate `cypress/e2e/<flow>/matrix.ts` files.                                                |
+| `nu scripts/ocmts.nu matrix list [--json]`      | List enabled cells.                                                                             |
+| `nu scripts/ocmts.nu matrix cell ...`           | Show one cell record.                                                                           |
+| `nu scripts/ocmts.nu matrix check capabilities` | Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.   |
 
 ## services
 
@@ -79,14 +80,14 @@ The `test` domain disambiguates between Cypress integration tests
 (end-to-end, slow, Docker-driven) and internal Nushell unit tests
 (fast, no Docker) via the verb path itself.
 
-| Command                                                    | Purpose                                                                |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `nu scripts/ocmts.nu test cypress run ...`                 | Run Cypress headless against an already-up stack.                      |
-| `nu scripts/ocmts.nu test cypress suite ...`               | Run the full enabled matrix suite sequentially. Supports `--publish-site` and `--preview`. |
-| `nu scripts/ocmts.nu test units`                           | Run all internal Nushell unit suites; emits combined JSON.             |
-| `nu scripts/ocmts.nu test units --suite <area/topic>`      | Run one unit suite (e.g. `ci/planner`).                                |
-| `nu scripts/ocmts.nu test units --list`                    | List available unit suites.                                            |
-| `nu scripts/ocmts.nu test units --human`                   | Run unit suites in human-friendly output mode.                         |
+| Command                                                    | Purpose                                                                                      |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `nu scripts/ocmts.nu test cypress run ...`                 | Run Cypress headless against an already-up stack.                                            |
+| `nu scripts/ocmts.nu test cypress suite ...`               | Run the full enabled matrix suite sequentially. Supports `--publish-site` and `--preview`.   |
+| `nu scripts/ocmts.nu test units`                           | Run all internal Nushell unit suites; emits combined JSON.                                   |
+| `nu scripts/ocmts.nu test units --suite <area/topic>`      | Run one unit suite (e.g. `ci/planner`).                                                      |
+| `nu scripts/ocmts.nu test units --list`                    | List available unit suites.                                                                  |
+| `nu scripts/ocmts.nu test units --human`                   | Run unit suites in human-friendly output mode.                                               |
 
 ## version
 

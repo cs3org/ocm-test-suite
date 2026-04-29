@@ -32,8 +32,9 @@ scripts/
   lib/                     # implementation modules (no top-level `main`)
     domain/core/           # CLI primitives (forward-to, root resolution)
     common/                # generic helpers (complete-record, stderr-match)
-    actors/                # credentials, resolve, load (4 scenario loaders +
-                           # list-scenario-names), validate
+    actors/                # credentials, resolve, load (4 scenario loaders,
+                           # list scenarios via list-matrix-scenarios or
+                           # list-override-files), validate
     artifacts/             # init, prune
     ci/                    # planner, blocker, aggregator, workflow-gen,
                            # template-renderer, flow-order, suite-stop-on-fail
@@ -61,7 +62,7 @@ scripts/
   python/                  # Python sidecars; see python/README.md
     lib/mitm/mitmproxy_jsonl.py   # mitmproxy addon (bind-mounted)
   typescript/              # TypeScript sidecars; see typescript/README.md
-    check-adapter-capabilities.ts # CI preflight: adapter drift check
+    extract-registry-keys.ts     # AST dumper for Cypress adapter registry
   ocmts-command-map.md     # flat reference of every CLI verb
 ```
 
@@ -115,11 +116,13 @@ each language has a clean home:
   [`python/README.md`](./python/README.md). Today: the mitmproxy addon at
   `python/lib/mitm/mitmproxy_jsonl.py`, bind-mounted into the MITM
   container by the compose topology generator.
-- `scripts/typescript/` - TypeScript drift checks and AST tooling. See
-  [`typescript/README.md`](./typescript/README.md). Today:
-  `check-adapter-capabilities.ts`, run via Bun
-  (`bun run scripts/typescript/check-adapter-capabilities.ts`) and wired
-  as a CI preflight job in
+- `scripts/typescript/` - TypeScript sidecars for things Nushell can't
+  cheaply reach. See [`typescript/README.md`](./typescript/README.md).
+  Today: `extract-registry-keys.ts`, a tiny AST dumper that walks the
+  Cypress adapter registry and emits its table keys as JSON; the full
+  adapter drift check is `nu scripts/ocmts.nu matrix check capabilities`,
+  which calls this helper internally. The CI preflight job invokes the
+  nu CLI verb directly from
   `scripts/lib/ci/blueprints/github/workflows/ci-matrix.yml.tpl`.
 
 Do not add `.py` or `.ts` files directly under `scripts/`. Place them in

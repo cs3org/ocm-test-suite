@@ -100,19 +100,20 @@ skip producing `optimized-media-artifacts.tar.zst` (used by local dev).
 
 ### `nu scripts/ocmts.nu site publish --optimized-media-dir <dir>`
 
-Runs the site publish pipeline. When the public manifest contains screenshot
-or video evidence rows, `--optimized-media-dir` is REQUIRED; the publish
-hard-fails otherwise. The directory must be a populated optimized aggregate
-(typically the output of `aggregate-optimized-media`).
+Runs the site publish pipeline. `--optimized-media-dir` is optional. When
+omitted and the public manifest contains screenshot or video evidence rows,
+publish proceeds with the raw media and prints a warning to stderr. Pass
+`--optimized-media-dir <dir>` to project the optimized aggregate (typically
+the output of `aggregate-optimized-media`) into the public artifact tree
+in place of the raw media.
 
-### `nu scripts/ocmts.nu test cypress-suite --publish-site [--skip-optimize]`
+### `nu scripts/ocmts.nu test cypress suite --publish-site [--optimize]`
 
-Runs the matrix suite, then publishes. By default the suite-publish flow
-auto-runs probe + per-cell optimize + aggregate before invoking
-`site publish`, so local publish does not need a separate
-`--optimized-media-dir`. Pass `--skip-optimize` to bypass the auto-optimize
-step; in that mode publish hard-fails when media rows exist (use only for
-non-media flows or to test orchestration shape).
+Runs the matrix suite, then publishes. By default the suite publishes with
+raw media; `site publish` prints a warning when the manifest contains media
+rows but no optimized aggregate is provided. Pass `--optimize` to run
+probe + per-cell optimize + aggregate before invoking `site publish`, so
+the publish step receives the optimized aggregate.
 
 ## Manifest shapes
 
@@ -244,8 +245,6 @@ Hard fail (publish aborts; no Pages deploy):
   row (primary or fallback).
 - The optimized aggregate contains an orphan file at a run-prefix path
   that no raw evidence row references.
-- Public manifest contains media rows but `--optimized-media-dir` was not
-  supplied.
 - A path safety violation (absolute path, `..`, empty path) is detected at
   validate, aggregate, or projection time.
 - A destination path computed during projection escapes the public root.
@@ -259,6 +258,9 @@ Soft (logged, lane continues):
   publish.
 - A cell with no publishable media: `status: no-source-media`, empty
   `items`. Aggregate counts the cell in `cell_counts_by_status.no_source_media`.
+- Public manifest contains media rows but no optimized aggregate is
+  provided to `site publish`: publish proceeds with raw media; a warning
+  is printed to stderr.
 
 Test execution failures are independent. The optimize step uses
 `continue-on-error: true` and `if: always() && github.ref == 'refs/heads/...'`
@@ -266,19 +268,31 @@ so failed test cells still upload optimized evidence when present.
 
 ## Local development workflow
 
-Default path:
+Default path (raw media; fast):
 
 ```shell
-nu scripts/ocmts.nu test cypress-suite \
+nu scripts/ocmts.nu test cypress suite \
   --publish-site \
   --site-dir ../ocm-web-site
 ```
 
-The suite runs, then for every cell with an artifact directory:
+The suite runs, then `site publish` ingests artifacts and builds the site.
+Raw `.png` and `.mp4` are published as-is. `site publish` prints a warning
+to stderr when the manifest contains media rows.
+
+Web-optimized path (probe + optimize + aggregate + publish):
+
+```shell
+nu scripts/ocmts.nu test cypress suite \
+  --publish-site --optimize \
+  --site-dir ../ocm-web-site
+```
+
+With `--optimize` the suite, after running, performs:
 
 1. `probe-optimizer-image` runs once with the resolved image; missing
    capabilities abort before any per-cell work.
-2. Each cell run dir is symlinked into a per-cell staging tree and fed to
+2. Each cell run dir is staged into a per-cell tree and fed to
    `optimize-cell-media`.
 3. Per-cell outputs are aggregated via `aggregate-optimized-media-cells`
    with `--no-archive` (no tar.zst needed locally).
@@ -287,18 +301,6 @@ The suite runs, then for every cell with an artifact directory:
 
 The temp work dir is kept on failure for debugging; its path is printed at
 the end of the run.
-
-Fast iteration:
-
-```shell
-nu scripts/ocmts.nu test cypress-suite \
-  --publish-site --skip-optimize \
-  --site-dir ../ocm-web-site
-```
-
-Skips probe + optimize + aggregate. Publish hard-fails when the manifest
-has media rows. Use only for non-media flows or to exercise orchestration
-shape.
 
 Astro smoke check (manual, optional):
 

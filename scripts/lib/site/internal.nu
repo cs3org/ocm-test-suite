@@ -13,7 +13,8 @@ export def evidence-path-allowed [rel: string] {
         or ($rel == "mitm/peers.json")
         or ($rel | str starts-with "mitm/flows/")
         or ($rel == "mitm/redaction-report.json")
-        or ($rel | str starts-with "mitm/reports/"))
+        or ($rel | str starts-with "mitm/reports/")
+        or ($rel | str starts-with "compose/"))
 }
 
 # Build a flat cell list from the in-memory matrix rules record.

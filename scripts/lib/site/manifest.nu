@@ -17,6 +17,49 @@ export def build-matrix-rules-json [
 ] {
     let cell_list = (compute-matrix-cells $rules)
     let result = (apply-display-rule $cell_list $adapters $flow_caps)
+
+    let required_flow_fields = ["flow_id" "label" "subtitle" "display_order" "enabled" "two_party" "mitm"]
+    let flows_dir = ($ocmts_root | path join "config/matrix/flows")
+    let flow_files = (glob ($flows_dir | path join "*.nuon") | sort)
+    if ($flow_files | is-empty) {
+        error make {msg: $"build-matrix-rules-json: no flow files found under ($flows_dir) -- expected at least one *.nuon"}
+    }
+    let flows_out = ($flow_files | each {|f|
+        let raw = open $f
+        let missing = ($required_flow_fields | where {|field| ($raw | get --optional $field) == null})
+        if not ($missing | is-empty) {
+            error make {msg: $"flow file '($f)' missing required fields: ($missing | str join ', ')"}
+        }
+        $raw | select flow_id label subtitle display_order enabled two_party mitm
+    } | sort-by display_order flow_id)
+
+    let platforms_data = open ($ocmts_root | path join "config/matrix/platforms.nuon")
+    let platforms_raw = $platforms_data.platforms?
+    if ($platforms_raw == null) or ($platforms_raw | is-empty) {
+        error make {msg: $"build-matrix-rules-json: ($rules_path) has no 'platforms' record or it is empty"}
+    }
+    let required_platform_fields = ["display_name" "slug" "version_lines"]
+    mut platforms_out = []
+    for row in ($platforms_raw | transpose id platform_data) {
+        let pid = $row.id
+        let p = $row.platform_data
+        let missing = ($required_platform_fields | where {|k| not ($k in $p) })
+        if not ($missing | is-empty) {
+            error make {msg: $"build-matrix-rules-json: ($rules_path) platform '($pid)' is missing required keys: ($missing | str join ', ')"}
+        }
+        let vl = $p.version_lines
+        if (($vl | describe) !~ '^(list|table)') or (($vl | length) == 0) {
+            error make {msg: $"build-matrix-rules-json: ($rules_path) platform '($pid)' version_lines must be a non-empty list"}
+        }
+        $platforms_out = ($platforms_out | append {
+            id: $pid,
+            display_name: $p.display_name,
+            slug: $p.slug,
+            version_lines: $p.version_lines,
+        })
+    }
+    let platforms_out = ($platforms_out | sort-by display_name id)
+
     let prov = (build-provenance-block {
         generator: "scripts/lib/site/manifest.nu#build-matrix-rules-json",
         producer: {name: "ocmts", version: "0.1.0"},
@@ -25,6 +68,8 @@ export def build-matrix-rules-json [
     })
     $prov | merge {
         source: $rules_path,
+        flows: $flows_out,
+        platforms: $platforms_out,
         scenarios: ($result.kept_cells | each {|c|
             mut out = {
                 scenario: $c.scenario,
@@ -132,7 +177,7 @@ export def build-aggregated-manifest [entries: list, ocmts_root: string] {
             | upsert stack_def_sha256 $stack_def_sha256
             | upsert stack_env_sha256 $stack_env_sha256)
         $runs = ($runs | upsert $run_id $run_entry)
-        # Filter evidence to allowlisted paths only (no download, no compose).
+        # Filter evidence to allowlisted paths only.
         let result_id = ($m.results | columns | first)
         let raw_res = ($m.results | get $result_id)
         let ev_filtered = ($raw_res.evidence? | default []

@@ -143,7 +143,7 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
             scenarioCase.senderLogin.login(senderCredentials);
             scenarioCase.senderLogin.assertLoggedIn();
 
-            scenarioCase.senderShareWith
+            scenarioCase.senderShareFile
               .prepareShareFile({
                 sourceFileName: "welcome.txt",
                 sharedFileName,
@@ -155,7 +155,7 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
                 return undefined;
               });
 
-            scenarioCase.senderShareWith.shareWithFederatedRecipient({
+            scenarioCase.senderShareFile.sendFileToFederatedRecipient({
               sharedFileName,
               federatedRecipientId,
             });
@@ -185,7 +185,7 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
             "sharedFileName",
           );
 
-          scenarioCase.receiverShareWith.acceptIncomingShare({ sharedFileName });
+          scenarioCase.receiverShareFile.acceptIncomingShare({ sharedFileName });
           takeEvidenceScreenshot({
             scenarioId: scenarioCase.id,
             sequence: 7,
@@ -199,10 +199,10 @@ export function defineContactWayfScenarioCase(scenarioCase: ScenarioCase) {
               : undefined;
 
           if (
-            scenarioCase.receiverShareWith.assertSharedFileContent !== undefined &&
+            scenarioCase.receiverShareFile.assertSharedFileContent !== undefined &&
             expectedContent !== undefined
           ) {
-            scenarioCase.receiverShareWith.assertSharedFileContent({
+            scenarioCase.receiverShareFile.assertSharedFileContent({
               sharedFileName,
               expectedContent,
             });

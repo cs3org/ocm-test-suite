@@ -19,12 +19,14 @@ bun run scripts/typescript/extract-registry-keys.ts \
   cypress/support/adapters/registry.ts
 ```
 
-Stdout: a single-line JSON record. Keys are the 8 adapter table names
+Stdout: a single-line JSON record. Keys are the 10 adapter table names
 found in `cypress/support/adapters/registry.ts`:
 
 - `loginAdapters`
-- `shareWithSenderAdapters`
-- `shareWithReceiverAdapters`
+- `shareWithFlowSenderAdapters`
+- `shareWithFlowReceiverAdapters`
+- `shareFileSenderAdapters`
+- `shareFileReceiverAdapters`
 - `contactTokenSenderAdapters`
 - `contactTokenReceiverAdapters`
 - `contactWayfSenderAdapters`

@@ -1,5 +1,5 @@
 // Input: one CLI arg -- path to a registry.ts source file.
-// Output: a single-line JSON record mapping each of the 8 adapter table names
+// Output: a single-line JSON record mapping each of the 10 adapter table names
 // to a sorted array of "platform/version" strings extracted from its AST.
 // Exit 0 on success; exit 2 on argument or parse error (message to stderr).
 
@@ -8,8 +8,10 @@ import * as ts from "typescript";
 
 const TABLE_NAMES = [
   "loginAdapters",
-  "shareWithSenderAdapters",
-  "shareWithReceiverAdapters",
+  "shareWithFlowSenderAdapters",
+  "shareWithFlowReceiverAdapters",
+  "shareFileSenderAdapters",
+  "shareFileReceiverAdapters",
   "contactTokenSenderAdapters",
   "contactTokenReceiverAdapters",
   "contactWayfSenderAdapters",

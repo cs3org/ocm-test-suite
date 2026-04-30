@@ -2,5 +2,8 @@
 // Do not edit by hand.
 export const matrixCellIds = [
   "contact-wayf__nextcloud-v34__nextcloud-v34",
+  "contact-wayf__nextcloud-v34__opencloud-v6",
+  "contact-wayf__opencloud-v6__nextcloud-v34",
+  "contact-wayf__opencloud-v6__opencloud-v6",
 ] as const;
 export type MatrixCellId = (typeof matrixCellIds)[number];

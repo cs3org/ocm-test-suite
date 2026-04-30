@@ -1,39 +1,46 @@
 /// <reference types="cypress" />
 
-import type { ShareWithSenderAdapter } from "../../../contracts/share-with";
+import type { ShareWithFlowSenderAdapter } from "../../../contracts/share-with";
+import type { ShareFileSenderAdapter } from "../../../contracts/share-file";
 
-export const ocmgoV1ShareWithSenderAdapter: ShareWithSenderAdapter = {
+function prepareShareFileImpl(
+  { sharedFileName, sourceFileName: _sourceFileName }: { sharedFileName: string; sourceFileName?: string },
+): Cypress.Chainable<{ expectedContent?: string }> {
+  const shareDir = "/artifacts/share";
+  const sharePath = `${shareDir}/${sharedFileName}`;
+
+  cy.exec(`mkdir -p ${shareDir}`, { log: false });
+  cy.writeFile(
+    sharePath,
+    `OCMGo shared file: ${sharedFileName}\n`,
+    { log: false },
+  );
+  return cy.wrap({});
+}
+
+function sendShareImpl({ sharedFileName, federatedRecipientId }: { sharedFileName: string; federatedRecipientId: string }): void {
+  cy.visit("/ui/outgoing");
+  cy.get("#outgoing-share-form", { timeout: 20000 }).should("be.visible");
+
+  cy.get("#share-with", { timeout: 20000 }).clear().type(federatedRecipientId);
+  cy.get("#local-path", { timeout: 20000 })
+    .clear()
+    .type(`/tmp/ocmts-share/${sharedFileName}`);
+  cy.get("#share-submit", { timeout: 20000 }).click();
+
+  cy.get("#share-result", { timeout: 20000 })
+    .should("be.visible")
+    .and("contain.text", "Share sent successfully");
+}
+
+export const ocmgoV1ShareWithFlowSenderAdapter: ShareWithFlowSenderAdapter = {
   key: "ocmgo/v1",
-
-  prepareShareFile({ sharedFileName }) {
-    const shareDir = "/artifacts/share";
-    const sharePath = `${shareDir}/${sharedFileName}`;
-
-    cy.exec(`mkdir -p ${shareDir}`, { log: false });
-    cy.writeFile(
-      sharePath,
-      `OCMGo shared file: ${sharedFileName}\n`,
-      { log: false },
-    );
-    // OCMGo writes a known content string but the receiver (OCMGo) has no
-    // assertSharedFileContent. Return no expectedContent so cross-platform
-    // flows skip content assertion when OCMGo is the sender.
-    return cy.wrap({});
-  },
-
-  shareWithFederatedRecipient({ sharedFileName, federatedRecipientId }) {
-    cy.visit("/ui/outgoing");
-    cy.get("#outgoing-share-form", { timeout: 20000 }).should("be.visible");
-
-    cy.get("#share-with", { timeout: 20000 }).clear().type(federatedRecipientId);
-    cy.get("#local-path", { timeout: 20000 })
-      .clear()
-      .type(`/tmp/ocmts-share/${sharedFileName}`);
-    cy.get("#share-submit", { timeout: 20000 }).click();
-
-    cy.get("#share-result", { timeout: 20000 })
-      .should("be.visible")
-      .and("contain.text", "Share sent successfully");
-  },
+  prepareShareFile: prepareShareFileImpl,
+  shareWithFederatedRecipient: sendShareImpl,
 };
 
+export const ocmgoV1ShareFileSenderAdapter: ShareFileSenderAdapter = {
+  key: "ocmgo/v1",
+  prepareShareFile: prepareShareFileImpl,
+  sendFileToFederatedRecipient: sendShareImpl,
+};

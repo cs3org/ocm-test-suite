@@ -5,8 +5,8 @@ import {
   resolveContactTokenSenderAdapter,
   resolveLoginAdapter,
   resolveProviderIdentityAdapter,
-  resolveShareWithReceiverAdapter,
-  resolveShareWithSenderAdapter,
+  resolveShareFileReceiverAdapter,
+  resolveShareFileSenderAdapter,
   type AdapterRef,
 } from "../../support/adapters/registry";
 import type {
@@ -16,9 +16,9 @@ import type {
 } from "../../support/contracts/contact";
 import type { ActorRef } from "../../support/contracts/login";
 import type {
-  ShareWithReceiverAdapter,
-  ShareWithSenderAdapter,
-} from "../../support/contracts/share-with";
+  ShareFileReceiverAdapter,
+  ShareFileSenderAdapter,
+} from "../../support/contracts/share-file";
 import type { LoginAdapter } from "../../support/contracts/login";
 import type { MatrixCellId } from "./matrix";
 
@@ -28,8 +28,8 @@ export type ScenarioCase = {
   receiver: ActorRef;
   senderLogin: LoginAdapter;
   receiverLogin: LoginAdapter;
-  senderShareWith: ShareWithSenderAdapter;
-  receiverShareWith: ShareWithReceiverAdapter;
+  senderShareFile: ShareFileSenderAdapter;
+  receiverShareFile: ShareFileReceiverAdapter;
   contactTokenSender: ContactTokenSenderAdapter;
   contactTokenReceiver: ContactTokenReceiverAdapter;
   receiverIdentity: ProviderIdentityAdapter;
@@ -71,8 +71,8 @@ function makeContactTokenCase(senderRef: AdapterRef, receiverRef: AdapterRef): S
     receiver: receiverActor,
     senderLogin: resolveLoginAdapter(senderRef),
     receiverLogin: resolveLoginAdapter(receiverRef),
-    senderShareWith: resolveShareWithSenderAdapter(senderRef),
-    receiverShareWith: resolveShareWithReceiverAdapter(receiverRef),
+    senderShareFile: resolveShareFileSenderAdapter(senderRef),
+    receiverShareFile: resolveShareFileReceiverAdapter(receiverRef),
     contactTokenSender: resolveContactTokenSenderAdapter(senderRef),
     contactTokenReceiver: resolveContactTokenReceiverAdapter(receiverRef),
     receiverIdentity: resolveProviderIdentityAdapter(receiverRef),

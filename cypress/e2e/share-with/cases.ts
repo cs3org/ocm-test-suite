@@ -2,8 +2,8 @@
 
 import {
   resolveLoginAdapter,
-  resolveShareWithReceiverAdapter,
-  resolveShareWithSenderAdapter,
+  resolveShareWithFlowReceiverAdapter,
+  resolveShareWithFlowSenderAdapter,
   type AdapterRef,
 } from "../../support/adapters/registry";
 import type { ActorRef, ScenarioCase } from "../../support/contracts/share-with";
@@ -41,8 +41,8 @@ function parsePlatformVersionToken(token: string): AdapterRef {
 function makeShareWithCase(senderRef: AdapterRef, receiverRef: AdapterRef): ScenarioCase {
   return {
     id: `share-with__${senderRef.platform}-${senderRef.versionLine}__${receiverRef.platform}-${receiverRef.versionLine}`,
-    senderAdapter: resolveShareWithSenderAdapter(senderRef),
-    receiverAdapter: resolveShareWithReceiverAdapter(receiverRef),
+    senderAdapter: resolveShareWithFlowSenderAdapter(senderRef),
+    receiverAdapter: resolveShareWithFlowReceiverAdapter(receiverRef),
     senderLogin: resolveLoginAdapter(senderRef),
     receiverLogin: resolveLoginAdapter(receiverRef),
     sender: senderActor,

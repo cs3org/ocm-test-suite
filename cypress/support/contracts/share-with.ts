@@ -2,7 +2,10 @@
 
 import type { ActorCredentials, ActorRef, LoginAdapter } from "./login";
 
-export type ShareWithSenderAdapter = {
+// Flow entry point for the unknown-party share-with flow. Adapters that
+// implement this support direct sharing with a remote party that has no
+// prior contact relationship.
+export type ShareWithFlowSenderAdapter = {
   key: string;
   prepareShareFile(params: {
     sharedFileName: string;
@@ -14,7 +17,7 @@ export type ShareWithSenderAdapter = {
   }): void;
 };
 
-export type ShareWithReceiverAdapter = {
+export type ShareWithFlowReceiverAdapter = {
   key: string;
   acceptIncomingShare(params: { sharedFileName: string }): void;
   assertSharedFileContent?(params: {
@@ -23,10 +26,12 @@ export type ShareWithReceiverAdapter = {
   }): void;
 };
 
+// ScenarioCase for the share-with flow's own cases.ts. Uses the FLOW
+// adapter types (not the file-op types).
 export type ScenarioCase = {
   id: string;
-  senderAdapter: ShareWithSenderAdapter;
-  receiverAdapter: ShareWithReceiverAdapter;
+  senderAdapter: ShareWithFlowSenderAdapter;
+  receiverAdapter: ShareWithFlowReceiverAdapter;
   senderLogin: LoginAdapter;
   receiverLogin: LoginAdapter;
   sender: ActorRef;

@@ -13,8 +13,8 @@ def test-no-warnings-for-supported [] {
     test-log "\n[test-no-warnings-for-supported]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            login: {status: "supported"},
-            "share-with.sender": {status: "supported"},
+            "op.login": {status: "supported"},
+            "flow.share-with.sender": {status: "supported"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -29,7 +29,7 @@ def test-pending-with-tracking-note-ok [] {
     test-log "\n[test-pending-with-tracking-note-ok]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "code-flow.sender": {status: "test-implementation-pending", tracking_note: "tracked"},
+            "flow.code-flow.sender": {status: "test-implementation-pending", tracking_note: "tracked"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -44,7 +44,7 @@ def test-pending-with-tracking-url-ok [] {
     test-log "\n[test-pending-with-tracking-url-ok]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "code-flow.sender": {status: "test-implementation-pending", tracking_url: "https://example.com/123"},
+            "flow.code-flow.sender": {status: "test-implementation-pending", tracking_url: "https://example.com/123"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -59,7 +59,7 @@ def test-pending-no-tracking-warns [] {
     test-log "\n[test-pending-no-tracking-warns]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "code-flow.sender": {status: "test-implementation-pending"},
+            "flow.code-flow.sender": {status: "test-implementation-pending"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -68,7 +68,7 @@ def test-pending-no-tracking-warns [] {
             "exactly one warning")
         (assert-truthy ($warnings | any {|w| $w.message | str contains "nextcloud/v32"})
             "warning message names the adapter")
-        (assert-truthy ($warnings | any {|w| $w.message | str contains "code-flow.sender"})
+        (assert-truthy ($warnings | any {|w| $w.message | str contains "flow.code-flow.sender"})
             "warning message names the capability")
     ]
 }
@@ -78,7 +78,7 @@ def test-vendor-unsupported-no-tracking-warns [] {
     test-log "\n[test-vendor-unsupported-no-tracking-warns]"
     let adapters = {
         "ocmgo/v1": {capabilities: {
-            "contact-wayf.sender": {status: "vendor-unsupported"},
+            "op.contact-wayf.sender": {status: "vendor-unsupported"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -93,7 +93,7 @@ def test-out-of-scope-no-rationale-warns [] {
     test-log "\n[test-out-of-scope-no-rationale-warns]"
     let adapters = {
         "ocmgo/v1": {capabilities: {
-            "contact-wayf.sender": {status: "vendor-out-of-scope"},
+            "op.contact-wayf.sender": {status: "vendor-out-of-scope"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -110,7 +110,7 @@ def test-out-of-scope-with-rationale-ok [] {
     test-log "\n[test-out-of-scope-with-rationale-ok]"
     let adapters = {
         "ocmgo/v1": {capabilities: {
-            "contact-wayf.sender": {status: "vendor-out-of-scope", rationale: "Feature not relevant for this platform"},
+            "op.contact-wayf.sender": {status: "vendor-out-of-scope", rationale: "Feature not relevant for this platform"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)

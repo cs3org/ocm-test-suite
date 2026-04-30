@@ -84,7 +84,7 @@ export def derive-role-blockers [
 # Derive requirements and blockers for one cell against the adapter capability
 # map and flow capability requirements. Returns {requirements: list, blockers: list}.
 #
-# Capability keys in the adapters record contain dots (e.g. "share-with.sender"),
+# Capability keys in the adapters record contain dots (e.g. "op.share-file.sender"),
 # so this function avoids `get $cap` for those lookups and uses `columns` +
 # `transpose` instead to prevent Nushell's cell-path traversal from misfiring.
 export def derive-cell-impl-info [cell: record, adapters: record, flow_caps: record] {

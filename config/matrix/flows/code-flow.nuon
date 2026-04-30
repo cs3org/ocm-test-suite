@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "label": "Code Flow",
+  "subtitle": "OAuth2 authorization code flow",
+  "display_order": 50,
   "flow_id": "code-flow",
   "two_party": true,
   "enabled": false,

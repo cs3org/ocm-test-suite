@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "label": "Share With Flow",
+  "subtitle": "Two-party share between sender and receiver",
+  "display_order": 20,
   "flow_id": "share-with",
   "two_party": true,
   "enabled": true,
@@ -7,12 +10,14 @@
   "browsers": null,
   "required_capabilities": {
     "sender": [
-      "login",
-      "share-with.sender"
+      "flow.share-with.sender",
+      "op.login",
+      "op.share-file.sender"
     ],
     "receiver": [
-      "login",
-      "share-with.receiver"
+      "flow.share-with.receiver",
+      "op.login",
+      "op.share-file.receiver"
     ]
   },
   "include": [

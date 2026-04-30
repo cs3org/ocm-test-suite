@@ -1,15 +1,22 @@
 {
   "schema_version": 1,
   "capabilities": [
-    "login",
-    "provider-identity",
-    "share-with.sender",
-    "share-with.receiver",
-    "contact-token.sender",
-    "contact-token.receiver",
-    "contact-wayf.sender",
-    "contact-wayf.receiver",
-    "code-flow.sender",
-    "code-flow.receiver"
+    "flow.login",
+    "op.login",
+    "op.provider-identity",
+    "flow.share-with.sender",
+    "flow.share-with.receiver",
+    "op.share-file.sender",
+    "op.share-file.receiver",
+    "flow.contact-token.sender",
+    "flow.contact-token.receiver",
+    "op.contact-token.sender",
+    "op.contact-token.receiver",
+    "flow.contact-wayf.sender",
+    "flow.contact-wayf.receiver",
+    "op.contact-wayf.sender",
+    "op.contact-wayf.receiver",
+    "flow.code-flow.sender",
+    "flow.code-flow.receiver"
   ]
 }

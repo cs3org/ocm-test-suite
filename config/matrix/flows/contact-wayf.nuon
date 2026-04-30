@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "label": "Contact via WAYF",
+  "subtitle": "Cross-vendor contact discovery using WAYF",
+  "display_order": 40,
   "flow_id": "contact-wayf",
   "two_party": true,
   "enabled": true,
@@ -7,35 +10,45 @@
   "browsers": null,
   "required_capabilities": {
     "sender": [
-      "login",
-      "contact-wayf.sender",
-      "share-with.sender"
+      "flow.contact-wayf.sender",
+      "op.login",
+      "op.contact-wayf.sender",
+      "op.share-file.sender"
     ],
     "receiver": [
-      "login",
-      "contact-wayf.receiver",
-      "provider-identity",
-      "share-with.receiver"
+      "flow.contact-wayf.receiver",
+      "op.login",
+      "op.contact-wayf.receiver",
+      "op.provider-identity",
+      "op.share-file.receiver"
     ]
   },
   "include": [
     {
       "sender": [
-        "nextcloud"
+        "nextcloud",
+        "opencloud"
       ],
       "receiver": [
-        "nextcloud"
+        "nextcloud",
+        "opencloud"
       ]
     }
   ],
   "versions_sender": {
     "nextcloud": [
       "v34"
+    ],
+    "opencloud": [
+      "v6"
     ]
   },
   "versions_receiver": {
     "nextcloud": [
       "v34"
+    ],
+    "opencloud": [
+      "v6"
     ]
   }
 }

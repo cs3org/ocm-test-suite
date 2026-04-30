@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "label": "Login Flow",
+  "subtitle": "Single-party login on each platform",
+  "display_order": 10,
   "flow_id": "login",
   "two_party": false,
   "enabled": true,
@@ -7,7 +10,8 @@
   "browsers": null,
   "required_capabilities": {
     "sender": [
-      "login"
+      "flow.login",
+      "op.login"
     ],
     "receiver": []
   },

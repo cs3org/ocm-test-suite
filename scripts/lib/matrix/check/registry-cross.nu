@@ -4,15 +4,25 @@
 # SSOT.
 
 export const REGISTRY_TABLE_CAPABILITY = [
-    {table_name: "loginAdapters",                capability: "login"},
-    {table_name: "shareWithSenderAdapters",      capability: "share-with.sender"},
-    {table_name: "shareWithReceiverAdapters",    capability: "share-with.receiver"},
-    {table_name: "contactTokenSenderAdapters",   capability: "contact-token.sender"},
-    {table_name: "contactTokenReceiverAdapters", capability: "contact-token.receiver"},
-    {table_name: "contactWayfSenderAdapters",    capability: "contact-wayf.sender"},
-    {table_name: "contactWayfReceiverAdapters",  capability: "contact-wayf.receiver"},
-    {table_name: "providerIdentityAdapters",     capability: "provider-identity"},
+    {table_name: "loginAdapters",                    capability: "op.login"},
+    {table_name: "shareWithFlowSenderAdapters",      capability: "flow.share-with.sender"},
+    {table_name: "shareWithFlowReceiverAdapters",    capability: "flow.share-with.receiver"},
+    {table_name: "shareFileSenderAdapters",          capability: "op.share-file.sender"},
+    {table_name: "shareFileReceiverAdapters",        capability: "op.share-file.receiver"},
+    {table_name: "contactTokenSenderAdapters",       capability: "op.contact-token.sender"},
+    {table_name: "contactTokenReceiverAdapters",     capability: "op.contact-token.receiver"},
+    {table_name: "contactWayfSenderAdapters",        capability: "op.contact-wayf.sender"},
+    {table_name: "contactWayfReceiverAdapters",      capability: "op.contact-wayf.receiver"},
+    {table_name: "providerIdentityAdapters",         capability: "op.provider-identity"},
 ]
+
+# Returns the unique sorted set of capability names present in REGISTRY_TABLE_CAPABILITY.
+export def registry-bound-capabilities [] {
+    $REGISTRY_TABLE_CAPABILITY
+        | get capability
+        | uniq
+        | sort
+}
 
 # Invokes scripts/typescript/extract-registry-keys.ts and returns the
 # parsed record. The caller controls registry_path so tests can point

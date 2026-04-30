@@ -5,29 +5,46 @@
 const SUITE_PATH = path self
 
 use ../../../lib/matrix/check/registry-cross.nu [
+    REGISTRY_TABLE_CAPABILITY
     build-expected-supported
     diff-registry-vs-supported
+    registry-bound-capabilities
 ]
 use ../../../lib/tests/assert.nu *
 use ../../../lib/tests/runner.nu [run-suite]
+
+# registry-bound-capabilities returns sorted unique cap names from REGISTRY_TABLE_CAPABILITY.
+def test-registry-bound-capabilities [] {
+    test-log "\n[test-registry-bound-capabilities]"
+    let bound = (registry-bound-capabilities)
+    let expected_caps = ($REGISTRY_TABLE_CAPABILITY | get capability | uniq | sort)
+    [
+        (assert-eq $bound $expected_caps
+            "registry-bound-capabilities matches REGISTRY_TABLE_CAPABILITY")
+        (assert-truthy (($bound | length) > 0)
+            "registry-bound-capabilities is non-empty")
+        (assert-truthy (not ("flow.login" in $bound))
+            "flow.login is not registry-bound")
+    ]
+}
 
 # build-expected-supported maps table entries to capability lists.
 def test-build-expected-basic [] {
     test-log "\n[test-build-expected-basic]"
     let tables = {
         loginAdapters: ["nextcloud/v32" "nextcloud/v33"],
-        shareWithSenderAdapters: ["nextcloud/v32"],
+        shareWithFlowSenderAdapters: ["nextcloud/v32"],
     }
     let expected = (build-expected-supported $tables)
     [
-        (assert-list-contains (($expected | get "nextcloud/v32") | default []) "login"
-            "nextcloud/v32 has login capability")
-        (assert-list-contains (($expected | get "nextcloud/v32") | default []) "share-with.sender"
-            "nextcloud/v32 has share-with.sender capability")
-        (assert-list-contains (($expected | get "nextcloud/v33") | default []) "login"
-            "nextcloud/v33 has login capability")
-        (assert-truthy (not ("share-with.sender" in (($expected | get "nextcloud/v33") | default [])))
-            "nextcloud/v33 does not have share-with.sender")
+        (assert-list-contains (($expected | get "nextcloud/v32") | default []) "op.login"
+            "nextcloud/v32 has op.login capability")
+        (assert-list-contains (($expected | get "nextcloud/v32") | default []) "flow.share-with.sender"
+            "nextcloud/v32 has flow.share-with.sender capability")
+        (assert-list-contains (($expected | get "nextcloud/v33") | default []) "op.login"
+            "nextcloud/v33 has op.login capability")
+        (assert-truthy (not ("flow.share-with.sender" in (($expected | get "nextcloud/v33") | default [])))
+            "nextcloud/v33 does not have flow.share-with.sender")
     ]
 }
 
@@ -41,10 +58,10 @@ def test-build-expected-multiple-tables [] {
     let expected = (build-expected-supported $tables)
     let caps = ($expected | get "ocmgo/v1" | default [] | sort)
     [
-        (assert-list-contains $caps "login"
-            "ocmgo/v1 has login")
-        (assert-list-contains $caps "provider-identity"
-            "ocmgo/v1 has provider-identity")
+        (assert-list-contains $caps "op.login"
+            "ocmgo/v1 has op.login")
+        (assert-list-contains $caps "op.provider-identity"
+            "ocmgo/v1 has op.provider-identity")
         (assert-eq ($caps | length) 2
             "ocmgo/v1 has exactly 2 capabilities")
     ]
@@ -53,8 +70,8 @@ def test-build-expected-multiple-tables [] {
 # diff-registry-vs-supported: no drift when sets are equal.
 def test-diff-no-drift [] {
     test-log "\n[test-diff-no-drift]"
-    let expected = {"nextcloud/v32": ["login" "share-with.sender"]}
-    let actual = {"nextcloud/v32": ["login" "share-with.sender"]}
+    let expected = {"nextcloud/v32": ["op.login" "flow.share-with.sender"]}
+    let actual = {"nextcloud/v32": ["op.login" "flow.share-with.sender"]}
     let result = (diff-registry-vs-supported $expected $actual)
     [
         (assert-eq $result.missing_keys []
@@ -69,8 +86,8 @@ def test-diff-no-drift [] {
 # diff-registry-vs-supported: key in expected but not in actual.
 def test-diff-missing-key [] {
     test-log "\n[test-diff-missing-key]"
-    let expected = {"nextcloud/v32": ["login"] "ocmgo/v1": ["login"]}
-    let actual = {"nextcloud/v32": ["login"]}
+    let expected = {"nextcloud/v32": ["op.login"] "ocmgo/v1": ["op.login"]}
+    let actual = {"nextcloud/v32": ["op.login"]}
     let result = (diff-registry-vs-supported $expected $actual)
     [
         (assert-list-contains $result.missing_keys "ocmgo/v1"
@@ -83,8 +100,8 @@ def test-diff-missing-key [] {
 # diff-registry-vs-supported: key in actual but not in expected.
 def test-diff-extra-key [] {
     test-log "\n[test-diff-extra-key]"
-    let expected = {"nextcloud/v32": ["login"]}
-    let actual = {"nextcloud/v32": ["login"] "ocmgo/v1": ["login"]}
+    let expected = {"nextcloud/v32": ["op.login"]}
+    let actual = {"nextcloud/v32": ["op.login"] "ocmgo/v1": ["op.login"]}
     let result = (diff-registry-vs-supported $expected $actual)
     [
         (assert-eq $result.missing_keys []
@@ -97,8 +114,8 @@ def test-diff-extra-key [] {
 # diff-registry-vs-supported: same keys, different capability sets.
 def test-diff-capability-drift [] {
     test-log "\n[test-diff-capability-drift]"
-    let expected = {"nextcloud/v32": ["login" "share-with.sender"]}
-    let actual = {"nextcloud/v32": ["login"]}
+    let expected = {"nextcloud/v32": ["op.login" "flow.share-with.sender"]}
+    let actual = {"nextcloud/v32": ["op.login"]}
     let result = (diff-registry-vs-supported $expected $actual)
     [
         (assert-eq $result.missing_keys []
@@ -115,6 +132,7 @@ def test-diff-capability-drift [] {
 def main [] {
     test-log "=== matrix/check/registry-cross Tests ==="
     let results = ([]
+        | append (test-registry-bound-capabilities)
         | append (test-build-expected-basic)
         | append (test-build-expected-multiple-tables)
         | append (test-diff-no-drift)

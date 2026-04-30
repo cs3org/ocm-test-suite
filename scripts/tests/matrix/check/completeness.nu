@@ -20,16 +20,16 @@ def write-caps-config [tmp_root: string, caps: list<string>] {
 def test-no-missing [] {
     test-log "\n[test-no-missing]"
     with-tmp-dir {|tmp|
-        write-caps-config $tmp ["login" "share-with.sender"]
+        write-caps-config $tmp ["op.login" "flow.share-with.sender"]
         let adapters = {
-            "nextcloud/v32": {capabilities: {login: {status: "supported"}, "share-with.sender": {status: "supported"}}},
-            "ocmgo/v1":      {capabilities: {login: {status: "supported"}, "share-with.sender": {status: "vendor-unsupported", tracking_note: "n/a"}}},
+            "nextcloud/v32": {capabilities: {"op.login": {status: "supported"}, "flow.share-with.sender": {status: "supported"}}},
+            "ocmgo/v1":      {capabilities: {"op.login": {status: "supported"}, "flow.share-with.sender": {status: "vendor-unsupported", tracking_note: "n/a"}}},
         }
         let result = (check-capability-completeness $tmp $adapters)
         [
             (assert-eq $result.missing []
                 "missing is empty when all adapters have all canonical caps")
-            (assert-eq $result.canonical ["login" "share-with.sender"]
+            (assert-eq $result.canonical ["op.login" "flow.share-with.sender"]
                 "canonical matches config")
         ]
     }
@@ -39,9 +39,9 @@ def test-no-missing [] {
 def test-missing-one-cap [] {
     test-log "\n[test-missing-one-cap]"
     with-tmp-dir {|tmp|
-        write-caps-config $tmp ["login" "share-with.sender"]
+        write-caps-config $tmp ["op.login" "flow.share-with.sender"]
         let adapters = {
-            "nextcloud/v32": {capabilities: {login: {status: "supported"}}},
+            "nextcloud/v32": {capabilities: {"op.login": {status: "supported"}}},
         }
         let result = (check-capability-completeness $tmp $adapters)
         [
@@ -49,8 +49,8 @@ def test-missing-one-cap [] {
                 "exactly one missing entry")
             (assert-eq ($result.missing | first).adapter_key "nextcloud/v32"
                 "missing adapter_key is nextcloud/v32")
-            (assert-eq ($result.missing | first).capability_key "share-with.sender"
-                "missing capability_key is share-with.sender")
+            (assert-eq ($result.missing | first).capability_key "flow.share-with.sender"
+                "missing capability_key is flow.share-with.sender")
         ]
     }
 }
@@ -59,20 +59,20 @@ def test-missing-one-cap [] {
 def test-missing-across-adapters [] {
     test-log "\n[test-missing-across-adapters]"
     with-tmp-dir {|tmp|
-        write-caps-config $tmp ["login" "share-with.sender" "provider-identity"]
+        write-caps-config $tmp ["op.login" "flow.share-with.sender" "op.provider-identity"]
         let adapters = {
-            "nextcloud/v32": {capabilities: {login: {status: "supported"}, "share-with.sender": {status: "supported"}}},
-            "ocmgo/v1":      {capabilities: {login: {status: "supported"}, "provider-identity": {status: "supported"}}},
+            "nextcloud/v32": {capabilities: {"op.login": {status: "supported"}, "flow.share-with.sender": {status: "supported"}}},
+            "ocmgo/v1":      {capabilities: {"op.login": {status: "supported"}, "op.provider-identity": {status: "supported"}}},
         }
         let result = (check-capability-completeness $tmp $adapters)
         let missing_keys = ($result.missing | each {|m| $"($m.adapter_key)/($m.capability_key)"})
         [
             (assert-truthy (($result.missing | length) == 2)
                 "two missing entries total")
-            (assert-list-contains $missing_keys "nextcloud/v32/provider-identity"
-                "nextcloud/v32 is missing provider-identity")
-            (assert-list-contains $missing_keys "ocmgo/v1/share-with.sender"
-                "ocmgo/v1 is missing share-with.sender")
+            (assert-list-contains $missing_keys "nextcloud/v32/op.provider-identity"
+                "nextcloud/v32 is missing op.provider-identity")
+            (assert-list-contains $missing_keys "ocmgo/v1/flow.share-with.sender"
+                "ocmgo/v1 is missing flow.share-with.sender")
         ]
     }
 }

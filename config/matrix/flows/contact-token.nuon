@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "label": "Contact via Token",
+  "subtitle": "Cross-vendor contact discovery using a token",
+  "display_order": 30,
   "flow_id": "contact-token",
   "two_party": true,
   "enabled": true,
@@ -7,15 +10,17 @@
   "browsers": null,
   "required_capabilities": {
     "sender": [
-      "login",
-      "contact-token.sender",
-      "share-with.sender"
+      "flow.contact-token.sender",
+      "op.login",
+      "op.contact-token.sender",
+      "op.share-file.sender"
     ],
     "receiver": [
-      "login",
-      "contact-token.receiver",
-      "provider-identity",
-      "share-with.receiver"
+      "flow.contact-token.receiver",
+      "op.login",
+      "op.contact-token.receiver",
+      "op.provider-identity",
+      "op.share-file.receiver"
     ]
   },
   "include": [

@@ -6,7 +6,7 @@
 use ./platforms.nu [check-platform-completeness]
 use ./completeness.nu [check-capability-completeness]
 use ./flow-drift.nu [check-capability-name-drift]
-use ./registry-cross.nu [extract-registry-tables build-expected-supported diff-registry-vs-supported]
+use ./registry-cross.nu [extract-registry-tables build-expected-supported diff-registry-vs-supported registry-bound-capabilities]
 use ./warnings.nu [collect-status-warnings]
 use ./provenance.nu [check-provenance-blocks]
 
@@ -97,10 +97,22 @@ export def check-adapter-capabilities [ocmts_root: string] {
     let ssot = (parse-and-validate-ssot $caps_path)
 
     # Registry cross-check uses the live registry.ts.
+    # Filter supported_by_key to only capabilities that have a registry table,
+    # so orchestration-only flow.* caps do not appear in drift output.
     let registry_path = ($ocmts_root | path join "cypress/support/adapters/registry.ts")
     let tables = (extract-registry-tables $ocmts_root $registry_path)
     let expected = (build-expected-supported $tables)
-    let registry_cross = (diff-registry-vs-supported $expected $ssot.supported_by_key)
+    let bound_caps = (registry-bound-capabilities)
+    let registry_supported = ($ssot.supported_by_key
+        | transpose adapter_key caps
+        | each {|row|
+            {adapter_key: $row.adapter_key, caps: ($row.caps | where {|c| $c in $bound_caps})}
+        }
+        | where {|row| ($row.caps | length) > 0}
+        | reduce --fold {} {|row, acc|
+            $acc | upsert $row.adapter_key $row.caps
+        })
+    let registry_cross = (diff-registry-vs-supported $expected $registry_supported)
 
     let adapter_keys = ($ssot.adapters | columns | sort)
     let platforms = (check-platform-completeness $ocmts_root $adapter_keys)

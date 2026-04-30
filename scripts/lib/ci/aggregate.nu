@@ -29,11 +29,12 @@ def merge-manifests [base: record, other: record] {
 }
 
 # Compute aggregate suite status from individual cell statuses.
-# "passed" only when all cells passed.
+# "passed" only when all cells passed or capability-skipped.
 # "missing" when some cells have no recorded outcome (plan-aware only).
 # "blocked" when some are blocked but none actually failed.
 # "failed" when at least one actually failed (failed, infra-failed, or cleanup-failed).
 # "running" when some cells are still in progress.
+# capability-skipped cells are transparent to status computation.
 export def aggregate-status [statuses: list<string>] {
     if ($statuses | any {|s| (
         ($s == "failed")
@@ -47,7 +48,7 @@ export def aggregate-status [statuses: list<string>] {
         "blocked"
     } else if ($statuses | any {|s| $s == "missing"}) {
         "missing"
-    } else if ($statuses | all {|s| $s == "passed"}) {
+    } else if ($statuses | all {|s| ($s == "passed") or ($s == "capability-skipped")}) {
         "passed"
     } else {
         "unknown"
@@ -103,15 +104,27 @@ export def aggregate-suite-manifests [
 # Aggregate per-cell manifests with plan-awareness.
 # expected_cell_ids: list of cell_ids that were planned; cells with no manifest
 # get a synthetic "missing" result injected into the manifest.
+# capability_skipped_cells: subset of planned cells that are capability-skipped
+# (each record has at least cell_id, flow_id, pair, artifact_name, scenario,
+# sender_platform, sender_version, receiver_platform, receiver_version,
+# is_two_party, execution_id, and capability_skip.rationale).
+# Those cells get a "capability-skipped" result instead of "missing", and their
+# cells/flows map entries are synthesized from the record fields.
 export def aggregate-suite-manifests-plan-aware [
     artifact_dirs: list<string>,
     suite_id: string,
     expected_cell_ids: list<string>,
+    --capability-skipped-cells: list<record> = [],
 ] {
     let generated_at = (utc-now)
     let base = (aggregate-suite-manifests $artifact_dirs $suite_id)
 
-    # Build synthetic missing results for planned cells with no recorded outcome.
+    # Build a lookup map keyed by cell_id for fast access.
+    let cap_skipped_map = ($capability_skipped_cells | reduce --fold {} {|cell, acc|
+        $acc | insert $cell.cell_id $cell
+    })
+
+    # Build synthetic results for planned cells with no recorded outcome.
     let found_cell_ids = ($base.results | transpose k v | each {|r| $r.v.cell_id? | default ""})
     let missing_ids = ($expected_cell_ids | where {|id| not ($id in $found_cell_ids)})
 
@@ -119,34 +132,107 @@ export def aggregate-suite-manifests-plan-aware [
         return $base
     }
 
-    let missing_results = ($missing_ids | reduce --fold {} {|id, acc|
-        let result_id = $"result-missing-($id)"
-        $acc | insert $result_id {
+    # Synthesize cells map entries for cap-skipped cells with no manifest.
+    let cap_skipped_missing_ids = ($missing_ids | where {|id|
+        ($cap_skipped_map | get --optional $id) != null
+    })
+    let extra_cells = ($cap_skipped_missing_ids | reduce --fold {} {|id, acc|
+        let r = ($cap_skipped_map | get --optional $id)
+        $acc | insert $id {
             schema_version: 1,
-            id: $result_id,
-            run_id: "",
-            execution_id: "",
-            cell_id: $id,
-            exit_code: 1,
-            status: "missing",
-            finished_at: $generated_at,
-            failure_reason: "cell had no recorded outcome",
+            id: $id,
+            flow_id: ($r.flow_id? | default ""),
+            pair: ($r.pair? | default ""),
+            artifact_name: ($r.artifact_name? | default ""),
+            scenario: ($r.scenario? | default ""),
+            sender_platform: ($r.sender_platform? | default ""),
+            sender_version: ($r.sender_version? | default ""),
+            receiver_platform: ($r.receiver_platform? | default ""),
+            receiver_version: ($r.receiver_version? | default ""),
+            browser: ($r.browser? | default "chrome"),
+            is_two_party: ($r.is_two_party? | default false),
         }
     })
 
+    # Synthesize runs entries for cap-skipped cells with a real execution_id.
+    let extra_runs = ($cap_skipped_missing_ids | reduce --fold {} {|id, acc|
+        let r = ($cap_skipped_map | get --optional $id)
+        let exec_id = ($r.execution_id? | default "")
+        if ($exec_id | is-empty) {
+            $acc
+        } else {
+            $acc | insert $exec_id {
+                schema_version: 1,
+                id: $exec_id,
+                execution_id: $exec_id,
+                cell_id: $id,
+                started_at: $generated_at,
+                finished_at: $generated_at,
+                status: "capability-skipped",
+                exit_code: 0,
+            }
+        }
+    })
+
+    # Synthesize flows entries for flow_ids not already present.
+    let existing_flow_ids = ($base.flows | columns)
+    let new_flow_ids = ($cap_skipped_missing_ids | each {|id|
+        ($cap_skipped_map | get --optional $id).flow_id? | default ""
+    } | where {|fid| (not ($fid | is-empty)) and (not ($fid in $existing_flow_ids))} | uniq)
+    let extra_flows = ($new_flow_ids | reduce --fold {} {|fid, acc|
+        $acc | insert $fid {schema_version: 1, id: $fid}
+    })
+
+    let missing_results = ($missing_ids | reduce --fold {} {|id, acc|
+        let cap_rec = ($cap_skipped_map | get --optional $id)
+        let is_cap_skipped = ($cap_rec != null)
+        let exec_id = if $is_cap_skipped { ($cap_rec.execution_id? | default "") } else { "" }
+        let result_id = if $is_cap_skipped {
+            $"result-capability-skipped-($id)"
+        } else {
+            $"result-missing-($id)"
+        }
+        let failure_reason = if $is_cap_skipped {
+            ($cap_rec.capability_skip?.rationale? | default "")
+        } else {
+            "cell had no recorded outcome"
+        }
+        $acc | insert $result_id {
+            schema_version: 1,
+            id: $result_id,
+            run_id: $exec_id,
+            execution_id: $exec_id,
+            cell_id: $id,
+            exit_code: (if $is_cap_skipped { 0 } else { 1 }),
+            status: (if $is_cap_skipped { "capability-skipped" } else { "missing" }),
+            finished_at: $generated_at,
+            failure_reason: $failure_reason,
+        }
+    })
+
+    let merged_cells = ($base.cells | merge $extra_cells)
+    let merged_flows = ($base.flows | merge $extra_flows)
+    let merged_runs = ($base.runs | merge $extra_runs)
     let merged_results = ($base.results | merge $missing_results)
     let all_statuses = ($merged_results | transpose k v | each {|r| $r.v.status? | default "unknown"})
     let agg_status = (aggregate-status $all_statuses)
 
+    let truly_missing = ($missing_ids | where {|id|
+        ($cap_skipped_map | get --optional $id) == null
+    })
+
     $base
         | upsert results $merged_results
+        | upsert cells $merged_cells
+        | upsert flows $merged_flows
+        | upsert runs $merged_runs
         | upsert aggregate_status $agg_status
-        | upsert missing_cell_ids $missing_ids
+        | upsert missing_cell_ids $truly_missing
 }
 
 # Compute summary counts from an aggregated manifest.
 # Returns a record with total, passed, failed, infra_failed, cleanup_failed,
-# blocked, missing, unknown, and aggregate_status.
+# blocked, missing, capability_skipped, unknown, and aggregate_status.
 export def build-aggregate-summary [manifest: record] {
     let statuses = (
         $manifest.results
@@ -160,7 +246,8 @@ export def build-aggregate-summary [manifest: record] {
     let cleanup_failed = ($statuses | where {|s| $s == "cleanup-failed"} | length)
     let blocked = ($statuses | where {|s| $s == "blocked"} | length)
     let missing = ($statuses | where {|s| $s == "missing"} | length)
-    let known = ($passed + $failed + $infra_failed + $cleanup_failed + $blocked + $missing)
+    let capability_skipped = ($statuses | where {|s| $s == "capability-skipped"} | length)
+    let known = ($passed + $failed + $infra_failed + $cleanup_failed + $blocked + $missing + $capability_skipped)
     let unknown = ($total - $known)
     let agg_status = ($manifest.aggregate_status? | default "unknown")
     {
@@ -171,6 +258,7 @@ export def build-aggregate-summary [manifest: record] {
         cleanup_failed: $cleanup_failed,
         blocked: $blocked,
         missing: $missing,
+        capability_skipped: $capability_skipped,
         unknown: $unknown,
         aggregate_status: $agg_status,
     }
@@ -194,6 +282,7 @@ def write-summary-files [manifest: record, output_dir: string] {
         $"| cleanup_failed | ($s.cleanup_failed) |"
         $"| blocked | ($s.blocked) |"
         $"| missing | ($s.missing) |"
+        $"| capability_skipped | ($s.capability_skipped) |"
         $"| unknown | ($s.unknown) |"
     ] | str join "\n")
     $md | save --force ($output_dir | path join "summary.md")
@@ -254,10 +343,12 @@ export def write-aggregated-suite-manifest [
     suite_id: string,
     output_dir: string,
     --expected-cell-ids: list<string> = [],
+    --capability-skipped-cells: list<record> = [],
 ] {
     mkdir $output_dir
     let manifest = if not ($expected_cell_ids | is-empty) {
-        aggregate-suite-manifests-plan-aware $artifact_dirs $suite_id $expected_cell_ids
+        (aggregate-suite-manifests-plan-aware $artifact_dirs $suite_id $expected_cell_ids
+            --capability-skipped-cells $capability_skipped_cells)
     } else {
         aggregate-suite-manifests $artifact_dirs $suite_id
     }
@@ -341,6 +432,7 @@ export def reconstruct-suite-index [
     let blocked_count = ($statuses | where {|s| (
         ($s == "blocked") or ($s == "missing")
     )} | length)
+    let capability_skipped_count = ($statuses | where {|s| $s == "capability-skipped"} | length)
 
     let suite_record = {
         schema_version: 2,
@@ -354,6 +446,7 @@ export def reconstruct-suite-index [
         passed_count: $passed_count,
         failed_count: $failed_count,
         blocked_count: $blocked_count,
+        capability_skipped_count: $capability_skipped_count,
     }
 
     let suites_dir = ($artifacts_root | path join "suites")

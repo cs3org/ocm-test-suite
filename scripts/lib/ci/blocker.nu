@@ -40,21 +40,17 @@ export def eval-blocked-cells [
     }
 }
 
-# Write blocked run.json and result.v1.json into the cell's artifact directory.
-# The artifact directory must already exist with meta/cell.json present.
-# blocked_at is the timestamp to use; defaults to utc-now.
-export def write-blocked-artifacts [
-    artifacts_base: string,
+# Write run.json for a terminal (blocked or capability-skipped) cell.
+def write-terminal-run [
+    meta_dir: string,
     execution_id: string,
     cell_id: string,
     artifact_name: string,
+    status: string,
+    exit_code: int,
     failure_reason: string,
-    --blocked-at: string = "",
+    ts: string,
 ] {
-    let ts = if ($blocked_at | is-empty) { utc-now } else { $blocked_at }
-    let meta_dir = ($artifacts_base | path join "meta")
-    mkdir $meta_dir
-
     let run = {
         schema_version: 1,
         id: $execution_id,
@@ -63,16 +59,31 @@ export def write-blocked-artifacts [
         artifact_name: $artifact_name,
         started_at: $ts,
         finished_at: $ts,
-        status: "blocked",
-        exit_code: 0,
+        status: $status,
+        exit_code: $exit_code,
         stack_id: "",
         error: $failure_reason,
     }
     $run | to json | save --force ($meta_dir | path join "run.json")
+}
 
+# Write result.v1.json for a terminal cell.
+# extra_fields is merged into the result record (e.g. {capability_skip: ...}).
+def write-terminal-result [
+    artifacts_base: string,
+    meta_dir: string,
+    execution_id: string,
+    cell_id: string,
+    artifact_name: string,
+    status: string,
+    exit_code: int,
+    failure_reason: string,
+    ts: string,
+    extra_fields: record,
+] {
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
-    let result = {
+    let base = {
         schema_version: 1,
         id: $"result-($execution_id)",
         run_id: $execution_id,
@@ -81,8 +92,8 @@ export def write-blocked-artifacts [
         artifact_name: $artifact_name,
         started_at: $ts,
         finished_at: $ts,
-        status: "blocked",
-        exit_code: 0,
+        status: $status,
+        exit_code: $exit_code,
         execution_context: $ctx,
         evidence: {
             total_count: $ev.counts.total,
@@ -96,26 +107,80 @@ export def write-blocked-artifacts [
         warnings: [],
         failure_reason: $failure_reason,
     }
-    $result | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
+    ($base | merge $extra_fields) | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
 }
 
-# Emit a complete blocked artifact set for a planned cell.
-# Initializes the artifact directory, writes cell.json, run.json, result.v1.json,
-# and the publish envelope.
-export def emit-blocked-cell-artifact [
+# Write both run.json and result.v1.json for a terminal cell into artifacts_base/meta/.
+# extra_result_fields is merged into result.v1.json (e.g. {capability_skip: ...}).
+def write-terminal-artifacts [
+    artifacts_base: string,
+    execution_id: string,
+    cell_id: string,
+    artifact_name: string,
+    status: string,
+    exit_code: int,
+    failure_reason: string,
+    extra_result_fields: record,
+    ts: string,
+] {
+    let meta_dir = ($artifacts_base | path join "meta")
+    mkdir $meta_dir
+    write-terminal-run $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts
+    write-terminal-result $artifacts_base $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts $extra_result_fields
+}
+
+# Write blocked run.json and result.v1.json into the cell's artifact directory.
+# The artifact directory must already exist with meta/cell.json present.
+# blocked_at is the timestamp to use; defaults to utc-now.
+export def write-blocked-artifacts [
+    artifacts_base: string,
+    execution_id: string,
+    cell_id: string,
+    artifact_name: string,
+    failure_reason: string,
+    --blocked-at: string = "",
+] {
+    let ts = if ($blocked_at | is-empty) { utc-now } else { $blocked_at }
+    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "blocked" 0 $failure_reason {} $ts
+}
+
+# Write capability-skipped run.json and result.v1.json into the cell's artifact directory.
+# The artifact directory must already exist with meta/cell.json present.
+# skipped_at is the timestamp to use; defaults to utc-now.
+export def write-capability-skipped-artifacts [
+    artifacts_base: string,
+    execution_id: string,
+    cell_id: string,
+    artifact_name: string,
+    capability_skip: record,
+    --skipped-at: string = "",
+] {
+    let ts = if ($skipped_at | is-empty) { utc-now } else { $skipped_at }
+    let failure_reason = ($capability_skip.rationale? | default "")
+    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "capability-skipped" 0 $failure_reason {capability_skip: $capability_skip} $ts
+}
+
+# Shared inner: prepare the artifact dir and cell.json for a terminal planned
+# cell, then invoke write_fn, publish the envelope, and return artifacts_base.
+# write_fn receives (artifacts_base, execution_id) as positional arguments.
+def emit-terminal-cell-artifact-inner [
     root: string,
     planned_cell: record,
-    failure_reason: string,
-    --suite-id: string = "",
-    --suite-kind: string = "suite",
+    suite_id: string,
+    suite_kind: string,
+    write_fn: closure,
 ] {
     let exec_id = $planned_cell.execution_id
     let artifacts_base = (execution-artifacts-path
         $root $planned_cell.flow_id $planned_cell.pair $exec_id)
     mkdir ($artifacts_base | path join "meta")
 
-    # Write cell.json so the publish envelope can read it.
-    mut cell_meta = {
+    let suite_extra = if not ($suite_id | is-empty) {
+        {suite_id: $suite_id, suite_kind: $suite_kind}
+    } else {
+        {}
+    }
+    let cell_meta = {
         schema_version: 1,
         cell_id: $planned_cell.cell_id,
         artifact_name: $planned_cell.artifact_name,
@@ -129,18 +194,42 @@ export def emit-blocked-cell-artifact [
         receiver_version: ($planned_cell.receiver_version? | default ""),
         browser: ($planned_cell.browser? | default "chrome"),
         is_two_party: $planned_cell.is_two_party,
-    }
-    if not ($suite_id | is-empty) {
-        $cell_meta = ($cell_meta | upsert suite_id $suite_id)
-        $cell_meta = ($cell_meta | upsert suite_kind $suite_kind)
-    }
+    } | merge $suite_extra
     $cell_meta | to json | save --force ($artifacts_base | path join "meta/cell.json")
 
-    (write-blocked-artifacts
-        $artifacts_base $exec_id
-        $planned_cell.cell_id $planned_cell.artifact_name
-        $failure_reason)
-
+    do $write_fn $artifacts_base $exec_id
     publish-envelope-safe $artifacts_base
     $artifacts_base
+}
+
+# Emit a complete blocked artifact set for a planned cell.
+# Initializes the artifact directory, writes cell.json, run.json, result.v1.json,
+# and the publish envelope.
+export def emit-blocked-cell-artifact [
+    root: string,
+    planned_cell: record,
+    failure_reason: string,
+    --suite-id: string = "",
+    --suite-kind: string = "suite",
+] {
+    let fr = $failure_reason
+    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid|
+        write-blocked-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $fr
+    }
+}
+
+# Emit a complete capability-skipped artifact set for a planned cell.
+# Initializes the artifact directory, writes cell.json, run.json, result.v1.json,
+# and the publish envelope.
+# Returns artifacts_base.
+export def emit-capability-skipped-cell-artifact [
+    root: string,
+    planned_cell: record,
+    --suite-id: string = "",
+    --suite-kind: string = "suite",
+]: any -> string {
+    let cap_skip = ($planned_cell.capability_skip? | default {rationale: ""})
+    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid|
+        write-capability-skipped-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $cap_skip
+    }
 }

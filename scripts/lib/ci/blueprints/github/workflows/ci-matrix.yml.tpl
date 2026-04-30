@@ -72,10 +72,26 @@ jobs:
       - name: Aggregate suite manifest
         run: |
           EXPECTED=$(nu scripts/ocmts.nu ci plan --cell-ids)
+          CAP_SKIPPED_JSON=artifacts/capability-skipped-cells.json
+          nu scripts/ocmts.nu ci plan | jq '[.cells[] | select(.capability_action == "capability-skipped") | {
+            cell_id,
+            flow_id,
+            pair,
+            scenario,
+            artifact_name,
+            execution_id,
+            sender_platform,
+            sender_version,
+            receiver_platform,
+            receiver_version,
+            is_two_party,
+            capability_skip
+          }]' > "$CAP_SKIPPED_JSON"
           nu scripts/ocmts.nu ci aggregate \
             --suite-id "${{ needs.setup.outputs['suite-id'] }}" \
             --output-dir artifacts/suites/aggregated \
             --expected-cells "$EXPECTED" \
+            --capability-skipped-cells "$CAP_SKIPPED_JSON" \
             --archive \
             $(find artifacts -name 'suite-manifest.v1.json' -printf '%h ')
       - name: Upload aggregate outputs

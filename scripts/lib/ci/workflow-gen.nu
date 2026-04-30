@@ -71,8 +71,9 @@ export def build-flow-assets [plan: record]: any -> list {
     let cfg = (load-ci-config $root)
     let gh = $cfg.workflows.github
 
-    let ordered_cells = (sort-cells-by-flow-order $plan.cells $gh.job_order)
-    let cell_id_to_artifact = ($plan.cells | reduce --fold {} {|c, acc|
+    let runnable_cells = ($plan.cells | where capability_action == "run")
+    let ordered_cells = (sort-cells-by-flow-order $runnable_cells $gh.job_order)
+    let cell_id_to_artifact = ($runnable_cells | reduce --fold {} {|c, acc|
         $acc | upsert $c.cell_id $c.artifact_name
     })
     let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
@@ -147,7 +148,7 @@ export def build-ci-matrix-yml [plan: record] {
     let site_filename = ($gh.filenames.site? | default "ci-site.yml")
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
 
-    let ordered_cells = (sort-cells-by-flow-order $plan.cells $gh.job_order)
+    let ordered_cells = (sort-cells-by-flow-order ($plan.cells | where capability_action == "run") $gh.job_order)
     let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
     let cells_by_flow = ($ordered_cells | group-by flow_id)
 

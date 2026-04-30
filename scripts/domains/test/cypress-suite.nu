@@ -6,10 +6,10 @@ use ../../lib/site/clone.nu [resolve-site-dir, site-dir-is-local]
 use ../../lib/site/publish.nu [run-site-publish]
 use ../../lib/site/preview.nu [run-site-preview]
 use ../../lib/ci/planner.nu [plan-suite]
-use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact]
+use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact emit-capability-skipped-cell-artifact]
 use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
-use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run]
+use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run record-capability-skipped-run]
 use ../../lib/run/metadata.nu [utc-now]
 use ../../lib/images/resolve.nu [resolve-media-optimizer-image]
 use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
@@ -84,6 +84,27 @@ def main [
     }
     let total = ($cells_to_run | length)
     let total_planned = ($plan.cells | length)
+    let eff_suite_id = if ($suite_id | is-empty) { $plan.suite_id } else { $suite_id }
+    let should_init_suite_record = ($total > 0) or (not ($cap_skipped | is-empty))
+
+    mut cap_skipped_count = 0
+    if $should_init_suite_record {
+        let cell_ids = ($cells_to_run | each {|c| $c.cell_id})
+        (init-suite-record $eff_suite_id "suite" $cell_ids)
+
+        # Emit artifacts and record suite entries for capability-skipped cells.
+        let cap_skipped_ts = (utc-now)
+        for cell in $cap_skipped {
+            try {
+                (emit-capability-skipped-cell-artifact $root $cell
+                    --suite-id $eff_suite_id --suite-kind "suite")
+            } catch {|e|
+                print $"WARNING: emit-capability-skipped-cell-artifact failed for ($cell.cell_id): ($e.msg)"
+            }
+            record-capability-skipped-run $eff_suite_id $cell $cap_skipped_ts
+            $cap_skipped_count = $cap_skipped_count + 1
+        }
+    }
 
     if $total == 0 {
         if $total_planned == 0 {
@@ -91,14 +112,23 @@ def main [
         } else {
             print $"Suite: no runnable cells to run \(($total_planned) cells planned but all excluded by capability gating or disabled\)."
         }
+        if $cap_skipped_count > 0 {
+            print $"Capability-skipped: ($cap_skipped_count)"
+        }
+        if $should_init_suite_record {
+            try {
+                finish-suite-record $eff_suite_id 0 0 0 0 $cap_skipped_count
+            } catch {|e|
+                print $"WARNING: finish-suite-record failed: ($e.msg)"
+            }
+        }
+        if $max == 0 {
+            update-latest-suite-id $eff_suite_id
+        }
         return
     }
 
-    let eff_suite_id = if ($suite_id | is-empty) { $plan.suite_id } else { $suite_id }
     print $"Suite: ($total) cell\(s\) to run  suite_id=($eff_suite_id)"
-
-    let cell_ids = ($cells_to_run | each {|c| $c.cell_id})
-    (init-suite-record $eff_suite_id "suite" $cell_ids)
 
     mut passed = 0
     mut failed_cells: list<string> = []
@@ -172,7 +202,7 @@ def main [
     let blocked_count = ($blocked_cells | length)
     let skipped_count = ($skipped_cells | length)
     try {
-        finish-suite-record $eff_suite_id $passed $failed_count $blocked_count $skipped_count
+        finish-suite-record $eff_suite_id $passed $failed_count $blocked_count $skipped_count $cap_skipped_count
     } catch {|e|
         print $"WARNING: finish-suite-record failed: ($e.msg)"
     }
@@ -190,6 +220,9 @@ def main [
     print $"Blocked:         ($blocked_count)"
     if $skipped_count > 0 {
         print $"Skipped:         ($skipped_count)"
+    }
+    if $cap_skipped_count > 0 {
+        print $"Capability-skipped: ($cap_skipped_count)"
     }
 
     if not ($blocked_cells | is-empty) {

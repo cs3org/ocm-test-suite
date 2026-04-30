@@ -121,6 +121,27 @@ export def record-skipped-run [
     }
 }
 
+# Append a capability-skipped run entry for a planned cell that was excluded due
+# to a required capability not being implemented for its platform/version.
+# cell must have flow_id, pair, execution_id, cell_id, artifact_name fields.
+export def record-capability-skipped-run [
+    suite_id: string,
+    cell: record,
+    skipped_at: string,
+] {
+    try {
+        (record-suite-run $suite_id
+            ($cell.flow_id? | default "")
+            ($cell.pair? | default "")
+            ($cell.execution_id? | default "")
+            $cell.cell_id
+            ($cell.artifact_name? | default "")
+            "capability-skipped" 0 "" $skipped_at)
+    } catch {|e|
+        print $"WARNING: record-capability-skipped-run failed for ($suite_id)/($cell.cell_id): ($e.msg)"
+    }
+}
+
 # Safe variant of record-suite-run - prints a warning instead of erroring.
 export def record-suite-run-safe [
     suite_id: string,
@@ -151,12 +172,14 @@ export def compute-suite-status [passed: int, failed: int, blocked: int] {
 # Finalize a suite record: set status, counts, and finished_at.
 # blocked defaults to 0 so existing callers without a blocked count still work.
 # skipped defaults to 0; skipped count is persisted but does not affect status.
+# capability_skipped defaults to 0; does not affect status.
 export def finish-suite-record [
     suite_id: string,
     passed: int,
     failed: int,
     blocked: int = 0,
     skipped: int = 0,
+    capability_skipped: int = 0,
 ] {
     let safe_id = (validate-suite-id $suite_id)
     let path = (suite-record-path $safe_id)
@@ -171,6 +194,7 @@ export def finish-suite-record [
         | upsert failed_count $failed
         | upsert blocked_count $blocked
         | upsert skipped_count $skipped
+        | upsert capability_skipped_count $capability_skipped
         | to json
         | save --force $path
 }

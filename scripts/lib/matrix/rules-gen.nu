@@ -1,11 +1,10 @@
 # Matrix rules generator: produces in-memory matrix rules from the
 # modular SSOT under config/matrix/.
 
-use ../site/blocker-logic.nu [derive-cell-impl-info worst-status-of-blockers derive-role-blockers]
-use ../site/flow-caps.nu [load-flow-caps]
 use ../site/provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
 use ../run/execution-id.nu [validate-path-segment]
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
+use ./gated-cells.nu [gate-cells-by-capabilities]
 
 # Resolve version_lines for a role, falling back to the platform catalog.
 def resolve-vl [flow_vl_map: record, platform: string, platforms: record] {
@@ -46,7 +45,7 @@ def scenario-key [
 }
 
 # Expand one flow record into a list of {key, entry} records.
-def expand-flow [
+export def expand-flow [
     flow: record,
     platforms: record,
     browsers_default: list,
@@ -57,6 +56,7 @@ def expand-flow [
     if not ($flow_id in $PUBLIC_FLOW_IDS) {
         error make {msg: $"flow_id '($flow_id)' not in PUBLIC_FLOW_IDS"}
     }
+    if not $flow.enabled { return [] }
 
     let browsers = if $flow.browsers != null { $flow.browsers } else { $browsers_default }
     let baseline = ($baseline_by_flow | get $flow_id)
@@ -201,65 +201,6 @@ export def classify-version-status [worst_status: string] {
     "vendor-unsupported"
 }
 
-# Compute the worst blocker record for one (flow, platform, version, role)
-# directly against role-specific required caps. Returns null when supported.
-def role-worst-blocker [
-    adapters: record,
-    flow_caps: record,
-    flow_id: string,
-    platform: string,
-    version: string,
-    role: string,
-] {
-    let flow_entry = ($flow_caps | get --optional $flow_id)
-    if $flow_entry == null { return null }
-    let role_caps = if $role == "sender" {
-        $flow_entry.sender? | default []
-    } else {
-        $flow_entry.receiver? | default []
-    }
-    if ($role_caps | is-empty) { return null }
-    let adapter_key = $"($platform)/($version)"
-    let blockers = (derive-role-blockers $adapters $role_caps $role $adapter_key)
-    if ($blockers | is-empty) { return null }
-    let rank = {
-        "supported": 0,
-        "placeholder": 1,
-        "test-implementation-pending": 2,
-        "vendor-unsupported": 3,
-        "vendor-out-of-scope": 4,
-    }
-    let scored = ($blockers | each {|b|
-        let s = ($b.status? | default "vendor-unsupported")
-        let r = ($rank | get --optional $s | default 3)
-        {rank: $r, blocker: $b}
-    })
-    let max_rank = ($scored | get rank | math max)
-    ($scored | where rank == $max_rank | first | get blocker)
-}
-
-# Compute the worst status string for one (flow, platform, version, role).
-def role-worst-status [
-    adapters: record,
-    flow_caps: record,
-    flow_id: string,
-    platform: string,
-    version: string,
-    role: string,
-] {
-    let flow_entry = ($flow_caps | get --optional $flow_id)
-    if $flow_entry == null { return "vendor-unsupported" }
-    let role_caps = if $role == "sender" {
-        $flow_entry.sender? | default []
-    } else {
-        $flow_entry.receiver? | default []
-    }
-    if ($role_caps | is-empty) { return "supported" }
-    let adapter_key = $"($platform)/($version)"
-    let blockers = (derive-role-blockers $adapters $role_caps $role $adapter_key)
-    worst-status-of-blockers $blockers
-}
-
 # Pick the cell-level worst blocker across both roles. Returns null when no
 # blockers, else the blocker record with the highest precedence status.
 def cell-worst-blocker [blockers: list] {
@@ -280,9 +221,13 @@ def cell-worst-blocker [blockers: list] {
     ($scored | where rank == $max_rank | first | get blocker)
 }
 
-# Apply the matrix display rule: classify each (flow, platform, role, version),
-# filter cells by per-role keep-sets, and enrich kept cells with display_status
-# + tracking fields. Emits both kept_cells and not_in_scope lists.
+# Apply the matrix display rule: gate cells by capabilities, filter to visible
+# cells, apply per-(flow,platform,role) version filtering, and enrich with
+# tracking fields. Emits both kept_cells and not_in_scope lists.
+#
+# kept_cells: gate -> display_visible==true -> version filtering -> tracking enrichment.
+# display_status comes from the gate helper; not recomputed locally.
+# not_in_scope: gated cells with display_visible==false, reshaped per-role.
 export def apply-display-rule [
     cells: list,
     adapters: record,
@@ -292,110 +237,162 @@ export def apply-display-rule [
         return {kept_cells: [], not_in_scope: []}
     }
 
-    # Collect (flow_id, platform, version, role) tuples present in cells.
-    let sender_pvs = ($cells | each {|c|
-        {flow_id: $c.flow_id, platform: $c.sender_platform, version: $c.sender_version, role: "sender"}
+    # Gate all cells.
+    let gated = (gate-cells-by-capabilities $cells $adapters $flow_caps)
+
+    # not_in_scope: cells with display_visible==false, reshaped per-role.
+    # Deduplicate by (flow_id, platform, version, role).
+    mut seen_oos = {}
+    mut not_in_scope = []
+    for c in ($gated | where {|g| not $g.display_visible}) {
+        let oos_blockers = ($c.blockers | where {|b|
+            ($b.status? | default "vendor-unsupported") == "vendor-out-of-scope"
+        })
+        let entries = if not ($oos_blockers | is-empty) {
+            $oos_blockers | each {|b|
+                let parts = ($b.adapter_key | split row "/")
+                let platform = ($parts | get 0)
+                let version = if ($parts | length) >= 2 { $parts | get 1 } else { "" }
+                let rationale = ($b.rationale? | default (
+                    $"($platform)/($version) is vendor-out-of-scope for required capabilities of ($c.flow_id)"
+                ))
+                {
+                    flow_id: $c.flow_id,
+                    platform: $platform,
+                    version: $version,
+                    role: $b.role,
+                    rationale: $rationale,
+                }
+            }
+        } else {
+            # drift: OOS cell but no OOS blocker records
+            print --stderr $"WARNING: matrix display rule drift for cell=($c.cell_id); display_visible false but no vendor-out-of-scope blockers"
+            [{
+                flow_id: $c.flow_id,
+                platform: $c.sender_platform,
+                version: $c.sender_version,
+                role: "sender",
+                rationale: $"drift: no vendor-out-of-scope blocker for ($c.cell_id)",
+            }]
+        }
+        for entry in $entries {
+            let key = $"($entry.flow_id)|($entry.platform)|($entry.version)|($entry.role)"
+            if not ($key in $seen_oos) {
+                $seen_oos = ($seen_oos | upsert $key true)
+                $not_in_scope = ($not_in_scope | append $entry)
+            }
+        }
+    }
+
+    # Version filtering on visible cells driven by gated capability_status.
+    # Placeholders always appear alongside the winning non-placeholder bucket.
+    # Bucket priority for non-placeholder: supported (all) > test-pending (latest)
+    # > vendor-unsupported (latest).
+    let visible_cells = ($gated | where display_visible)
+
+    # Build (flow_id, platform, version, role, capability_status) tuples from
+    # the gated cells; capability_status is the gated cell's overall status so
+    # enabled-coercion to placeholder is already reflected.
+    let sender_tuples = ($visible_cells | each {|c|
+        {
+            flow_id: $c.flow_id,
+            platform: $c.sender_platform,
+            version: $c.sender_version,
+            role: "sender",
+            capability_status: $c.capability_status,
+        }
     })
-    let receiver_pvs = (
-        $cells
+    let receiver_tuples = (
+        $visible_cells
         | where {|c| (($c.receiver_platform? | default "") != "")}
         | each {|c|
-            {flow_id: $c.flow_id, platform: $c.receiver_platform, version: $c.receiver_version, role: "receiver"}
+            {
+                flow_id: $c.flow_id,
+                platform: $c.receiver_platform,
+                version: $c.receiver_version,
+                role: "receiver",
+                capability_status: $c.capability_status,
+            }
         }
     )
-    let all_pvs = ($sender_pvs | append $receiver_pvs)
+    let all_tuples = ($sender_tuples | append $receiver_tuples)
 
-    # Group by (flow_id, platform, role); each group collects distinct versions.
+    # Status precedence rank (higher = worse).
+    let status_rank = {
+        "supported": 0,
+        "placeholder": 1,
+        "test-implementation-pending": 2,
+        "vendor-unsupported": 3,
+        "vendor-out-of-scope": 4,
+    }
+
     let groups = (
-        $all_pvs
+        $all_tuples
         | group-by {|r| $"($r.flow_id)|($r.platform)|($r.role)"}
     )
 
-    mut kept_keys = []
-    mut not_in_scope = []
+    # Record used as a set (key -> true) for O(1) membership checks below.
+    # Keys contain "|" separators which cannot appear in record literal syntax,
+    # so upsert is used for insertion.
+    mut kept_keys = {}
 
     for kv in ($groups | transpose key val) {
         let parts = ($kv.key | split row "|")
         let flow_id = ($parts | get 0)
         let platform = ($parts | get 1)
         let role = ($parts | get 2)
-        let versions = ($kv.val | each {|r| $r.version} | uniq)
+        # Per version: worst capability_status across all gated cells for that version.
+        # Single pass via group-by version; no per-version re-filter of the group.
+        let version_statuses = ($kv.val | group-by version | transpose key val | each {|vg|
+            let ranks = ($vg.val | each {|t|
+                let rank = ($status_rank | get --optional $t.capability_status)
+                if $rank == null {
+                    error make {
+                        msg: $"apply-display-rule: unknown capability_status '($t.capability_status)' for flow=($flow_id) platform=($platform) role=($role) version=($vg.key)"
+                    }
+                }
+                $rank
+            })
+            let max_rank = ($ranks | math max)
+            let worst_status = (
+                $status_rank | transpose key rank
+                | where {|r| $r.rank == $max_rank}
+                | first | get key
+            )
+            {version: $vg.key, status: $worst_status}
+        })
 
-        mut versions_supported = []
-        mut versions_test_pending = []
-        mut versions_vendor_unsupported = []
-        mut versions_out_of_scope = []
+        let placeholder_vs = ($version_statuses | where status == "placeholder" | each {|x| $x.version})
+        let supported_vs = ($version_statuses | where status == "supported" | each {|x| $x.version})
+        let test_pending_vs = ($version_statuses | where {|x| $x.status == "test-implementation-pending"} | each {|x| $x.version})
+        let vendor_unsupported_vs = ($version_statuses | where status == "vendor-unsupported" | each {|x| $x.version})
 
-        for v in $versions {
-            let ws = (role-worst-status $adapters $flow_caps $flow_id $platform $v $role)
-            if $ws == "supported" {
-                $versions_supported = ($versions_supported | append $v)
-            } else if $ws == "test-implementation-pending" {
-                $versions_test_pending = ($versions_test_pending | append $v)
-            } else if $ws == "vendor-unsupported" {
-                $versions_vendor_unsupported = ($versions_vendor_unsupported | append $v)
-            } else if $ws == "vendor-out-of-scope" {
-                $versions_out_of_scope = ($versions_out_of_scope | append $v)
-            }
-            # other (e.g. "placeholder") falls into drift handling below
-        }
-
-        let any_visible = (
-            (not ($versions_supported | is-empty))
-            or (not ($versions_test_pending | is-empty))
-            or (not ($versions_vendor_unsupported | is-empty))
-        )
-
-        let allowed = if not ($versions_supported | is-empty) {
-            $versions_supported
-        } else if not ($versions_test_pending | is-empty) {
-            [($versions_test_pending | sort | last)]
-        } else if not ($versions_vendor_unsupported | is-empty) {
-            [($versions_vendor_unsupported | sort | last)]
+        # Placeholders are always kept alongside the dominant non-placeholder bucket.
+        # Priority: supported (all) > test-pending (latest) > vendor-unsupported (latest).
+        let non_ph_winner = if not ($supported_vs | is-empty) {
+            $supported_vs
+        } else if not ($test_pending_vs | is-empty) {
+            [($test_pending_vs | sort | last)]
+        } else if not ($vendor_unsupported_vs | is-empty) {
+            [($vendor_unsupported_vs | sort | last)]
         } else {
             []
         }
 
-        for v in $allowed {
-            $kept_keys = ($kept_keys | append $"($flow_id)|($platform)|($v)|($role)")
+        let allowed = ($placeholder_vs | append $non_ph_winner | uniq)
+
+        if ($allowed | is-empty) {
+            print --stderr $"WARNING: matrix display rule drift for flow=($flow_id) platform=($platform) role=($role); no classifiable versions"
         }
 
-        if not $any_visible {
-            if not ($versions_out_of_scope | is-empty) {
-                for v in $versions_out_of_scope {
-                    let blocker = (role-worst-blocker $adapters $flow_caps $flow_id $platform $v $role)
-                    let rationale = if $blocker != null and (($blocker.rationale? | default null) != null) {
-                        $blocker.rationale
-                    } else {
-                        $"($platform)/($v) is vendor-out-of-scope for required capabilities of ($flow_id)"
-                    }
-                    $not_in_scope = ($not_in_scope | append {
-                        flow_id: $flow_id,
-                        platform: $platform,
-                        version: $v,
-                        role: $role,
-                        rationale: $rationale,
-                    })
-                }
-            } else {
-                # drift: no version in any classified bucket
-                print --stderr $"WARNING: matrix display rule drift for flow=($flow_id) platform=($platform) role=($role); no classifiable versions"
-                for v in $versions {
-                    $not_in_scope = ($not_in_scope | append {
-                        flow_id: $flow_id,
-                        platform: $platform,
-                        version: $v,
-                        role: $role,
-                        rationale: $"drift: no classifiable status for ($platform)/($v) in ($flow_id) as ($role)",
-                    })
-                }
-            }
+        for v in $allowed {
+            $kept_keys = ($kept_keys | upsert $"($flow_id)|($platform)|($v)|($role)" true)
         }
     }
 
-    # Filter cells; both sides must survive.
+    # Filter visible cells; both sides must survive.
     let kept_cells = (
-        $cells
+        $visible_cells
         | where {|c|
             let s_ok = ($"($c.flow_id)|($c.sender_platform)|($c.sender_version)|sender" in $kept_keys)
             let r_ok = if (($c.receiver_platform? | default "") == "") {
@@ -406,15 +403,9 @@ export def apply-display-rule [
             $s_ok and $r_ok
         }
         | each {|c|
-            let info = (derive-cell-impl-info $c $adapters $flow_caps)
-            let enabled = ($c.enabled? | default false)
-            let display_status = if not $enabled {
-                "placeholder"
-            } else {
-                worst-status-of-blockers $info.blockers
-            }
-            let worst = (cell-worst-blocker $info.blockers)
-            mut out = ($c | upsert display_status $display_status)
+            # display_status comes from the gate; add tracking fields from worst blocker.
+            let worst = (cell-worst-blocker $c.blockers)
+            mut out = $c
             if $worst != null {
                 let tu = ($worst.tracking_url? | default null)
                 let tn = ($worst.tracking_note? | default null)

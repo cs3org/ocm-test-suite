@@ -19,6 +19,7 @@ use ../../lib/ci/workflow-gen.nu [
 ]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
+use ../../lib/site/flow-caps.nu [load-flow-caps]
 
 def main [
     --dry-run,  # Print generated YAML and JSON to stdout instead of writing files
@@ -26,7 +27,9 @@ def main [
     let root = get-ocmts-root
     let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
-    let plan = plan-suite $rules $prereqs
+    let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
+    let adapters = (open ($root | path join "config/adapters/capabilities.v1.nuon") | get adapters)
+    let plan = plan-suite $rules $prereqs $flow_caps $adapters
 
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)

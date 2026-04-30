@@ -20,28 +20,42 @@ def fixture-adapters [] {
     {
         "nextcloud/v34": {
             capabilities: {
-                "login": {status: "supported"},
-                "provider-identity": {status: "supported"},
-                "share-with.sender": {status: "supported"},
-                "share-with.receiver": {status: "supported"},
-                "contact-token.sender": {status: "supported"},
-                "contact-token.receiver": {status: "supported"},
-                "contact-wayf.sender": {status: "supported"},
-                "contact-wayf.receiver": {status: "supported"},
+                "flow.login": {status: "supported"},
+                "op.login": {status: "supported"},
+                "op.provider-identity": {status: "supported"},
+                "flow.share-with.sender": {status: "supported"},
+                "flow.share-with.receiver": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "op.share-file.receiver": {status: "supported"},
+                "flow.contact-token.sender": {status: "supported"},
+                "op.contact-token.sender": {status: "supported"},
+                "flow.contact-token.receiver": {status: "supported"},
+                "op.contact-token.receiver": {status: "supported"},
+                "flow.contact-wayf.sender": {status: "supported"},
+                "op.contact-wayf.sender": {status: "supported"},
+                "flow.contact-wayf.receiver": {status: "supported"},
+                "op.contact-wayf.receiver": {status: "supported"},
             }
         },
-        # v33 has only login and share-with caps; contact-* and provider-identity
-        # are vendor-unsupported.
+        # v33 has flow/login, share-with, and share-file caps; contact-* and
+        # provider-identity are vendor-unsupported.
         "nextcloud/v33": {
             capabilities: {
-                "login": {status: "supported"},
-                "provider-identity": {status: "vendor-unsupported"},
-                "share-with.sender": {status: "supported"},
-                "share-with.receiver": {status: "supported"},
-                "contact-token.sender": {status: "vendor-unsupported"},
-                "contact-token.receiver": {status: "vendor-unsupported"},
-                "contact-wayf.sender": {status: "vendor-unsupported"},
-                "contact-wayf.receiver": {status: "vendor-unsupported"},
+                "flow.login": {status: "supported"},
+                "op.login": {status: "supported"},
+                "op.provider-identity": {status: "vendor-unsupported"},
+                "flow.share-with.sender": {status: "supported"},
+                "flow.share-with.receiver": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "op.share-file.receiver": {status: "supported"},
+                "flow.contact-token.sender": {status: "vendor-unsupported"},
+                "op.contact-token.sender": {status: "vendor-unsupported"},
+                "flow.contact-token.receiver": {status: "vendor-unsupported"},
+                "op.contact-token.receiver": {status: "vendor-unsupported"},
+                "flow.contact-wayf.sender": {status: "vendor-unsupported"},
+                "op.contact-wayf.sender": {status: "vendor-unsupported"},
+                "flow.contact-wayf.receiver": {status: "vendor-unsupported"},
+                "op.contact-wayf.receiver": {status: "vendor-unsupported"},
             }
         },
     }
@@ -50,15 +64,18 @@ def fixture-adapters [] {
 # Flow capability requirements matching what load-flow-caps would produce.
 def fixture-flow-caps [] {
     {
-        login: {sender: ["login"], receiver: []},
-        "share-with": {sender: ["login", "share-with.sender"], receiver: ["login", "share-with.receiver"]},
+        login: {sender: ["flow.login", "op.login"], receiver: []},
+        "share-with": {
+            sender: ["flow.share-with.sender", "op.login", "op.share-file.sender"],
+            receiver: ["flow.share-with.receiver", "op.login", "op.share-file.receiver"],
+        },
         "contact-token": {
-            sender: ["login", "contact-token.sender", "share-with.sender"],
-            receiver: ["login", "contact-token.receiver", "provider-identity", "share-with.receiver"],
+            sender: ["flow.contact-token.sender", "op.login", "op.contact-token.sender", "op.share-file.sender"],
+            receiver: ["flow.contact-token.receiver", "op.login", "op.contact-token.receiver", "op.provider-identity", "op.share-file.receiver"],
         },
         "contact-wayf": {
-            sender: ["login", "contact-wayf.sender", "share-with.sender"],
-            receiver: ["login", "contact-wayf.receiver", "provider-identity", "share-with.receiver"],
+            sender: ["flow.contact-wayf.sender", "op.login", "op.contact-wayf.sender", "op.share-file.sender"],
+            receiver: ["flow.contact-wayf.receiver", "op.login", "op.contact-wayf.receiver", "op.provider-identity", "op.share-file.receiver"],
         },
     }
 }
@@ -89,7 +106,7 @@ def make-two-party-cell [
     }
 }
 
-# login: only requires login cap; no receiver caps.
+# login: requires flow.login + op.login; no receiver caps.
 def test-login-implemented [] {
     test-log "\n[test-login-implemented]"
     let adapters = fixture-adapters
@@ -97,13 +114,15 @@ def test-login-implemented [] {
     let info = (derive-cell-impl-info $cell $adapters (fixture-flow-caps))
     let req_caps = ($info.requirements | each {|r| $r.capability})
     [
-        (assert-eq $req_caps ["login"] "login flow requires only login cap")
+        (assert-eq $req_caps ["flow.login", "op.login"]
+            "login flow requires flow.login + op.login")
         (assert-truthy ($info.blockers | is-empty) "login/v34 has no blockers")
     ]
 }
 
-# share-with: sender needs login+share-with.sender; receiver needs
-# login+share-with.receiver. Behavior must be unchanged after the fix.
+# share-with: sender needs flow.share-with.sender + op.login +
+# op.share-file.sender; receiver needs flow.share-with.receiver + op.login +
+# op.share-file.receiver.
 def test-share-with-implemented [] {
     test-log "\n[test-share-with-implemented]"
     let adapters = fixture-adapters
@@ -113,10 +132,10 @@ def test-share-with-implemented [] {
     let sender_caps = ($info.requirements | where role == "sender" | each {|r| $r.capability})
     let receiver_caps = ($info.requirements | where role == "receiver" | each {|r| $r.capability})
     [
-        (assert-eq $sender_caps ["login", "share-with.sender"]
-            "share-with sender requires login + share-with.sender")
-        (assert-eq $receiver_caps ["login", "share-with.receiver"]
-            "share-with receiver requires login + share-with.receiver")
+        (assert-eq $sender_caps ["flow.share-with.sender", "op.login", "op.share-file.sender"]
+            "share-with sender requires flow.share-with.sender + op.login + op.share-file.sender")
+        (assert-eq $receiver_caps ["flow.share-with.receiver", "op.login", "op.share-file.receiver"]
+            "share-with receiver requires flow.share-with.receiver + op.login + op.share-file.receiver")
         (assert-truthy ($info.blockers | is-empty)
             "share-with/v34 has no blockers")
     ]
@@ -135,8 +154,10 @@ def test-share-with-v33-implemented [] {
     ]
 }
 
-# contact-token: sender needs login+contact-token.sender+share-with.sender;
-# receiver needs login+contact-token.receiver+provider-identity+share-with.receiver.
+# contact-token: sender needs flow.contact-token.sender + op.login +
+# op.contact-token.sender + op.share-file.sender; receiver needs
+# flow.contact-token.receiver + op.login + op.contact-token.receiver +
+# op.provider-identity + op.share-file.receiver.
 # v34 has all caps.
 def test-contact-token-implemented [] {
     test-log "\n[test-contact-token-implemented]"
@@ -147,17 +168,17 @@ def test-contact-token-implemented [] {
     let sender_caps = ($info.requirements | where role == "sender" | each {|r| $r.capability})
     let receiver_caps = ($info.requirements | where role == "receiver" | each {|r| $r.capability})
     [
-        (assert-eq $sender_caps ["login", "contact-token.sender", "share-with.sender"]
-            "contact-token sender requires login + contact-token.sender + share-with.sender")
-        (assert-eq $receiver_caps ["login", "contact-token.receiver", "provider-identity", "share-with.receiver"]
-            "contact-token receiver requires login + contact-token.receiver + provider-identity + share-with.receiver")
+        (assert-eq $sender_caps ["flow.contact-token.sender", "op.login", "op.contact-token.sender", "op.share-file.sender"]
+            "contact-token sender requires flow.contact-token.sender + op.login + op.contact-token.sender + op.share-file.sender")
+        (assert-eq $receiver_caps ["flow.contact-token.receiver", "op.login", "op.contact-token.receiver", "op.provider-identity", "op.share-file.receiver"]
+            "contact-token receiver requires flow.contact-token.receiver + op.login + op.contact-token.receiver + op.provider-identity + op.share-file.receiver")
         (assert-truthy ($info.blockers | is-empty)
             "contact-token/v34 has no blockers")
     ]
 }
 
 # contact-token on v33 must be blocked: v33 has vendor-unsupported for
-# contact-token.sender, contact-token.receiver, and provider-identity.
+# flow/op.contact-token.sender, flow/op.contact-token.receiver, and op.provider-identity.
 def test-contact-token-v33-blocked [] {
     test-log "\n[test-contact-token-v33-blocked]"
     let adapters = fixture-adapters
@@ -168,34 +189,35 @@ def test-contact-token-v33-blocked [] {
     [
         (assert-truthy (not ($info.blockers | is-empty))
             "contact-token/v33 has blockers")
-        (assert-truthy ("contact-token.sender" in $blocker_caps)
-            "contact-token/v33 blocked on contact-token.sender")
-        (assert-truthy ("contact-token.receiver" in $blocker_caps)
-            "contact-token/v33 blocked on contact-token.receiver")
-        (assert-truthy ("provider-identity" in $blocker_caps)
-            "contact-token/v33 blocked on provider-identity")
+        (assert-truthy ("flow.contact-token.sender" in $blocker_caps)
+            "contact-token/v33 blocked on flow.contact-token.sender")
+        (assert-truthy ("op.contact-token.receiver" in $blocker_caps)
+            "contact-token/v33 blocked on op.contact-token.receiver")
+        (assert-truthy ("op.provider-identity" in $blocker_caps)
+            "contact-token/v33 blocked on op.provider-identity")
     ]
 }
 
-# contact-token resolves senderShareWith/receiverShareWith adapters at runtime,
-# so share-with caps must appear in requirements.
-def test-contact-token-share-with-required [] {
-    test-log "\n[test-contact-token-share-with-required]"
+# contact-token requires op.share-file caps on both sides.
+def test-contact-token-share-file-required [] {
+    test-log "\n[test-contact-token-share-file-required]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-token"
         "nextcloud" "v34" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters (fixture-flow-caps))
     let all_caps = ($info.requirements | each {|r| $r.capability})
     [
-        (assert-truthy ("share-with.sender" in $all_caps)
-            "contact-token requires share-with.sender")
-        (assert-truthy ("share-with.receiver" in $all_caps)
-            "contact-token requires share-with.receiver")
+        (assert-truthy ("op.share-file.sender" in $all_caps)
+            "contact-token requires op.share-file.sender")
+        (assert-truthy ("op.share-file.receiver" in $all_caps)
+            "contact-token requires op.share-file.receiver")
     ]
 }
 
-# contact-wayf: sender needs login+contact-wayf.sender+share-with.sender;
-# receiver needs login+contact-wayf.receiver+provider-identity+share-with.receiver.
+# contact-wayf: sender needs flow.contact-wayf.sender + op.login +
+# op.contact-wayf.sender + op.share-file.sender; receiver needs
+# flow.contact-wayf.receiver + op.login + op.contact-wayf.receiver +
+# op.provider-identity + op.share-file.receiver.
 # v34 has all caps.
 def test-contact-wayf-implemented [] {
     test-log "\n[test-contact-wayf-implemented]"
@@ -206,10 +228,10 @@ def test-contact-wayf-implemented [] {
     let sender_caps = ($info.requirements | where role == "sender" | each {|r| $r.capability})
     let receiver_caps = ($info.requirements | where role == "receiver" | each {|r| $r.capability})
     [
-        (assert-eq $sender_caps ["login", "contact-wayf.sender", "share-with.sender"]
-            "contact-wayf sender requires login + contact-wayf.sender + share-with.sender")
-        (assert-eq $receiver_caps ["login", "contact-wayf.receiver", "provider-identity", "share-with.receiver"]
-            "contact-wayf receiver requires login + contact-wayf.receiver + provider-identity + share-with.receiver")
+        (assert-eq $sender_caps ["flow.contact-wayf.sender", "op.login", "op.contact-wayf.sender", "op.share-file.sender"]
+            "contact-wayf sender requires flow.contact-wayf.sender + op.login + op.contact-wayf.sender + op.share-file.sender")
+        (assert-eq $receiver_caps ["flow.contact-wayf.receiver", "op.login", "op.contact-wayf.receiver", "op.provider-identity", "op.share-file.receiver"]
+            "contact-wayf receiver requires flow.contact-wayf.receiver + op.login + op.contact-wayf.receiver + op.provider-identity + op.share-file.receiver")
         (assert-truthy ($info.blockers | is-empty)
             "contact-wayf/v34 has no blockers")
     ]
@@ -226,29 +248,28 @@ def test-contact-wayf-v33-blocked [] {
     [
         (assert-truthy (not ($info.blockers | is-empty))
             "contact-wayf/v33 has blockers")
-        (assert-truthy ("contact-wayf.sender" in $blocker_caps)
-            "contact-wayf/v33 blocked on contact-wayf.sender")
-        (assert-truthy ("contact-wayf.receiver" in $blocker_caps)
-            "contact-wayf/v33 blocked on contact-wayf.receiver")
-        (assert-truthy ("provider-identity" in $blocker_caps)
-            "contact-wayf/v33 blocked on provider-identity")
+        (assert-truthy ("flow.contact-wayf.sender" in $blocker_caps)
+            "contact-wayf/v33 blocked on flow.contact-wayf.sender")
+        (assert-truthy ("op.contact-wayf.receiver" in $blocker_caps)
+            "contact-wayf/v33 blocked on op.contact-wayf.receiver")
+        (assert-truthy ("op.provider-identity" in $blocker_caps)
+            "contact-wayf/v33 blocked on op.provider-identity")
     ]
 }
 
-# contact-wayf resolves senderShareWith/receiverShareWith adapters at runtime,
-# so share-with caps must appear in requirements.
-def test-contact-wayf-share-with-required [] {
-    test-log "\n[test-contact-wayf-share-with-required]"
+# contact-wayf requires op.share-file caps on both sides.
+def test-contact-wayf-share-file-required [] {
+    test-log "\n[test-contact-wayf-share-file-required]"
     let adapters = fixture-adapters
     let cell = (make-two-party-cell "contact-wayf"
         "nextcloud" "v34" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters (fixture-flow-caps))
     let all_caps = ($info.requirements | each {|r| $r.capability})
     [
-        (assert-truthy ("share-with.sender" in $all_caps)
-            "contact-wayf requires share-with.sender")
-        (assert-truthy ("share-with.receiver" in $all_caps)
-            "contact-wayf requires share-with.receiver")
+        (assert-truthy ("op.share-file.sender" in $all_caps)
+            "contact-wayf requires op.share-file.sender")
+        (assert-truthy ("op.share-file.receiver" in $all_caps)
+            "contact-wayf requires op.share-file.receiver")
     ]
 }
 
@@ -289,9 +310,10 @@ def test-share-with-v8-ocis-out-of-scope [] {
     let adapters = {
         "ocis/v8": {
             capabilities: {
-                "login": {status: "supported"},
-                "share-with.sender": {status: "vendor-out-of-scope"},
-                "share-with.receiver": {status: "vendor-out-of-scope"},
+                "op.login": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "flow.share-with.sender": {status: "vendor-out-of-scope"},
+                "flow.share-with.receiver": {status: "vendor-out-of-scope"},
             }
         },
         "nextcloud/v34": (fixture-adapters | get "nextcloud/v34"),
@@ -299,26 +321,27 @@ def test-share-with-v8-ocis-out-of-scope [] {
     let cell = (make-two-party-cell "share-with" "ocis" "v8" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters (fixture-flow-caps))
     let oos_blockers = ($info.blockers | where reason_code == "vendor_out_of_scope")
-    let sender_oos = ($oos_blockers | where {|b| ($b.capability == "share-with.sender") and ($b.role == "sender")})
+    let sender_oos = ($oos_blockers | where {|b| ($b.capability == "flow.share-with.sender") and ($b.role == "sender")})
     [
         (assert-truthy (not ($oos_blockers | is-empty))
-            "ocis/v8 share-with.sender yields vendor_out_of_scope blocker")
+            "ocis/v8 flow.share-with.sender yields vendor_out_of_scope blocker")
         (assert-truthy (not ($sender_oos | is-empty))
-            "vendor_out_of_scope blocker is for share-with.sender sender role")
+            "vendor_out_of_scope blocker is for flow.share-with.sender sender role")
         (assert-eq ($sender_oos | first | get status) "vendor-out-of-scope"
             "status field uses hyphenated form vendor-out-of-scope")
     ]
 }
 
-# test-implementation-pending: ocmgo/v1 has contact-token.sender pending.
+# test-implementation-pending: ocmgo/v1 has op.contact-token.sender pending.
 def test-pending-status [] {
     test-log "\n[test-pending-status]"
     let adapters = {
         "ocmgo/v1": {
             capabilities: {
-                "login": {status: "supported"},
-                "share-with.sender": {status: "supported"},
-                "contact-token.sender": {status: "test-implementation-pending"},
+                "op.login": {status: "supported"},
+                "flow.contact-token.sender": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "op.contact-token.sender": {status: "test-implementation-pending"},
             }
         },
         "nextcloud/v34": (fixture-adapters | get "nextcloud/v34"),
@@ -329,20 +352,21 @@ def test-pending-status [] {
     let pending_caps = ($pending_blockers | each {|b| $b.capability})
     [
         (assert-truthy (not ($pending_blockers | is-empty))
-            "ocmgo/v1 contact-token.sender yields test_implementation_pending blocker")
-        (assert-truthy ("contact-token.sender" in $pending_caps)
-            "pending blocker is for contact-token.sender")
+            "ocmgo/v1 op.contact-token.sender yields test_implementation_pending blocker")
+        (assert-truthy ("op.contact-token.sender" in $pending_caps)
+            "pending blocker is for op.contact-token.sender")
     ]
 }
 
-# missing_capability_entry: adapter bundle present but login cap missing.
+# missing_capability_entry: adapter bundle present but op.login cap missing.
 def test-missing-capability-entry [] {
     test-log "\n[test-missing-capability-entry]"
     let adapters = {
         "nextcloud/v34": {
             capabilities: {
-                # login is intentionally absent
-                "share-with.sender": {status: "supported"},
+                "flow.login": {status: "supported"},
+                # op.login is intentionally absent
+                "flow.share-with.sender": {status: "supported"},
             }
         },
     }
@@ -351,9 +375,9 @@ def test-missing-capability-entry [] {
     let missing_blockers = ($info.blockers | where reason_code == "missing_capability_entry")
     [
         (assert-truthy (not ($missing_blockers | is-empty))
-            "absent login entry yields missing_capability_entry blocker")
-        (assert-eq ($missing_blockers | first | get capability) "login"
-            "missing_capability_entry blocker is for login capability")
+            "absent op.login entry yields missing_capability_entry blocker")
+        (assert-eq ($missing_blockers | first | get capability) "op.login"
+            "missing_capability_entry blocker is for op.login capability")
     ]
 }
 
@@ -410,9 +434,10 @@ def test-derive-cell-impl-info-includes-tracking-fields [] {
     let adapters = {
         "opencloud/v6": {
             capabilities: {
-                "login": {status: "supported"},
-                "share-with.sender": {status: "supported"},
-                "contact-token.sender": {
+                "op.login": {status: "supported"},
+                "flow.contact-token.sender": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "op.contact-token.sender": {
                     status: "test-implementation-pending",
                     tracking_url: "https://github.com/x/y/issues/1",
                     rationale: "blocked on upstream PR",
@@ -423,11 +448,11 @@ def test-derive-cell-impl-info-includes-tracking-fields [] {
     }
     let cell = (make-two-party-cell "contact-token" "opencloud" "v6" "nextcloud" "v34")
     let info = (derive-cell-impl-info $cell $adapters (fixture-flow-caps))
-    let target = ($info.blockers | where {|b| ($b.capability == "contact-token.sender") and ($b.role == "sender")})
+    let target = ($info.blockers | where {|b| ($b.capability == "op.contact-token.sender") and ($b.role == "sender")})
     let hit = ($target | first)
     [
         (assert-truthy (not ($target | is-empty))
-            "contact-token.sender blocker present")
+            "op.contact-token.sender blocker present")
         (assert-eq ($hit.tracking_url? | default "")
             "https://github.com/x/y/issues/1"
             "tracking_url propagated to blocker")
@@ -486,9 +511,10 @@ def test-build-implemented-cells-emits-display-fields [] {
     let adapters = {
         "opencloud/v6": {
             capabilities: {
-                "login": {status: "supported"},
-                "share-with.sender": {status: "supported"},
-                "contact-token.sender": {
+                "op.login": {status: "supported"},
+                "flow.contact-token.sender": {status: "supported"},
+                "op.share-file.sender": {status: "supported"},
+                "op.contact-token.sender": {
                     status: "test-implementation-pending",
                     tracking_url: "https://github.com/x/y/issues/1",
                     rationale: "pending implementation",
@@ -509,7 +535,7 @@ def test-build-implemented-cells-emits-display-fields [] {
     let record = (build-implemented-cells-record [$cell] $adapters (fixture-flow-caps))
     let entry = ($record | get $cell.cell_id)
     let by_caps = ($entry.blocked_by | each {|b| $b.capability})
-    let pending = ($entry.blocked_by | where {|b| $b.capability == "contact-token.sender"} | first)
+    let pending = ($entry.blocked_by | where {|b| $b.capability == "op.contact-token.sender"} | first)
     [
         (assert-eq $entry.display_status "test-implementation-pending"
             "display_status reflects worst blocker status")
@@ -517,8 +543,8 @@ def test-build-implemented-cells-emits-display-fields [] {
             "implemented = false when display_status != supported")
         (assert-truthy (not ($entry.blocked_by | is-empty))
             "blocked_by non-empty")
-        (assert-truthy ("contact-token.sender" in $by_caps)
-            "blocked_by includes contact-token.sender")
+        (assert-truthy ("op.contact-token.sender" in $by_caps)
+            "blocked_by includes op.contact-token.sender")
         (assert-eq ($pending.tracking_url? | default "")
             "https://github.com/x/y/issues/1"
             "blocked_by entry carries tracking_url when present")
@@ -597,10 +623,10 @@ def main [] {
         | append (test-share-with-v33-implemented)
         | append (test-contact-token-implemented)
         | append (test-contact-token-v33-blocked)
-        | append (test-contact-token-share-with-required)
+        | append (test-contact-token-share-file-required)
         | append (test-contact-wayf-implemented)
         | append (test-contact-wayf-v33-blocked)
-        | append (test-contact-wayf-share-with-required)
+        | append (test-contact-wayf-share-file-required)
         | append (test-unknown-flow-id)
         | append (test-missing-adapter-bundle)
         | append (test-share-with-v8-ocis-out-of-scope)

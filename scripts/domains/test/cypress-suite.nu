@@ -15,6 +15,7 @@ use ../../lib/images/resolve.nu [resolve-media-optimizer-image]
 use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
 use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-cells]
 use ../../lib/artifacts/optimizer-probe.nu [probe-optimizer-image]
+use ../../lib/site/flow-caps.nu [load-flow-caps]
 
 # Run the full enabled matrix suite sequentially via `services up run`.
 # Uses the shared CI planner to assign execution_ids and compute prerequisite
@@ -26,11 +27,11 @@ use ../../lib/artifacts/optimizer-probe.nu [probe-optimizer-image]
 # (requires --publish-site).
 # Pass --preview (requires --publish-site) to start a local preview server
 # after a successful publish. Blocks until Ctrl+C.
-# When --publish-site is set and --skip-optimize is NOT set, the suite
-# automatically runs per-cell media optimization and aggregation before
-# publishing, so site publish can receive the optimized media aggregate.
-# Pass --skip-optimize to disable auto-optimization (site publish will
-# hard-fail if the manifest contains media rows).
+# Pass --optimize (with --publish-site) to run probe + per-cell media
+# optimization + aggregate before publishing, so site publish receives
+# the optimized media aggregate. Default is to publish with raw media;
+# site publish prints a warning when media rows exist but no optimized
+# aggregate is provided.
 def main [
     --suite-id: string = "",  # Override generated suite_id for this run
     --stop-on-fail,           # Stop on first failure (default: continue)
@@ -42,7 +43,7 @@ def main [
     --preview,                # Start preview server after successful publish (requires --publish-site)
     --preview-host: string = "localhost",  # Preview server host (requires --preview)
     --preview-port: int = 4321,            # Preview server port (requires --preview)
-    --skip-optimize,          # Skip auto-optimize+aggregate; site publish will fail if media rows exist
+    --optimize,               # Run probe + per-cell optimize + aggregate before site publish
 ] {
     if (not ($site_dir | is-empty)) and (not $publish_site) {
         error make {msg: "--site-dir requires --publish-site"}
@@ -62,9 +63,19 @@ def main [
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let workflows_cfg = open ($root | path join "config/ci/workflows.nuon")
     let ocmts_script = ($root | path join "scripts/ocmts.nu")
+    let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
+    let adapters = (open ($root | path join "config/adapters/capabilities.v1.nuon") | get adapters)
 
-    let plan = (plan-suite $rules $prereqs)
-    let planned_cells = (sort-cells-by-flow-order $plan.cells $workflows_cfg.github.job_order)
+    let plan = (plan-suite $rules $prereqs $flow_caps $adapters)
+
+    let runnable = ($plan.cells | where capability_action == "run")
+    let planned_cells = (sort-cells-by-flow-order $runnable $workflows_cfg.github.job_order)
+
+    let cap_skipped = ($plan.cells | where capability_action == "capability-skipped")
+    if not ($cap_skipped | is-empty) {
+        let n = ($cap_skipped | length)
+        print $"Suite: ($n) cell\(s\) skipped due to required capabilities not yet implemented for the involved platform/version"
+    }
 
     let cells_to_run = if $max > 0 {
         $planned_cells | first $max
@@ -72,9 +83,14 @@ def main [
         $planned_cells
     }
     let total = ($cells_to_run | length)
+    let total_planned = ($plan.cells | length)
 
     if $total == 0 {
-        print "Suite: no enabled cells to run."
+        if $total_planned == 0 {
+            print "Suite: no enabled cells to run."
+        } else {
+            print $"Suite: no runnable cells to run \(($total_planned) cells planned but all excluded by capability gating or disabled\)."
+        }
         return
     }
 
@@ -216,7 +232,7 @@ def main [
     let skip_clone = (site-dir-is-local $site_dir)
     mut publish_exit = 0
     if $publish_site {
-        let optimized_media_dir = if (not $skip_optimize) {
+        let optimized_media_dir = if $optimize {
             print "\n=== Optimizing cell media ==="
             let work_dir = ($nu.temp-path | path join $"ocmts-cypress-suite-optimize-($eff_suite_id)")
             let result = (try {

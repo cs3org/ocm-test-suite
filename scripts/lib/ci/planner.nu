@@ -1,14 +1,25 @@
-# CI planner: expands enabled matrix cells, pre-computes execution_ids,
-# resolves capability producers/consumers, and outputs a machine-readable plan.
+# CI planner: expands matrix cells, gates by capabilities, pre-computes
+# execution_ids, resolves capability producers/consumers, and outputs a
+# machine-readable plan.
 #
 # Plan JSON shape:
 #   { schema_version, suite_id, generated_at,
 #     cells: [{cell_id, flow_id, scenario, execution_id,
 #               sender_platform, sender_version,
 #               receiver_platform, receiver_version,
-#               is_two_party, capabilities_produced, depends_on}] }
+#               is_two_party,
+#               capability_status, capability_action, display_visible,
+#               display_status, requirements, blockers,
+#               capabilities_produced, depends_on,
+#               [capability_skip]}] }
+#
+# All cells (enabled, disabled, capability-skipped) are present.
+# Only runnable cells (capability_action == "run") get meaningful
+# capabilities_produced and depends_on. Non-run cells get [] for both.
+# capability_skip is present only on capability-skipped cells.
 
 use ../matrix/cells.nu [expand-matrix-cells]
+use ../matrix/gated-cells.nu [gate-cells-by-capabilities]
 use ../run/execution-id.nu [new-execution-id]
 use ../suite/index.nu [new-suite-id]
 use ../run/metadata.nu [utc-now]
@@ -54,6 +65,14 @@ export def compute-cell-depends-on [
     prereqs: record,
 ] {
     let rules = ($prereqs.capability_rules? | default [])
+    # Validate required_roles before closure processing so errors propagate directly.
+    for rule in $rules {
+        for role in $rule.required_roles {
+            if $role != "sender" and $role != "receiver" {
+                error make {msg: $"compute-cell-depends-on: unknown required_role '($role)' in capability_rules; expected 'sender' or 'receiver'"}
+            }
+        }
+    }
     $rules | each {|rule|
         if not ($cell.flow_id in $rule.required_for_flows) {
             []
@@ -61,14 +80,14 @@ export def compute-cell-depends-on [
             $rule.required_roles | each {|role|
                 let need_platform = if $role == "sender" {
                     $cell.sender_platform
-                } else if $role == "receiver" {
+                } else {
                     $cell.receiver_platform
-                } else { "" }
+                }
                 let need_version = if $role == "sender" {
                     $cell.sender_version
-                } else if $role == "receiver" {
+                } else {
                     $cell.receiver_version
-                } else { "" }
+                }
 
                 if ($need_platform | is-empty) or ($need_version | is-empty) {
                     []
@@ -87,29 +106,95 @@ export def compute-cell-depends-on [
     } | flatten | uniq
 }
 
-# Build a full CI plan from matrix rules and prerequisites config.
-# suite_id is generated if not provided.
+# Pick the worst blocker record from a blockers list.
+# Returns null when the list is empty.
+def pick-worst-blocker [blockers: list] {
+    if ($blockers | is-empty) { return null }
+    let rank = {
+        "supported": 0,
+        "placeholder": 1,
+        "test-implementation-pending": 2,
+        "vendor-unsupported": 3,
+        "vendor-out-of-scope": 4,
+    }
+    let scored = ($blockers | each {|b|
+        let s = ($b.status? | default "vendor-unsupported")
+        {rank: ($rank | get --optional $s | default 3), blocker: $b}
+    })
+    let max_rank = ($scored | get rank | math max)
+    ($scored | where rank == $max_rank | first | get blocker)
+}
+
+# Build a full CI plan from matrix rules, prerequisites config, flow capabilities,
+# and adapter capabilities. suite_id is generated if not provided.
+#
+# All cells (enabled, disabled, capability-skipped) appear in the output.
+# Only cells with capability_action == "run" get meaningful capabilities_produced
+# and depends_on. capability_skip is present only for capability-skipped cells.
 export def plan-suite [
     rules: record,
     prereqs: record,
+    flow_caps: record,
+    adapters: record,
     --suite-id: string = "",
 ] {
     let eff_suite_id = if ($suite_id | is-empty) { new-suite-id } else { $suite_id }
     let all_cells = (expand-matrix-cells $rules)
-    let enabled_cells = ($all_cells | where enabled)
 
-    # First pass: compute base cell records with execution_ids.
-    let base_cells = ($enabled_cells | each {|c|
+    # Gate all cells for capability information.
+    let gated_cells = (gate-cells-by-capabilities $all_cells $adapters $flow_caps)
+
+    # First pass: assign execution_ids to all cells.
+    let base_cells = ($gated_cells | each {|c|
         $c | merge {execution_id: (new-execution-id)}
     })
 
-    # Second pass: resolve capabilities_produced and depends_on.
+    # Runnable cells are the producer/dependency universe.
+    let runnable = ($base_cells | where capability_action == "run")
+
+    # Second pass: resolve capabilities for runnable cells; empty for all others.
     let planned_cells = ($base_cells | each {|c|
-        let caps = (compute-cell-capabilities-produced $c $prereqs)
-        let deps = (compute-cell-depends-on $c $base_cells $prereqs)
-        $c | merge {
-            capabilities_produced: $caps,
-            depends_on: $deps,
+        if $c.capability_action == "run" {
+            let caps = (compute-cell-capabilities-produced $c $prereqs)
+            let deps = (compute-cell-depends-on $c $runnable $prereqs)
+            $c | merge {
+                capabilities_produced: $caps,
+                depends_on: $deps,
+            }
+        } else {
+            $c | merge {
+                capabilities_produced: [],
+                depends_on: [],
+            }
+        }
+    })
+
+    # Third pass: add capability_skip for capability-skipped cells only.
+    let final_cells = ($planned_cells | each {|c|
+        if $c.capability_action == "capability-skipped" {
+            let worst = (pick-worst-blocker $c.blockers)
+            let skip_info = if $worst != null {
+                {
+                    reason: ($worst.status? | default $c.capability_status | default "capability_blocked"),
+                    blocked_capability: ($worst.capability? | default ""),
+                    blocked_role: ($worst.role? | default ""),
+                    blocked_adapter_key: ($worst.adapter_key? | default ""),
+                    rationale: ($worst.rationale? | default (
+                        $"($c.cell_id) skipped: ($worst.capability? | default 'unknown') at ($worst.adapter_key? | default '') is ($c.capability_status)"
+                    )),
+                }
+            } else {
+                {
+                    reason: "capability_blocked",
+                    blocked_capability: "",
+                    blocked_role: "",
+                    blocked_adapter_key: "",
+                    rationale: $"($c.cell_id) skipped: capability_status=($c.capability_status)",
+                }
+            }
+            $c | merge {capability_skip: $skip_info}
+        } else {
+            $c
         }
     })
 
@@ -117,6 +202,6 @@ export def plan-suite [
         schema_version: 1,
         suite_id: $eff_suite_id,
         generated_at: (utc-now),
-        cells: $planned_cells,
+        cells: $final_cells,
     }
 }

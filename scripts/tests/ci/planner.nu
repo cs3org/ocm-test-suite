@@ -80,6 +80,89 @@ def fixture-prereqs [] {
     }
 }
 
+# Flow caps with no capability requirements (empty sender/receiver lists).
+# Passing this to plan-suite means derive-cell-impl-info finds no blockers
+# and every enabled cell comes out as "supported" / capability_action "run".
+def fixture-flow-caps [] {
+    {
+        "login": {sender: [], receiver: []},
+        "share-with": {sender: [], receiver: []},
+    }
+}
+
+# Rules fixture with a unique disabled cell (v99) so its cell_id does not
+# collide with the enabled "login" scenario cells.
+def fixture-rules-with-unique-disabled [] {
+    {
+        scenarios: {
+            "login-only": {
+                enabled: true,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v34"]},
+                receiver: null,
+                mitm: false,
+            },
+            "disabled-login-v99": {
+                enabled: false,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v99"]},
+                receiver: null,
+                mitm: false,
+            },
+        }
+    }
+}
+
+# Rules fixture for capability gating tests.
+def fixture-rules-cap-tests [] {
+    {
+        scenarios: {
+            "login-nc": {
+                enabled: true,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v34"]},
+                receiver: null,
+                mitm: false,
+            },
+            "login-oc": {
+                enabled: true,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "opencloud", version_lines: ["v6"]},
+                receiver: null,
+                mitm: false,
+            },
+        }
+    }
+}
+
+def fixture-flow-caps-with-reqs [] {
+    {
+        "login": {
+            sender: ["flow.login.sender"],
+            receiver: [],
+        }
+    }
+}
+
+def fixture-adapters-cap [] {
+    {
+        "nextcloud/v34": {
+            capabilities: {
+                "flow.login.sender": {status: "supported"},
+            }
+        },
+        "opencloud/v6": {
+            capabilities: {
+                "flow.login.sender": {status: "test-implementation-pending"},
+            }
+        },
+    }
+}
+
 # ---- tests ----
 
 def test-capability-id [] {
@@ -177,20 +260,25 @@ def test-plan-suite [] {
     test-log "\n[test-plan-suite]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let cell_ids = ($plan.cells | each {|c| $c.cell_id})
     [
         (assert-truthy (($plan.suite_id | str length) > 0) "plan has suite_id")
+        (assert-eq ($plan.schema_version? | default 0) 1 "schema_version is 1")
         (assert-list-contains $cell_ids "login__nextcloud-v34"
             "plan includes login__nextcloud-v34")
-        (assert-list-not-contains $cell_ids "disabled-flow__nextcloud-v33"
-            "disabled cells excluded from plan")
         (assert-truthy (
             $plan.cells
             | where {|c| $c.cell_id == "login__nextcloud-v34"}
             | each {|c| ($c.execution_id | str length) > 0}
             | any {|v| $v}
         ) "each cell has execution_id")
+        (assert-truthy (
+            $plan.cells
+            | where {|c| $c.cell_id == "login__nextcloud-v34"}
+            | each {|c| ($c | columns | any {|f| $f == "capability_action"})}
+            | any {|v| $v}
+        ) "cells have capability_action field")
     ]
 }
 
@@ -198,7 +286,7 @@ def test-plan-suite-nextcloud-v34-login-is-producer [] {
     test-log "\n[test-plan-suite-nextcloud-v34-login-is-producer]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let login_v34 = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v34"} | first)
     [
         (assert-list-contains $login_v34.capabilities_produced "login__nextcloud-v34"
@@ -286,7 +374,7 @@ def test-workflow-no-baked-ids [] {
     test-log "\n[test-workflow-no-baked-ids]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
 
     # suite_id (a timestamp+uuid) must NOT appear in the generated YAML.
@@ -413,7 +501,7 @@ def test-no-generated-timestamp [] {
     test-log "\n[test-no-generated-timestamp]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_cell_yml = (build-run-cell-yml)
     let ci_site_yml = (build-ci-site-yml)
@@ -431,7 +519,7 @@ def test-setup-failure-guard [] {
     test-log "\n[test-setup-failure-guard]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "always() && needs.setup.result == 'success'")
@@ -510,7 +598,7 @@ def test-aggregate-upload-step [] {
     test-log "\n[test-aggregate-upload-step]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "Upload aggregate outputs")
@@ -571,7 +659,7 @@ def test-nushell-version-from-config [] {
     test-log "\n[test-nushell-version-from-config]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_cell_yml = (build-run-cell-yml)
     [
@@ -594,7 +682,7 @@ def test-no-unresolved-placeholders [] {
     test-log "\n[test-no-unresolved-placeholders]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
@@ -640,7 +728,7 @@ def test-cell-visual-job-order [] {
     test-log "\n[test-cell-visual-job-order]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
 
     # Flow-based generator emits one job per flow in job_order visual order.
@@ -721,7 +809,7 @@ def test-generated-header-command [] {
     test-log "\n[test-generated-header-command]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
@@ -742,8 +830,8 @@ def test-workflow-deterministic [] {
     test-log "\n[test-workflow-deterministic]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan1 = (plan-suite $rules $prereqs --suite-id "fixed-suite-id")
-    let plan2 = (plan-suite $rules $prereqs --suite-id "fixed-suite-id")
+    let plan1 = (plan-suite $rules $prereqs (fixture-flow-caps) {} --suite-id "fixed-suite-id")
+    let plan2 = (plan-suite $rules $prereqs (fixture-flow-caps) {} --suite-id "fixed-suite-id")
     let yml1 = (build-ci-matrix-yml $plan1)
     let yml2 = (build-ci-matrix-yml $plan2)
     let rw_yml1 = (build-run-wave-yml)
@@ -764,7 +852,7 @@ def test-flow-based-no-wave-jobs [] {
     test-log "\n[test-flow-based-no-wave-jobs]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy (not ($yml | str contains "wave_0:"))
@@ -849,7 +937,7 @@ def test-wave-gen-yaml-properties [] {
     test-log "\n[test-wave-gen-yaml-properties]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     let run_wave_yml = (build-run-wave-yml)
     let ci_site_pos = ($yml | str index-of "  ci-site:")
@@ -922,7 +1010,7 @@ def test-matrix-calls-run-wave [] {
     test-log "\n[test-matrix-calls-run-wave]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "./.github/workflows/ci-run-wave.yml")
@@ -956,7 +1044,7 @@ def test-aggregate-needs-flow-jobs [] {
     test-log "\n[test-aggregate-needs-flow-jobs]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "login,")
@@ -974,7 +1062,7 @@ def test-flow-separation [] {
     test-log "\n[test-flow-separation]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     let flow_assets = (build-flow-assets $plan)
 
@@ -999,8 +1087,8 @@ def test-flow-separation [] {
             "login job section references login asset file")
         (assert-truthy (not ($login_cells | is-empty))
             "login asset is non-empty")
-        (assert-truthy ($login_cells | all {|c| $c.scenario | str starts-with "login"})
-            "login asset contains only login scenario cells")
+        (assert-truthy ($login_cells | all {|c| not ($c.scenario | str starts-with "share-with")})
+            "login asset contains no share-with scenario cells")
         (assert-truthy (not ($share_cells | is-empty))
             "share-with asset is non-empty")
         (assert-truthy ($share_cells | all {|c| $c.scenario | str starts-with "share-with"})
@@ -1057,7 +1145,7 @@ def test-cells-path-in-matrix [] {
     test-log "\n[test-cells-path-in-matrix]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "cells-path:")
@@ -1088,7 +1176,7 @@ def test-asset-file-paths [] {
     test-log "\n[test-asset-file-paths]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let flow_assets = (build-flow-assets $plan)
     let paths = ($flow_assets | each {|a| $a.path})
     [
@@ -1109,7 +1197,7 @@ def test-asset-content-valid-json [] {
     test-log "\n[test-asset-content-valid-json]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let flow_assets = (build-flow-assets $plan)
     let parse_results = ($flow_assets | each {|a|
         try {
@@ -1129,7 +1217,7 @@ def test-asset-content-is-pretty-printed [] {
     test-log "\n[test-asset-content-is-pretty-printed]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let flow_assets = (build-flow-assets $plan)
     [
         (assert-truthy ($flow_assets | all {|a| $a.content | str contains "\n  "})
@@ -1141,7 +1229,7 @@ def test-matrix-flow-job-asset-path-matches-flow-id [] {
     test-log "\n[test-matrix-flow-job-asset-path-matches-flow-id]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     let flow_assets = (build-flow-assets $plan)
     # Each asset path basename must match its flow id.
@@ -1181,7 +1269,7 @@ def test-aggregate-archive-no-skip-warning [] {
     let mod_source = (open --raw "scripts/domains/ci/mod.nu")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy (not ($mod_source | str contains "archive creation skipped"))
@@ -1409,7 +1497,7 @@ def test-hardened-matrix-expressions [] {
     test-log "\n[test-hardened-matrix-expressions]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "needs.setup.outputs['suite-id']")
@@ -1667,7 +1755,7 @@ def test-ci-matrix-calls-ci-site [] {
     test-log "\n[test-ci-matrix-calls-ci-site]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
         (assert-truthy ($yml | str contains "  ci-site:")
@@ -1687,7 +1775,7 @@ def test-ci-matrix-branch-gate-from-config [] {
     test-log "\n[test-ci-matrix-branch-gate-from-config]"
     let rules = fixture-rules
     let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs)
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     # Branch gate must come from config/site.nuon (publish_branch_gate: "main"),
     # not hardcoded in multiple places.
@@ -1959,6 +2047,129 @@ def test-suite-publish-guardrail-logic [] {
     ]
 }
 
+def test-plan-suite-disabled-cell-is-placeholder [] {
+    test-log "\n[test-plan-suite-disabled-cell-is-placeholder]"
+    let rules = fixture-rules-with-unique-disabled
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let v99_cells = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v99"})
+    [
+        (assert-truthy (not ($v99_cells | is-empty))
+            "disabled scenario cell login__nextcloud-v99 is included in plan")
+        (assert-eq ($v99_cells | first | get capability_action) "exclude-placeholder"
+            "disabled supported cell has capability_action exclude-placeholder")
+        (assert-eq ($v99_cells | first | get capability_status) "placeholder"
+            "disabled supported cell has capability_status placeholder")
+        (assert-truthy ($v99_cells | first | get display_visible)
+            "disabled supported cell is still display_visible")
+    ]
+}
+
+def test-plan-suite-capability-skipped-included [] {
+    test-log "\n[test-plan-suite-capability-skipped-included]"
+    let rules = fixture-rules-cap-tests
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps-with-reqs) (fixture-adapters-cap))
+    let oc_cells = ($plan.cells | where {|c| $c.cell_id == "login__opencloud-v6"})
+    [
+        (assert-truthy (not ($oc_cells | is-empty))
+            "plan includes capability-skipped cell login__opencloud-v6")
+        (assert-eq ($oc_cells | first | get capability_action) "capability-skipped"
+            "test-pending cell has capability_action capability-skipped")
+        (assert-eq ($oc_cells | first | get capability_status) "test-implementation-pending"
+            "test-pending cell has capability_status test-implementation-pending")
+        (assert-truthy ($oc_cells | first | get display_visible)
+            "test-pending cell is display_visible")
+        (assert-eq ($oc_cells | first | get display_status) "test-pending"
+            "test-pending cell has display_status test-pending")
+    ]
+}
+
+def test-plan-suite-supported-cell-action-run [] {
+    test-log "\n[test-plan-suite-supported-cell-action-run]"
+    let rules = fixture-rules-cap-tests
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps-with-reqs) (fixture-adapters-cap))
+    let nc_cells = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v34"})
+    [
+        (assert-truthy (not ($nc_cells | is-empty))
+            "plan includes login__nextcloud-v34")
+        (assert-eq ($nc_cells | first | get capability_action) "run"
+            "supported cell has capability_action run")
+        (assert-eq ($nc_cells | first | get capability_status) "supported"
+            "supported cell has capability_status supported")
+        (assert-eq ($nc_cells | first | get display_status) "supported"
+            "supported cell has display_status supported")
+    ]
+}
+
+def test-plan-suite-augmented-fields-present [] {
+    test-log "\n[test-plan-suite-augmented-fields-present]"
+    let rules = fixture-rules-cap-tests
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let required_fields = ["capability_status" "capability_action" "display_visible"
+                           "display_status" "requirements" "blockers" "execution_id"]
+    let all_have_fields = ($plan.cells | all {|c|
+        let cols = ($c | columns)
+        $required_fields | all {|f| $f in $cols}
+    })
+    [
+        (assert-truthy $all_have_fields
+            "all cells have augmented fields: capability_status, capability_action, display_visible, display_status, requirements, blockers, execution_id")
+    ]
+}
+
+def test-plan-suite-capability-skip-field [] {
+    test-log "\n[test-plan-suite-capability-skip-field]"
+    let rules = fixture-rules-cap-tests
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps-with-reqs) (fixture-adapters-cap))
+    let oc_cells = ($plan.cells | where {|c| $c.cell_id == "login__opencloud-v6"})
+    let nc_cells = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v34"})
+    let oc_cols = if not ($oc_cells | is-empty) { ($oc_cells | first | columns) } else { [] }
+    let nc_cols = if not ($nc_cells | is-empty) { ($nc_cells | first | columns) } else { [] }
+    [
+        (assert-truthy ("capability_skip" in $oc_cols)
+            "capability-skipped cell has capability_skip field")
+        (assert-truthy (not ("capability_skip" in $nc_cols))
+            "non-skipped (run) cell omits capability_skip field")
+        (assert-truthy (
+            if ("capability_skip" in $oc_cols) {
+                let cs = ($oc_cells | first | get capability_skip)
+                ("reason" in ($cs | columns)) and ("rationale" in ($cs | columns))
+            } else { false }
+        ) "capability_skip has reason and rationale sub-fields")
+    ]
+}
+
+def test-plan-suite-non-run-cells-empty-deps [] {
+    test-log "\n[test-plan-suite-non-run-cells-empty-deps]"
+    let rules = fixture-rules-cap-tests
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps-with-reqs) (fixture-adapters-cap))
+    let non_run = ($plan.cells | where {|c| $c.capability_action != "run"})
+    let all_empty_caps = ($non_run | all {|c|
+        let caps_empty = (($c.capabilities_produced? | default [] | length) == 0)
+        let deps_empty = (($c.depends_on? | default [] | length) == 0)
+        $caps_empty and $deps_empty
+    })
+    [
+        (assert-truthy $all_empty_caps
+            "non-run cells have empty capabilities_produced and depends_on")
+    ]
+}
+
+def test-plan-suite-schema-version-1 [] {
+    test-log "\n[test-plan-suite-schema-version-1]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    [
+        (assert-eq ($plan.schema_version? | default 0) 1 "plan schema_version is 1")
+    ]
+}
+
 def main [] {
     test-log "=== CI Planner Tests ==="
     let results = (
@@ -2036,6 +2247,50 @@ def main [] {
         | append (test-ci-site-deploy-job)
         | append (test-ci-site-has-optimizer-probe-step)
         | append (test-ci-site-download-no-or-true)
+        | append (test-plan-suite-disabled-cell-is-placeholder)
+        | append (test-plan-suite-capability-skipped-included)
+        | append (test-plan-suite-supported-cell-action-run)
+        | append (test-plan-suite-augmented-fields-present)
+        | append (test-plan-suite-capability-skip-field)
+        | append (test-plan-suite-non-run-cells-empty-deps)
+        | append (test-plan-suite-schema-version-1)
+        | append (test-compute-cell-depends-on-rejects-unknown-role)
     ) | flatten
     run-suite "ci/planner" $SUITE_PATH $results
+}
+
+# compute-cell-depends-on must error on an unrecognised required_role value.
+def test-compute-cell-depends-on-rejects-unknown-role [] {
+    test-log "\n[test-compute-cell-depends-on-rejects-unknown-role]"
+    let cell = {
+        cell_id: "share-with__nextcloud-v34__nextcloud-v34",
+        flow_id: "share-with",
+        scenario: "share-with",
+        sender_platform: "nextcloud",
+        sender_version: "v34",
+        receiver_platform: "nextcloud",
+        receiver_version: "v34",
+        is_two_party: true,
+        enabled: true,
+        browser: "chrome",
+    }
+    let bad_prereqs = {
+        capability_rules: [{
+            capability_flow: "login",
+            required_for_flows: ["share-with"],
+            required_roles: ["bogus"],
+        }]
+    }
+    let err = (try {
+        compute-cell-depends-on $cell [] $bad_prereqs
+        ""
+    } catch {|e| $e.msg})
+    [
+        (assert-string-contains $err "compute-cell-depends-on"
+            "error names the function")
+        (assert-string-contains $err "bogus"
+            "error names the unknown role value")
+        (assert-string-contains $err "unknown required_role"
+            "error describes the problem")
+    ]
 }

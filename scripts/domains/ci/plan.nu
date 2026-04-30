@@ -1,11 +1,12 @@
 # Compute and print the CI execution plan as JSON.
 # Emits a CI plan record (suite_id, scenarios, cells) that expands every
-# enabled matrix cell, pre-assigns execution_ids, and resolves prerequisite
-# dependencies from config/ci/prerequisites.nuon.
+# matrix cell, gates by capability, pre-assigns execution_ids, and resolves
+# prerequisite dependencies from config/ci/prerequisites.nuon.
 
 use ../../lib/ci/planner.nu [plan-suite]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
+use ../../lib/site/flow-caps.nu [load-flow-caps]
 
 def main [
     --suite-id: string = "",   # Override generated suite_id
@@ -15,10 +16,12 @@ def main [
     let root = get-ocmts-root
     let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
+    let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
+    let adapters = (open ($root | path join "config/adapters/capabilities.v1.nuon") | get adapters)
     let plan = if ($suite_id | is-empty) {
-        plan-suite $rules $prereqs
+        plan-suite $rules $prereqs $flow_caps $adapters
     } else {
-        plan-suite $rules $prereqs --suite-id $suite_id
+        plan-suite $rules $prereqs $flow_caps $adapters --suite-id $suite_id
     }
     if $cell_ids {
         $plan.cells | each {|c| $c.cell_id} | str join ","

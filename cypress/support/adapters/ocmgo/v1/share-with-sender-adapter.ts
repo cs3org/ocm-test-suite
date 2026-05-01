@@ -3,13 +3,15 @@
 import type { ShareWithFlowSenderAdapter } from "../../../contracts/share-with";
 import type { ShareFileSenderAdapter } from "../../../contracts/share-file";
 
+// Must match the OCMGo share-creation form's source-file input default.
+const SHARE_DIR = "/tmp/ocmts-share";
+
 function prepareShareFileImpl(
   { sharedFileName, sourceFileName: _sourceFileName }: { sharedFileName: string; sourceFileName?: string },
 ): Cypress.Chainable<{ expectedContent?: string }> {
-  const shareDir = "/artifacts/share";
-  const sharePath = `${shareDir}/${sharedFileName}`;
+  const sharePath = `${SHARE_DIR}/${sharedFileName}`;
 
-  cy.exec(`mkdir -p ${shareDir}`, { log: false });
+  cy.exec(`mkdir -p ${SHARE_DIR}`, { log: false });
   cy.writeFile(
     sharePath,
     `OCMGo shared file: ${sharedFileName}\n`,
@@ -25,7 +27,7 @@ function sendShareImpl({ sharedFileName, federatedRecipientId }: { sharedFileNam
   cy.get("#share-with", { timeout: 20000 }).clear().type(federatedRecipientId);
   cy.get("#local-path", { timeout: 20000 })
     .clear()
-    .type(`/tmp/ocmts-share/${sharedFileName}`);
+    .type(`${SHARE_DIR}/${sharedFileName}`);
   cy.get("#share-submit", { timeout: 20000 }).click();
 
   cy.get("#share-result", { timeout: 20000 })

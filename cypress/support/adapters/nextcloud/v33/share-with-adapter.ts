@@ -1,64 +1,11 @@
 /// <reference types="cypress" />
 
-import type { ShareWithFlowReceiverAdapter, ShareWithFlowSenderAdapter } from "../../../contracts/share-with";
-import type { ShareFileReceiverAdapter, ShareFileSenderAdapter } from "../../../contracts/share-file";
-import {
-  downloadAndAssertNextcloudSharedFile,
-  downloadAndReadNextcloudFile,
-  ensureFileExists,
-  ensureFilesAppActive,
-  ensureFilesAppLoadedForShareAcceptance,
-  renameFile,
-} from "../shared/files";
-import { addExternalShare, handleShareAcceptance, openSharingPanel } from "../shared/sharing";
+import { createNextcloudShareWithAdapters } from "../shared/share-with-impl";
 
-function prepareShareFileImpl(
-  { sourceFileName = "welcome.txt", sharedFileName }: { sourceFileName?: string; sharedFileName: string },
-): Cypress.Chainable<{ expectedContent?: string }> {
-  ensureFilesAppActive();
-  cy.log(`prepare share file: ${sourceFileName} -> ${sharedFileName}`);
-  ensureFileExists(sourceFileName);
-  renameFile(sourceFileName, sharedFileName);
-  ensureFileExists(sharedFileName);
-  return downloadAndReadNextcloudFile(sharedFileName).then((content) => ({ expectedContent: content }));
-}
+const { shareWithFlowSender, shareWithFlowReceiver, shareFileSender, shareFileReceiver } =
+  createNextcloudShareWithAdapters("v33");
 
-function shareFileImpl({ sharedFileName, federatedRecipientId }: { sharedFileName: string; federatedRecipientId: string }): void {
-  ensureFilesAppActive();
-  cy.log(`share ${sharedFileName} -> ${federatedRecipientId}`);
-  openSharingPanel(sharedFileName);
-  addExternalShare(federatedRecipientId);
-}
-
-function acceptIncomingShareImpl({ sharedFileName }: { sharedFileName: string }): void {
-  ensureFilesAppLoadedForShareAcceptance();
-  handleShareAcceptance(sharedFileName, { remainingAttempts: 3 });
-}
-
-function assertSharedFileContentImpl({ sharedFileName, expectedContent }: { sharedFileName: string; expectedContent: string }): void {
-  downloadAndAssertNextcloudSharedFile(sharedFileName, expectedContent);
-}
-
-export const nextcloudV33ShareWithFlowSenderAdapter: ShareWithFlowSenderAdapter = {
-  key: "nextcloud/v33",
-  prepareShareFile: prepareShareFileImpl,
-  shareWithFederatedRecipient: shareFileImpl,
-};
-
-export const nextcloudV33ShareWithFlowReceiverAdapter: ShareWithFlowReceiverAdapter = {
-  key: "nextcloud/v33",
-  acceptIncomingShare: acceptIncomingShareImpl,
-  assertSharedFileContent: assertSharedFileContentImpl,
-};
-
-export const nextcloudV33ShareFileSenderAdapter: ShareFileSenderAdapter = {
-  key: "nextcloud/v33",
-  prepareShareFile: prepareShareFileImpl,
-  sendFileToFederatedRecipient: shareFileImpl,
-};
-
-export const nextcloudV33ShareFileReceiverAdapter: ShareFileReceiverAdapter = {
-  key: "nextcloud/v33",
-  acceptIncomingShare: acceptIncomingShareImpl,
-  assertSharedFileContent: assertSharedFileContentImpl,
-};
+export const nextcloudV33ShareWithFlowSenderAdapter = shareWithFlowSender;
+export const nextcloudV33ShareWithFlowReceiverAdapter = shareWithFlowReceiver;
+export const nextcloudV33ShareFileSenderAdapter = shareFileSender;
+export const nextcloudV33ShareFileReceiverAdapter = shareFileReceiver;

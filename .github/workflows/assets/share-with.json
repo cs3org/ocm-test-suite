@@ -7,7 +7,7 @@
     "receiver_version": "v32",
     "artifact_name": "cell-share-with-nextcloud-v32-nextcloud-v32",
     "cell_id": "share-with__nextcloud-v32__nextcloud-v32",
-    "cell_depends_on": "cell-login-nextcloud-v32"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -17,7 +17,7 @@
     "receiver_version": "v33",
     "artifact_name": "cell-share-with-nextcloud-v32-nextcloud-v33",
     "cell_id": "share-with__nextcloud-v32__nextcloud-v33",
-    "cell_depends_on": "cell-login-nextcloud-v32,cell-login-nextcloud-v33"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -27,7 +27,7 @@
     "receiver_version": "v34",
     "artifact_name": "cell-share-with-nextcloud-v32-nextcloud-v34",
     "cell_id": "share-with__nextcloud-v32__nextcloud-v34",
-    "cell_depends_on": "cell-login-nextcloud-v32,cell-login-nextcloud-v34"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-nc-ocmgo",
@@ -37,7 +37,7 @@
     "receiver_version": "v1",
     "artifact_name": "cell-share-with-nextcloud-v32-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v32__ocmgo-v1",
-    "cell_depends_on": "cell-login-nextcloud-v32,cell-login-ocmgo-v1"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -47,7 +47,7 @@
     "receiver_version": "v32",
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v32",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v32",
-    "cell_depends_on": "cell-login-nextcloud-v33,cell-login-nextcloud-v32"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -57,7 +57,7 @@
     "receiver_version": "v33",
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v33",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v33",
-    "cell_depends_on": "cell-login-nextcloud-v33"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -67,7 +67,7 @@
     "receiver_version": "v34",
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v34",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v34",
-    "cell_depends_on": "cell-login-nextcloud-v33,cell-login-nextcloud-v34"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-nc-ocmgo",
@@ -77,7 +77,7 @@
     "receiver_version": "v1",
     "artifact_name": "cell-share-with-nextcloud-v33-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v33__ocmgo-v1",
-    "cell_depends_on": "cell-login-nextcloud-v33,cell-login-ocmgo-v1"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -87,7 +87,7 @@
     "receiver_version": "v32",
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v32",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v32",
-    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-nextcloud-v32"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -97,7 +97,7 @@
     "receiver_version": "v33",
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v33",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v33",
-    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-nextcloud-v33"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with",
@@ -107,7 +107,7 @@
     "receiver_version": "v34",
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v34",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v34",
-    "cell_depends_on": "cell-login-nextcloud-v34"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-nc-ocmgo",
@@ -117,7 +117,7 @@
     "receiver_version": "v1",
     "artifact_name": "cell-share-with-nextcloud-v34-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v34__ocmgo-v1",
-    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-ocmgo-v1"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-ocmgo-nc",
@@ -127,7 +127,7 @@
     "receiver_version": "v32",
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v32",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v32",
-    "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v32"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-ocmgo-nc",
@@ -137,7 +137,7 @@
     "receiver_version": "v33",
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v33",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v33",
-    "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v33"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-ocmgo-nc",
@@ -147,7 +147,7 @@
     "receiver_version": "v34",
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v34",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v34",
-    "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v34"
+    "cell_depends_on": ""
   },
   {
     "scenario": "share-with-ocmgo-ocmgo",
@@ -157,6 +157,6 @@
     "receiver_version": "v1",
     "artifact_name": "cell-share-with-ocmgo-v1-ocmgo-v1",
     "cell_id": "share-with__ocmgo-v1__ocmgo-v1",
-    "cell_depends_on": "cell-login-ocmgo-v1"
+    "cell_depends_on": ""
   }
 ]

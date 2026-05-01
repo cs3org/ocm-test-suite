@@ -1,3 +1,19 @@
+# Canonical capability vocabulary for the OCM Test Suite.
+#
+# Capability name conventions:
+#   flow.<flow-id>.<role>  - entry-point capability for a flow + role (sender/receiver).
+#                            Example: flow.share-with.sender
+#   op.<operation>.<role>  - reusable RPC primitive for an operation + role.
+#                            Example: op.share-file.sender
+#
+# Roleless exceptions (one-party operations, intentionally without a role suffix):
+#   flow.login             - login flow is one-party (no sender/receiver distinction)
+#   op.login               - login operation is one-party (shared by all flows)
+#   op.provider-identity   - provider identity lookup is one-party (receiver-initiated but roleless)
+#
+# These three are the ONLY allowed roleless capabilities. Any new one-party capability
+# must be added to the allowlist in scripts/lib/matrix/check/capabilities.nu and
+# documented here with a rationale.
 {
   "schema_version": 1,
   "capabilities": [

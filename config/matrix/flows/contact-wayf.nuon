@@ -26,29 +26,21 @@
   "include": [
     {
       "sender": [
-        "nextcloud",
-        "opencloud"
+        "nextcloud"
       ],
       "receiver": [
-        "nextcloud",
-        "opencloud"
+        "nextcloud"
       ]
     }
   ],
   "versions_sender": {
     "nextcloud": [
       "v34"
-    ],
-    "opencloud": [
-      "v6"
     ]
   },
   "versions_receiver": {
     "nextcloud": [
       "v34"
-    ],
-    "opencloud": [
-      "v6"
     ]
   }
 }

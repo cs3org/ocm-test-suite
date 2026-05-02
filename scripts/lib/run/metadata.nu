@@ -13,11 +13,7 @@
 #   cleanup-failed - teardown failed after Cypress run (services up run)
 
 use ../publish/envelope.nu [detect-execution-context collect-evidence]
-
-# Return current time as UTC ISO-8601 with a literal Z suffix.
-export def utc-now [] {
-    date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"
-}
+use ./result-envelope.nu [build-result-v1]
 
 # Write initial run.json in "prepared" state.
 export def write-prepared-run [
@@ -145,8 +141,7 @@ export def write-terminal-outcome [
 
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
-    mut r = {
-        schema_version: 1,
+    let r = (build-result-v1 {
         id: $"result-($execution_id)",
         run_id: $execution_id,
         execution_id: $execution_id,
@@ -167,8 +162,8 @@ export def write-terminal-outcome [
             mitm_files_count: $ev.counts.mitm_files,
         },
         warnings: [],
-    }
-    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
-    if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
+        suite_id: $suite_id,
+        suite_kind: $suite_kind,
+    })
     $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
 }

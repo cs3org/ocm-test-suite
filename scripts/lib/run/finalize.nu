@@ -18,6 +18,7 @@
 #   }
 
 use ./metadata.nu [write-terminal-run]
+use ./result-envelope.nu [build-result-v1]
 use ../mitm/validator-dispatcher.nu [dispatch-validators]
 use ../publish/envelope.nu [detect-execution-context collect-evidence]
 use ../publish/evidence.nu [emit-evidence]
@@ -93,8 +94,7 @@ export def finalize-run [
         final: $final,
         validators: $validators,
     }
-    mut r = {
-        schema_version: 1,
+    let r = (build-result-v1 {
         id: $"result-($execution_id)",
         run_id: $execution_id,
         execution_id: $execution_id,
@@ -116,9 +116,9 @@ export def finalize-run [
             mitm_files_count: $ev.counts.mitm_files,
         },
         warnings: [],
-    }
-    if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
-    if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
+        suite_id: $suite_id,
+        suite_kind: $suite_kind,
+    })
     $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
 
     try {

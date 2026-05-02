@@ -5,7 +5,7 @@
 const SUITE_PATH = path self
 
 use ../../lib/run/finalize.nu [finalize-run]
-use ../../lib/run/metadata.nu [utc-now]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 

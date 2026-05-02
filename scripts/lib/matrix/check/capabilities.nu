@@ -6,7 +6,7 @@
 use ./platforms.nu [check-platform-completeness]
 use ./completeness.nu [check-capability-completeness]
 use ./flow-drift.nu [check-capability-name-drift]
-use ./registry-cross.nu [extract-registry-tables build-expected-supported diff-registry-vs-supported registry-bound-capabilities]
+use ./registry-cross.nu [extract-registry-tables build-expected-supported diff-registry-vs-supported registry-bound-capabilities check-registry-table-coverage]
 use ./warnings.nu [collect-status-warnings]
 use ./provenance.nu [check-provenance-blocks]
 
@@ -101,6 +101,7 @@ export def check-adapter-capabilities [ocmts_root: string] {
     # so orchestration-only flow.* caps do not appear in drift output.
     let registry_path = ($ocmts_root | path join "cypress/support/adapters/registry.ts")
     let tables = (extract-registry-tables $ocmts_root $registry_path)
+    check-registry-table-coverage $tables.tables
     let expected = (build-expected-supported $tables)
     let bound_caps = (registry-bound-capabilities)
     let registry_supported = ($ssot.supported_by_key
@@ -126,6 +127,7 @@ export def check-adapter-capabilities [ocmts_root: string] {
         or (($platforms.extra_in_json | length) > 0)
         or (($completeness.missing | length) > 0)
         or (($flow_drift.unknown_names | length) > 0)
+        or (($flow_drift.shape_violations? | default [] | length) > 0)
         or (($registry_cross.missing_keys | length) > 0)
         or (($registry_cross.extra_keys | length) > 0)
         or (($registry_cross.drift | length) > 0)

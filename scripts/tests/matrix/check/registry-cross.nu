@@ -7,6 +7,7 @@ const SUITE_PATH = path self
 use ../../../lib/matrix/check/registry-cross.nu [
     REGISTRY_TABLE_CAPABILITY
     build-expected-supported
+    check-registry-table-coverage
     diff-registry-vs-supported
     registry-bound-capabilities
 ]
@@ -129,6 +130,57 @@ def test-diff-capability-drift [] {
     ]
 }
 
+# check-registry-table-coverage: happy path - exact set matches mapping.
+def test-coverage-happy-path [] {
+    test-log "\n[test-coverage-happy-path]"
+    let all_tables = ($REGISTRY_TABLE_CAPABILITY | get table_name)
+    let result = (try { check-registry-table-coverage $all_tables; "ok" } catch {|e| $"error: ($e.msg)"})
+    [
+        (assert-eq $result "ok" "exact table set passes without error")
+    ]
+}
+
+# check-registry-table-coverage: new table in registry.ts not in mapping.
+def test-coverage-missing-in-mapping [] {
+    test-log "\n[test-coverage-missing-in-mapping]"
+    let all_tables = ($REGISTRY_TABLE_CAPABILITY | get table_name)
+    let extended = ($all_tables | append "revokeShareSenderAdapters")
+    let result = (try { check-registry-table-coverage $extended; "ok" } catch {|e| $e.msg})
+    [
+        (assert-truthy ($result | str contains "revokeShareSenderAdapters")
+            "error mentions revokeShareSenderAdapters")
+        (assert-truthy ($result | str contains "out of date")
+            "error contains 'out of date'")
+    ]
+}
+
+# check-registry-table-coverage: stale entry in mapping (table removed from registry.ts).
+def test-coverage-stale-in-mapping [] {
+    test-log "\n[test-coverage-stale-in-mapping]"
+    let all_tables = ($REGISTRY_TABLE_CAPABILITY | get table_name)
+    let reduced = ($all_tables | where {|t| $t != "loginAdapters"})
+    let result = (try { check-registry-table-coverage $reduced; "ok" } catch {|e| $e.msg})
+    [
+        (assert-truthy ($result | str contains "loginAdapters")
+            "error mentions loginAdapters")
+        (assert-truthy ($result | str contains "stale entries")
+            "error contains 'stale entries'")
+    ]
+}
+
+# check-registry-table-coverage: empty input triggers stale-entries error for all 10 tables.
+def test-coverage-empty-input [] {
+    test-log "\n[test-coverage-empty-input]"
+    let result = (try { check-registry-table-coverage []; "ok" } catch {|e| $e.msg})
+    let all_tables = ($REGISTRY_TABLE_CAPABILITY | get table_name)
+    [
+        (assert-truthy ($result | str contains "stale entries")
+            "error contains 'stale entries' for empty input")
+        (assert-truthy ($all_tables | all {|t| $result | str contains $t})
+            "error mentions all 10 mapped tables")
+    ]
+}
+
 def main [] {
     test-log "=== matrix/check/registry-cross Tests ==="
     let results = ([]
@@ -139,6 +191,10 @@ def main [] {
         | append (test-diff-missing-key)
         | append (test-diff-extra-key)
         | append (test-diff-capability-drift)
+        | append (test-coverage-happy-path)
+        | append (test-coverage-missing-in-mapping)
+        | append (test-coverage-stale-in-mapping)
+        | append (test-coverage-empty-input)
     )
     run-suite "matrix/check/registry-cross" $SUITE_PATH $results
 }

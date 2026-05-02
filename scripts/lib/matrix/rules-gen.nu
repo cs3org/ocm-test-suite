@@ -5,6 +5,7 @@ use ../site/provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
 use ../run/execution-id.nu [validate-path-segment]
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 use ./gated-cells.nu [gate-cells-by-capabilities]
+use ./status-rank.nu [STATUS_RANK pick-worst-blocker]
 
 # Resolve version_lines for a role, falling back to the platform catalog.
 def resolve-vl [flow_vl_map: record, platform: string, platforms: record] {
@@ -193,32 +194,23 @@ export def load-matrix-rules [root: string] {
 # Map worst-status string into the display bucket label used by the matrix UI
 # (supported, test-pending, vendor-unsupported, out-of-scope, placeholder).
 export def classify-version-status [worst_status: string] {
-    if $worst_status == "supported" { return "supported" }
-    if $worst_status == "test-implementation-pending" { return "test-pending" }
-    if $worst_status == "vendor-unsupported" { return "vendor-unsupported" }
-    if $worst_status == "vendor-out-of-scope" { return "out-of-scope" }
-    if $worst_status == "placeholder" { return "placeholder" }
-    "vendor-unsupported"
+    match $worst_status {
+        "supported" => "supported",
+        "test-implementation-pending" => "test-pending",
+        "vendor-unsupported" => "vendor-unsupported",
+        "vendor-out-of-scope" => "out-of-scope",
+        "placeholder" => "placeholder",
+        _ => {
+            error make {msg: $"classify-version-status: unknown status '($worst_status)'; expected one of: supported, test-implementation-pending, vendor-unsupported, vendor-out-of-scope, placeholder"}
+        },
+    }
 }
 
 # Pick the cell-level worst blocker across both roles. Returns null when no
 # blockers, else the blocker record with the highest precedence status.
+# Delegates to pick-worst-blocker from status-rank.nu (canonical SSOT).
 def cell-worst-blocker [blockers: list] {
-    if ($blockers | is-empty) { return null }
-    let rank = {
-        "supported": 0,
-        "placeholder": 1,
-        "test-implementation-pending": 2,
-        "vendor-unsupported": 3,
-        "vendor-out-of-scope": 4,
-    }
-    let scored = ($blockers | each {|b|
-        let s = ($b.status? | default "vendor-unsupported")
-        let r = ($rank | get --optional $s | default 3)
-        {rank: $r, blocker: $b}
-    })
-    let max_rank = ($scored | get rank | math max)
-    ($scored | where rank == $max_rank | first | get blocker)
+    pick-worst-blocker $blockers
 }
 
 # Apply the matrix display rule: gate cells by capabilities, filter to visible
@@ -317,14 +309,8 @@ export def apply-display-rule [
     )
     let all_tuples = ($sender_tuples | append $receiver_tuples)
 
-    # Status precedence rank (higher = worse).
-    let status_rank = {
-        "supported": 0,
-        "placeholder": 1,
-        "test-implementation-pending": 2,
-        "vendor-unsupported": 3,
-        "vendor-out-of-scope": 4,
-    }
+    # Status precedence rank (higher = worse). Uses canonical SSOT from status-rank.nu.
+    let status_rank = $STATUS_RANK
 
     let groups = (
         $all_tuples

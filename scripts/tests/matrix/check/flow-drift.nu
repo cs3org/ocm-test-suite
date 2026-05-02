@@ -4,7 +4,7 @@
 
 const SUITE_PATH = path self
 
-use ../../../lib/matrix/check/flow-drift.nu [check-capability-name-drift]
+use ../../../lib/matrix/check/flow-drift.nu [check-capability-name-drift validate-capability-name-shape]
 use ../../../lib/tests/assert.nu *
 use ../../../lib/tests/runner.nu [run-suite]
 use ../../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -67,6 +67,36 @@ def test-empty-flows [] {
     }
 }
 
+# validate-capability-name-shape: roleless allowlist exceptions pass.
+def test-roleless-exceptions-pass [] {
+    test-log "\n[test-roleless-exceptions-pass]"
+    [
+        (assert-eq (validate-capability-name-shape "flow.login") null "flow.login is allowed roleless")
+        (assert-eq (validate-capability-name-shape "op.login") null "op.login is allowed roleless")
+        (assert-eq (validate-capability-name-shape "op.provider-identity") null "op.provider-identity is allowed roleless")
+    ]
+}
+
+# validate-capability-name-shape: role-qualified names pass.
+def test-role-qualified-pass [] {
+    test-log "\n[test-role-qualified-pass]"
+    [
+        (assert-eq (validate-capability-name-shape "flow.share-with.sender") null "flow.share-with.sender is valid")
+        (assert-eq (validate-capability-name-shape "op.share-file.receiver") null "op.share-file.receiver is valid")
+    ]
+}
+
+# validate-capability-name-shape: unknown roleless fails.
+def test-unknown-roleless-fails [] {
+    test-log "\n[test-unknown-roleless-fails]"
+    let err = (validate-capability-name-shape "op.foo")
+    [
+        (assert-eq (($err | describe) == "string") true "error message is a string for op.foo")
+        (assert-eq ($err | str contains "op.foo") true "error contains the capability name")
+        (assert-eq ($err | str contains "allowed roleless exceptions") true "error lists the exceptions")
+    ]
+}
+
 def main [] {
     test-log "=== matrix/check/flow-drift Tests ==="
     let results = ([]
@@ -74,6 +104,9 @@ def main [] {
         | append (test-unknown-in-adapter-keys)
         | append (test-unknown-in-flow)
         | append (test-empty-flows)
+        | append (test-roleless-exceptions-pass)
+        | append (test-role-qualified-pass)
+        | append (test-unknown-roleless-fails)
     )
     run-suite "matrix/check/flow-drift" $SUITE_PATH $results
 }

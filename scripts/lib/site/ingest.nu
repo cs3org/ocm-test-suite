@@ -34,12 +34,60 @@ export def ingest-site [
         let run_count = ($suite_record.runs | length)
         print --stderr $"Ingest mode: suite suite_id=($eff_id) runs=($run_count)"
         for run in $suite_record.runs {
-            # Synthetic missing entries have no execution dir; skip artifact lookup.
-            if ($run.execution_id? | default "" | is-empty) { continue }
-            let run_dir = ($artifacts_root | path join $run.flow_id $run.pair $run.execution_id)
+            let exec_id = ($run.execution_id? | default "")
+            let run_status = ($run.status? | default "")
+            # capability-skipped cells: inject a synthetic manifest entry without
+            # reading from disk (there is no artifact for skipped cells).
+            if ($exec_id | is-empty) and ($run_status == "capability-skipped") {
+                let result_id = $"result-capability-skipped-($run.cell_id)"
+                let flow_id = ($run.flow_id? | default "")
+                let cap_skip = ($run.capability_skip? | default null)
+                let synth_manifest = {
+                    schema_version: 1,
+                    suite_id: $eff_id,
+                    flows: {($flow_id): {id: $flow_id}},
+                    cells: {($run.cell_id): {
+                        id: $run.cell_id,
+                        flow_id: $flow_id,
+                        pair: ($run.pair? | default ""),
+                        artifact_name: ($run.artifact_name? | default ""),
+                        scenario: ($run.scenario? | default ""),
+                        sender_platform: ($run.sender_platform? | default ""),
+                        sender_version: ($run.sender_version? | default ""),
+                        receiver_platform: ($run.receiver_platform? | default ""),
+                        receiver_version: ($run.receiver_version? | default ""),
+                        browser: ($run.browser? | default "chrome"),
+                        is_two_party: ($run.is_two_party? | default false),
+                    }},
+                    runs: {},
+                    results: {($result_id): {
+                        id: $result_id, run_id: "", cell_id: $run.cell_id,
+                        status: "capability-skipped", exit_code: 0,
+                        finished_at: ($run.finished_at? | default ""),
+                        attempt_number: 1, lifecycle_status: "capability-skipped",
+                        evidence: [], warnings: [],
+                    }},
+                    indexes: {latest_terminal_result_by_cell: {($run.cell_id): $result_id}},
+                }
+                $entries = ($entries | append {
+                    manifest: $synth_manifest,
+                    run_dir: "",
+                    flow_id: $flow_id,
+                    pair: ($run.pair? | default ""),
+                    artifact_name: ($run.artifact_name? | default ""),
+                    exec_id: "",
+                    cell_id: $run.cell_id,
+                    result_id: $result_id,
+                    finished_at: ($run.finished_at? | default ""),
+                })
+                continue
+            }
+            # Synthetic missing entries (no execution_id, not cap-skipped): skip.
+            if ($exec_id | is-empty) { continue }
+            let run_dir = ($artifacts_root | path join $run.flow_id $run.pair $exec_id)
             let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
             if not ($mf_path | path exists) {
-                print --stderr $"WARNING: no suite-manifest for ($run.flow_id)/($run.pair)/($run.execution_id), skipping"
+                print --stderr $"WARNING: no suite-manifest for ($run.flow_id)/($run.pair)/($exec_id), skipping"
                 continue
             }
             let m = (open $mf_path)
@@ -49,9 +97,9 @@ export def ingest-site [
                 manifest: $m,
                 run_dir: $run_dir,
                 flow_id: $run.flow_id,
-                pair: $run.pair,
+                pair: ($run.pair? | default ""),
                 artifact_name: ($run.artifact_name? | default ""),
-                exec_id: $run.execution_id,
+                exec_id: $exec_id,
                 cell_id: $run.cell_id,
                 result_id: $result_id,
                 finished_at: $finished_at,
@@ -216,6 +264,8 @@ export def ingest-site [
 
     mut total_files = 0
     for entry in $entries {
+        # Synthetic cap-skipped entries have no run_dir; nothing to copy.
+        if ($entry.run_dir | is-empty) { continue }
         let dst_base = ($public_dir
             | path join "artifacts" $entry.flow_id $entry.pair $entry.exec_id)
         let count = (copy-allowlisted-artifacts $entry.run_dir $dst_base)

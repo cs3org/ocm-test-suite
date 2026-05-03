@@ -5,7 +5,7 @@
 # provenance, trust, publication_state, published_at.
 
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
-use ../time/utc.nu [now-utc]
+use ../time/utc.nu [utc-now]
 
 def flow-description [flow_id: string] {
     match $flow_id {
@@ -382,7 +382,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     let run = (open ($meta_dir | path join "run.json"))
     let result = (open ($meta_dir | path join "result.v1.json"))
 
-    let generated_at = (now-utc)
+    let generated_at = (utc-now)
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $base)
     let ev_rows = ($ev.rows | each {|row| enrich-ev-row $row $cell.cell_id} | sort-evidence-rows)
@@ -424,10 +424,13 @@ export def emit-publish-envelope [artifacts_base: string] {
     # failure_reason must be concrete and observed.
     # Prefer run.error when present; otherwise, fall back to a summary derived
     # from terminal status + exit_code for non-passing results.
-    let has_failure = (($result.exit_code | default 0) != 0) or (($result.status | default "") != "passed")
+    # capability-skipped is NOT a failure - the run was intentionally skipped.
+    let result_status = ($result.status | default "")
+    let is_cap_skipped = ($result_status == "capability-skipped")
+    let has_failure = (not $is_cap_skipped) and ((($result.exit_code | default 0) != 0) or ($result_status != "passed"))
     mut failure_reason = ($run.error? | default "")
     if (($failure_reason | is-empty) and $has_failure) {
-        $failure_reason = $"status=($result.status) exit_code=($result.exit_code)"
+        $failure_reason = $"status=($result_status) exit_code=($result.exit_code)"
     }
     let failure_reason_val = if ($failure_reason | is-empty) { null } else { $failure_reason }
     mut run_entry = {

@@ -1,7 +1,7 @@
 # Emit the evidence sidecar (meta/evidence.v1.json) for a completed run.
 # Enumerates all structured/text artifacts in a cell's artifact directory.
 
-use ../time/utc.nu [now-utc]
+use ../time/utc.nu [utc-now]
 
 def hash-and-size [abs_path: string] {
     let size_bytes = try {
@@ -234,7 +234,7 @@ export def emit-evidence [
 
     let out = {
         schema_version: 1,
-        captured_at: (now-utc),
+        captured_at: (utc-now),
         cell_id: $cell_id,
         run_id: $run_id,
         items: $items,

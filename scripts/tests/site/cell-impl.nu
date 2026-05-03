@@ -537,8 +537,8 @@ def test-build-implemented-cells-emits-display-fields [] {
     let by_caps = ($entry.blocked_by | each {|b| $b.capability})
     let pending = ($entry.blocked_by | where {|b| $b.capability == "op.contact-token.sender"} | first)
     [
-        (assert-eq $entry.display_status "test-implementation-pending"
-            "display_status reflects worst blocker status")
+        (assert-eq $entry.display_status "test-pending"
+            "display_status reflects worst blocker status (test-implementation-pending capability_status -> test-pending display_status)")
         (assert-truthy ($entry.implemented == false)
             "implemented = false when display_status != supported")
         (assert-truthy (not ($entry.blocked_by | is-empty))

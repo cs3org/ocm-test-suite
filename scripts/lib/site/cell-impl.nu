@@ -3,6 +3,7 @@
 use ./internal.nu [compute-matrix-cells]
 use ./provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
 use ./flow-caps.nu [load-flow-caps]
+use ../matrix/gated-cells.nu [gate-one-cell]
 
 # Re-export shared blocker evaluation helpers (implementations live in
 # blocker-logic.nu to avoid circular imports with matrix/rules-gen.nu).
@@ -12,6 +13,9 @@ export use ./blocker-logic.nu [worst-status-of-blockers derive-role-blockers der
 # cell list. Each cell value emits display_status, blocked_by (public view),
 # implemented (back-compat boolean), plus legacy requirements/blockers fields
 # unchanged for back-compat.
+#
+# display_status and capability-gating semantics come from gate-one-cell
+# (the SSOT in gated-cells.nu) rather than being recomputed locally.
 export def build-implemented-cells-record [
     cell_list: list,
     adapters: record,
@@ -19,14 +23,10 @@ export def build-implemented-cells-record [
 ] {
     if ($cell_list | is-empty) { return {} }
     ($cell_list | each {|c|
-        let impl_info = (derive-cell-impl-info $c $adapters $flow_caps)
-        let enabled = ($c.enabled? | default false)
-        let display_status = if not $enabled {
-            "placeholder"
-        } else {
-            worst-status-of-blockers $impl_info.blockers
-        }
-        let blocked_by = ($impl_info.blockers | each {|b|
+        # Use the canonical gate to derive display_status, blockers, and requirements.
+        let gated = (gate-one-cell $c $adapters $flow_caps)
+        let display_status = $gated.display_status
+        let blocked_by = ($gated.blockers | each {|b|
             mut out = {
                 role: ($b.role? | default ""),
                 capability: ($b.capability? | default ""),
@@ -55,8 +55,8 @@ export def build-implemented-cells-record [
                 display_status: $display_status,
                 blocked_by: $blocked_by,
                 implemented: ($display_status == "supported"),
-                requirements: $impl_info.requirements,
-                blockers: $impl_info.blockers,
+                requirements: $gated.requirements,
+                blockers: $gated.blockers,
             }
         }
     } | into record)

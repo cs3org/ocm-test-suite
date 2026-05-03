@@ -2,6 +2,8 @@
 # matrix/rules-gen.nu. Must not import from internal.nu or any module that
 # transitively imports matrix/rules-gen.nu (to avoid circular imports).
 
+use ../matrix/status-rank.nu [STATUS_RANK worst-status]
+
 # Worst status across a list of blocker records.
 # Precedence (worst -> least): vendor-out-of-scope > vendor-unsupported >
 # test-implementation-pending > placeholder. Empty list -> "supported".
@@ -11,18 +13,8 @@
 # out-of-scope).
 export def worst-status-of-blockers [blockers: list] {
     if ($blockers | is-empty) { return "supported" }
-    let rank = {
-        "supported": 0,
-        "placeholder": 1,
-        "test-implementation-pending": 2,
-        "vendor-unsupported": 3,
-        "vendor-out-of-scope": 4,
-    }
     let statuses = ($blockers | each {|b| $b.status? | default "vendor-unsupported"})
-    let ranked = ($statuses | each {|s| $rank | get --optional $s | default 3})
-    let max_rank = ($ranked | math max)
-    let inv = ($rank | transpose key val | where val == $max_rank | first | get key)
-    $inv
+    worst-status $statuses
 }
 
 # Walk one role's required caps and return blocker records for that role.

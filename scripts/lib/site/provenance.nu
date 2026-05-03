@@ -1,6 +1,6 @@
 # Provenance block helpers used by the site-publish pipeline to stamp generated artifacts.
 
-use ../time/utc.nu [now-utc]
+use ../time/utc.nu [utc-now]
 
 # Input files hashed into the provenance block of every site output that derives from the matrix config + adapter capabilities.
 export const SITE_PROVENANCE_SOURCES = [
@@ -39,7 +39,7 @@ export def build-provenance-block [args: record] {
             error make {msg: $"build-provenance-block: sources[] must be repo-relative, got absolute path: ($src)"}
         }
     }
-    let generated_at = (now-utc)
+    let generated_at = (utc-now)
     let hashed_sources = ($args.sources | each {|s| hash-source $s $args.ocmts_root})
     {
         schema_version: 1,

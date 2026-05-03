@@ -10,7 +10,7 @@
 #   create-optimized-archive      - create optimized-media-artifacts.tar.zst
 #   aggregate-optimized-media-cells - main orchestrator
 
-use ../run/metadata.nu [utc-now]
+use ../time/utc.nu [utc-now]
 
 # Reject paths with traversal sequences, absolute references, or empty strings.
 export def validate-optimized-path [p: string] {

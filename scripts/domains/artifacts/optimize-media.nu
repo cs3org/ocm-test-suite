@@ -10,14 +10,14 @@ use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
 
 def main [
     --raw-dir: string,       # artifact root containing artifacts/<flow>/<pair>/<exec-id>/ (required)
-    --out-dir: string,       # path to write optimized outputs (required)
+    --output-dir: string,       # path to write optimized outputs (required)
     --image: string = "",    # override the optimizer image; defaults to config value
 ] {
     if ($raw_dir | is-empty) {
         error make {msg: "Missing required flag --raw-dir"}
     }
-    if ($out_dir | is-empty) {
-        error make {msg: "Missing required flag --out-dir"}
+    if ($output_dir | is-empty) {
+        error make {msg: "Missing required flag --output-dir"}
     }
 
     let img = if ($image | is-empty) {
@@ -28,10 +28,10 @@ def main [
 
     print $"Optimizing media:"
     print $"  raw-dir:  ($raw_dir)"
-    print $"  out-dir:  ($out_dir)"
+    print $"  out-dir:  ($output_dir)"
     print $"  image:    ($img)"
 
-    let result = (optimize-cell-media $raw_dir $out_dir $img)
+    let result = (optimize-cell-media $raw_dir $output_dir $img)
 
     print $"  status:   ($result.status)"
     print $"  items:    ($result.items | length)"

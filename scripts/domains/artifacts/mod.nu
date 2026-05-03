@@ -14,11 +14,11 @@ def main [] {
     print "                    Default mode (runs): deletes entire run dirs except the latest."
     print "                    Evidence mode (--mode evidence): deletes videos/logs and republishes."
     print "  optimize-media    Convert raw PNG/MP4 media in one cell artifact to optimized formats"
-    print "                    Emits meta/optimized-media-cell.v1.json in --out-dir"
+    print "                    Emits meta/optimized-media-cell.v1.json in --output-dir"
     print "  probe-optimizer            Probe the optimizer image for required encoding capabilities"
     print "  aggregate-optimized-media  Merge optimized-media cell artifacts into one bundle"
     print "                             Emits optimized-media-artifacts.tar.zst and"
-    print "                             meta/optimized-media-summary.v1.json in --out-dir"
+    print "                             meta/optimized-media-summary.v1.json in --output-dir"
 }
 
 def --wrapped "main list" [...args: string] {

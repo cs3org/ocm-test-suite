@@ -9,11 +9,11 @@ use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-
 def main [
     ...artifact_dirs: string,
     --dirs-file: string = "",   # file with one artifact dir path per line
-    --out-dir: string = "",     # destination directory (required)
+    --output-dir: string = "",     # destination directory (required)
     --no-archive,               # skip creating optimized-media-artifacts.tar.zst
 ] {
-    if ($out_dir | is-empty) {
-        error make {msg: "aggregate-optimized-media: --out-dir is required"}
+    if ($output_dir | is-empty) {
+        error make {msg: "aggregate-optimized-media: --output-dir is required"}
     }
 
     let dirs = if not ($dirs_file | is-empty) {
@@ -30,12 +30,12 @@ def main [
     }
 
     let dir_count = ($dirs | length)
-    print $"Aggregating ($dir_count) optimized-media cell artifact dirs into ($out_dir)"
+    print $"Aggregating ($dir_count) optimized-media cell artifact dirs into ($output_dir)"
 
     let result = if $no_archive {
-        aggregate-optimized-media-cells $dirs $out_dir --no-archive
+        aggregate-optimized-media-cells $dirs $output_dir --no-archive
     } else {
-        aggregate-optimized-media-cells $dirs $out_dir
+        aggregate-optimized-media-cells $dirs $output_dir
     }
 
     print $"  cells found:            ($result.cells_found)"

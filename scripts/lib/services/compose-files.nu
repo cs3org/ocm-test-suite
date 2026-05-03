@@ -1,6 +1,6 @@
 # Shared compose file list helpers.
 
-use ../time/utc.nu [now-utc]
+use ../time/utc.nu [utc-now]
 
 # Build the -f args list from an ordered file list.
 export def build-f-args [files: list<string>] {
@@ -49,7 +49,7 @@ export def write-compose-manifest [
 
     let manifest = {
         schema_version: 1,
-        captured_at: (now-utc),
+        captured_at: (utc-now),
         stack_id: $stack_id,
         stack_def_sha256: $stack_def_sha256,
         stack_env_sha256: $stack_env_sha256,

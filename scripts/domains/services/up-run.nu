@@ -1,10 +1,8 @@
 # Bring up services, run tests headless, collect artifacts, tear down.
 
 use ../../lib/compose/validate.nu [validate-compose-strict]
-use ../../lib/run/metadata.nu [
-    write-terminal-outcome
-    utc-now
-]
+use ../../lib/run/metadata.nu [write-terminal-outcome]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/mitm/peers.nu [write-mitm-peers]
 use ../../lib/services/cypress-run.nu [run-cypress-ci]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]

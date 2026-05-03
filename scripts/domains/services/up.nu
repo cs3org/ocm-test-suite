@@ -1,21 +1,14 @@
 # Bring up platform+helper services for a cell (no test run).
 
 use ../../lib/compose/validate.nu [validate-compose-strict]
-use ../../lib/run/metadata.nu [
-    write-terminal-outcome
-    update-run-lifecycle
-    utc-now
-]
+use ../../lib/run/metadata.nu [update-run-lifecycle]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/services/context.nu [setup-run-context]
 use ../../lib/services/compose-files.nu [
     build-f-args write-compose-manifest
 ]
-use ../../lib/services/lifecycle.nu [
-    cleanup-temp
-    cleanup-down
-    overwrite-cleanup-failed
-]
-use ../../lib/publish/envelope.nu [publish-envelope-safe]
+use ../../lib/services/lifecycle.nu [cleanup-temp]
+use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 
 def main [
@@ -42,41 +35,17 @@ def main [
     let f_args = (build-f-args $base_files)
     (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
         $ctx.base_overlay_fnames "" ["compose.resolved.yml"])
-    try {
+    (with-infra-fail-cleanup $ctx "compose-validate-base" {
         (validate-compose-strict $base_files $ctx.stack_id
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
             $env_file)
-    } catch {|e|
-        let finished_at = (utc-now)
-        (write-terminal-outcome $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id $ctx.cell.artifact_name
-            $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-base" --fail-error $e.msg
-            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
-        publish-envelope-safe $ctx.artifacts_base
-        cleanup-temp $ctx.execution_id $preserve_temp
-        error make {msg: $"Compose validation failed: ($e.msg)"}
-    }
+    } --preserve-temp=$preserve_temp)
     let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
-    try {
+    (with-infra-fail-cleanup $ctx "platform-up" {
+        # Direct compose up (operator-facing): streams output and throws on failure, caught by with-infra-fail-cleanup. CI flow uses do-compose-up in services/up-run.nu.
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
         emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
-    } catch {|e|
-        let finished_at = (utc-now)
-        let up_exit = ($env.LAST_EXIT_CODE? | default 1)
-        (write-terminal-outcome $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id $ctx.cell.artifact_name
-            $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
-            $ctx.images --phase "platform-up" --fail-error $e.msg
-            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
-        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
-        if $down_fail != null {
-            overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
-        }
-        publish-envelope-safe $ctx.artifacts_base
-        cleanup-temp $ctx.execution_id $preserve_temp
-        error make {msg: $"docker compose up failed: ($e.msg)"}
-    }
+    } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)
     update-run-lifecycle $ctx.artifacts_base "active" --phase "platform-up"
     print $"Stack up. execution_id=($ctx.execution_id) stack_id=($ctx.stack_id)"
     print $"Artifacts: ($ctx.artifacts_base)"

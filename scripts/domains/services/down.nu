@@ -1,10 +1,8 @@
 # Tear down services for a cell by execution_id or last known run.
 
 use ../../lib/compose/validate.nu [validate-compose-strict]
-use ../../lib/run/metadata.nu [
-    update-run-lifecycle
-    utc-now
-]
+use ../../lib/run/metadata.nu [update-run-lifecycle]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts/init.nu [read-last-execution-id]

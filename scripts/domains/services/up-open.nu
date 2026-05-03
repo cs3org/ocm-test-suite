@@ -4,8 +4,8 @@ use ../../lib/compose/validate.nu [validate-compose-strict]
 use ../../lib/run/metadata.nu [
     write-terminal-outcome
     update-run-lifecycle
-    utc-now
 ]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/services/context.nu [setup-run-context]
 use ../../lib/services/compose-files.nu [
     build-f-args write-compose-manifest
@@ -58,6 +58,7 @@ def main [
     }
     let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     try {
+        # Direct compose up (operator-facing): streams output and throws on failure, caught by with-infra-fail-cleanup. CI flow uses do-compose-up in services/up-run.nu.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
@@ -105,6 +106,7 @@ def main [
         $ctx.base_overlay_fnames "runner-dev.yml"
         ["compose.resolved.yml" "compose.resolved.dev.yml"])
     try {
+        # Direct compose up for cypress_dev (operator-facing): streaming + throw-on-failure semantics; CI does not start cypress_dev.
         ^docker compose ...$env_args ...$f_args_dev -p $ctx.stack_id up -d cypress_dev
     } catch {|e|
         let finished_at = (utc-now)

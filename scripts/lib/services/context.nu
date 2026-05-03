@@ -6,7 +6,8 @@ use ../images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmprox
 use ../run/execution-id.nu [new-execution-id validate-execution-id]
 use ../actors/validate.nu [validate-actor-config]
 use ../compose/render.nu [write-compose-overlays]
-use ../run/metadata.nu [write-prepared-run utc-now]
+use ../run/metadata.nu [write-prepared-run]
+use ../time/utc.nu [utc-now]
 use ../artifacts/init.nu [init-artifact-dirs write-last-execution-id]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 

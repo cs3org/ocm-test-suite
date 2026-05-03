@@ -3,7 +3,8 @@
 use ./compose-files.nu [build-f-args]
 use ../compose/validate.nu [validate-compose-strict]
 use ../run/execution-id.nu [execution-temp-path]
-use ../run/metadata.nu [write-terminal-outcome utc-now]
+use ../run/metadata.nu [write-terminal-outcome]
+use ../time/utc.nu [utc-now]
 use ../publish/envelope.nu [publish-envelope-safe]
 
 # Remove /tmp/ocmts/<execution_id> when not preserving temp.
@@ -90,8 +91,20 @@ export def overwrite-cleanup-failed [
     error make {msg: $combined}
 }
 
-# Try to bring up compose services; returns null on success or {exit_code, msg} on failure.
-# Quiet mode buffers output and exposes stderr only on failure.
+# CI-tuned wrapper around `docker compose up -d --wait`.
+#
+# Behavior: quiet mode by default - output is buffered and stderr is surfaced
+# only on failure. When verbose=true, output streams live to the terminal.
+#
+# Error contract: returns null on success, {exit_code: int, msg: string} on
+# failure. Does NOT throw; the caller decides how to handle the error.
+#
+# Intended consumer: scripts/domains/services/up-run.nu (the CI run command).
+#
+# Operator-facing commands (services up, services up open) intentionally use
+# direct `^docker compose ... up` calls instead: they want streaming output
+# and natural throw-on-failure semantics that `^docker` provides. The
+# structured-error contract here is a CI feature, not a generic plumbing layer.
 export def do-compose-up [
     f_args: list<string>,
     stack_id: string,
@@ -122,8 +135,19 @@ export def do-compose-up [
     }
 }
 
-# Try to run compose down; returns null on success or an error string on failure.
-# Quiet mode buffers output.
+# CI-tuned wrapper around `docker compose ... down --volumes`.
+#
+# Behavior: quiet mode by default - output is buffered. When verbose=true,
+# output streams live to the terminal.
+#
+# Error contract: returns null on success, or an error string on failure.
+# Does NOT throw; the caller decides how to handle the error.
+#
+# Intended consumer: scripts/domains/services/up-run.nu (the CI run command).
+#
+# Operator-facing commands use direct `^docker compose` calls wrapped in
+# try/catch for natural throw-on-failure semantics; the structured-error
+# contract here is a CI feature, not a generic plumbing layer.
 export def do-compose-down [
     f_args: list<string>,
     stack_id: string,

@@ -10,7 +10,7 @@ use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact emit-
 use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
 use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run record-capability-skipped-run]
-use ../../lib/run/metadata.nu [utc-now]
+use ../../lib/time/utc.nu [utc-now]
 use ../../lib/images/resolve.nu [resolve-media-optimizer-image]
 use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
 use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-cells]

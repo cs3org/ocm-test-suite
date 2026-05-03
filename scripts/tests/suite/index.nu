@@ -187,13 +187,13 @@ def test-no-runnable-suite-writes-suite-record [] {
 def test-compute-suite-status [] {
     test-log "\n[test-compute-suite-status]"
     [
-        (assert-eq (compute-suite-status 3 0 0) "passed"
+        (assert-eq (compute-suite-status ["passed" "passed" "passed"]) "passed"
             "compute-suite-status: all passed -> passed")
-        (assert-eq (compute-suite-status 0 1 0) "failed"
+        (assert-eq (compute-suite-status ["failed"]) "failed"
             "compute-suite-status: any failed -> failed")
-        (assert-eq (compute-suite-status 2 0 1) "blocked"
+        (assert-eq (compute-suite-status ["passed" "passed" "blocked"]) "blocked"
             "compute-suite-status: blocked and no failed -> blocked")
-        (assert-eq (compute-suite-status 0 0 0) "passed"
+        (assert-eq (compute-suite-status []) "passed"
             "compute-suite-status: no runs -> passed")
     ]
 }

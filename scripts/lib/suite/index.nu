@@ -4,7 +4,7 @@
 #   artifacts/suites/runs/<suite_id>.json
 
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
-use ../run/metadata.nu [utc-now]
+use ../time/utc.nu [utc-now]
 
 def suites-dir [] {
     (get-ocmts-root) | path join "artifacts/suites"
@@ -46,6 +46,8 @@ export def init-suite-record [
     let safe_id = (validate-suite-id $suite_id)
     let dir = ((suites-dir) | path join "runs")
     mkdir $dir
+    # schema_version: 2 - suite record format (suites/runs/<suite_id>.json).
+    # Distinct from suite-manifest.v1.json which uses schema_version: 1.
     let record = {
         schema_version: 2,
         suite_id: $safe_id,
@@ -163,10 +165,25 @@ export def record-suite-run-safe [
     }
 }
 
-# Compute suite overall status from outcome counts.
-# failed > 0 => "failed"; blocked > 0 and failed == 0 => "blocked"; else "passed".
-export def compute-suite-status [passed: int, failed: int, blocked: int] {
-    if $failed > 0 { "failed" } else if $blocked > 0 { "blocked" } else { "passed" }
+# Compute suite overall status from a list of cell statuses.
+# Precedence matches aggregate-status in ci/aggregate.nu: failed > running > blocked > missing > passed.
+# capability-skipped cells are transparent (all cap-skipped -> "passed").
+export def compute-suite-status [cell_statuses: list<string>] {
+    if ($cell_statuses | any {|s| (
+        ($s == "failed") or ($s == "infra-failed") or ($s == "cleanup-failed")
+    )}) {
+        "failed"
+    } else if ($cell_statuses | any {|s| $s == "running"}) {
+        "running"
+    } else if ($cell_statuses | any {|s| $s == "blocked"}) {
+        "blocked"
+    } else if ($cell_statuses | any {|s| $s == "missing"}) {
+        "missing"
+    } else if ($cell_statuses | all {|s| ($s == "passed") or ($s == "capability-skipped")}) {
+        "passed"
+    } else {
+        "unknown"
+    }
 }
 
 # Finalize a suite record: set status, counts, and finished_at.
@@ -186,7 +203,15 @@ export def finish-suite-record [
     if not ($path | path exists) {
         error make {msg: $"Suite record not found: ($path)"}
     }
-    let overall = (compute-suite-status $passed $failed $blocked)
+    # Build a synthetic status list from counts to feed compute-suite-status.
+    let status_list = (
+        (0..<$passed | each {"passed"})
+        | append (0..<$failed | each {"failed"})
+        | append (0..<$blocked | each {"blocked"})
+        | append (0..<$skipped | each {"missing"})
+        | append (0..<$capability_skipped | each {"capability-skipped"})
+    )
+    let overall = if ($status_list | is-empty) { "passed" } else { (compute-suite-status $status_list) }
     (open $path)
         | upsert status $overall
         | upsert finished_at (utc-now)

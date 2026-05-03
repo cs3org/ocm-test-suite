@@ -50,10 +50,6 @@ def main [
     # Default: delegate to run-all.nu
     let run_all = ($root | path join "scripts" "tests" "run-all.nu")
     print --stderr "Running all unit suites..."
-    if $human {
-        ^nu $run_all
-    } else {
-        ^nu $run_all
-    }
+    ^nu $run_all
     exit $env.LAST_EXIT_CODE
 }

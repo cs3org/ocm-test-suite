@@ -20,9 +20,10 @@
 
 use ../matrix/cells.nu [expand-matrix-cells]
 use ../matrix/gated-cells.nu [gate-cells-by-capabilities]
+use ../matrix/status-rank.nu [pick-worst-blocker]
 use ../run/execution-id.nu [new-execution-id]
 use ../suite/index.nu [new-suite-id]
-use ../run/metadata.nu [utc-now]
+use ../time/utc.nu [utc-now]
 
 # Build the canonical capability_id for a login-type capability.
 # Format: "<capability_flow>__<platform>-<version>"
@@ -104,25 +105,6 @@ export def compute-cell-depends-on [
             } | flatten
         }
     } | flatten | uniq
-}
-
-# Pick the worst blocker record from a blockers list.
-# Returns null when the list is empty.
-def pick-worst-blocker [blockers: list] {
-    if ($blockers | is-empty) { return null }
-    let rank = {
-        "supported": 0,
-        "placeholder": 1,
-        "test-implementation-pending": 2,
-        "vendor-unsupported": 3,
-        "vendor-out-of-scope": 4,
-    }
-    let scored = ($blockers | each {|b|
-        let s = ($b.status? | default "vendor-unsupported")
-        {rank: ($rank | get --optional $s | default 3), blocker: $b}
-    })
-    let max_rank = ($scored | get rank | math max)
-    ($scored | where rank == $max_rank | first | get blocker)
 }
 
 # Build a full CI plan from matrix rules, prerequisites config, flow capabilities,

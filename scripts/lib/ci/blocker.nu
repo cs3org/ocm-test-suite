@@ -5,9 +5,10 @@
 # "not-implemented". A blocked cell carries a failure_reason that names the
 # specific prerequisite cell_id that triggered the block.
 
-use ../run/metadata.nu [utc-now]
+use ../time/utc.nu [utc-now]
 use ../run/execution-id.nu [execution-artifacts-path]
 use ../publish/envelope.nu [publish-envelope-safe detect-execution-context collect-evidence]
+use ../run/result-envelope.nu [build-result-v1]
 
 # Evaluate the block state for every planned cell given a set of
 # already-failed cell_ids. Returns a list of records:
@@ -83,8 +84,7 @@ def write-terminal-result [
 ] {
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
-    let base = {
-        schema_version: 1,
+    let base_fields = {
         id: $"result-($execution_id)",
         run_id: $execution_id,
         execution_id: $execution_id,
@@ -107,7 +107,7 @@ def write-terminal-result [
         warnings: [],
         failure_reason: $failure_reason,
     }
-    ($base | merge $extra_fields) | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
+    (build-result-v1 ($base_fields | merge $extra_fields)) | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
 }
 
 # Write both run.json and result.v1.json for a terminal cell into artifacts_base/meta/.

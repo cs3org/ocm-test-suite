@@ -482,17 +482,17 @@ def test-transitive-blocked [] {
 def test-suite-status-with-blocked [] {
     test-log "\n[test-suite-status-with-blocked]"
     [
-        (assert-eq (compute-suite-status 5 0 0) "passed"
+        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "passed"]) "passed"
             "all passed -> passed")
-        (assert-eq (compute-suite-status 4 1 0) "failed"
+        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "failed"]) "failed"
             "one failed -> failed")
-        (assert-eq (compute-suite-status 4 0 1) "blocked"
+        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "blocked"]) "blocked"
             "one blocked, none failed -> blocked")
-        (assert-eq (compute-suite-status 3 1 1) "failed"
+        (assert-eq (compute-suite-status ["passed" "passed" "passed" "failed" "blocked"]) "failed"
             "failed and blocked -> failed (failed takes priority)")
-        (assert-eq (compute-suite-status 0 0 0) "passed"
+        (assert-eq (compute-suite-status []) "passed"
             "no cells -> passed")
-        (assert-eq (compute-suite-status 0 0 3) "blocked"
+        (assert-eq (compute-suite-status ["blocked" "blocked" "blocked"]) "blocked"
             "all blocked -> blocked")
     ]
 }

@@ -5,7 +5,7 @@
 # merged into one tree. The aggregated manifest preserves all runs, results,
 # cells, flows, and the suite-level index.
 
-use ../run/metadata.nu [utc-now]
+use ../time/utc.nu [utc-now]
 
 # Merge two suite-manifest records together (right-biased for top-level fields;
 # maps under flows/cells/runs/results/indexes are union-merged).
@@ -155,6 +155,8 @@ export def aggregate-suite-manifests-plan-aware [
     })
 
     # Synthesize runs entries for cap-skipped cells with a real execution_id.
+    # Includes envelope-rich fields (attempt_number, lifecycle_status, etc.) to match
+    # the shape produced by emit-capability-skipped-cell-artifact in ci/blocker.nu.
     let extra_runs = ($cap_skipped_missing_ids | reduce --fold {} {|id, acc|
         let r = ($cap_skipped_map | get --optional $id)
         let exec_id = ($r.execution_id? | default "")
@@ -166,10 +168,18 @@ export def aggregate-suite-manifests-plan-aware [
                 id: $exec_id,
                 execution_id: $exec_id,
                 cell_id: $id,
+                artifact_name: ($r.artifact_name? | default ""),
+                attempt_number: 1,
+                retry_of_run_id: null,
+                superseded_by_run_id: null,
+                lifecycle_status: "capability-skipped",
                 started_at: $generated_at,
                 finished_at: $generated_at,
                 status: "capability-skipped",
                 exit_code: 0,
+                execution_context: {capability_skipped: true},
+                evidence: [],
+                warnings: [],
             }
         }
     })
@@ -197,7 +207,7 @@ export def aggregate-suite-manifests-plan-aware [
         } else {
             "cell had no recorded outcome"
         }
-        $acc | insert $result_id {
+        mut result_rec = {
             schema_version: 1,
             id: $result_id,
             run_id: $exec_id,
@@ -206,8 +216,21 @@ export def aggregate-suite-manifests-plan-aware [
             exit_code: (if $is_cap_skipped { 0 } else { 1 }),
             status: (if $is_cap_skipped { "capability-skipped" } else { "missing" }),
             finished_at: $generated_at,
-            failure_reason: $failure_reason,
+            attempt_number: 1,
+            lifecycle_status: (if $is_cap_skipped { "capability-skipped" } else { "missing" }),
+            evidence: [],
+            warnings: [],
         }
+        if not ($failure_reason | is-empty) {
+            $result_rec = ($result_rec | upsert failure_reason $failure_reason)
+        }
+        if $is_cap_skipped {
+            let cap_skip = ($cap_rec.capability_skip? | default null)
+            if $cap_skip != null {
+                $result_rec = ($result_rec | upsert capability_skip $cap_skip)
+            }
+        }
+        $acc | insert $result_id $result_rec
     })
 
     let merged_cells = ($base.cells | merge $extra_cells)
@@ -382,9 +405,13 @@ export def reconstruct-suite-index [
         "passed" => "passed"
         "failed" => "failed"
         "blocked" => "blocked"
-        "missing" => "blocked"
+        "missing" => "missing"
         "running" => "running"
-        _ => "failed"
+        "unknown" => "unknown"
+        "capability-skipped" => "capability-skipped"
+        _ => {
+            error make {msg: $"reconstruct-suite-index: unknown aggregate status '($agg_status)'; expected one of: passed, failed, blocked, missing, running, unknown, capability-skipped"}
+        }
     }
 
     # Collect all cell_ids observed in cells map and results.
@@ -434,6 +461,8 @@ export def reconstruct-suite-index [
     )} | length)
     let capability_skipped_count = ($statuses | where {|s| $s == "capability-skipped"} | length)
 
+    # schema_version: 2 - suite record format (suites/runs/<suite_id>.json).
+    # Distinct from suite-manifest.v1.json which uses schema_version: 1.
     let suite_record = {
         schema_version: 2,
         suite_id: $suite_id,

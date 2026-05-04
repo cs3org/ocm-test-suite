@@ -2,7 +2,7 @@
 # Writes to <artifacts_base>/meta/images.v1.json.
 
 use ./inspect.nu [inspect-one-image]
-use ../time/utc.nu [now-utc]
+use ../time/utc.nu [utc-now]
 
 # Build and write images.v1.json for the given stack.
 # Two-party stacks emit 7 service entries; one-party emit 3.
@@ -84,7 +84,7 @@ export def emit-cell-images [
 
     let out = {
         schema_version: 1,
-        captured_at: (now-utc),
+        captured_at: (utc-now),
         stack_id: $stack_id,
         services: $services,
     }

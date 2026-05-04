@@ -1,25 +1,6 @@
 /// <reference types="cypress" />
 
-import type { LoginAdapter } from "../../../contracts/login";
-import {
-  assertNextcloudLoggedIn,
-  loginNextcloudViaUi,
-  openNextcloudLoginPage,
-  submitNextcloudLoginForm,
-} from "../shared/login";
+import { createNextcloudLoginAdapter } from "../shared/login-impl";
 
-export const nextcloudV32LoginAdapter: LoginAdapter = {
-  key: "nextcloud/v32",
-  openLoginPage() {
-    openNextcloudLoginPage();
-  },
-  submitLogin(credentials) {
-    submitNextcloudLoginForm(credentials);
-  },
-  login(credentials) {
-    loginNextcloudViaUi(credentials);
-  },
-  assertLoggedIn() {
-    assertNextcloudLoggedIn();
-  },
-};
+const loginAdapter = createNextcloudLoginAdapter("v32");
+export const nextcloudV32LoginAdapter = loginAdapter;

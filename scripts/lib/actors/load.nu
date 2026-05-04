@@ -35,6 +35,41 @@ def assert-file-has-real-overrides [cfg: record, cfg_rel_path: string] {
     }
 }
 
+# Private: load and resolve credentials for one role from a scenario's config file.
+# role: "actor" | "sender" | "receiver"
+# matrix_platform_fn: closure that extracts the platform from the matrix entry.
+def load-role-for-scenario [
+    scenario: string,
+    root: string,
+    expected_platform: string,
+    role: string,
+    matrix_platform_fn: closure,
+] {
+    validate-path-segment $scenario "scenario"
+    let cfg_path = ($root | path join $"config/actors/scenarios/($scenario).nuon")
+    let cfg_rel_path = $"config/actors/scenarios/($scenario).nuon"
+    let cfg = if ($cfg_path | path exists) {
+        let loaded = (open $cfg_path)
+        assert-file-has-real-overrides $loaded $cfg_rel_path
+        $loaded
+    } else {
+        {}
+    }
+
+    let role_cfg = ($cfg | get --optional $role | default {})
+    let cfg_platform = ($role_cfg.platform? | default "")
+    let cfg_account = ($role_cfg.account? | default "")
+
+    let matrix = (load-matrix-scenario $root $scenario)
+    let flow_id = (if $matrix == null { "" } else { $matrix.flow_id? | default "" })
+    let matrix_platform = do $matrix_platform_fn $matrix
+
+    let defaults = (load-actor-defaults $root)
+    let platform = (resolve-platform $cfg_platform $expected_platform $matrix_platform $role)
+    let account = (resolve-account $defaults $flow_id $role $platform $cfg_account $role)
+    load-account-credentials $root $platform $account $role
+}
+
 # Load actor credentials for a one-party scenario (actor field).
 # Resolves via matrix + defaults when no override file is present.
 # expected_platform: if non-empty, used when the override file omits
@@ -46,29 +81,9 @@ export def load-actor-for-scenario [
     root: string,
     expected_platform: string = "",
 ]: nothing -> any {
-    validate-path-segment $scenario "scenario"
-    let cfg_path = ($root | path join $"config/actors/scenarios/($scenario).nuon")
-    let cfg_rel_path = $"config/actors/scenarios/($scenario).nuon"
-    let cfg = if ($cfg_path | path exists) {
-        let loaded = (open $cfg_path)
-        assert-file-has-real-overrides $loaded $cfg_rel_path
-        $loaded
-    } else {
-        {}
+    load-role-for-scenario $scenario $root $expected_platform "actor" {|matrix|
+        if $matrix == null { "" } else { $matrix.sender?.platform? | default "" }
     }
-
-    let role_cfg = ($cfg.actor? | default {})
-    let cfg_platform = ($role_cfg.platform? | default "")
-    let cfg_account = ($role_cfg.account? | default "")
-
-    let matrix = (load-matrix-scenario $root $scenario)
-    let matrix_platform = (if $matrix == null { "" } else { $matrix.sender?.platform? | default "" })
-    let flow_id = (if $matrix == null { "" } else { $matrix.flow_id? | default "" })
-
-    let defaults = (load-actor-defaults $root)
-    let platform = (resolve-platform $cfg_platform $expected_platform $matrix_platform "actor")
-    let account = (resolve-account $defaults $flow_id "actor" $platform $cfg_account "actor")
-    load-account-credentials $root $platform $account "actor"
 }
 
 # Load sender credentials for a two-party scenario (sender field).
@@ -80,29 +95,9 @@ export def load-sender-for-scenario [
     root: string,
     expected_platform: string = "",
 ]: nothing -> any {
-    validate-path-segment $scenario "scenario"
-    let cfg_path = ($root | path join $"config/actors/scenarios/($scenario).nuon")
-    let cfg_rel_path = $"config/actors/scenarios/($scenario).nuon"
-    let cfg = if ($cfg_path | path exists) {
-        let loaded = (open $cfg_path)
-        assert-file-has-real-overrides $loaded $cfg_rel_path
-        $loaded
-    } else {
-        {}
+    load-role-for-scenario $scenario $root $expected_platform "sender" {|matrix|
+        if $matrix == null { "" } else { $matrix.sender?.platform? | default "" }
     }
-
-    let role_cfg = ($cfg.sender? | default {})
-    let cfg_platform = ($role_cfg.platform? | default "")
-    let cfg_account = ($role_cfg.account? | default "")
-
-    let matrix = (load-matrix-scenario $root $scenario)
-    let matrix_platform = (if $matrix == null { "" } else { $matrix.sender?.platform? | default "" })
-    let flow_id = (if $matrix == null { "" } else { $matrix.flow_id? | default "" })
-
-    let defaults = (load-actor-defaults $root)
-    let platform = (resolve-platform $cfg_platform $expected_platform $matrix_platform "sender")
-    let account = (resolve-account $defaults $flow_id "sender" $platform $cfg_account "sender")
-    load-account-credentials $root $platform $account "sender"
 }
 
 # Load receiver credentials for a two-party scenario (receiver field).
@@ -116,16 +111,6 @@ export def load-receiver-for-scenario [
     expected_platform: string = "",
 ]: nothing -> any {
     validate-path-segment $scenario "scenario"
-    let cfg_path = ($root | path join $"config/actors/scenarios/($scenario).nuon")
-    let cfg_rel_path = $"config/actors/scenarios/($scenario).nuon"
-    let cfg = if ($cfg_path | path exists) {
-        let loaded = (open $cfg_path)
-        assert-file-has-real-overrides $loaded $cfg_rel_path
-        $loaded
-    } else {
-        {}
-    }
-
     let matrix = (load-matrix-scenario $root $scenario)
     let flow_id = (if $matrix == null { "" } else { $matrix.flow_id? | default "" })
 
@@ -138,18 +123,11 @@ export def load-receiver-for-scenario [
         }
     }
 
-    let role_cfg = ($cfg.receiver? | default {})
-    let cfg_platform = ($role_cfg.platform? | default "")
-    let cfg_account = ($role_cfg.account? | default "")
-
-    let matrix_platform = (if $matrix == null { "" } else {
-        if $matrix.receiver? == null { "" } else { $matrix.receiver.platform? | default "" }
-    })
-
-    let defaults = (load-actor-defaults $root)
-    let platform = (resolve-platform $cfg_platform $expected_platform $matrix_platform "receiver")
-    let account = (resolve-account $defaults $flow_id "receiver" $platform $cfg_account "receiver")
-    load-account-credentials $root $platform $account "receiver"
+    load-role-for-scenario $scenario $root $expected_platform "receiver" {|matrix|
+        if $matrix == null { "" } else {
+            if $matrix.receiver? == null { "" } else { $matrix.receiver.platform? | default "" }
+        }
+    }
 }
 
 # List scenario basenames that have an override file in config/actors/scenarios/.

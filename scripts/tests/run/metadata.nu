@@ -4,7 +4,7 @@
 
 const SUITE_PATH = path self
 
-use ../../lib/run/metadata.nu [write-terminal-outcome]
+use ../../lib/run/metadata.nu [write-terminal-outcome read-run-meta]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/suite/index.nu [
@@ -15,6 +15,7 @@ use ../../lib/suite/index.nu [
     read-suite-record
     compute-suite-status
 ]
+use ../../lib/run/status.nu [run-status-precedence]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
@@ -211,21 +212,14 @@ def test-record-skipped-run-appends-entry [] {
     $results
 }
 
-def test-compute-suite-status-precedence-unchanged [] {
-    test-log "\n[test-compute-suite-status-precedence-unchanged]"
+# Thin delegation check: compute-suite-status must agree with run-status-precedence.
+# Canonical precedence coverage lives in scripts/tests/run/status.nu.
+def test-compute-suite-status-delegates [] {
+    test-log "\n[test-compute-suite-status-delegates]"
+    let input = ["passed" "failed" "blocked"]
     [
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "passed"]) "passed"
-            "all passed -> passed")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "failed"]) "failed"
-            "one failed -> failed")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "blocked"]) "blocked"
-            "one blocked, none failed -> blocked")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "failed" "blocked"]) "failed"
-            "failed and blocked -> failed (failed wins)")
-        (assert-eq (compute-suite-status []) "passed"
-            "no cells -> passed")
-        (assert-eq (compute-suite-status ["blocked" "blocked" "blocked"]) "blocked"
-            "all blocked -> blocked")
+        (assert-eq (compute-suite-status $input) (run-status-precedence $input)
+            "compute-suite-status delegates to run-status-precedence")
     ]
 }
 
@@ -289,6 +283,62 @@ def test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked [] {
     $results
 }
 
+# ---- read-run-meta tests ----
+
+def test-read-run-meta-happy-path [] {
+    test-log "\n[test-read-run-meta-happy-path]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    let payload = {schema_version: 1, execution_id: "exec-001", stack_id: "ocmts-stack", status: "active"}
+    $payload | to json | save --force ($tmp | path join "meta/run.json")
+    let meta = (read-run-meta $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq ($meta.stack_id? | default "") "ocmts-stack"
+            "read-run-meta returns stack_id from run.json")
+        (assert-eq ($meta.status? | default "") "active"
+            "read-run-meta returns full record including status")
+    ]
+}
+
+def test-read-run-meta-missing-file-errors [] {
+    test-log "\n[test-read-run-meta-missing-file-errors]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    let result = (try { read-run-meta $tmp; "no-error" } catch {|e| "error"})
+    ^rm -rf $tmp
+    [
+        (assert-eq $result "error"
+            "read-run-meta errors when meta/run.json is absent")
+    ]
+}
+
+def test-read-run-meta-missing-stack-id-errors [] {
+    test-log "\n[test-read-run-meta-missing-stack-id-errors]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    {schema_version: 1, execution_id: "exec-001"} | to json | save --force ($tmp | path join "meta/run.json")
+    let result = (try { read-run-meta $tmp; "no-error" } catch {|e| "error"})
+    ^rm -rf $tmp
+    [
+        (assert-eq $result "error"
+            "read-run-meta errors when stack_id is absent")
+    ]
+}
+
+def test-read-run-meta-empty-stack-id-errors [] {
+    test-log "\n[test-read-run-meta-empty-stack-id-errors]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    {schema_version: 1, execution_id: "exec-001", stack_id: ""} | to json | save --force ($tmp | path join "meta/run.json")
+    let result = (try { read-run-meta $tmp; "no-error" } catch {|e| "error"})
+    ^rm -rf $tmp
+    [
+        (assert-eq $result "error"
+            "read-run-meta errors when stack_id is empty string")
+    ]
+}
+
 def main [] {
     test-log "=== Run Metadata + Suite Index Tests ==="
     let results = (
@@ -297,8 +347,12 @@ def main [] {
         | append (test-write-terminal-outcome-suite-fields)
         | append (test-finish-suite-record-skipped-count)
         | append (test-record-skipped-run-appends-entry)
-        | append (test-compute-suite-status-precedence-unchanged)
+        | append (test-compute-suite-status-delegates)
         | append (test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked)
+        | append (test-read-run-meta-happy-path)
+        | append (test-read-run-meta-missing-file-errors)
+        | append (test-read-run-meta-missing-stack-id-errors)
+        | append (test-read-run-meta-empty-stack-id-errors)
     ) | flatten
     run-suite "run/metadata" $SUITE_PATH $results
 }

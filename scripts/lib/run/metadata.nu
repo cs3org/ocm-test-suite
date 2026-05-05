@@ -15,6 +15,21 @@
 use ../publish/envelope.nu [detect-execution-context collect-evidence]
 use ./result-envelope.nu [build-result-v1]
 
+# Open meta/run.json for artifacts_base, error fast if missing or stack_id empty.
+# Returns the full run record so callers can access any field.
+export def read-run-meta [artifacts_base: string]: nothing -> record {
+    let run_path = ($artifacts_base | path join "meta/run.json")
+    if not ($run_path | path exists) {
+        error make {msg: $"No meta/run.json found in ($artifacts_base). Run 'services up' first."}
+    }
+    let meta = (open $run_path)
+    let stack_id = ($meta.stack_id? | default "")
+    if ($stack_id | is-empty) {
+        error make {msg: $"meta/run.json in ($artifacts_base) has no stack_id."}
+    }
+    $meta
+}
+
 # Write initial run.json in "prepared" state.
 export def write-prepared-run [
     artifacts_base: string,

@@ -12,7 +12,8 @@
 #   op.provider-identity   - provider identity lookup is one-party (receiver-initiated but roleless)
 #
 # These three are the ONLY allowed roleless capabilities. Any new one-party capability
-# must be added to the allowlist in scripts/lib/matrix/check/capabilities.nu and
+# must be added to the allowlist in scripts/lib/matrix/check/flow-drift.nu
+# (ROLELESS_CAPABILITY_ALLOWLIST / validate-capability-name-shape) and
 # documented here with a rationale.
 {
   "schema_version": 1,

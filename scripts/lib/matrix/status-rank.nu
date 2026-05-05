@@ -32,7 +32,10 @@ export def pick-worst-blocker [blockers: list] {
     if ($blockers | is-empty) { return null }
     let scored = ($blockers | each {|b|
         let s = ($b.status? | default "vendor-unsupported")
-        let r = ($STATUS_RANK | get --optional $s | default 3)
+        let r = ($STATUS_RANK | get --optional $s)
+        let r = if $r != null { $r } else {
+            error make {msg: $"pick-worst-blocker: unknown status '($s)'; expected one of: supported, placeholder, test-implementation-pending, vendor-unsupported, vendor-out-of-scope"}
+        }
         {rank: $r, blocker: $b}
     })
     let max_rank = ($scored | get rank | math max)

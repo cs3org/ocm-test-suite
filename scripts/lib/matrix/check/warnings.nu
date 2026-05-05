@@ -19,6 +19,10 @@ export def collect-status-warnings [adapters: record] {
                 if not $has_rationale {
                     {message: $"($row.adapter_key) / ($cap_row.cap_key) \(status=vendor-out-of-scope\): no rationale"}
                 }
+            } else if $status != "supported" {
+                if ((not $has_tracking_note) and (not $has_rationale)) {
+                    {message: $"($row.adapter_key) / ($cap_row.cap_key) \(status=($status)\): no tracking_note or rationale"}
+                }
             }
         } | compact
     } | flatten

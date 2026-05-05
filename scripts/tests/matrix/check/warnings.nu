@@ -120,6 +120,40 @@ def test-out-of-scope-with-rationale-ok [] {
     ]
 }
 
+# Unrecognized non-supported status without tracking_note or rationale -> warning.
+def test-unknown-status-no-note-or-rationale-warns [] {
+    test-log "\n[test-unknown-status-no-note-or-rationale-warns]"
+    let adapters = {
+        "nextcloud/v32": {capabilities: {
+            "flow.future-flow.sender": {status: "experimental"},
+        }},
+    }
+    let warnings = (collect-status-warnings $adapters)
+    [
+        (assert-truthy (($warnings | length) == 1)
+            "exactly one warning for unknown status with no tracking_note or rationale")
+        (assert-truthy ($warnings | any {|w| $w.message | str contains "experimental"})
+            "warning message names the status")
+        (assert-truthy ($warnings | any {|w| $w.message | str contains "flow.future-flow.sender"})
+            "warning message names the capability")
+    ]
+}
+
+# Unrecognized non-supported status with rationale: no warning.
+def test-unknown-status-with-rationale-ok [] {
+    test-log "\n[test-unknown-status-with-rationale-ok]"
+    let adapters = {
+        "nextcloud/v32": {capabilities: {
+            "flow.future-flow.sender": {status: "experimental", rationale: "Early preview only"},
+        }},
+    }
+    let warnings = (collect-status-warnings $adapters)
+    [
+        (assert-eq $warnings []
+            "no warning when rationale is present for unknown non-supported status")
+    ]
+}
+
 def main [] {
     test-log "=== matrix/check/warnings Tests ==="
     let results = ([]
@@ -130,6 +164,8 @@ def main [] {
         | append (test-vendor-unsupported-no-tracking-warns)
         | append (test-out-of-scope-no-rationale-warns)
         | append (test-out-of-scope-with-rationale-ok)
+        | append (test-unknown-status-no-note-or-rationale-warns)
+        | append (test-unknown-status-with-rationale-ok)
     )
     run-suite "matrix/check/warnings" $SUITE_PATH $results
 }

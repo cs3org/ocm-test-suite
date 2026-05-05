@@ -86,6 +86,17 @@ def test-pick-worst-blocker-missing-status [] {
     ]
 }
 
+# Blockers with a present but unrecognized status must error fast, not silently default.
+def test-pick-worst-blocker-unknown-status-errors [] {
+    test-log "\n[test-pick-worst-blocker-unknown-status-errors]"
+    let b = {status: "totally-made-up", capability: "op.login"}
+    let result = (try { pick-worst-blocker [$b]; "no-error" } catch {|e| "error"})
+    [
+        (assert-eq $result "error"
+            "pick-worst-blocker errors on unknown status string")
+    ]
+}
+
 def main [] {
     test-log "=== matrix/status-rank tests ==="
     let results = (
@@ -98,6 +109,7 @@ def main [] {
         | append (test-pick-worst-blocker-single)
         | append (test-pick-worst-blocker-multiple)
         | append (test-pick-worst-blocker-missing-status)
+        | append (test-pick-worst-blocker-unknown-status-errors)
     ) | flatten
     run-suite "matrix/status-rank" $SUITE_PATH $results
 }

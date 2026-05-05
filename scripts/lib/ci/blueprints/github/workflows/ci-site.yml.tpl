@@ -79,7 +79,7 @@ jobs:
           DIRS=$(find artifacts/optimized -mindepth 1 -maxdepth 1 -type d 2>/dev/null | tr '\n' ' ')
           if [ -n "$DIRS" ]; then
             nu scripts/ocmts.nu artifacts aggregate-optimized-media \
-              --out-dir artifacts/optimized-summary/ \
+              --output-dir artifacts/optimized-summary/ \
               $DIRS
           else
             echo "No optimized media artifact dirs found; skipping aggregate" >&2

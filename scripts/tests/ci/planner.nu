@@ -13,6 +13,7 @@ use ../../lib/ci/planner.nu [
 use ../../lib/ci/blocker.nu [eval-blocked-cells]
 use ../../lib/ci/aggregate.nu [aggregate-suite-manifests build-aggregate-summary aggregate-status reconstruct-suite-index]
 use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
+use ../../lib/run/status.nu [run-status-precedence]
 use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml
     build-run-wave-yml
@@ -25,7 +26,7 @@ use ../../lib/ci/workflow-gen.nu [
 use ../../lib/ci/template-renderer.nu [render-template]
 use ../../lib/suite/index.nu [compute-suite-status]
 use ../../lib/tests/assert.nu *
-use ../../lib/tests/fixtures.nu [materialize-provenance-stubs]
+use ../../lib/tests/fixtures.nu [materialize-provenance-stubs make-cell]
 use ../../lib/tests/runner.nu [run-suite]
 
 # Minimal matrix rules fixture covering key cases.
@@ -417,45 +418,25 @@ def test-workflow-no-baked-ids [] {
 def test-transitive-blocked [] {
     test-log "\n[test-transitive-blocked]"
     # Three-level chain: A (fails) -> B (blocked) -> C (should be transitively blocked)
-    let cell_a = {
-        cell_id: "a",
-        flow_id: "login",
-        scenario: "login",
-        sender_platform: "nextcloud",
-        sender_version: "v34",
-        receiver_platform: "",
-        receiver_version: "",
-        is_two_party: false,
-        execution_id: "20260101t000000-aaaaaaaa",
-        capabilities_produced: [],
-        depends_on: [],
-    }
-    let cell_b = {
+    let cell_a = (make-cell {cell_id: "a"})
+    let cell_b = (make-cell {
         cell_id: "b",
         flow_id: "share-with",
         scenario: "share-with",
-        sender_platform: "nextcloud",
-        sender_version: "v34",
         receiver_platform: "nextcloud",
         receiver_version: "v34",
         is_two_party: true,
-        execution_id: "20260101t000001-bbbbbbbb",
-        capabilities_produced: [],
         depends_on: ["a"],
-    }
-    let cell_c = {
+    })
+    let cell_c = (make-cell {
         cell_id: "c",
         flow_id: "share-with",
         scenario: "share-with",
-        sender_platform: "nextcloud",
-        sender_version: "v34",
         receiver_platform: "nextcloud",
         receiver_version: "v34",
         is_two_party: true,
-        execution_id: "20260101t000002-cccccccc",
-        capabilities_produced: [],
         depends_on: ["b"],
-    }
+    })
 
     # Step 1: A fails -> B is blocked
     let failed_ids = ["a"]
@@ -479,21 +460,16 @@ def test-transitive-blocked [] {
     ]
 }
 
-def test-suite-status-with-blocked [] {
-    test-log "\n[test-suite-status-with-blocked]"
+# Thin delegation check: wrappers must agree with run-status-precedence.
+# Canonical precedence coverage lives in scripts/tests/run/status.nu.
+def test-precedence-wrappers-delegate [] {
+    test-log "\n[test-precedence-wrappers-delegate]"
+    let input = ["passed" "infra-failed" "blocked"]
     [
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "passed"]) "passed"
-            "all passed -> passed")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "failed"]) "failed"
-            "one failed -> failed")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "passed" "blocked"]) "blocked"
-            "one blocked, none failed -> blocked")
-        (assert-eq (compute-suite-status ["passed" "passed" "passed" "failed" "blocked"]) "failed"
-            "failed and blocked -> failed (failed takes priority)")
-        (assert-eq (compute-suite-status []) "passed"
-            "no cells -> passed")
-        (assert-eq (compute-suite-status ["blocked" "blocked" "blocked"]) "blocked"
-            "all blocked -> blocked")
+        (assert-eq (compute-suite-status $input) (run-status-precedence $input)
+            "compute-suite-status delegates to run-status-precedence")
+        (assert-eq (aggregate-status $input) (run-status-precedence $input)
+            "aggregate-status delegates to run-status-precedence")
     ]
 }
 
@@ -656,20 +632,6 @@ def test-site-publish-artifacts-root [] {
     ]
 }
 
-def test-aggregate-status-cleanup-failed [] {
-    test-log "\n[test-aggregate-status-cleanup-failed]"
-    [
-        (assert-eq (aggregate-status ["cleanup-failed"])
-            "failed"
-            "cleanup-failed alone -> aggregate_status failed")
-        (assert-eq (aggregate-status ["passed" "cleanup-failed"])
-            "failed"
-            "passed + cleanup-failed -> aggregate_status failed")
-        (assert-eq (aggregate-status ["cleanup-failed" "blocked"])
-            "failed"
-            "cleanup-failed + blocked -> aggregate_status failed (failed takes priority)")
-    ]
-}
 
 def test-nushell-version-from-config [] {
     test-log "\n[test-nushell-version-from-config]"
@@ -976,51 +938,31 @@ def fixture-plan-with-multi-dep [] {
     {
         suite_id: "multi-dep-suite",
         cells: [
-            {
+            (make-cell {
                 cell_id: "login__nextcloud-v33",
                 artifact_name: "cell-login-nextcloud-v33",
-                scenario: "login",
-                sender_platform: "nextcloud",
                 sender_version: "v33",
-                receiver_platform: "",
-                receiver_version: "",
-                is_two_party: false,
-                depends_on: [],
-                flow_id: "login",
                 execution_id: "exec-001",
                 capabilities_produced: ["login__nextcloud-v33"],
-                capability_action: "run",
-            },
-            {
+            }),
+            (make-cell {
                 cell_id: "login__nextcloud-v34",
                 artifact_name: "cell-login-nextcloud-v34",
-                scenario: "login",
-                sender_platform: "nextcloud",
-                sender_version: "v34",
-                receiver_platform: "",
-                receiver_version: "",
-                is_two_party: false,
-                depends_on: [],
-                flow_id: "login",
                 execution_id: "exec-002",
                 capabilities_produced: ["login__nextcloud-v34"],
-                capability_action: "run",
-            },
-            {
+            }),
+            (make-cell {
                 cell_id: "share-with__nextcloud-v34__nextcloud-v33",
                 artifact_name: "cell-share-with-nextcloud-v34-nextcloud-v33",
                 scenario: "share-with",
-                sender_platform: "nextcloud",
-                sender_version: "v34",
+                flow_id: "share-with",
                 receiver_platform: "nextcloud",
                 receiver_version: "v33",
                 is_two_party: true,
-                depends_on: ["login__nextcloud-v34" "login__nextcloud-v33"],
-                flow_id: "share-with",
                 execution_id: "exec-003",
+                depends_on: ["login__nextcloud-v34" "login__nextcloud-v33"],
                 capabilities_produced: [],
-                capability_action: "run",
-            },
+            }),
         ]
     }
 }
@@ -1886,8 +1828,8 @@ def test-run-cell-has-optimize-media-step [] {
             "ci-run-cell.yml calls optimize-media command")
         (assert-truthy ($run_cell_yml | str contains "--raw-dir artifacts/")
             "ci-run-cell.yml passes --raw-dir to optimize-media")
-        (assert-truthy ($run_cell_yml | str contains "--out-dir artifacts-optimized/")
-            "ci-run-cell.yml passes --out-dir artifacts-optimized/ to optimize-media")
+        (assert-truthy ($run_cell_yml | str contains "--output-dir artifacts-optimized/")
+            "ci-run-cell.yml passes --output-dir artifacts-optimized/ to optimize-media")
         (assert-truthy ($run_cell_yml | str contains "continue-on-error: true")
             "optimize-media step has continue-on-error: true")
     ]
@@ -2253,29 +2195,6 @@ def test-build-ci-matrix-yml-excludes-cap-skipped-only-flow [] {
     ]
 }
 
-def test-aggregate-status-cap-skipped [] {
-    test-log "\n[test-aggregate-status-cap-skipped]"
-    [
-        (assert-eq (aggregate-status ["passed" "capability-skipped"])
-            "passed"
-            "passed + capability-skipped => passed")
-        (assert-eq (aggregate-status ["capability-skipped"])
-            "passed"
-            "all capability-skipped => passed")
-        (assert-eq (aggregate-status ["capability-skipped" "capability-skipped"])
-            "passed"
-            "multiple capability-skipped => passed")
-        (assert-eq (aggregate-status ["passed" "capability-skipped" "failed"])
-            "failed"
-            "any failed + capability-skipped => failed")
-        (assert-eq (aggregate-status ["capability-skipped" "blocked"])
-            "blocked"
-            "blocked + capability-skipped => blocked")
-        (assert-eq (aggregate-status ["capability-skipped" "missing"])
-            "missing"
-            "missing + capability-skipped => missing")
-    ]
-}
 
 def test-aggregate-summary-cap-skipped [] {
     test-log "\n[test-aggregate-summary-cap-skipped]"
@@ -2542,6 +2461,181 @@ def test-emit-capability-skipped-cell-artifact [] {
     ]
 }
 
+def test-synthesized-result-no-lifecycle-status [] {
+    test-log "\n[test-synthesized-result-no-lifecycle-status]"
+    use ../../lib/ci/aggregate.nu [aggregate-suite-manifests-plan-aware]
+    let cap_b = {
+        cell_id: "b",
+        flow_id: "login",
+        pair: "opencloud-v6",
+        artifact_name: "cell-login-opencloud-v6",
+        scenario: "login",
+        sender_platform: "opencloud",
+        sender_version: "v6",
+        receiver_platform: "",
+        receiver_version: "",
+        is_two_party: false,
+        execution_id: "20260101t000000-aabbccdd",
+        capability_skip: {rationale: "not implemented"},
+    }
+    # No artifact dirs: both cells synthesized (b = cap-skipped, c = missing).
+    let manifest = (aggregate-suite-manifests-plan-aware
+        [] "suite-test" ["b" "c"]
+        --capability-skipped-cells [$cap_b])
+    let b_result = ($manifest.results | get "result-capability-skipped-b")
+    let c_result = ($manifest.results | get "result-missing-c")
+    [
+        (assert-truthy (not ("lifecycle_status" in ($b_result | columns)))
+            "cap-skipped synthesized result must NOT carry lifecycle_status")
+        (assert-truthy (not ("lifecycle_status" in ($c_result | columns)))
+            "missing synthesized result must NOT carry lifecycle_status")
+        (assert-eq ($b_result.schema_version? | default 0) 1
+            "cap-skipped result schema_version is 1")
+        (assert-eq ($c_result.schema_version? | default 0) 1
+            "missing result schema_version is 1")
+    ]
+}
+
+def test-synthesized-run-lifecycle-status-completed [] {
+    test-log "\n[test-synthesized-run-lifecycle-status-completed]"
+    use ../../lib/ci/aggregate.nu [aggregate-suite-manifests-plan-aware]
+    let cap_b = {
+        cell_id: "b",
+        flow_id: "login",
+        pair: "opencloud-v6",
+        artifact_name: "cell-login-opencloud-v6",
+        scenario: "login",
+        sender_platform: "opencloud",
+        sender_version: "v6",
+        receiver_platform: "",
+        receiver_version: "",
+        is_two_party: false,
+        execution_id: "20260101t000000-aabbccdd",
+        capability_skip: {rationale: "not implemented"},
+    }
+    let manifest = (aggregate-suite-manifests-plan-aware
+        [] "suite-test" ["b"]
+        --capability-skipped-cells [$cap_b])
+    let b_run = ($manifest.runs | get --optional "20260101t000000-aabbccdd")
+    [
+        (assert-truthy ($b_run != null)
+            "synthesized run exists for cap-skipped cell with execution_id")
+        (assert-eq ($b_run.lifecycle_status? | default "") "completed"
+            "synthesized RUN lifecycle_status must be 'completed', not 'capability-skipped'")
+        (assert-eq ($b_run.status? | default "") "capability-skipped"
+            "synthesized RUN status field stays 'capability-skipped'")
+    ]
+}
+
+def test-aggregate-result-shape-via-build-result-v1 [] {
+    test-log "\n[test-aggregate-result-shape-via-build-result-v1]"
+    use ../../lib/ci/aggregate.nu [aggregate-suite-manifests-plan-aware]
+    use ../../lib/run/result-envelope.nu [build-result-v1]
+    let cap_b = {
+        cell_id: "b",
+        flow_id: "login",
+        pair: "opencloud-v6",
+        artifact_name: "cell-login-opencloud-v6",
+        scenario: "login",
+        sender_platform: "opencloud",
+        sender_version: "v6",
+        receiver_platform: "",
+        receiver_version: "",
+        is_two_party: false,
+        execution_id: "20260101t000000-aabbccdd",
+        capability_skip: {rationale: "not implemented"},
+    }
+    let manifest = (aggregate-suite-manifests-plan-aware
+        [] "suite-test" ["b" "c"]
+        --capability-skipped-cells [$cap_b])
+    let b_result = ($manifest.results | get "result-capability-skipped-b")
+    let c_result = ($manifest.results | get "result-missing-c")
+    # Required fields from build-result-v1 schema must be present.
+    let required = ["schema_version" "id" "run_id" "execution_id" "cell_id" "status" "exit_code"]
+    let b_cols = ($b_result | columns)
+    let c_cols = ($c_result | columns)
+    [
+        (assert-truthy (not ("lifecycle_status" in $b_cols))
+            "cap-skipped result: lifecycle_status absent (build-result-v1 SSOT)")
+        (assert-truthy (not ("lifecycle_status" in $c_cols))
+            "missing result: lifecycle_status absent (build-result-v1 SSOT)")
+        (assert-truthy (($required | all {|f| $f in $b_cols}))
+            "cap-skipped result has all required build-result-v1 fields")
+        (assert-truthy (($required | all {|f| $f in $c_cols}))
+            "missing result has all required build-result-v1 fields")
+        (assert-eq ($b_result.status? | default "") "capability-skipped"
+            "cap-skipped result status preserved via build-result-v1")
+        (assert-eq ($c_result.status? | default "") "missing"
+            "missing result status preserved via build-result-v1")
+        (assert-truthy (not ("attempt_number" in $b_cols))
+            "attempt_number is absent from result (not in build-result-v1 schema)")
+    ]
+}
+
+def test-site-ingest-cap-skipped-fallback-non-empty-exec-id [] {
+    test-log "\n[test-site-ingest-cap-skipped-fallback-non-empty-exec-id]"
+    use ../../lib/site/ingest.nu [ingest-site]
+    let tmp = (^mktemp -d | str trim)
+    materialize-provenance-stubs $tmp
+    let artifacts_root = ($tmp | path join "artifacts")
+    let public_dir = ($tmp | path join "public")
+    let ts = "2026-01-01T00:00:00Z"
+    let suite_id = "20260101t000000-aabbccff"
+    let rules = {scenarios: {}}
+
+    # Write suite index with a cap-skipped run that has a non-empty execution_id
+    # but NO manifest file on disk - this is the I3 scenario.
+    let suites_dir = ($artifacts_root | path join "suites")
+    let runs_dir = ($suites_dir | path join "runs")
+    mkdir $runs_dir
+    let suite_record = {
+        schema_version: 2,
+        suite_id: $suite_id,
+        suite_kind: "aggregated",
+        started_at: $ts, finished_at: $ts,
+        status: "passed",
+        scheduled_cells: ["cell-cap-skipped"],
+        runs: [
+            {
+                flow_id: "login",
+                pair: "opencloud-v6",
+                execution_id: "20260101t000000-skipexec",
+                cell_id: "cell-cap-skipped",
+                artifact_name: "cell-login-opencloud-v6",
+                status: "capability-skipped",
+                exit_code: 0,
+                started_at: $ts,
+                finished_at: $ts,
+            }
+        ],
+        passed_count: 0, failed_count: 0, blocked_count: 0,
+        capability_skipped_count: 1,
+    }
+    $suite_record | to json --indent 2 | save --force ($runs_dir | path join $"($suite_id).json")
+    $suite_id | save --force ($suites_dir | path join "LATEST_SUITE_ID")
+    # Deliberately do NOT create the manifest file at:
+    # artifacts/login/opencloud-v6/20260101t000000-skipexec/meta/suite-manifest.v1.json
+
+    ingest-site $artifacts_root $rules $tmp $public_dir --latest-suite
+
+    let site_manifest_path = ($public_dir | path join "suite-manifest.v1.json")
+    let site_manifest_exists = ($site_manifest_path | path exists)
+    let site_manifest = if $site_manifest_exists { open $site_manifest_path } else { {} }
+    let all_results = ($site_manifest.results? | default {} | transpose k v | each {|r| $r.v})
+    let cap_results = ($all_results | where {|r| ($r.status? | default "") == "capability-skipped"})
+    ^rm -rf $tmp
+    [
+        (assert-truthy $site_manifest_exists
+            "ingest-site writes suite-manifest.v1.json")
+        (assert-eq ($cap_results | length) 1
+            "site-ingest B3 fallback fires for non-empty exec_id when manifest missing")
+        (assert-truthy (not ($cap_results | is-empty))
+            "synthesized capability-skipped result present in site manifest")
+        (assert-truthy (not ("lifecycle_status" in (($cap_results | first) | columns)))
+            "synthesized site-ingest cap-skipped result has no lifecycle_status")
+    ]
+}
+
 def main [] {
     test-log "=== CI Planner Tests ==="
     let results = (
@@ -2554,7 +2648,7 @@ def main [] {
         | append (test-blocked-result-status)
         | append (test-workflow-no-baked-ids)
         | append (test-transitive-blocked)
-        | append (test-suite-status-with-blocked)
+        | append (test-precedence-wrappers-delegate)
         | append (test-no-generated-timestamp)
         | append (test-setup-failure-guard)
         | append (test-blocked-output-check)
@@ -2565,7 +2659,6 @@ def main [] {
         | append (test-aggregate-cap-skipped-passthrough)
         | append (test-site-publish-downloads-cell-artifacts)
         | append (test-site-publish-artifacts-root)
-        | append (test-aggregate-status-cleanup-failed)
         | append (test-nushell-version-from-config)
         | append (test-no-unresolved-placeholders)
         | append (test-render-template-fails-on-unresolved)
@@ -2631,11 +2724,14 @@ def main [] {
         | append (test-build-flow-assets-excludes-cap-skipped)
         | append (test-build-flow-assets-omits-cap-skipped-only-flow)
         | append (test-build-ci-matrix-yml-excludes-cap-skipped-only-flow)
-        | append (test-aggregate-status-cap-skipped)
         | append (test-aggregate-summary-cap-skipped)
         | append (test-plan-aware-aggregate-synthesizes-cap-skipped)
         | append (test-reconstruct-suite-index-cap-skipped)
         | append (test-emit-capability-skipped-cell-artifact)
+        | append (test-synthesized-result-no-lifecycle-status)
+        | append (test-synthesized-run-lifecycle-status-completed)
+        | append (test-aggregate-result-shape-via-build-result-v1)
+        | append (test-site-ingest-cap-skipped-fallback-non-empty-exec-id)
     ) | flatten
     run-suite "ci/planner" $SUITE_PATH $results
 }

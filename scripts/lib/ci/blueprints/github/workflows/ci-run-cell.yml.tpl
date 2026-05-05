@@ -150,7 +150,7 @@ jobs:
         run: |
           nu scripts/ocmts.nu artifacts optimize-media \
             --raw-dir artifacts/ \
-            --out-dir artifacts-optimized/
+            --output-dir artifacts-optimized/
       - name: Upload optimized media artifact
         if: always() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}'
         uses: actions/upload-artifact@v4

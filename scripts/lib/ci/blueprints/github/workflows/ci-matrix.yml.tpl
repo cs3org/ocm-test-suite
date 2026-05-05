@@ -84,6 +84,7 @@ jobs:
             sender_version,
             receiver_platform,
             receiver_version,
+            browser,
             is_two_party,
             capability_skip
           }]' > "$CAP_SKIPPED_JSON"

@@ -6,6 +6,9 @@
 # cells, flows, and the suite-level index.
 
 use ../time/utc.nu [utc-now]
+use ../run/status.nu [run-status-precedence]
+use ../run/result-envelope.nu [build-result-v1]
+use ../schema/validate.nu [assert-schema-version]
 
 # Merge two suite-manifest records together (right-biased for top-level fields;
 # maps under flows/cells/runs/results/indexes are union-merged).
@@ -35,31 +38,19 @@ def merge-manifests [base: record, other: record] {
 # "failed" when at least one actually failed (failed, infra-failed, or cleanup-failed).
 # "running" when some cells are still in progress.
 # capability-skipped cells are transparent to status computation.
+# Delegates to run-status-precedence (SSOT in scripts/lib/run/status.nu).
 export def aggregate-status [statuses: list<string>] {
-    if ($statuses | any {|s| (
-        ($s == "failed")
-        or ($s == "infra-failed")
-        or ($s == "cleanup-failed")
-    )}) {
-        "failed"
-    } else if ($statuses | any {|s| $s == "running"}) {
-        "running"
-    } else if ($statuses | any {|s| $s == "blocked"}) {
-        "blocked"
-    } else if ($statuses | any {|s| $s == "missing"}) {
-        "missing"
-    } else if ($statuses | all {|s| ($s == "passed") or ($s == "capability-skipped")}) {
-        "passed"
-    } else {
-        "unknown"
-    }
+    run-status-precedence $statuses
 }
 
 # Read the suite-manifest from a single cell artifact directory.
 # Returns null if the manifest is missing (e.g. cell not yet run).
 def read-cell-manifest [artifacts_base: string] {
     let path = ($artifacts_base | path join "meta/suite-manifest.v1.json")
-    if not ($path | path exists) { null } else { open $path }
+    if not ($path | path exists) { return null }
+    let doc = (open $path)
+    assert-schema-version $doc 1 $path
+    $doc
 }
 
 # Aggregate per-cell suite-manifest files into one suite-level manifest.
@@ -172,7 +163,7 @@ export def aggregate-suite-manifests-plan-aware [
                 attempt_number: 1,
                 retry_of_run_id: null,
                 superseded_by_run_id: null,
-                lifecycle_status: "capability-skipped",
+                lifecycle_status: "completed",
                 started_at: $generated_at,
                 finished_at: $generated_at,
                 status: "capability-skipped",
@@ -207,29 +198,23 @@ export def aggregate-suite-manifests-plan-aware [
         } else {
             "cell had no recorded outcome"
         }
-        mut result_rec = {
-            schema_version: 1,
+        # For synthesized records with no real execution, use result_id as a
+        # stable synthetic run_id/execution_id so build-result-v1 validates.
+        let eff_run_id = if ($exec_id | is-empty) { $result_id } else { $exec_id }
+        let cap_skip = if $is_cap_skipped { ($cap_rec.capability_skip? | default null) } else { null }
+        let result_rec = (build-result-v1 {
             id: $result_id,
-            run_id: $exec_id,
-            execution_id: $exec_id,
+            run_id: $eff_run_id,
+            execution_id: $eff_run_id,
             cell_id: $id,
             exit_code: (if $is_cap_skipped { 0 } else { 1 }),
             status: (if $is_cap_skipped { "capability-skipped" } else { "missing" }),
             finished_at: $generated_at,
-            attempt_number: 1,
-            lifecycle_status: (if $is_cap_skipped { "capability-skipped" } else { "missing" }),
             evidence: [],
             warnings: [],
-        }
-        if not ($failure_reason | is-empty) {
-            $result_rec = ($result_rec | upsert failure_reason $failure_reason)
-        }
-        if $is_cap_skipped {
-            let cap_skip = ($cap_rec.capability_skip? | default null)
-            if $cap_skip != null {
-                $result_rec = ($result_rec | upsert capability_skip $cap_skip)
-            }
-        }
+            failure_reason: (if ($failure_reason | is-empty) { null } else { $failure_reason }),
+            capability_skip: $cap_skip,
+        })
         $acc | insert $result_id $result_rec
     })
 

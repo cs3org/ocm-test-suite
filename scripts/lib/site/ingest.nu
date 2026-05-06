@@ -5,6 +5,7 @@
 
 use ../suite/index.nu [load-suite-entry]
 use ../ci/aggregate.nu [aggregate-status]
+use ../run/result-envelope.nu [build-result-v1]
 use ./copy.nu [copy-allowlisted-artifacts]
 use ./cell-impl.nu [build-implemented-cells-json]
 use ./flow-caps.nu [load-flow-caps]
@@ -36,15 +37,57 @@ export def ingest-site [
         for run in $suite_record.runs {
             let exec_id = ($run.execution_id? | default "")
             let run_status = ($run.status? | default "")
-            # capability-skipped cells: inject a synthetic manifest entry without
-            # reading from disk (there is no artifact for skipped cells).
-            if ($exec_id | is-empty) and ($run_status == "capability-skipped") {
+            # Compute manifest path up front to decide whether to synthesize.
+            let run_dir = if ($exec_id | is-empty) {
+                ""
+            } else {
+                ($artifacts_root | path join $run.flow_id $run.pair $exec_id)
+            }
+            let mf_path = if ($run_dir | is-empty) {
+                ""
+            } else {
+                ($run_dir | path join "meta/suite-manifest.v1.json")
+            }
+            let manifest_on_disk = (not ($mf_path | is-empty)) and ($mf_path | path exists)
+            # capability-skipped AND manifest missing: synthesize without disk read.
+            # This fires whether exec_id is empty or non-empty; the key signal is
+            # that no on-disk artifact exists for this skipped cell.
+            if ($run_status == "capability-skipped") and (not $manifest_on_disk) {
                 let result_id = $"result-capability-skipped-($run.cell_id)"
                 let flow_id = ($run.flow_id? | default "")
                 let cap_skip = ($run.capability_skip? | default null)
+                # Use exec_id when available; fall back to result_id as synthetic id.
+                let eff_run_id = if ($exec_id | is-empty) { $result_id } else { $exec_id }
+                let synth_result = (build-result-v1 {
+                    id: $result_id,
+                    run_id: $eff_run_id,
+                    execution_id: $eff_run_id,
+                    cell_id: $run.cell_id,
+                    status: "capability-skipped",
+                    exit_code: 0,
+                    finished_at: ($run.finished_at? | default ""),
+                    evidence: [],
+                    warnings: [],
+                    capability_skip: $cap_skip,
+                })
+                # A minimal run entry is required so build-aggregated-manifest
+                # can iterate runs without crashing on an empty map.
+                let synth_run = {
+                    id: $eff_run_id,
+                    execution_id: $eff_run_id,
+                    cell_id: $run.cell_id,
+                    artifact_name: ($run.artifact_name? | default ""),
+                    attempt_number: 1,
+                    lifecycle_status: "completed",
+                    started_at: ($run.finished_at? | default ""),
+                    finished_at: ($run.finished_at? | default ""),
+                    status: "capability-skipped",
+                    exit_code: 0,
+                }
                 let synth_manifest = {
                     schema_version: 1,
                     suite_id: $eff_id,
+                    execution_context: {},
                     flows: {($flow_id): {id: $flow_id}},
                     cells: {($run.cell_id): {
                         id: $run.cell_id,
@@ -59,14 +102,8 @@ export def ingest-site [
                         browser: ($run.browser? | default "chrome"),
                         is_two_party: ($run.is_two_party? | default false),
                     }},
-                    runs: {},
-                    results: {($result_id): {
-                        id: $result_id, run_id: "", cell_id: $run.cell_id,
-                        status: "capability-skipped", exit_code: 0,
-                        finished_at: ($run.finished_at? | default ""),
-                        attempt_number: 1, lifecycle_status: "capability-skipped",
-                        evidence: [], warnings: [],
-                    }},
+                    runs: {($eff_run_id): $synth_run},
+                    results: {($result_id): $synth_result},
                     indexes: {latest_terminal_result_by_cell: {($run.cell_id): $result_id}},
                 }
                 $entries = ($entries | append {
@@ -75,17 +112,15 @@ export def ingest-site [
                     flow_id: $flow_id,
                     pair: ($run.pair? | default ""),
                     artifact_name: ($run.artifact_name? | default ""),
-                    exec_id: "",
+                    exec_id: $exec_id,
                     cell_id: $run.cell_id,
                     result_id: $result_id,
                     finished_at: ($run.finished_at? | default ""),
                 })
                 continue
             }
-            # Synthetic missing entries (no execution_id, not cap-skipped): skip.
+            # Skip entries with no execution_id that are not capability-skipped.
             if ($exec_id | is-empty) { continue }
-            let run_dir = ($artifacts_root | path join $run.flow_id $run.pair $exec_id)
-            let mf_path = ($run_dir | path join "meta/suite-manifest.v1.json")
             if not ($mf_path | path exists) {
                 print --stderr $"WARNING: no suite-manifest for ($run.flow_id)/($run.pair)/($exec_id), skipping"
                 continue

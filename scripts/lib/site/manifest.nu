@@ -4,6 +4,7 @@ use ./internal.nu [evidence-path-allowed compute-matrix-cells]
 use ./provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
 use ../images/inspect.nu [inspect-one-image]
 use ../matrix/rules-gen.nu [apply-display-rule]
+use ../schema/validate.nu [assert-schema-version]
 
 # Build matrix-rules.v1.json content.
 # Cells are filtered through apply-display-rule: vendor-out-of-scope cells
@@ -164,7 +165,9 @@ export def build-aggregated-manifest [entries: list, ocmts_root: string] {
         let run_provenance = (build-images-provenance $run_images)
         let compose_manifest_path = ($entry.run_dir | path join "compose/manifest.v1.json")
         let compose_manifest = if ($compose_manifest_path | path exists) {
-            open $compose_manifest_path
+            let doc = (open $compose_manifest_path)
+            assert-schema-version $doc 1 $compose_manifest_path
+            $doc
         } else {
             null
         }

@@ -18,6 +18,7 @@ use ../../lib/services/lifecycle.nu [
     do-compose-up
     do-compose-down
 ]
+use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
 use ../../lib/compose/logs.nu [collect-service-logs]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/suite/index.nu [record-suite-run-safe]
@@ -56,26 +57,16 @@ def main [
         $ctx.base_overlay_fnames "" ["compose.resolved.yml"])
 
     # Step 1: validate base file set strictly before touching Docker.
-    try {
+    let suite_hook_base = if $ctx.suite_kind == "suite" {
+        {|r| (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+            $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+            $r.status $r.exit_code $ctx.started_at (utc-now))}
+    } else { null }
+    (with-infra-fail-cleanup $ctx "compose-validate-base" {
         (validate-compose-strict $base_files $ctx.stack_id
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
             $env_file)
-    } catch {|e|
-        let finished_at = (utc-now)
-        (write-terminal-outcome $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id $ctx.cell.artifact_name
-            $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-base" --fail-error $e.msg
-            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
-        publish-envelope-safe $ctx.artifacts_base
-        if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
-                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
-                "infra-failed" 1 $ctx.started_at $finished_at)
-        }
-        cleanup-temp $ctx.execution_id $preserve_temp
-        error make {msg: $"Compose base validation failed: ($e.msg)"}
-    }
+    } --preserve-temp=$preserve_temp --suite-record $suite_hook_base)
 
     # Bring up platform services; quiet by default, verbose with --verbose.
     let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
@@ -101,12 +92,12 @@ def main [
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($up_err.msg)"
             }
         }
-        publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
             (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
                 $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
                 "infra-failed" $up_exit $ctx.started_at $finished_at)
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"docker compose up platform failed: ($up_err.msg)"}
     }
@@ -123,32 +114,19 @@ def main [
     }
 
     # Step 2: validate runner-ci file set strictly before running Cypress.
-    try {
+    let suite_hook_runner = if $ctx.suite_kind == "suite" {
+        {|r| (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
+            $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
+            $r.status $r.exit_code $ctx.started_at (utc-now))}
+    } else { null }
+    (with-infra-fail-cleanup $ctx "compose-validate-runner-ci" {
         (validate-compose-strict $run_files $ctx.stack_id
             ($ctx.artifacts_base | path join "compose" "compose.resolved.run.yml")
             $env_file)
-    } catch {|e|
-        let finished_at = (utc-now)
-        (write-terminal-outcome $ctx.artifacts_base $ctx.execution_id
-            $ctx.cell.cell_id $ctx.cell.artifact_name
-            $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
-            $ctx.images --phase "compose-validate-runner-ci" --fail-error $e.msg
-            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
-        if not $keep_up {
-            let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
-            if $down_fail != null {
-                overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"runner-ci validation failed: ($e.msg)"
-            }
-        }
-        publish-envelope-safe $ctx.artifacts_base
-        if $ctx.suite_kind == "suite" {
-            (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
-                $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
-                "infra-failed" 1 $ctx.started_at $finished_at)
-        }
-        cleanup-temp $ctx.execution_id $preserve_temp
-        error make {msg: $"Compose runner-ci validation failed: ($e.msg)"}
-    }
+    } --preserve-temp=$preserve_temp
+        --base-files (if not $keep_up { $base_files } else { [] })
+        --env-file $env_file
+        --suite-record $suite_hook_runner)
     (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
         $ctx.base_overlay_fnames "runner-ci.yml"
         ["compose.resolved.yml" "compose.resolved.run.yml" "compose.resolved.down.yml"])
@@ -194,12 +172,12 @@ def main [
             $ctx.images --phase "compose-down"
             --fail-error $"($down_fail_msg) [cypress: status=($cypress_status) exit=($cypress_exit)]"
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
-        publish-envelope-safe $ctx.artifacts_base
         if $ctx.suite_kind == "suite" {
             (record-suite-run-safe $ctx.suite_id $ctx.cell.flow_id $ctx.cell.pair
                 $ctx.execution_id $ctx.cell.cell_id $ctx.cell.artifact_name
                 "cleanup-failed" 1 $ctx.started_at $finished_at)
         }
+        publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $down_fail_msg}
     }

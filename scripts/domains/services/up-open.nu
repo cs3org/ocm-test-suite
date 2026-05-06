@@ -58,7 +58,7 @@ def main [
     }
     let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
     try {
-        # Direct compose up (operator-facing): streams output and throws on failure, caught by with-infra-fail-cleanup. CI flow uses do-compose-up in services/up-run.nu.
+        # Direct compose up (operator-facing): streams output and throws on failure. On failure the local catch block writes the terminal outcome, tears down via cleanup-down, and re-raises. CI flow uses do-compose-up in services/up-run.nu.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)

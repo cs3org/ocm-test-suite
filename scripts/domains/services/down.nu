@@ -1,7 +1,7 @@
 # Tear down services for a cell by execution_id or last known run.
 
 use ../../lib/compose/validate.nu [validate-compose-strict]
-use ../../lib/run/metadata.nu [update-run-lifecycle]
+use ../../lib/run/metadata.nu [update-run-lifecycle read-run-meta]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
@@ -39,14 +39,8 @@ def main [
     }
     let artifacts_base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
-    let run_meta_path = ($artifacts_base | path join "meta/run.json")
-    if not ($run_meta_path | path exists) {
-        error make {msg: $"No meta/run.json found for execution_id=($exec_id). Artifacts may be missing."}
-    }
-    let stack_id = ((open $run_meta_path).stack_id? | default "")
-    if ($stack_id | is-empty) {
-        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
-    }
+    let run_meta = (read-run-meta $artifacts_base)
+    let stack_id = $run_meta.stack_id
 
     print $"Tearing down ($cell.cell_id) [stack_id=($stack_id)]..."
     let down_files = (read-compose-files-from-manifest $artifacts_base $root)

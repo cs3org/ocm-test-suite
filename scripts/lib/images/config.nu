@@ -11,7 +11,12 @@ const PLATFORM_RESERVED_KEYS = [
 
 export def load-images-cfg [] {
     let root = get-ocmts-root
-    open ($root | path join "config/images.nuon")
+    let cfg = open ($root | path join "config/images.nuon")
+    let ver = ($cfg.schema_version? | default null)
+    if $ver != 2 {
+        error make {msg: $"config/images.nuon must carry schema_version: 2 (found: ($ver | to nuon)). Update the file or check that you are using the correct config."}
+    }
+    $cfg
 }
 
 # Return all configured platforms and versions as a table.

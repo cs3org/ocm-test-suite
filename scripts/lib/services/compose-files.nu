@@ -1,6 +1,7 @@
 # Shared compose file list helpers.
 
 use ../time/utc.nu [utc-now]
+use ../schema/validate.nu [assert-schema-version]
 
 # Build the -f args list from an ordered file list.
 export def build-f-args [files: list<string>] {
@@ -67,7 +68,9 @@ export def read-compose-manifest [artifacts_base: string] {
     if not ($p | path exists) {
         error make {msg: $"No compose/manifest.v1.json found at ($p)"}
     }
-    open $p
+    let doc = (open $p)
+    assert-schema-version $doc 1 $p
+    $doc
 }
 
 # Return the stack_id field from compose/manifest.v1.json.

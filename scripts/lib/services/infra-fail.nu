@@ -9,13 +9,15 @@ use ../publish/envelope.nu [publish-envelope-safe]
 use ./lifecycle.nu [cleanup-temp cleanup-down overwrite-cleanup-failed]
 
 # Run `action` and return its result on success.
-# On failure: writes an infra-failed terminal outcome, emits publish envelope,
-# cleans up temp dirs, and re-throws the error.
+# On failure: writes an infra-failed terminal outcome, optionally invokes
+# --suite-record closure with {status, exit_code} before publishing the
+# envelope, cleans up temp dirs, and re-throws the error.
 #
 # ctx must have: artifacts_base, execution_id, cell.cell_id, cell.artifact_name,
 #   started_at, stack_id, images, suite_id, suite_kind, execution_id.
 # phase: label for the failure phase (e.g. "compose-validate-base", "platform-up").
 # exit_code: override exit code for the infra-failed result (default 1).
+# suite-record: optional closure called with {status, exit_code} before publish.
 export def with-infra-fail-cleanup [
     ctx: record,
     phase: string,
@@ -24,6 +26,7 @@ export def with-infra-fail-cleanup [
     --exit-code: int = 1,
     --base-files: list = [],
     --env-file: string = "",
+    --suite-record: any = null,
 ] {
     try {
         do $action
@@ -43,6 +46,9 @@ export def with-infra-fail-cleanup [
             if $down_fail != null {
                 overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"($phase) failed: ($e.msg)"
             }
+        }
+        if $suite_record != null {
+            do $suite_record {status: "infra-failed", exit_code: $eff_exit}
         }
         publish-envelope-safe $ctx.artifacts_base
         cleanup-temp $ctx.execution_id $preserve_temp

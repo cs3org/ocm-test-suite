@@ -4,6 +4,7 @@ use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules]
 use ../../lib/artifacts/init.nu [read-last-execution-id]
 use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/run/metadata.nu [read-run-meta]
 use ../../lib/compose/validate.nu [validate-compose-strict]
 use ../../lib/compose/logs.nu [collect-service-logs]
 use ../../lib/services/compose-files.nu [
@@ -33,14 +34,8 @@ def main [
     }
     let base = (execution-artifacts-path $root $cell.flow_id $cell.pair $exec_id)
 
-    let run_meta_path = ($base | path join "meta/run.json")
-    if not ($run_meta_path | path exists) {
-        error make {msg: $"No meta/run.json found for execution_id=($exec_id). Artifacts may be missing."}
-    }
-    let stack_id = ((open $run_meta_path).stack_id? | default "")
-    if ($stack_id | is-empty) {
-        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
-    }
+    let run_meta = (read-run-meta $base)
+    let stack_id = $run_meta.stack_id
 
     if not $include_logs {
         print "Hint: pass --include-logs to collect docker service logs."

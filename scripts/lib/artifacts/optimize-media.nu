@@ -1,4 +1,6 @@
 # Per-cell optimized media production.
+
+use ../time/utc.nu [utc-now]
 # Discovers raw PNG screenshots and MP4 videos in a cell artifact directory,
 # converts each to optimized formats via the ffmpeg optimizer image, and emits
 # meta/optimized-media-cell.v1.json. Every cell emits a manifest, even with
@@ -146,7 +148,7 @@ export def run-ffmpeg-convert [
 def emit-manifest [out_dir: string, items: list, status: string, optimizer_image: string] {
     let meta_dir = ($out_dir | path join "meta")
     mkdir $meta_dir
-    let generated_at = (date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ")
+    let generated_at = (utc-now)
     {
         schema_version: 1,
         generated_at: $generated_at,

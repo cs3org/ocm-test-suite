@@ -399,7 +399,7 @@ def run-suite-optimize-aggregate [
         mkdir ($fake_cell | path join "meta")
         {
             schema_version: 1,
-            generated_at: (date now | date to-timezone "UTC" | format date "%Y-%m-%dT%H:%M:%SZ"),
+            generated_at: (utc-now),
             status: "no-source-media",
             optimizer_image: $image,
             items: [],

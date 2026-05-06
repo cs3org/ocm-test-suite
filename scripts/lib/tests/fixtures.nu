@@ -1,6 +1,34 @@
 # Reusable test fixtures. Most suites need a temp directory with
 # guaranteed cleanup; `with-tmp-dir` runs the closure with the temp
 # path and removes it afterwards even on error.
+#
+# Also provides make-cell for building planner cell records with defaults.
+
+# Build a minimal planner cell record with sensible defaults.
+# Pass overrides to change specific fields; all other fields keep their defaults.
+# Default shape covers all fields required for eval-blocked-cells and plan-suite.
+export def make-cell [overrides?: record]: nothing -> record {
+    let defaults = {
+        cell_id: "login__nextcloud-v34",
+        artifact_name: "cell-login-nextcloud-v34",
+        scenario: "login",
+        flow_id: "login",
+        sender_platform: "nextcloud",
+        sender_version: "v34",
+        receiver_platform: "",
+        receiver_version: "",
+        is_two_party: false,
+        execution_id: "20260101t000000-aaaaaaaa",
+        capabilities_produced: [],
+        capability_action: "run",
+        depends_on: [],
+    }
+    if $overrides != null {
+        $defaults | merge $overrides
+    } else {
+        $defaults
+    }
+}
 
 export def with-tmp-dir [closure: closure]: nothing -> any {
     let tmp = (^mktemp -d | str trim)

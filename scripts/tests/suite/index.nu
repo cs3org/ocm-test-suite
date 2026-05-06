@@ -13,6 +13,7 @@ use ../../lib/suite/index.nu [
     record-suite-run
     compute-suite-status
 ]
+use ../../lib/run/status.nu [run-status-precedence]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
@@ -182,19 +183,14 @@ def test-no-runnable-suite-writes-suite-record [] {
     ]
 }
 
-# ----- compute-suite-status baseline -----
-
-def test-compute-suite-status [] {
-    test-log "\n[test-compute-suite-status]"
+# Thin delegation check: compute-suite-status must agree with run-status-precedence.
+# Canonical precedence coverage lives in scripts/tests/run/status.nu.
+def test-compute-suite-status-delegates [] {
+    test-log "\n[test-compute-suite-status-delegates]"
+    let input = ["passed" "blocked" "missing"]
     [
-        (assert-eq (compute-suite-status ["passed" "passed" "passed"]) "passed"
-            "compute-suite-status: all passed -> passed")
-        (assert-eq (compute-suite-status ["failed"]) "failed"
-            "compute-suite-status: any failed -> failed")
-        (assert-eq (compute-suite-status ["passed" "passed" "blocked"]) "blocked"
-            "compute-suite-status: blocked and no failed -> blocked")
-        (assert-eq (compute-suite-status []) "passed"
-            "compute-suite-status: no runs -> passed")
+        (assert-eq (compute-suite-status $input) (run-status-precedence $input)
+            "compute-suite-status delegates to run-status-precedence")
     ]
 }
 
@@ -205,7 +201,7 @@ def main [] {
         | append (test-finish-suite-record-capability-skipped-count)
         | append (test-suite-all-cap-skipped-gets-passed-status)
         | append (test-no-runnable-suite-writes-suite-record)
-        | append (test-compute-suite-status)
+        | append (test-compute-suite-status-delegates)
     ) | flatten
     run-suite "suite/index" $SUITE_PATH $results
 }

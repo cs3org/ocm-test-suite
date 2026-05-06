@@ -4,7 +4,7 @@ use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules assert-scenario-e
 use ../../lib/artifacts/init.nu [read-last-execution-id]
 use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/compose/validate.nu [validate-compose-strict]
-use ../../lib/run/metadata.nu [write-terminal-outcome]
+use ../../lib/run/metadata.nu [write-terminal-outcome read-run-meta]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
@@ -59,15 +59,8 @@ def main [
     let art_compose = ($artifacts_base | path join "compose")
     let base_yml = ($root | path join "config/compose/base.yml")
 
-    let run_meta_path = ($artifacts_base | path join "meta/run.json")
-    if not ($run_meta_path | path exists) {
-        error make {msg: $"No run.json found for execution_id=($exec_id). Run 'services up' first."}
-    }
-    let prev_run = (open $run_meta_path)
-    let stack_id = ($prev_run.stack_id? | default "")
-    if ($stack_id | is-empty) {
-        error make {msg: $"meta/run.json has no stack_id for execution_id=($exec_id)."}
-    }
+    let prev_run = (read-run-meta $artifacts_base)
+    let stack_id = $prev_run.stack_id
     let cur_status = ($prev_run.status? | default "")
     let terminal_statuses = ["stopped" "infra-failed" "cleanup-failed" "down-failed"]
     let allowed_statuses = ["active" "open" "passed" "failed"]

@@ -5,6 +5,7 @@
 
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 use ../time/utc.nu [utc-now]
+use ../run/status.nu [run-status-precedence]
 
 def suites-dir [] {
     (get-ocmts-root) | path join "artifacts/suites"
@@ -166,24 +167,11 @@ export def record-suite-run-safe [
 }
 
 # Compute suite overall status from a list of cell statuses.
-# Precedence matches aggregate-status in ci/aggregate.nu: failed > running > blocked > missing > passed.
+# Delegates to run-status-precedence (SSOT in scripts/lib/run/status.nu).
+# Precedence: failed > running > blocked > missing > passed.
 # capability-skipped cells are transparent (all cap-skipped -> "passed").
 export def compute-suite-status [cell_statuses: list<string>] {
-    if ($cell_statuses | any {|s| (
-        ($s == "failed") or ($s == "infra-failed") or ($s == "cleanup-failed")
-    )}) {
-        "failed"
-    } else if ($cell_statuses | any {|s| $s == "running"}) {
-        "running"
-    } else if ($cell_statuses | any {|s| $s == "blocked"}) {
-        "blocked"
-    } else if ($cell_statuses | any {|s| $s == "missing"}) {
-        "missing"
-    } else if ($cell_statuses | all {|s| ($s == "passed") or ($s == "capability-skipped")}) {
-        "passed"
-    } else {
-        "unknown"
-    }
+    run-status-precedence $cell_statuses
 }
 
 # Finalize a suite record: set status, counts, and finished_at.

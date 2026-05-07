@@ -1,12 +1,9 @@
 {
   "schema_version": 1,
-  "cell_key": "login-nextcloud-v34",
   "suite_id": "suite-fixture",
   "execution_id": "exec-fixture",
   "status": "optimized",
-  "optimizer": {
-    "image": "linuxserver/ffmpeg:version-8.1-cli"
-  },
+  "optimizer_image": "linuxserver/ffmpeg:version-8.1-cli",
   "items": [
     {
       "source_path": "artifacts/login/nextcloud-v34/exec-fixture/cypress/screenshots/sample.png",

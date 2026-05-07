@@ -82,8 +82,9 @@ with `inflate returned error -3` because they ship a precomputed but
 invalid zlib IDAT stream.
 
 The cell manifest JSON files are hand-crafted to match the placeholder paths
-and the contract shape documented in
-`docs/operations/optimized-media.md`.
+and the current production contract documented in
+`docs/operations/optimized-media.md`, including the flat `optimizer_image`
+field used by the aggregate summary.
 
 ## Path conventions
 

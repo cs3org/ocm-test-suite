@@ -74,7 +74,7 @@ both as a manual diagnostic and as a strict gate inside `ci-site.yml`.
 ### `optimize-media`
 
 ```shell
-nu scripts/ocmts.nu artifacts optimize-media --raw-dir <dir> --out-dir <dir>
+nu scripts/ocmts.nu artifacts optimize-media --raw-dir <dir> --output-dir <dir>
 ```
 
 Optimizes one cell artifact directory. Discovers `cypress/screenshots/**/*.png`
@@ -88,7 +88,7 @@ publishable media.
 
 ```shell
 nu scripts/ocmts.nu artifacts aggregate-optimized-media \
-  <dirs...> --out-dir <dir>
+  <dirs...> --output-dir <dir>
 ```
 
 Reads downloaded `optimized-media-cell-*` directories, validates path
@@ -122,10 +122,9 @@ the publish step receives the optimized aggregate.
 ```json
 {
   "schema_version": 1,
-  "cell_key": "login-nextcloud-v34",
-  "execution_id": "20260510t125801-64fa8cef",
+  "generated_at": "2026-05-10T12:58:01.123456789Z",
   "status": "optimized",
-  "optimizer": { "image": "linuxserver/ffmpeg:version-8.1-cli" },
+  "optimizer_image": "linuxserver/ffmpeg:version-8.1-cli",
   "items": [
     {
       "source_path": "artifacts/.../sample.png",
@@ -251,20 +250,18 @@ Hard fail (publish aborts; no Pages deploy):
 
 Soft (logged, lane continues):
 
-- Per-cell `optimize-media` ffmpeg failure on one item: the item is
-  recorded with `status: failed` in the cell manifest. Aggregate counts it
-  in `item_counts.failed`. The cell still publishes; the missing primary
-  triggers the hard-fail above and surfaces the underlying failure during
-  publish.
 - A cell with no publishable media: `status: no-source-media`, empty
   `items`. Aggregate counts the cell in `cell_counts_by_status.no_source_media`.
 - Public manifest contains media rows but no optimized aggregate is
   provided to `site publish`: publish proceeds with raw media; a warning
   is printed to stderr.
 
-Test execution failures are independent. The optimize step uses
-`continue-on-error: true` and `if: always() && github.ref == 'refs/heads/...'`
-so failed test cells still upload optimized evidence when present.
+Test execution failures are independent. On the publish branch, the CI
+optimize lane still runs after the test step because the workflow step uses
+`if: always() && github.ref == 'refs/heads/...'`. But optimization failures
+inside that lane are now hard errors: the per-cell optimize command exits
+nonzero on failed conversions, optimized artifact upload requires files, and
+the site aggregate lane rejects empty or failed optimized summaries.
 
 ## Local development workflow
 

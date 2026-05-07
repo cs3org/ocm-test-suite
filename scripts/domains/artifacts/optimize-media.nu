@@ -40,6 +40,7 @@ def main [
     if ($failed | is-not-empty) {
         let fail_count = ($failed | length)
         let paths = ($failed | each {|r| $r.source_path} | str join ", ")
-        print $"  WARNING: ($fail_count) failed conversions: ($paths)"
+        print $"  FAILED: ($fail_count) failed conversions: ($paths)"
+        error make {msg: $"optimize-media: ($fail_count) item(s) failed conversion"}
     }
 }

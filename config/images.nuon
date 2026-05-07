@@ -4,37 +4,37 @@
     "ocmgo": {
       "override_env": "OCMTS_OCMGO_IMAGE",
       "v1": {
-        "default": "opencloudmesh-go:v1.0.0"
+        "default": "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.0.0"
       }
     },
     "ocis": {
       "override_env": "OCMTS_OCIS_IMAGE",
       "v8": {
-        "default": "ocis:v8.0.1"
+        "default": "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
       }
     },
     "opencloud": {
       "override_env": "OCMTS_OPENCLOUD_IMAGE",
       "v6": {
-        "default": "opencloud:v6.1.0"
+        "default": "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
       }
     },
     "nextcloud": {
       "override_env": "OCMTS_NEXTCLOUD_IMAGE",
       "v32": {
-        "default": "nextcloud:v32.0.9"
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.9"
       },
       "v33": {
-        "default": "nextcloud:v33.0.3"
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v33.0.3"
       },
       "v34": {
-        "default": "nextcloud:master",
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:master",
         "by_flow": {
           "contact-token": {
-            "default": "nextcloud-contacts:sta-ocm-m6"
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6"
           },
           "contact-wayf": {
-            "default": "nextcloud-contacts:sta-ocm-m6"
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6"
           }
         }
       }
@@ -42,11 +42,11 @@
   },
   "cypress": {
     "ci": {
-      "default": "cypress:v1.0.0-ci",
+      "default": "ghcr.io/mahdibaghbani/containers/cypress:v15.14.1-ci",
       "override_env": "OCMTS_CYPRESS_CI_IMAGE"
     },
     "dev": {
-      "default": "cypress:v1.0.0-dev",
+      "default": "ghcr.io/mahdibaghbani/containers/cypress:v15.14.1-dev",
       "override_env": "OCMTS_CYPRESS_DEV_IMAGE"
     }
   },
@@ -65,7 +65,7 @@
     }
   },
   "mitmproxy": {
-    "default": "mitmproxy:v1.0.0",
+    "default": "ghcr.io/mahdibaghbani/containers/mitmproxy:v12.2.2",
     "override_env": "OCMTS_MITMPROXY_IMAGE"
   }
 }

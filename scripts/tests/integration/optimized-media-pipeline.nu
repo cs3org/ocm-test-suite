@@ -68,6 +68,9 @@ def test-e2e-aggregate-then-project-success [] {
     let png_gone = not (($base | path join "cypress/screenshots/sample.png") | path exists)
     let mp4_gone = not (($base | path join "cypress/videos/sample.mp4") | path exists)
 
+    let agg_summary = (open ($work | path join "agg/meta/optimized-media-summary.v1.json"))
+    let opt_images = ($agg_summary.optimizer_images? | default [])
+
     ^rm -rf $work
     [
         (assert-truthy ($ss_ev.path | str ends-with ".avif") "screenshot path ends with .avif")
@@ -96,6 +99,8 @@ def test-e2e-aggregate-then-project-success [] {
         (assert-truthy $vp9_exists "sample.vp9.webm copied to pub artifacts tree")
         (assert-truthy $png_gone "sample.png removed from pub artifacts tree")
         (assert-truthy $mp4_gone "sample.mp4 removed from pub artifacts tree")
+        (assert-truthy ("linuxserver/ffmpeg:version-8.1-cli" in $opt_images)
+            "aggregate summary optimizer_images includes ffmpeg fixture image")
     ]
 }
 
@@ -173,12 +178,40 @@ def test-e2e-publish-fails-on-empty-opt-dir-with-media [] {
     ]
 }
 
+# --- aggregate fails early when manifest lists an optimized file absent on disk ---
+
+def test-e2e-aggregate-fails-on-missing-disk-file [] {
+    test-log "\n[test-e2e-aggregate-fails-on-missing-disk-file]"
+    let work = (^mktemp -d | str trim)
+    let fixtures = (get-fixtures-dir)
+
+    # Build a cell dir that has the manifest but none of the actual optimized files.
+    let cell_dir = ($work | path join "cells/sparse-cell")
+    mkdir ($cell_dir | path join "meta")
+    ^cp ($fixtures | path join "pre-optimized/meta/optimized-media-cell.v1.json") ($cell_dir | path join "meta/optimized-media-cell.v1.json")
+
+    let err_msg = (
+        try {
+            aggregate-optimized-media-cells [$cell_dir] ($work | path join "agg") --no-archive
+            null
+        } catch {|e| $e.msg}
+    )
+
+    ^rm -rf $work
+    [
+        (assert-not-null $err_msg "aggregate fails when optimized file is missing on disk")
+        (assert-truthy ($err_msg | str contains "optimized file missing on disk")
+            "error mentions optimized file missing on disk")
+    ]
+}
+
 def main [] {
     test-log "=== integration/optimized-media-pipeline tests ==="
     let results = (
         (test-e2e-aggregate-then-project-success)
         | append (test-e2e-no-source-media-cell)
         | append (test-e2e-publish-fails-on-empty-opt-dir-with-media)
+        | append (test-e2e-aggregate-fails-on-missing-disk-file)
     ) | flatten
     run-suite "integration/optimized-media-pipeline" $SUITE_PATH $results
 }

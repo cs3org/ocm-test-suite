@@ -219,6 +219,9 @@ def test-aggregate-cell-counts-with-media [] {
 
     # cell_a: with optimized media - paths use the truthful artifacts/... layout.
     mkdir ($cell_a | path join "meta")
+    mkdir ($cell_a | path join "artifacts/f/p/e/cypress/screenshots")
+    "" | save ($cell_a | path join "artifacts/f/p/e/cypress/screenshots/a.avif")
+    "" | save ($cell_a | path join "artifacts/f/p/e/cypress/screenshots/a.webp")
     {
         schema_version: 1, generated_at: "2026-01-01T00:00:00Z", status: "optimized",
         optimizer_image: "img:1", items: [
@@ -541,6 +544,76 @@ def test-aggregate-summary-no-source-media-in-item-counts [] {
     ]
 }
 
+# --- scan-dir mode ---
+
+def test-scan-dir-finds-child-dirs [] {
+    test-log "\n[test-scan-dir-finds-child-dirs]"
+    let id = (random uuid)
+    let root = $"/tmp/ocmts-test-aggopt-scandir-root-($id)"
+    let child_a = ($root | path join "cell-a")
+    let child_b = ($root | path join "cell-b")
+    let out_tmp = $"/tmp/ocmts-test-aggopt-scandir-out-($id)"
+    mkdir ($child_a | path join "meta")
+    mkdir ($child_b | path join "meta")
+    {schema_version: 1, generated_at: "2026-01-01T00:00:00Z", status: "no-source-media",
+        optimizer_image: "img:1", items: []}
+    | to json | save ($child_a | path join "meta/optimized-media-cell.v1.json")
+    {schema_version: 1, generated_at: "2026-01-01T00:00:00Z", status: "no-source-media",
+        optimizer_image: "img:1", items: []}
+    | to json | save ($child_b | path join "meta/optimized-media-cell.v1.json")
+
+    let result = (aggregate-optimized-media-cells (
+        ls $root | where type == "dir" | get name | sort
+    ) $out_tmp --no-archive)
+    let summary = (open ($out_tmp | path join "meta/optimized-media-summary.v1.json"))
+    let keys = ($summary.cell_summaries | each {|s| $s.cell_key})
+
+    try { rm -rf $root } catch {}
+    try { rm -rf $out_tmp } catch {}
+    [
+        (assert-eq $result.cells_found 2 "scan-dir: two child dirs discovered")
+        (assert-truthy ($keys | any {|k| $k == "cell-a"}) "scan-dir: cell-a in summary")
+        (assert-truthy ($keys | any {|k| $k == "cell-b"}) "scan-dir: cell-b in summary")
+    ]
+}
+
+def test-scan-dir-empty-errors [] {
+    test-log "\n[test-scan-dir-empty-errors]"
+    let id = (random uuid)
+    let root = $"/tmp/ocmts-test-aggopt-scandir-empty-($id)"
+    let out_tmp = $"/tmp/ocmts-test-aggopt-scandir-empty-out-($id)"
+    mkdir $root  # exists but has no child dirs
+
+    # Invoke the domain script via nu to exercise the --scan-dir flag end-to-end.
+    let script = ([$SUITE_PATH | path dirname | path dirname | path dirname,
+        "domains/artifacts/aggregate-optimized-media.nu"] | path join)
+    let result = (try {
+        (^nu $script --scan-dir $root --output-dir $out_tmp --no-archive | complete)
+    } catch {|e| {exit_code: 1, stdout: "", stderr: $e.msg}})
+
+    try { rm -rf $root } catch {}
+    try { rm -rf $out_tmp } catch {}
+    [(assert-truthy ($result.exit_code != 0) "empty --scan-dir produces non-zero exit")]
+}
+
+def test-scan-dir-does-not-affect-dirs-file-mode [] {
+    test-log "\n[test-scan-dir-does-not-affect-dirs-file-mode]"
+    let id = (random uuid)
+    let cell1 = $"/tmp/ocmts-test-aggopt-scancompat-c1-($id)"
+    let out_tmp = $"/tmp/ocmts-test-aggopt-scancompat-out-($id)"
+    mkdir ($cell1 | path join "meta")
+    {schema_version: 1, generated_at: "2026-01-01T00:00:00Z", status: "no-source-media",
+        optimizer_image: "img:1", items: []}
+    | to json | save ($cell1 | path join "meta/optimized-media-cell.v1.json")
+
+    # --dirs-file path still works independently of the new --scan-dir flag.
+    let result = (aggregate-optimized-media-cells [$cell1] $out_tmp --no-archive)
+
+    try { rm -rf $cell1 } catch {}
+    try { rm -rf $out_tmp } catch {}
+    [(assert-eq $result.cells_found 1 "positional-args mode still works after scan-dir addition")]
+}
+
 def main [] {
     let results = (
         (test-validate-path-empty)
@@ -569,6 +642,9 @@ def main [] {
         | append (test-aggregate-missing-fallback-rejected)
         | append (test-aggregate-duplicate-primary-rejected)
         | append (test-aggregate-summary-no-source-media-in-item-counts)
+        | append (test-scan-dir-finds-child-dirs)
+        | append (test-scan-dir-empty-errors)
+        | append (test-scan-dir-does-not-affect-dirs-file-mode)
     )
     run-suite "artifacts/aggregate-optimized-media" $SUITE_PATH $results
 }

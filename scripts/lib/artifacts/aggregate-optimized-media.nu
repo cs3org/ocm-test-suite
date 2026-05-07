@@ -126,6 +126,25 @@ def validate-manifest-items [cell_key: string, manifest: record]: nothing -> lis
     $errors
 }
 
+# Check that each optimized item in a manifest exists on disk; return error strings.
+def validate-manifest-disk-files [cell_key: string, cell_dir: string, manifest: record]: nothing -> list<string> {
+    let items = ($manifest.items? | default [])
+    let cell_abs = ($cell_dir | path expand)
+    mut errors = []
+    for item in $items {
+        if ($item.status? | default "") == "optimized" {
+            let opath = ($item.optimized_path? | default "")
+            if not ($opath | is-empty) {
+                let abs = ($cell_abs | path join $opath)
+                if not ($abs | path exists) {
+                    $errors = ($errors | append $"cell ($cell_key): optimized file missing on disk: ($opath)")
+                }
+            }
+        }
+    }
+    $errors
+}
+
 # Return {src_abs, dest_rel} for each successfully optimized item in a manifest.
 def collect-cell-media-files [cell_dir: string, manifest: record] {
     let items = ($manifest.items? | default [])
@@ -153,7 +172,7 @@ def copy-cell-media-to-out [
             mkdir ($dest_abs | path dirname)
             ^cp $f.src_abs $dest_abs
         } else {
-            print $"WARNING: listed optimized file not found on disk: ($f.src_abs)"
+            error make {msg: $"copy-cell-media-to-out: optimized file missing on disk (should have been caught by pre-copy validation): ($f.src_abs)"}
         }
     }
 }
@@ -285,12 +304,14 @@ export def aggregate-optimized-media-cells [
         {cell_key: $cell_key, dir: $dir, manifest: $manifest, summary: $summary}
     })
 
-    # Validate items in each manifest (path safety + kind/ext match).
+    # Validate items in each manifest (path safety, kind/ext match, disk existence).
     mut validation_errors = []
     for cd in $cell_data {
         if $cd.manifest != null {
             let errs = (validate-manifest-items $cd.cell_key $cd.manifest)
             $validation_errors = ($validation_errors | append $errs)
+            let disk_errs = (validate-manifest-disk-files $cd.cell_key $cd.dir $cd.manifest)
+            $validation_errors = ($validation_errors | append $disk_errs)
         }
     }
 

@@ -9,7 +9,8 @@ use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-
 def main [
     ...artifact_dirs: string,
     --dirs-file: string = "",   # file with one artifact dir path per line
-    --output-dir: string = "",     # destination directory (required)
+    --scan-dir: string = "",    # scan immediate child dirs of this root dir
+    --output-dir: string = "",  # destination directory (required)
     --no-archive,               # skip creating optimized-media-artifacts.tar.zst
 ] {
     if ($output_dir | is-empty) {
@@ -21,12 +22,23 @@ def main [
         | lines
         | where {|l| not ($l | str trim | is-empty)}
         | each {|l| $l | str trim}
+    } else if not ($scan_dir | is-empty) {
+        if not ($scan_dir | path exists) {
+            error make {msg: $"aggregate-optimized-media: --scan-dir path does not exist: ($scan_dir)"}
+        }
+        ls $scan_dir
+        | where type == "dir"
+        | get name
+        | sort
     } else {
         $artifact_dirs
     }
 
     if ($dirs | is-empty) {
-        error make {msg: "aggregate-optimized-media: no artifact directories provided. Use positional args or --dirs-file"}
+        if not ($scan_dir | is-empty) {
+            error make {msg: $"aggregate-optimized-media: --scan-dir found no child directories under: ($scan_dir)"}
+        }
+        error make {msg: "aggregate-optimized-media: no artifact directories provided. Use positional args, --dirs-file, or --scan-dir"}
     }
 
     let dir_count = ($dirs | length)
@@ -55,6 +67,7 @@ def main [
     }
     if $result.failed_item_count > 0 {
         let n = $result.failed_item_count
-        print $"  WARNING: ($n) items failed to optimize"
+        print $"  FAILED: ($n) items failed to optimize"
+        error make {msg: $"aggregate-optimized-media: ($n) item(s) failed to optimize"}
     }
 }

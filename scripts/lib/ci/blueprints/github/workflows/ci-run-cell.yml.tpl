@@ -60,7 +60,7 @@ jobs:
       - name: Generate execution ID
         id: cell
         run: |
-          EXEC_ID=$(nu -c "use scripts/lib/run/execution-id.nu [new-execution-id]; new-execution-id | print")
+          EXEC_ID=$(nu scripts/ocmts.nu ci exec-id)
           echo "execution-id=$EXEC_ID" >> $GITHUB_OUTPUT
       - name: Download prerequisite artifacts
         id: prereq_dl
@@ -69,33 +69,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          IFS=',' read -ra DEPS <<< "${{ inputs['cell-depends-on'] }}"
-          for dep in "${DEPS[@]}"; do
-            dep="${dep// /}"
-            [ -z "$dep" ] && continue
-            mkdir -p "prereqs/$dep"
-            gh run download "${{ github.run_id }}" --name "$dep" --dir "prereqs/$dep" || true
-          done
+          nu scripts/ocmts.nu ci download-prereqs \
+            --run-id "${{ github.run_id }}" \
+            --deps "${{ inputs['cell-depends-on'] }}"
       - name: Check prerequisite status
         id: prereq_check
         if: inputs['cell-depends-on'] != '' && inputs['failure-reason'] == ''
         run: |
-          FAILURE_REASON=""
-          IFS=',' read -ra DEPS <<< "${{ inputs['cell-depends-on'] }}"
-          for dep in "${DEPS[@]}"; do
-            dep="${dep// /}"
-            [ -z "$dep" ] && continue
-            result_file=$(find "prereqs/$dep" -name 'result.v1.json' -path '*/meta/*' 2>/dev/null | head -1)
-            if [ -z "$result_file" ]; then
-              FAILURE_REASON="prerequisite $dep artifact missing or download failed"
-              break
-            fi
-            STATUS=$(jq -r '.status // "unknown"' "$result_file")
-            if [ "$STATUS" != "passed" ]; then
-              FAILURE_REASON="prerequisite $dep had status: $STATUS"
-              break
-            fi
-          done
+          FAILURE_REASON=$(nu scripts/ocmts.nu ci check-prereq-status \
+            --deps "${{ inputs['cell-depends-on'] }}")
           echo "prereq-failure-reason=$FAILURE_REASON" >> $GITHUB_OUTPUT
       - name: Emit blocked artifact (when prerequisite failed)
         id: blocked_cell
@@ -139,14 +121,12 @@ jobs:
       - name: Pre-pull optimizer image
         id: prepull_optimizer
         if: always() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}'
-        continue-on-error: true
         run: |
-          IMG=$(nu -c "use scripts/lib/images/resolve.nu [resolve-media-optimizer-image]; resolve-media-optimizer-image | print -n")
+          IMG=$(nu scripts/ocmts.nu artifacts show-optimizer-image)
           docker pull "$IMG"
       - name: Optimize cell media
         id: optimize_media
         if: always() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}'
-        continue-on-error: true
         run: |
           nu scripts/ocmts.nu artifacts optimize-media \
             --raw-dir artifacts/ \
@@ -157,7 +137,7 @@ jobs:
         with:
           name: optimized-media-${{ inputs['artifact-name'] }}
           path: artifacts-optimized/
-          if-no-files-found: ignore
+          if-no-files-found: error
       - name: Upload cell artifact
         if: always()
         uses: actions/upload-artifact@v4

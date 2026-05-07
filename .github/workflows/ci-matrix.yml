@@ -27,6 +27,10 @@ jobs:
         uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Workflow drift check
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu ci workflows check github
       - name: Adapter capabilities drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}
@@ -46,9 +50,10 @@ jobs:
       - name: Generate suite ID
         id: gen
         run: |
-          SUITE_ID="${{ inputs['suite-id'] }}"
-          if [ -z "$SUITE_ID" ]; then
-            SUITE_ID=$(nu -c "use scripts/lib/suite/index.nu [new-suite-id]; new-suite-id | print")
+          if [ -n "${{ inputs['suite-id'] }}" ]; then
+            SUITE_ID=$(nu scripts/ocmts.nu ci suite-id --override "${{ inputs['suite-id'] }}")
+          else
+            SUITE_ID=$(nu scripts/ocmts.nu ci suite-id)
           fi
           echo "suite-id=$SUITE_ID" >> $GITHUB_OUTPUT
 
@@ -115,29 +120,15 @@ jobs:
       - name: Aggregate suite manifest
         run: |
           EXPECTED=$(nu scripts/ocmts.nu ci plan --cell-ids)
-          CAP_SKIPPED_JSON=artifacts/capability-skipped-cells.json
-          nu scripts/ocmts.nu ci plan | jq '[.cells[] | select(.capability_action == "capability-skipped") | {
-            cell_id,
-            flow_id,
-            pair,
-            scenario,
-            artifact_name,
-            execution_id,
-            sender_platform,
-            sender_version,
-            receiver_platform,
-            receiver_version,
-            browser,
-            is_two_party,
-            capability_skip
-          }]' > "$CAP_SKIPPED_JSON"
+          nu scripts/ocmts.nu ci plan --capability-skipped-json artifacts/capability-skipped-cells.json
+          nu scripts/ocmts.nu ci find-suite-dirs artifacts > artifacts/suite-dirs.txt
           nu scripts/ocmts.nu ci aggregate \
             --suite-id "${{ needs.setup.outputs['suite-id'] }}" \
             --output-dir artifacts/suites/aggregated \
             --expected-cells "$EXPECTED" \
-            --capability-skipped-cells "$CAP_SKIPPED_JSON" \
-            --archive \
-            $(find artifacts -name 'suite-manifest.v1.json' -printf '%h ')
+            --capability-skipped-cells artifacts/capability-skipped-cells.json \
+            --dirs-file artifacts/suite-dirs.txt \
+            --archive
       - name: Upload aggregate outputs
         if: always()
         uses: actions/upload-artifact@v4

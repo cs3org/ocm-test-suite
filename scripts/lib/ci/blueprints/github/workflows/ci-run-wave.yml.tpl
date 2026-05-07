@@ -29,10 +29,14 @@ jobs:
       cells-json: ${{ steps.read.outputs['cells-json'] }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install Nushell
+        uses: {{placeholder:setup.nu.action}}
+        with:
+          version: '{{placeholder:nushell.version}}'
       - name: Read and validate cells JSON
         id: read
         run: |
-          CELLS=$(jq -c . "${{ inputs['cells-path'] }}")
+          CELLS=$(nu scripts/ocmts.nu ci read-cells-json "${{ inputs['cells-path'] }}")
           echo "cells-json=$CELLS" >> $GITHUB_OUTPUT
 
   run-wave:

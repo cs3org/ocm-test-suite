@@ -33,27 +33,27 @@ jobs:
     outputs:
       source-run-id: ${{ steps.resolve.outputs['source-run-id'] }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Install Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          version: '0.108.0'
       - name: Resolve artifact source run
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RUN_ID=$(gh run list \
+          if [ -n "${{ inputs['source-run-id'] }}" ]; then
+            RUN_ID=$(nu scripts/ocmts.nu ci resolve-source-run \
               --workflow ci-matrix.yml \
               --branch main \
-              --status success \
-              --limit 1 \
-              --json databaseId \
-              --jq '.[0].databaseId // ""')
-            if [ -z "$RUN_ID" ]; then
-              echo "No successful ci-matrix.yml run found on main" >&2
-              exit 1
-            fi
-            echo "source-run-id=$RUN_ID" >> $GITHUB_OUTPUT
+              --run-id "${{ inputs['source-run-id'] }}")
           else
-            echo "source-run-id=${{ inputs['source-run-id'] }}" >> $GITHUB_OUTPUT
+            RUN_ID=$(nu scripts/ocmts.nu ci resolve-source-run \
+              --workflow ci-matrix.yml \
+              --branch main)
           fi
+          echo "source-run-id=$RUN_ID" >> $GITHUB_OUTPUT
 
   aggregate-media:
     needs: [prepare]
@@ -76,21 +76,15 @@ jobs:
             --dir artifacts/optimized/
       - name: Aggregate optimized media
         run: |
-          DIRS=$(find artifacts/optimized -mindepth 1 -maxdepth 1 -type d 2>/dev/null | tr '\n' ' ')
-          if [ -n "$DIRS" ]; then
-            nu scripts/ocmts.nu artifacts aggregate-optimized-media \
-              --output-dir artifacts/optimized-summary/ \
-              $DIRS
-          else
-            echo "No optimized media artifact dirs found; skipping aggregate" >&2
-            mkdir -p artifacts/optimized-summary/
-          fi
+          nu scripts/ocmts.nu artifacts aggregate-optimized-media \
+            --scan-dir artifacts/optimized \
+            --output-dir artifacts/optimized-summary/
       - name: Upload optimized media summary
         uses: actions/upload-artifact@v4
         with:
           name: optimized-media-summary
           path: artifacts/optimized-summary/
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   build:
     needs: [prepare, aggregate-media]
@@ -101,6 +95,8 @@ jobs:
         uses: hustcer/setup-nu@v3
         with:
           version: '0.108.0'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
       - name: Download raw aggregate artifact
         env:
           GH_TOKEN: ${{ github.token }}

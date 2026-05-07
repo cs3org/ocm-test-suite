@@ -23,6 +23,8 @@ use ../../lib/ci/workflow-gen.nu [
     build-flow-assets
     build-flow-asset-content
 ]
+use ../../lib/ci/source-run.nu [resolve-source-run-id]
+use ../../lib/ci/prereq-status.nu [eval-prereq-status]
 use ../../lib/ci/template-renderer.nu [render-template]
 use ../../lib/suite/index.nu [compute-suite-status]
 use ../../lib/tests/assert.nu *
@@ -593,12 +595,16 @@ def test-aggregate-cap-skipped-passthrough [] {
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
-        (assert-truthy ($yml | str contains "CAP_SKIPPED_JSON=artifacts/capability-skipped-cells.json")
-            "aggregate step writes cap-skipped cells to a JSON file")
-        (assert-truthy ($yml | str contains "select(.capability_action == \"capability-skipped\") | {")
-            "aggregate step serializes full capability-skipped cell records via jq")
-        (assert-truthy ($yml | str contains "--capability-skipped-cells \"$CAP_SKIPPED_JSON\"")
+        (assert-truthy ($yml | str contains "--capability-skipped-json artifacts/capability-skipped-cells.json")
+            "aggregate step uses ci plan --capability-skipped-json to write cap-skipped cells")
+        (assert-truthy (not ($yml | str contains "jq"))
+            "aggregate step has no inline jq usage")
+        (assert-truthy ($yml | str contains "--capability-skipped-cells artifacts/capability-skipped-cells.json")
             "aggregate step passes the capability-skipped JSON file path")
+        (assert-truthy ($yml | str contains "find-suite-dirs artifacts")
+            "aggregate step uses ci find-suite-dirs to collect suite dirs")
+        (assert-truthy ($yml | str contains "--dirs-file artifacts/suite-dirs.txt")
+            "aggregate step passes suite dirs via --dirs-file")
     ]
 }
 
@@ -1082,12 +1088,12 @@ def test-run-cell-iterates-all-deps [] {
     test-log "\n[test-run-cell-iterates-all-deps]"
     let yml = (build-run-cell-yml)
     [
-        (assert-truthy ($yml | str contains "IFS=','")
-            "ci-run-cell.yml prereq steps split cell-depends-on on comma")
-        (assert-truthy ($yml | str contains "for dep in")
-            "ci-run-cell.yml prereq steps iterate all deps with a for loop")
-        (assert-truthy ($yml | str contains "prereqs/$dep")
-            "ci-run-cell.yml prereq steps use per-dep subdirectory")
+        (assert-truthy ($yml | str contains "nu scripts/ocmts.nu ci download-prereqs")
+            "ci-run-cell.yml prereq step uses public download-prereqs command")
+        (assert-truthy ($yml | str contains "--deps")
+            "ci-run-cell.yml download-prereqs step passes --deps flag")
+        (assert-truthy ($yml | str contains "--deps \"${{ inputs['cell-depends-on'] }}\"")
+            "ci-run-cell.yml download-prereqs step binds cell-depends-on to --deps")
     ]
 }
 
@@ -1095,7 +1101,7 @@ def test-run-cell-download-uses-current-run-id [] {
     test-log "\n[test-run-cell-download-uses-current-run-id]"
     let yml = (build-run-cell-yml)
     [
-        (assert-truthy ($yml | str contains "gh run download \"${{ github.run_id }}\"")
+        (assert-truthy ($yml | str contains "--run-id \"${{ github.run_id }}\"")
             "ci-run-cell.yml prereq download pins to current run via github.run_id")
         (assert-truthy ($yml | str contains "GH_TOKEN: ${{ github.token }}")
             "ci-run-cell.yml prereq download step has GH_TOKEN")
@@ -1128,8 +1134,21 @@ def test-load-cells-job-in-run-wave [] {
             "ci-run-wave.yml accepts cells-path input")
         (assert-truthy ($run_wave_yml | str contains "needs: [load-cells]")
             "ci-run-wave.yml run-wave job depends on load-cells")
-        (assert-truthy ($run_wave_yml | str contains "jq -c .")
-            "ci-run-wave.yml load-cells job reads and validates JSON with jq")
+        (assert-truthy ($run_wave_yml | str contains "nu scripts/ocmts.nu ci read-cells-json")
+            "ci-run-wave.yml load-cells job reads JSON via repo-owned read-cells-json command")
+    ]
+}
+
+def test-run-wave-nushell-load-cells [] {
+    test-log "\n[test-run-wave-nushell-load-cells]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "nu scripts/ocmts.nu ci read-cells-json")
+            "ci-run-wave.yml uses repo-owned read-cells-json for cell loading")
+        (assert-truthy (not ($run_wave_yml | str contains "jq"))
+            "ci-run-wave.yml does not call jq")
+        (assert-truthy ($run_wave_yml | str contains "version: '0.108.0'")
+            "ci-run-wave.yml installs nushell with pinned version in load-cells job")
     ]
 }
 
@@ -1771,8 +1790,8 @@ def test-ci-site-resolves-source-run [] {
             "ci-site.yml has source run resolution step")
         (assert-truthy ($ci_site_yml | str contains "workflow_dispatch")
             "ci-site.yml source resolution branches on workflow_dispatch")
-        (assert-truthy ($ci_site_yml | str contains "gh run list")
-            "ci-site.yml uses gh run list to find source run for manual rebuild")
+        (assert-truthy ($ci_site_yml | str contains "ci resolve-source-run")
+            "ci-site.yml calls ci resolve-source-run to find source run")
         (assert-truthy ($ci_site_yml | str contains "inputs['source-run-id']")
             "ci-site.yml uses source-run-id input as source for workflow_call")
         (assert-truthy ($ci_site_yml | str contains "source-run-id")
@@ -1792,8 +1811,14 @@ def test-ci-site-downloads-optimized-media [] {
             "ci-site.yml has aggregate optimized media step")
         (assert-truthy ($ci_site_yml | str contains "aggregate-optimized-media")
             "ci-site.yml runs aggregate-optimized-media command")
+        (assert-truthy ($ci_site_yml | str contains "--scan-dir")
+            "ci-site.yml aggregate-optimized-media uses --scan-dir flag")
+        (assert-truthy ($ci_site_yml | str contains "artifacts/optimized")
+            "ci-site.yml aggregate-optimized-media --scan-dir points to artifacts/optimized")
         (assert-truthy ($ci_site_yml | str contains "Upload optimized media summary")
             "ci-site.yml uploads optimized media summary artifact")
+        (assert-truthy (not ($ci_site_yml | str contains "No optimized media artifact dirs found; skipping aggregate"))
+            "ci-site.yml does not allow empty optimized-media aggregate fallback")
     ]
 }
 
@@ -1810,7 +1835,7 @@ def test-ci-site-config-values-injected [] {
         (assert-truthy ($ci_site_yml | str contains "optimized-media-cell-*")
             "ci-site.yml uses optimized_artifact_pattern from site config")
         (assert-truthy ($ci_site_yml | str contains "--branch main")
-            "ci-site.yml uses publish_branch_gate from site config in gh run list")
+            "ci-site.yml uses publish_branch_gate from site config in resolve-source-run call")
         (assert-truthy ($ci_site_yml | str contains "optimized-media-summary")
             "ci-site.yml uses optimized_aggregate_artifact_name from site config")
         (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
@@ -1821,6 +1846,9 @@ def test-ci-site-config-values-injected [] {
 def test-run-cell-has-optimize-media-step [] {
     test-log "\n[test-run-cell-has-optimize-media-step]"
     let run_cell_yml = (build-run-cell-yml)
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let upload_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
+    let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_pos)
     [
         (assert-truthy ($run_cell_yml | str contains "Optimize cell media")
             "ci-run-cell.yml has Optimize cell media step")
@@ -1830,8 +1858,8 @@ def test-run-cell-has-optimize-media-step [] {
             "ci-run-cell.yml passes --raw-dir to optimize-media")
         (assert-truthy ($run_cell_yml | str contains "--output-dir artifacts-optimized/")
             "ci-run-cell.yml passes --output-dir artifacts-optimized/ to optimize-media")
-        (assert-truthy ($run_cell_yml | str contains "continue-on-error: true")
-            "optimize-media step has continue-on-error: true")
+        (assert-truthy (not ($optimize_section | str contains "continue-on-error: true"))
+            "optimize-media step does not ignore optimizer failures")
     ]
 }
 
@@ -1847,8 +1875,8 @@ def test-run-cell-uploads-optimized-media-artifact [] {
             "ci-run-cell.yml artifact name does not contain doubled cell-cell- prefix")
         (assert-truthy ($run_cell_yml | str contains "path: artifacts-optimized/")
             "ci-run-cell.yml uploads artifacts-optimized/ directory")
-        (assert-truthy ($run_cell_yml | str contains "if-no-files-found: ignore")
-            "optimized upload uses if-no-files-found: ignore")
+        (assert-truthy ($run_cell_yml | str contains "if-no-files-found: error")
+            "optimized upload requires optimized artifact files")
     ]
 }
 
@@ -1869,6 +1897,29 @@ def test-run-cell-has-prepull-optimizer-step [] {
             "Pre-pull optimizer image step is gated on publish branch")
         (assert-truthy ($prepull_pos < $optimize_pos)
             "Pre-pull optimizer image step appears before Optimize cell media")
+    ]
+}
+
+def test-public-commands-in-generated-yaml [] {
+    test-log "\n[test-public-commands-in-generated-yaml]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let matrix_yml = (build-ci-matrix-yml $plan)
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($matrix_yml | str contains "nu scripts/ocmts.nu ci suite-id")
+            "ci-matrix.yml uses public nu scripts/ocmts.nu ci suite-id command")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu ci exec-id")
+            "ci-run-cell.yml uses public nu scripts/ocmts.nu ci exec-id command")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu ci check-prereq-status")
+            "ci-run-cell.yml uses public nu scripts/ocmts.nu ci check-prereq-status command")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu ci download-prereqs")
+            "ci-run-cell.yml uses public nu scripts/ocmts.nu ci download-prereqs command")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu artifacts show-optimizer-image")
+            "ci-run-cell.yml uses public nu scripts/ocmts.nu artifacts show-optimizer-image command")
+        (assert-truthy (not ($run_cell_yml | str contains "nu -c \"use scripts/lib/images"))
+            "ci-run-cell.yml does not use internal nu -c image import in pre-pull step")
     ]
 }
 
@@ -2636,6 +2687,172 @@ def test-site-ingest-cap-skipped-fallback-non-empty-exec-id [] {
     ]
 }
 
+# --- ci plan --capability-skipped flag behavior ---
+
+def test-plan-cmd-capability-skipped-returns-only-skipped [] {
+    test-log "\n[test-plan-cmd-capability-skipped-returns-only-skipped]"
+    let plan = (plan-suite
+        (fixture-rules-cap-tests)
+        (fixture-prereqs)
+        (fixture-flow-caps-with-reqs)
+        (fixture-adapters-cap))
+    let skipped = ($plan.cells | where capability_action == "capability-skipped")
+    let run_cell_ids = ($plan.cells
+        | where capability_action == "run"
+        | each {|c| $c.cell_id})
+    [
+        (assert-truthy (not ($skipped | is-empty))
+            "--capability-skipped: at least one capability-skipped cell present in plan")
+        (assert-truthy ($skipped | all {|c| $c.capability_action == "capability-skipped"})
+            "--capability-skipped: every returned cell has capability_action capability-skipped")
+        (assert-truthy ($skipped | all {|c| not ($c.cell_id in $run_cell_ids)})
+            "--capability-skipped: no run cell appears in filtered output")
+    ]
+}
+
+def test-plan-cmd-capability-skipped-cell-fields [] {
+    test-log "\n[test-plan-cmd-capability-skipped-cell-fields]"
+    let plan = (plan-suite
+        (fixture-rules-cap-tests)
+        (fixture-prereqs)
+        (fixture-flow-caps-with-reqs)
+        (fixture-adapters-cap))
+    let skipped = ($plan.cells | where capability_action == "capability-skipped")
+    let first_cell = ($skipped | first)
+    let cols = ($first_cell | columns)
+    let skip_cols = ($first_cell.capability_skip | columns)
+    [
+        (assert-truthy ("cell_id" in $cols)
+            "--capability-skipped: returned cell has cell_id field")
+        (assert-truthy ("capability_action" in $cols)
+            "--capability-skipped: returned cell has capability_action field")
+        (assert-truthy ("capability_skip" in $cols)
+            "--capability-skipped: returned cell has capability_skip field")
+        (assert-truthy ("execution_id" in $cols)
+            "--capability-skipped: returned cell has execution_id field")
+        (assert-truthy ("flow_id" in $cols)
+            "--capability-skipped: returned cell has flow_id field")
+        (assert-truthy (("reason" in $skip_cols) and ("rationale" in $skip_cols))
+            "--capability-skipped: capability_skip sub-record has reason and rationale")
+    ]
+}
+
+def test-plan-cmd-capability-skipped-default-unchanged [] {
+    test-log "\n[test-plan-cmd-capability-skipped-default-unchanged]"
+    let plan = (plan-suite
+        (fixture-rules-cap-tests)
+        (fixture-prereqs)
+        (fixture-flow-caps-with-reqs)
+        (fixture-adapters-cap))
+    let all_actions = ($plan.cells | each {|c| $c.capability_action} | uniq | sort)
+    let run_count = ($plan.cells | where capability_action == "run" | length)
+    let skipped_count = ($plan.cells | where capability_action == "capability-skipped" | length)
+    [
+        (assert-truthy ("run" in $all_actions)
+            "default plan output still contains run cells")
+        (assert-truthy ("capability-skipped" in $all_actions)
+            "default plan output still contains capability-skipped cells")
+        (assert-eq ($plan.cells | length) ($run_count + $skipped_count)
+            "default: all cells are accounted for by run + capability-skipped counts")
+        (assert-eq ($plan.schema_version? | default 0) 1
+            "default plan schema_version unchanged")
+    ]
+}
+
+# Build a realistic nested prereq artifact under dep_dir, mirroring the
+# downloaded layout: dep_dir/<flow>/<pair>/<exec-id>/meta/result.v1.json.
+def make-prereq-result [dep_dir: string, result_json: string] {
+    let nested = ($dep_dir | path join "login" "nc-v34" "exec-abc123" "meta")
+    mkdir $nested
+    $result_json | save ($nested | path join "result.v1.json")
+}
+
+def test-prereq-status-no-deps [] {
+    test-log "\n[test-prereq-status-no-deps]"
+    let reason = (eval-prereq-status [] "/nonexistent")
+    [
+        (assert-eq $reason "" "empty dep list returns empty reason")
+    ]
+}
+
+def test-prereq-status-missing-artifact [] {
+    test-log "\n[test-prereq-status-missing-artifact]"
+    let tmp = (^mktemp -d | str trim)
+    # No subdirectory created under tmp for cell-a - simulates a failed download.
+    let reason = (eval-prereq-status ["cell-a"] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason
+            "prerequisite cell-a artifact missing or download failed"
+            "missing result file returns artifact-missing reason")
+    ]
+}
+
+def test-prereq-status-non-passed [] {
+    test-log "\n[test-prereq-status-non-passed]"
+    let tmp = (^mktemp -d | str trim)
+    make-prereq-result ($tmp | path join "cell-a") ({status: "failed"} | to json)
+    let reason = (eval-prereq-status ["cell-a"] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason
+            "prerequisite cell-a had status: failed"
+            "non-passed status returns status reason")
+    ]
+}
+
+def test-prereq-status-all-passed [] {
+    test-log "\n[test-prereq-status-all-passed]"
+    let tmp = (^mktemp -d | str trim)
+    make-prereq-result ($tmp | path join "cell-a") ({status: "passed"} | to json)
+    make-prereq-result ($tmp | path join "cell-b") ({status: "passed"} | to json)
+    let reason = (eval-prereq-status ["cell-a" "cell-b"] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason "" "all passed deps return empty reason")
+    ]
+}
+
+def test-prereq-status-stops-at-first-failure [] {
+    test-log "\n[test-prereq-status-stops-at-first-failure]"
+    let tmp = (^mktemp -d | str trim)
+    make-prereq-result ($tmp | path join "cell-a") ({status: "passed"} | to json)
+    # cell-b has no artifact dir - simulates missing download
+    let reason = (eval-prereq-status ["cell-a" "cell-b"] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason
+            "prerequisite cell-b artifact missing or download failed"
+            "stops at first failure after a passing dep")
+    ]
+}
+
+def test-prereq-status-skips-whitespace-deps [] {
+    test-log "\n[test-prereq-status-skips-whitespace-deps]"
+    let tmp = (^mktemp -d | str trim)
+    make-prereq-result ($tmp | path join "cell-a") ({status: "passed"} | to json)
+    # leading/trailing spaces around cell-a should still resolve correctly
+    let reason = (eval-prereq-status [" cell-a " "  "] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason "" "whitespace-padded dep trimmed correctly; empty entry skipped")
+    ]
+}
+
+def test-prereq-status-unknown-status-field [] {
+    test-log "\n[test-prereq-status-unknown-status-field]"
+    let tmp = (^mktemp -d | str trim)
+    # result.v1.json with no status field -> defaults to "unknown"
+    make-prereq-result ($tmp | path join "cell-a") ({} | to json)
+    let reason = (eval-prereq-status ["cell-a"] $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $reason
+            "prerequisite cell-a had status: unknown"
+            "missing status field treated as unknown and reported")
+    ]
+}
+
 def main [] {
     test-log "=== CI Planner Tests ==="
     let results = (
@@ -2686,6 +2903,7 @@ def main [] {
         | append (test-reconstruct-suite-index-skips-invalid-id)
         | append (test-cells-path-in-matrix)
         | append (test-load-cells-job-in-run-wave)
+        | append (test-run-wave-nushell-load-cells)
         | append (test-asset-file-paths)
         | append (test-asset-content-valid-json)
         | append (test-asset-content-is-pretty-printed)
@@ -2707,6 +2925,7 @@ def main [] {
         | append (test-run-cell-has-optimize-media-step)
         | append (test-run-cell-uploads-optimized-media-artifact)
         | append (test-run-cell-has-prepull-optimizer-step)
+        | append (test-public-commands-in-generated-yaml)
         | append (test-run-cell-optimize-branch-gated)
         | append (test-ci-site-job-topology)
         | append (test-ci-site-build-job)
@@ -2732,6 +2951,19 @@ def main [] {
         | append (test-synthesized-run-lifecycle-status-completed)
         | append (test-aggregate-result-shape-via-build-result-v1)
         | append (test-site-ingest-cap-skipped-fallback-non-empty-exec-id)
+        | append (test-plan-cmd-capability-skipped-returns-only-skipped)
+        | append (test-plan-cmd-capability-skipped-cell-fields)
+        | append (test-plan-cmd-capability-skipped-default-unchanged)
+        | append (test-resolve-source-run-passthrough)
+        | append (test-prereq-status-no-deps)
+        | append (test-prereq-status-missing-artifact)
+        | append (test-prereq-status-non-passed)
+        | append (test-prereq-status-all-passed)
+        | append (test-prereq-status-stops-at-first-failure)
+        | append (test-prereq-status-skips-whitespace-deps)
+        | append (test-prereq-status-unknown-status-field)
+        | append (test-read-cells-json-compact-output)
+        | append (test-find-suite-dirs-discovers-exec-not-meta)
     ) | flatten
     run-suite "ci/planner" $SUITE_PATH $results
 }
@@ -2769,5 +3001,69 @@ def test-compute-cell-depends-on-rejects-unknown-role [] {
             "error names the unknown role value")
         (assert-string-contains $err "unknown required_role"
             "error describes the problem")
+    ]
+}
+
+def test-resolve-source-run-passthrough [] {
+    test-log "\n[test-resolve-source-run-passthrough]"
+    let id = (resolve-source-run-id "99887766" "ci-matrix.yml" "main")
+    [
+        (assert-eq $id "99887766"
+            "explicit run-id is returned unchanged without GH lookup")
+    ]
+}
+
+# Regression: read-cells-json must emit compact one-line JSON, not pretty-printed.
+# The --raw flag on `to json` is what makes it compact; this test guards against
+# losing that flag and breaking GitHub Actions output consumption.
+def test-read-cells-json-compact-output [] {
+    test-log "\n[test-read-cells-json-compact-output]"
+    let tmp = (^mktemp -d | str trim)
+    let json_file = ($tmp | path join "cells.json")
+    ({a: 1, items: [1 2 3]} | to json | save $json_file)
+    let script = (
+        $SUITE_PATH | path dirname
+        | path join ".." ".." "domains" "ci" "read-cells-json.nu"
+        | path expand
+    )
+    let out = (^nu $script $json_file | str trim)
+    ^rm -rf $tmp
+    [
+        (assert-truthy (not ($out | str contains "\n"))
+            "output has no newlines (compact, not pretty-printed JSON)")
+        (assert-truthy ($out | str starts-with "{")
+            "output starts with { (valid JSON object)")
+        (assert-eq ($out | from json | get a) 1
+            "output is valid JSON with correct content")
+    ]
+}
+
+# Regression: find-suite-dirs must return the exec dir (<exec>) when manifests
+# live at <exec>/meta/suite-manifest.v1.json, not the intermediate <exec>/meta.
+def test-find-suite-dirs-discovers-exec-not-meta [] {
+    test-log "\n[test-find-suite-dirs-discovers-exec-not-meta]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "run-001" "meta")
+    mkdir ($tmp | path join "run-002" "meta")
+    ({} | to json | save ($tmp | path join "run-001" "meta" "suite-manifest.v1.json"))
+    ({} | to json | save ($tmp | path join "run-002" "meta" "suite-manifest.v1.json"))
+    let script = (
+        $SUITE_PATH | path dirname
+        | path join ".." ".." "domains" "ci" "find-suite-dirs.nu"
+        | path expand
+    )
+    let dirs = (^nu $script $tmp | lines | where {|l| ($l | str trim) != ""})
+    let expected_001 = ($tmp | path join "run-001")
+    let expected_002 = ($tmp | path join "run-002")
+    ^rm -rf $tmp
+    [
+        (assert-eq ($dirs | length) 2
+            "discovers exactly two execution dirs")
+        (assert-list-contains $dirs $expected_001
+            "run-001 exec dir is discovered, not run-001/meta")
+        (assert-list-contains $dirs $expected_002
+            "run-002 exec dir is discovered, not run-002/meta")
+        (assert-truthy (not ($dirs | any {|d| $d | str ends-with "meta"}))
+            "no discovered dir ends with /meta")
     ]
 }

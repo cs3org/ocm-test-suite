@@ -9,9 +9,11 @@ use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 use ../../lib/site/flow-caps.nu [load-flow-caps]
 
 def main [
-    --suite-id: string = "",   # Override generated suite_id
-    --output: string = "",     # Write plan to this JSON file instead of stdout
-    --cell-ids,                # Output only comma-separated cell_ids (for scripting)
+    --suite-id: string = "",              # Override generated suite_id
+    --output: string = "",                # Write plan to this JSON file instead of stdout
+    --cell-ids,                           # Output only comma-separated cell_ids (for scripting)
+    --capability-skipped,                 # Output capability-skipped cell records as JSON array to stdout
+    --capability-skipped-json: string = "", # Write capability-skipped cell records to this JSON file
 ] {
     let root = get-ocmts-root
     let rules = (load-matrix-rules $root)
@@ -25,6 +27,13 @@ def main [
     }
     if $cell_ids {
         $plan.cells | each {|c| $c.cell_id} | str join ","
+    } else if $capability_skipped {
+        let skipped = ($plan.cells | where capability_action == "capability-skipped")
+        $skipped | to json --indent 2
+    } else if (not ($capability_skipped_json | is-empty)) {
+        let skipped = ($plan.cells | where capability_action == "capability-skipped")
+        $skipped | to json --indent 2 | save --force $capability_skipped_json
+        print $"Capability-skipped cells written to ($capability_skipped_json)"
     } else if ($output | is-empty) {
         $plan | to json --indent 2
     } else {

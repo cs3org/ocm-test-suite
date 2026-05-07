@@ -191,6 +191,7 @@ export def build-run-wave-yml [] {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
     let gh = $cfg.workflows.github
+    let nu_ver = $cfg.toolchain.nushell.version
     let max_parallel = ($gh.max_parallel? | default 0)
     let max_parallel_line = if $max_parallel > 0 {
         $"\n      max-parallel: ($max_parallel)"
@@ -201,6 +202,8 @@ export def build-run-wave-yml [] {
     render-blueprint $run_wave_tpl {
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
         "runner.label": $gh.runner
+        "setup.nu.action": $gh.setup_nu_action
+        "nushell.version": $nu_ver
         "max_parallel_line": $max_parallel_line
     }
 }

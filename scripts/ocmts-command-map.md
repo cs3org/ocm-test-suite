@@ -20,13 +20,16 @@ Run from the repo root.
 
 ## artifacts
 
-| Command                                     | Purpose                                       |
-| ------------------------------------------- | --------------------------------------------- |
-| `nu scripts/ocmts.nu artifacts list`        | List artifact directories on disk.            |
-| `nu scripts/ocmts.nu artifacts show <run>`  | Show one run's artifact tree summary.         |
-| `nu scripts/ocmts.nu artifacts collect ...` | Collect post-run artifacts for one cell.      |
-| `nu scripts/ocmts.nu artifacts publish ...` | Publish/copy artifacts to the publish target. |
-| `nu scripts/ocmts.nu artifacts prune ...`   | Prune old artifact directories.               |
+| Command                                                    | Purpose                                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| `nu scripts/ocmts.nu artifacts list`                       | List artifact directories on disk.                             |
+| `nu scripts/ocmts.nu artifacts show <run>`                 | Show one run's artifact tree summary.                          |
+| `nu scripts/ocmts.nu artifacts collect ...`                | Collect post-run artifacts for one cell.                       |
+| `nu scripts/ocmts.nu artifacts publish ...`                | Publish/copy artifacts to the publish target.                  |
+| `nu scripts/ocmts.nu artifacts prune ...`                  | Prune old artifact directories.                                |
+| `nu scripts/ocmts.nu artifacts optimize-media ...`         | Optimize raw cell media (images/video) into a smaller form.    |
+| `nu scripts/ocmts.nu artifacts probe-optimizer`            | Probe the media optimizer image (pull/verify availability).    |
+| `nu scripts/ocmts.nu artifacts aggregate-optimized-media ...` | Aggregate per-cell optimized media dirs into one summary.   |
 
 ## ci
 

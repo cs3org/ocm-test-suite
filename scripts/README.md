@@ -48,12 +48,15 @@ scripts/
     mitm/                  # summary, ocm-summary, peers, report-utils,
                            # validator-dispatcher, code-flow-validator
     ocm/                   # endpoints
-    publish/               # envelope (evidence)
-    run/                   # metadata, execution-id, flow-ids, finalize
+    publish/               # envelope, evidence (per-cell sidecar emitters)
+    run/                   # execution-id, finalize, flow-ids, metadata,
+                           # result-envelope, status
     services/              # compose-files, context, cypress-run,
                            # lifecycle, postrun-artifacts
-    site/                  # clone, copy, cell-impl, manifest, internal
-                           # (shared private helpers), ingest, build, publish
+    site/                  # blocker-logic, build, cell-impl, clone,
+                           # config, copy, flow-caps, ingest, internal
+                           # (shared private helpers), manifest, preview,
+                           # project-media, provenance, publish
     suite/                 # index
     tests/                 # assert, runner, fixtures (test-suite helpers)
   tests/                   # Nushell test suites organized by area

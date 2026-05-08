@@ -25,14 +25,16 @@ Root resolution:
 Common flows:
 
 - `nu scripts/ocmts.nu services up run ...` brings up services, runs Cypress,
-writes `meta/run.json` and `meta/result.json`, then tears down unless
-`--keep-up` is passed.
+writes `meta/run.json` and `meta/result.v1.json` (plus the per-cell
+sidecars `meta/evidence.v1.json`, `meta/images.v1.json`, and
+`compose/manifest.v1.json`), then tears down unless `--keep-up` is passed.
 - `nu scripts/ocmts.nu services up ...` starts the stack and leaves
 `meta/run.json` in `active` state.
 - `nu scripts/ocmts.nu services up open ...` starts the dev Cypress workspace
 and leaves `meta/run.json` in `open` state until `services down`.
 - `nu scripts/ocmts.nu test cypress run ...` runs Cypress against an
-already-up stack and updates `meta/run.json` plus `meta/result.json`.
+already-up stack and updates `meta/run.json` plus `meta/result.v1.json`
+(and refreshes the evidence + images sidecars).
 - `nu scripts/ocmts.nu test cypress suite ...` runs the full enabled matrix
 suite sequentially. Add `--publish-site` to publish the exact suite that just
 ran. Add `--site-dir <path>` with `--publish-site` to target an existing local
@@ -58,8 +60,16 @@ auto-resolved from `OCM_WEB_SITE_DIR` (env), then `<repo>/../ocm-web-site`
 
 This repo treats flow identity as explicit data.
 
-- `--scenario` selects the scenario module key (for example `login`).
-- Each scenario has an explicit public `flow_id` in `config/matrix-rules.nuon`.
+- `--scenario` selects the scenario *key*, not the bare flow id. The two
+are only equal for each flow's baseline pair (e.g. nextcloud -> nextcloud
+contact-token has scenario key `contact-token`; ocis -> opencloud has
+scenario key `contact-token-ocis-opencloud`). See
+`docs/architecture/scenario-keys.md` for the full naming convention,
+operator recipes, and the live scenario-key table.
+- Each scenario maps to one public `flow_id` declared in its flow config
+under `config/matrix/flows/<flow_id>.nuon` (`enabled`, `display_order`,
+`label`, `subtitle`, scenario module bindings). Disabled flows
+(`enabled: false`) drop out of the published rules entirely.
 - Today public flow ids in this repo match scenario module names:
   - `login`
   - `share-with`
@@ -94,6 +104,9 @@ Default layout:
 
 - `artifacts/<flow_id>/<pair>/<execution_id>/`
   - `compose/` rendered compose inputs
+    - `compose/manifest.v1.json` machine-readable summary of the rendered
+    compose stack (services, env files, mitm topology) used by the site
+    Stack tab.
   - `cypress/` screenshots, videos, downloads
     - `videos/*.mp4` (when video is enabled)
     - `screenshots/**/*.png` on failure, plus explicit proof screenshots from
@@ -105,7 +118,16 @@ Default layout:
     `services up run` before teardown, or by
     `nu scripts/ocmts.nu artifacts collect --include-logs ...` while the
     stack is still up.
-  - `meta/` cell/run/result metadata and suite envelope outputs
+  - `meta/` cell/run/result metadata and per-cell sidecar contracts:
+    - `meta/cell.json` cell identity (flow_id, pair, scenario module)
+    - `meta/run.json` lifecycle state (`active`, `open`, `completed`)
+    - `meta/result.v1.json` terminal verdict envelope
+    - `meta/evidence.v1.json` master evidence sidecar; lists every
+    artifact item with its `envelope` kind (`text-log.v1`, `jsonl.v1`,
+    `event-stream.v1`, `markdown.v1`, `stub.v1`). Items[] is filtered to
+    only paths that physically exist on disk.
+    - `meta/images.v1.json` resolved image refs per service (post env-override)
+    - `meta/suite-manifest.v1.json` the run's published envelope
 - `artifacts/<flow_id>/<pair>/LAST_EXECUTION_ID` marker written at run setup
 - `artifacts/suites/LATEST_SUITE_ID` latest suite marker
 - `artifacts/suites/runs/<suite_id>.json` suite records (schema v2)
@@ -136,8 +158,10 @@ config view and does not apply scenario-scoped overrides.
 
 Current Nextcloud v34 policy:
 
-- Generic v34 flows such as `login` and `share-with` use `nextcloud:master`.
-- Contact flows override v34 to `nextcloud-contacts:sta-ocm-m6`.
+- Generic v34 flows such as `login` and `share-with` use the published
+  `ghcr.io/mahdibaghbani/containers/nextcloud:master` image.
+- Contact flows override v34 to the published
+  `ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6` image.
 
 For readability, defaults stay as plain literals and `ocmts` resolves
 `override_env` keys at runtime instead of embedding `${ENV:-default}`
@@ -228,6 +252,10 @@ MITM flow artifacts:
 
 - `mitm/flows/traffic.jsonl` is written by the mitm service during the run.
 - `mitm/flows/session.json` is written at mitm shutdown.
+- `mitm/startup.v1.json` records the mitm container startup envelope
+(addon path, listen ports, upstream peers).
+- `mitm/connect-errors.v1.jsonl` captures connect-time failures observed
+by the mitm proxy, one record per line.
 - Derived reports are generated at the end of `services up run` (two-party only)
 under `mitm/reports/`:
   - `01-01-traffic-overview.md`

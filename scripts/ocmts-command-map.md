@@ -20,26 +20,34 @@ Run from the repo root.
 
 ## artifacts
 
-| Command                                                    | Purpose                                                        |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| `nu scripts/ocmts.nu artifacts list`                       | List artifact directories on disk.                             |
-| `nu scripts/ocmts.nu artifacts show <run>`                 | Show one run's artifact tree summary.                          |
-| `nu scripts/ocmts.nu artifacts collect ...`                | Collect post-run artifacts for one cell.                       |
-| `nu scripts/ocmts.nu artifacts publish ...`                | Publish/copy artifacts to the publish target.                  |
-| `nu scripts/ocmts.nu artifacts prune ...`                  | Prune old artifact directories.                                |
-| `nu scripts/ocmts.nu artifacts optimize-media ...`         | Optimize raw cell media (images/video) into a smaller form.    |
-| `nu scripts/ocmts.nu artifacts probe-optimizer`            | Probe the media optimizer image (pull/verify availability).    |
-| `nu scripts/ocmts.nu artifacts aggregate-optimized-media ...` | Aggregate per-cell optimized media dirs into one summary.   |
+| Command | Purpose |
+| --- | --- |
+| `nu scripts/ocmts.nu artifacts list` | List artifact directories on disk. |
+| `nu scripts/ocmts.nu artifacts show <run>` | Show one run's artifact tree summary. |
+| `nu scripts/ocmts.nu artifacts collect ...` | Collect post-run artifacts for one cell. |
+| `nu scripts/ocmts.nu artifacts publish ...` | Publish/copy artifacts to the publish target. |
+| `nu scripts/ocmts.nu artifacts prune ...` | Prune old artifact directories. |
+| `nu scripts/ocmts.nu artifacts optimize-media ...` | Optimize raw cell media (images/video) into a smaller form. |
+| `nu scripts/ocmts.nu artifacts show-optimizer-image` | Print the resolved media optimizer image ref. |
+| `nu scripts/ocmts.nu artifacts probe-optimizer` | Probe the media optimizer image (pull/verify availability). |
+| `nu scripts/ocmts.nu artifacts aggregate-optimized-media ...` | Aggregate per-cell optimized media dirs into one summary. |
 
 ## ci
 
-| Command                                            | Purpose                                            |
-| -------------------------------------------------- | -------------------------------------------------- |
-| `nu scripts/ocmts.nu ci plan ...`                  | Plan a suite (cells, order, exec ids).             |
-| `nu scripts/ocmts.nu ci workflows generate github` | Render GitHub workflow YAMLs from blueprints.      |
-| `nu scripts/ocmts.nu ci workflows check github`    | Drift-check rendered workflows against blueprints. |
-| `nu scripts/ocmts.nu ci aggregate ...`             | Aggregate per-cell suite manifests into one.       |
-| `nu scripts/ocmts.nu ci emit-blocked ...`          | Emit a blocked-cell artifact set.                  |
+| Command | Purpose |
+| --- | --- |
+| `nu scripts/ocmts.nu ci suite-id [--override <id>]` | Print a suite ID or pass through an explicit override. |
+| `nu scripts/ocmts.nu ci exec-id` | Print a new unique execution ID. |
+| `nu scripts/ocmts.nu ci plan ...` | Plan a suite (cells, order, exec ids). |
+| `nu scripts/ocmts.nu ci workflows generate github` | Render GitHub workflow YAMLs from blueprints. |
+| `nu scripts/ocmts.nu ci workflows check github` | Drift-check rendered workflows against blueprints. |
+| `nu scripts/ocmts.nu ci aggregate ...` | Aggregate per-cell suite manifests into one. |
+| `nu scripts/ocmts.nu ci emit-blocked ...` | Emit a blocked-cell artifact set. |
+| `nu scripts/ocmts.nu ci check-prereq-status ...` | Check prerequisite artifacts and print the first failure reason. |
+| `nu scripts/ocmts.nu ci read-cells-json <path>` | Read a cells JSON asset file and print compact one-line JSON. |
+| `nu scripts/ocmts.nu ci find-suite-dirs <root>` | Find suite execution dirs under a root for aggregate `--dirs-file`. |
+| `nu scripts/ocmts.nu ci resolve-source-run ...` | Resolve a source run ID from an explicit input or GitHub lookup. |
+| `nu scripts/ocmts.nu ci download-prereqs ...` | Download prerequisite artifacts into `prereqs/<dep>` dirs. |
 
 ## images
 

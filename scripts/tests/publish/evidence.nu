@@ -278,6 +278,37 @@ def test-collect-evidence-counts-new-files [] {
     $results
 }
 
+# items[] only contains entries whose path exists on disk at emit time.
+# Verifies the existence filter: paths that collectors would normally emit
+# but that are absent from the artifact dir are excluded from items[].
+def test-emit-evidence-exists-filter [] {
+    test-log "\n[test-emit-evidence-exists-filter]"
+    let tmp = (make-tmp)
+    # Write only two of the fixed mitm paths; leave session.json and peers.json absent.
+    write-file $tmp "meta/run.json" "{}"
+    write-file $tmp "mitm/flows/traffic.jsonl" "{\"a\":1}\n"
+    # mitm/flows/session.json is intentionally NOT written.
+    # mitm/peers.json is intentionally NOT written.
+    emit-evidence $tmp "cell-filter" "run-filter"
+    let ev = (open ($tmp | path join "meta/evidence.v1.json"))
+    let paths = ($ev.items | get path)
+    let results = [
+        (assert-list-contains $paths "meta/run.json"
+            "meta/run.json present when it exists")
+        (assert-list-contains $paths "mitm/flows/traffic.jsonl"
+            "mitm/flows/traffic.jsonl present when it exists")
+        (assert-list-not-contains $paths "mitm/flows/session.json"
+            "mitm/flows/session.json absent when file does not exist")
+        (assert-list-not-contains $paths "mitm/peers.json"
+            "mitm/peers.json absent when file does not exist")
+        (assert-truthy ($ev.items | all {|it|
+            ($tmp | path join $it.path) | path exists
+        }) "every item in items[] points to a file that physically exists")
+    ]
+    rm -rf $tmp
+    $results
+}
+
 # mitm/conf/** is excluded from items[] (contains CA private key).
 def test-emit-evidence-excludes-mitm-conf [] {
     test-log "\n[test-emit-evidence-excludes-mitm-conf]"
@@ -313,6 +344,7 @@ def main [] {
         | append (test-emit-evidence-sha256-deterministic)
         | append (test-emit-evidence-no-self-reference)
         | append (test-emit-evidence-excludes-mitm-conf)
+        | append (test-emit-evidence-exists-filter)
         | append (test-collect-evidence-counts-new-files)
     ) | flatten
     run-suite "publish/evidence" $SUITE_PATH $results

@@ -230,7 +230,9 @@ export def emit-evidence [
     })
     $items = ($items | append $mitm_items)
 
-    let items = ($items | sort-by path)
+    let items = ($items
+        | where {|it| ($abs_base | path join $it.path) | path exists}
+        | sort-by path)
 
     let out = {
         schema_version: 1,

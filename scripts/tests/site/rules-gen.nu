@@ -453,6 +453,49 @@ def test-build-matrix-rules-json-emits-flows-and-platforms [] {
     $result
 }
 
+def test-build-matrix-rules-json-flows-metadata-values [] {
+    test-log "\n[test-build-matrix-rules-json-flows-metadata-values]"
+    mut tmp = ($nu.temp-path | path join $"ocmts-flowsmeta-(random uuid)")
+    mkdir $tmp
+    materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
+    let out = (build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp)
+    let flows = $out.flows
+
+    let login_flow = ($flows | where flow_id == "login" | first)
+    let share_flow = ($flows | where flow_id == "share-with" | first)
+    let code_flow  = ($flows | where flow_id == "code-flow" | first)
+
+    let result = [
+        (assert-truthy ($flows | all {|f|
+            let cols = ($f | columns)
+            (("label" in $cols)
+                and ("subtitle" in $cols)
+                and ("display_order" in $cols)
+                and ("enabled" in $cols))
+        }) "every flow block carries label, subtitle, display_order, enabled")
+        (assert-truthy ($flows | all {|f| ($f.label | describe) == "string" and (($f.label | str length) > 0)})
+            "every flow label is a non-empty string")
+        (assert-truthy ($flows | all {|f| ($f.subtitle | describe) == "string" and (($f.subtitle | str length) > 0)})
+            "every flow subtitle is a non-empty string")
+        (assert-truthy ($flows | all {|f| ($f.display_order | describe) == "int"})
+            "every flow display_order is an integer")
+        (assert-truthy ($flows | all {|f| ($f.enabled | describe) == "bool"})
+            "every flow enabled is a boolean")
+        (assert-eq $login_flow.label "Login Flow"  "login flow_id carries correct label")
+        (assert-eq $login_flow.subtitle "Login flow" "login flow_id carries correct subtitle")
+        (assert-eq $login_flow.display_order 10 "login display_order is 10")
+        (assert-eq $login_flow.enabled true "login enabled is true")
+        (assert-eq $share_flow.label "Share With Flow" "share-with carries correct label")
+        (assert-eq $share_flow.display_order 20 "share-with display_order is 20")
+        (assert-eq $share_flow.enabled true "share-with enabled is true")
+        (assert-eq $code_flow.enabled false "code-flow enabled is false")
+        (assert-eq $code_flow.display_order 30 "code-flow display_order is 30")
+    ]
+    rm --recursive --force $tmp
+    $result
+}
+
 def test-build-matrix-rules-json-rejects-empty-flows-dir [] {
     test-log "\n[test-build-matrix-rules-json-rejects-empty-flows-dir]"
     mut tmp = ($nu.temp-path | path join $"ocmts-emptyflows-(random uuid)")
@@ -739,6 +782,7 @@ def main [] {
         | append (test-build-matrix-rules-json-provenance-shape)
         | append (test-expand-flow-skips-disabled-flow)
         | append (test-build-matrix-rules-json-emits-flows-and-platforms)
+        | append (test-build-matrix-rules-json-flows-metadata-values)
         | append (test-build-matrix-rules-json-rejects-empty-flows-dir)
         | append (test-build-matrix-rules-json-rejects-missing-platforms)
         | append (test-build-matrix-rules-json-rejects-platform-missing-keys)

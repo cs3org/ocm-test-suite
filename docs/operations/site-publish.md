@@ -66,10 +66,11 @@ copied to the public site by default.
 Public screenshots and videos in the published tree are derived assets
 (AVIF + WebP for screenshots, AV1 WebM + VP9 WebM for videos), not the raw
 PNG and MP4 captured by Cypress. The raw bytes remain available in raw
-artifacts and the raw aggregate, but they are not exposed under
-`public/artifacts/`. The optimized lane runs in parallel with raw test
-execution; the public manifest is rewritten so media rows point at the
-derived files while keeping `source_path` set to the raw provenance.
+artifacts and the raw aggregate. In the CI publish lane, raw media is not
+exposed under `public/artifacts/`; OTS rewrites the public manifest so media
+rows point at the derived files while keeping `source_path` set to the raw
+provenance. For local/manual `site publish` without `--optimized-media-dir`,
+raw media may still be published as a fallback.
 
 For commands, configuration, manifest shapes, the CI workflow surface, and
 the local development workflow, see

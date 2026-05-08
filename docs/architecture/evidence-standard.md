@@ -38,6 +38,25 @@ The run envelope lives in `meta/suite-manifest.v1.json`. It is the single
 source of truth for evidence rows. Summaries and site outputs are projections
 of that envelope.
 
+The per-cell evidence master sidecar is `meta/evidence.v1.json`. It
+enumerates every evidence item with a typed `envelope` kind so renderers
+can dispatch without sniffing file contents:
+
+| Envelope kind     | Used for                                     |
+| ----------------- | -------------------------------------------- |
+| `text-log.v1`     | Plain-text logs (cypress-run.log, platform.log, MITM `mitm/logs/*.log` when present) |
+| `jsonl.v1`        | Newline-delimited JSON records (one record = one row) |
+| `event-stream.v1` | MITM `mitm/flows/traffic.jsonl` (request/response pairs) |
+| `markdown.v1`     | MITM markdown reports under `mitm/reports/*.md` |
+| `stub.v1`         | Lightweight pointer envelope (e.g. videos, screenshots that the site renders directly) |
+
+`items[]` is filtered to paths that physically exist on disk, so
+consumers can trust that every listed item is fetchable. Companion
+sidecars (`meta/result.v1.json`, `meta/images.v1.json`,
+`compose/manifest.v1.json`, `mitm/startup.v1.json`,
+`mitm/connect-errors.v1.jsonl`) carry their own structured records and are
+referenced from the master sidecar.
+
 ## Evidence Classes
 
 | Class | Local artifact | Manifest evidence | Site artifact | Policy |
@@ -45,10 +64,10 @@ of that envelope.
 | Metadata | yes | yes | yes | Always published with the run. |
 | Screenshots | yes | yes | yes | Primary proof evidence. |
 | Videos | yes | yes | yes | Published by default; use `--no-video` only for fast local checks. |
-| Docker logs | yes | yes | yes | Supporting debug evidence. |
-| MITM flows and reports | yes | yes | yes | Supporting protocol evidence for MITM flows. |
+| Docker logs | yes | yes | yes | Supporting debug evidence. The mitm container log itself is no longer collected; mitm activity is captured via the `mitm/flows/` and `mitm/reports/` evidence below. |
+| MITM flows and reports | yes | yes | yes | Supporting protocol evidence for MITM flows (`traffic.jsonl`, `session.json`, derived reports under `mitm/reports/`, plus `startup.v1.json` and `connect-errors.v1.jsonl`). |
 | Downloads | yes | yes | no | Local/per-run evidence only unless a future site feature needs them. |
-| Compose inputs | yes | no | no | Reproducibility artifact, not published evidence. |
+| Compose inputs | yes | yes (`compose/manifest.v1.json` only) | yes (manifest only) | Reproducibility artifact; the structured manifest is published, the raw rendered files are not. |
 
 ## Screenshot Naming
 

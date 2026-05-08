@@ -12,6 +12,7 @@ export const ocisV8ShareFileSenderAdapter: ShareFileSenderAdapter = {
   key: "ocis/v8",
 
   prepareShareFile({ sharedFileName, sourceFileName: _sourceFileName }) {
+    files.ensureFilesAppActive();
     const content = `OCM share file: ${sharedFileName}`;
     files.createTextFile(sharedFileName, content);
     return cy.wrap({ expectedContent: content });
@@ -19,6 +20,7 @@ export const ocisV8ShareFileSenderAdapter: ShareFileSenderAdapter = {
 
   sendFileToFederatedRecipient({ sharedFileName, federatedRecipientId }) {
     files.ensureFilesAppActive();
+    sharing.openSharingPanel(sharedFileName);
     sharing.addExternalShare(sharedFileName, federatedRecipientId);
   },
 };
@@ -27,11 +29,11 @@ export const ocisV8ShareFileReceiverAdapter: ShareFileReceiverAdapter = {
   key: "ocis/v8",
 
   acceptIncomingShare({ sharedFileName }) {
+    files.ensureFilesAppActive();
     sharing.acceptIncomingShare(sharedFileName);
   },
 
   assertSharedFileContent({ sharedFileName, expectedContent }) {
-    files.ensureFilesAppActive();
     files.assertFileContent(sharedFileName, expectedContent);
   },
 };

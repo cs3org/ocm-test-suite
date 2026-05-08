@@ -12,6 +12,7 @@ use ../../lib/suite/index.nu [
     finish-suite-record
     record-suite-run
     record-skipped-run
+    record-blocked-run
     read-suite-record
     compute-suite-status
 ]
@@ -212,6 +213,48 @@ def test-record-skipped-run-appends-entry [] {
     $results
 }
 
+def test-record-blocked-run-appends-entry [] {
+    test-log "\n[test-record-blocked-run-appends-entry]"
+    let tmp = (^mktemp -d | str trim)
+    let suite_id = (fixture-suite-id)
+    let cell = (fixture-skipped-cell "login__nc-v34")
+    let results = (with-env {OCMTS_ROOT: $tmp} {
+        init-suite-record $suite_id "suite" [$cell.cell_id]
+        let blocked_at = (utc-now)
+        record-blocked-run $suite_id $cell $blocked_at
+        let rec = (read-suite-record $suite_id)
+        let runs = ($rec.runs? | default [])
+        let blocked_entries = ($runs | where status == "blocked")
+        [
+            (assert-eq ($blocked_entries | length) 1
+                "one blocked entry appended to suite record runs")
+            (assert-eq ($blocked_entries | first | get cell_id) "login__nc-v34"
+                "blocked entry has correct cell_id")
+            (assert-eq ($blocked_entries | first | get exit_code) (-1)
+                "blocked entry has exit_code -1")
+            (assert-eq ($blocked_entries | first | get started_at) ""
+                "blocked entry has empty started_at")
+            (assert-eq ($blocked_entries | first | get flow_id) "login"
+                "blocked entry preserves flow_id")
+            (assert-eq ($blocked_entries | first | get execution_id) "20260101t120001-aabbccee"
+                "blocked entry preserves execution_id")
+        ]
+    })
+    ^rm -rf $tmp
+    $results
+}
+
+# Focused precedence regression: blocked sits between passed and failed.
+def test-blocked-status-precedence [] {
+    test-log "\n[test-blocked-status-precedence]"
+    [
+        (assert-eq (compute-suite-status ["passed" "blocked"]) "blocked"
+            "blocked beats passed")
+        (assert-eq (compute-suite-status ["blocked" "failed"]) "failed"
+            "failed beats blocked")
+    ]
+}
+
 # Thin delegation check: compute-suite-status must agree with run-status-precedence.
 # Canonical precedence coverage lives in scripts/tests/run/status.nu.
 def test-compute-suite-status-delegates [] {
@@ -347,6 +390,8 @@ def main [] {
         | append (test-write-terminal-outcome-suite-fields)
         | append (test-finish-suite-record-skipped-count)
         | append (test-record-skipped-run-appends-entry)
+        | append (test-record-blocked-run-appends-entry)
+        | append (test-blocked-status-precedence)
         | append (test-compute-suite-status-delegates)
         | append (test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked)
         | append (test-read-run-meta-happy-path)

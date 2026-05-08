@@ -12,6 +12,7 @@ export const opencloudV6ShareFileSenderAdapter: ShareFileSenderAdapter = {
   key: "opencloud/v6",
 
   prepareShareFile({ sharedFileName, sourceFileName: _sourceFileName }) {
+    files.ensureFilesAppActive();
     const content = `OpenCloud share file: ${sharedFileName}`;
     files.createTextFile(sharedFileName, content);
     return cy.wrap({ expectedContent: content });
@@ -19,6 +20,7 @@ export const opencloudV6ShareFileSenderAdapter: ShareFileSenderAdapter = {
 
   sendFileToFederatedRecipient({ sharedFileName, federatedRecipientId }) {
     files.ensureFilesAppActive();
+    sharing.openSharingPanel(sharedFileName);
     sharing.addExternalShare(sharedFileName, federatedRecipientId);
   },
 };
@@ -27,11 +29,11 @@ export const opencloudV6ShareFileReceiverAdapter: ShareFileReceiverAdapter = {
   key: "opencloud/v6",
 
   acceptIncomingShare({ sharedFileName }) {
+    files.ensureFilesAppActive();
     sharing.acceptIncomingShare(sharedFileName);
   },
 
   assertSharedFileContent({ sharedFileName, expectedContent }) {
-    files.ensureFilesAppActive();
     files.assertFileContent(sharedFileName, expectedContent);
   },
 };

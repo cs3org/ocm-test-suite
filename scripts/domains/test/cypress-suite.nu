@@ -9,7 +9,7 @@ use ../../lib/ci/planner.nu [plan-suite]
 use ../../lib/ci/blocker.nu [eval-blocked-cells emit-blocked-cell-artifact emit-capability-skipped-cell-artifact]
 use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/ci/flow-order.nu [sort-cells-by-flow-order]
-use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run record-capability-skipped-run]
+use ../../lib/suite/index.nu [new-suite-id init-suite-record update-latest-suite-id finish-suite-record record-skipped-run record-capability-skipped-run record-blocked-run]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/images/resolve.nu [resolve-media-optimizer-image]
 use ../../lib/artifacts/optimize-media.nu [optimize-cell-media]
@@ -144,6 +144,7 @@ def main [
         let block_entry = ($block_eval | first)
 
         if $block_entry.blocked {
+            let blocked_at = (utc-now)
             print $"\n--- ($cell.cell_id) [BLOCKED: ($block_entry.failure_reason)] ---"
             try {
                 (emit-blocked-cell-artifact $root $cell $block_entry.failure_reason
@@ -152,6 +153,7 @@ def main [
                 print $"WARNING: emit-blocked-cell-artifact failed: ($e.msg)"
             }
             $blocked_cells = ($blocked_cells | append $cell.cell_id)
+            record-blocked-run $eff_suite_id $cell $blocked_at
             continue
         }
 
@@ -317,6 +319,8 @@ def run-suite-optimize-aggregate [
 ]: nothing -> string {
     let cells_work = ($work_dir | path join "cells")
     let agg_work = ($work_dir | path join "aggregate")
+    if ($cells_work | path exists) { rm --recursive --force $cells_work }
+    if ($agg_work | path exists) { rm --recursive --force $agg_work }
     mkdir $cells_work
     mkdir $agg_work
 

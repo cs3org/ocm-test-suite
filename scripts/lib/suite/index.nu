@@ -145,6 +145,27 @@ export def record-capability-skipped-run [
     }
 }
 
+# Append a blocked run entry for a planned cell that could not run due to a
+# blocking condition (e.g. a prerequisite cell failed or a hard dependency is
+# unmet). cell must have flow_id, pair, execution_id, cell_id, artifact_name.
+export def record-blocked-run [
+    suite_id: string,
+    cell: record,
+    blocked_at: string,
+] {
+    try {
+        (record-suite-run $suite_id
+            ($cell.flow_id? | default "")
+            ($cell.pair? | default "")
+            ($cell.execution_id? | default "")
+            $cell.cell_id
+            ($cell.artifact_name? | default "")
+            "blocked" (-1) "" $blocked_at)
+    } catch {|e|
+        print $"WARNING: record-blocked-run failed for ($suite_id)/($cell.cell_id): ($e.msg)"
+    }
+}
+
 # Safe variant of record-suite-run - prints a warning instead of erroring.
 export def record-suite-run-safe [
     suite_id: string,

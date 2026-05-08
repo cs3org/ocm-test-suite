@@ -91,14 +91,17 @@ The `test` domain disambiguates between Cypress integration tests
 (end-to-end, slow, Docker-driven) and internal Nushell unit tests
 (fast, no Docker) via the verb path itself.
 
-| Command                                                    | Purpose                                                                                      |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `nu scripts/ocmts.nu test cypress run ...`                 | Run Cypress headless against an already-up stack.                                            |
-| `nu scripts/ocmts.nu test cypress suite ...`               | Run the full enabled matrix suite sequentially. Supports `--publish-site` and `--preview`.   |
-| `nu scripts/ocmts.nu test units`                           | Run all internal Nushell unit suites; emits combined JSON.                                   |
-| `nu scripts/ocmts.nu test units --suite <area/topic>`      | Run one unit suite (e.g. `ci/planner`).                                                      |
-| `nu scripts/ocmts.nu test units --list`                    | List available unit suites.                                                                  |
-| `nu scripts/ocmts.nu test units --human`                   | Run unit suites in human-friendly output mode.                                               |
+| Command                                                               | Purpose                                                                                   |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `nu scripts/ocmts.nu test cypress run ...`                            | Run Cypress headless against an already-up stack.                                         |
+| `nu scripts/ocmts.nu test cypress suite ...`                          | Run the full enabled matrix suite sequentially. Supports `--publish-site` and `--preview`.|
+| `nu scripts/ocmts.nu test units`                                      | Run all non-manual unit suites; emits combined JSON.                                      |
+| `nu scripts/ocmts.nu test units --suite <area/topic>`                 | Run one unit suite (e.g. `ci/planner`).                                                   |
+| `nu scripts/ocmts.nu test units --suite <area/topic> --include-manual`| Run one manual unit suite.                                                                |
+| `nu scripts/ocmts.nu test units --suites <a,b,c>`                     | Run multiple unit suites by comma-separated IDs.                                          |
+| `nu scripts/ocmts.nu test units --list`                               | List non-manual unit suites.                                                              |
+| `nu scripts/ocmts.nu test units --list --include-manual`              | List all unit suites including manual.                                                    |
+| `nu scripts/ocmts.nu test units --human`                              | Human-friendly output; applies to all run modes.                                          |
 
 ## version
 

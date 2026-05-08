@@ -18,10 +18,13 @@ suites import them and stay focused on the behaviors they exercise.
 From the repo root, the preferred entrypoint is the `ocmts` CLI:
 
 ```sh
-nu scripts/ocmts.nu test units                              # all suites, combined JSON
-nu scripts/ocmts.nu test units --suite <area/topic>         # one suite, e.g. ci/planner
-nu scripts/ocmts.nu test units --list                       # list available suites
-nu scripts/ocmts.nu test units --human                      # human-friendly mode
+nu scripts/ocmts.nu test units                                        # all non-manual suites, combined JSON
+nu scripts/ocmts.nu test units --suite <area/topic>                   # one suite, e.g. ci/planner
+nu scripts/ocmts.nu test units --suite <area/topic> --include-manual  # allow a manual suite
+nu scripts/ocmts.nu test units --suites <a,b,c>                       # multiple suites, comma-separated IDs
+nu scripts/ocmts.nu test units --list                                 # list non-manual suites
+nu scripts/ocmts.nu test units --list --include-manual                # list all suites including manual
+nu scripts/ocmts.nu test units --human                                # human-friendly output (all run modes)
 ```
 
 The lower-level invocations still work for direct file access:
@@ -29,7 +32,7 @@ The lower-level invocations still work for direct file access:
 ```sh
 nu scripts/tests/<area>/<topic>.nu                    # human output
 OCMTS_TEST_JSON=1 nu scripts/tests/<area>/<topic>.nu  # machine output
-nu scripts/tests/run-all.nu                           # run every suite, combined JSON
+nu scripts/tests/run-all.nu                           # run non-manual suites, combined JSON
 ```
 
 In human mode each suite prints a per-test header, per-assert
@@ -47,7 +50,7 @@ In JSON mode each suite emits a single JSON object on stdout:
 `ci/planner` for `tests/ci/planner.nu`). Exit code is 1 when
 `failed > 0`, 0 otherwise.
 
-`run-all.nu` runs every suite and emits one combined record:
+`run-all.nu` runs all non-manual suites and emits one combined record:
 
 ```json
 {"suites":N,"total":N,"passed":N,"failed":0,"status":"pass","results":[{<per-suite record>},...]}
@@ -55,24 +58,13 @@ In JSON mode each suite emits a single JSON object on stdout:
 
 ## Current suites
 
-- `ci/planner.nu` - exercises `lib/ci/planner.nu`, `lib/ci/blocker.nu`,
-  flow ordering. (210 asserts.)
-- `matrix/topology.nu` - exercises `lib/matrix/topology.nu` and
-  topology-consistency cross-checks. (8 asserts.)
-- `mitm/dispatcher.nu` - exercises
-  `lib/mitm/validator-dispatcher.nu`. (36 asserts.)
-- `ocm/endpoints.nu` - exercises `lib/ocm/endpoints.nu` (endpoint
-  resolution). (90 asserts.)
-- `publish/envelope.nu` - exercises `lib/publish/envelope.nu`. (76
-  asserts.)
-- `run/finalize.nu` - exercises `lib/run/finalize.nu` (run
-  finalization). (62 asserts.)
-- `run/metadata.nu` - exercises `lib/run/metadata.nu` and the
-  stop-on-fail tail helper. (41 asserts.)
-- `site/cell-impl.nu` - exercises `lib/site/cell-impl.nu`. (27
-  asserts.)
-- `site/clone.nu` - exercises the suite-level publish path
-  (`lib/site/clone.nu`). (11 asserts.)
+Use `nu scripts/ocmts.nu test units --list` to see all discoverable
+non-manual suites. Add `--include-manual` to include manual suites
+under `integration/manual/`. Suites are organized as
+`scripts/tests/<area>/<topic>.nu` and discovered at run time; the
+inventory grows as lib modules gain coverage. Manual suites (those
+under `integration/manual/`) require Docker or external tools and are
+excluded from the default run.
 
 ## Why these exist
 

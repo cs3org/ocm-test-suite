@@ -1,0 +1,271 @@
+# Run-wave/run-cell/matrix contract, wiring, and expression tests.
+# Covers: caller/callee relationships, cell-depends-on wiring,
+# bracket-notation expression hardening, and load-cells pattern.
+# Run: nu scripts/tests/ci/workflow-contract.nu
+# Returns exit 0 on all pass, exit 1 with details on failure.
+
+const SUITE_PATH = path self
+
+use ../../lib/ci/planner.nu [plan-suite]
+use ../../lib/ci/workflow-gen.nu [
+    build-ci-matrix-yml
+    build-run-wave-yml
+    build-run-cell-yml
+]
+use ../../lib/tests/assert.nu *
+use ../../lib/tests/runner.nu [run-suite]
+
+# Minimal matrix rules fixture covering key cases.
+def fixture-rules [] {
+    {
+        scenarios: {
+            login: {
+                enabled: true,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v33" "v34"]},
+                receiver: null,
+                mitm: false,
+            },
+            "login-v34-only": {
+                enabled: true,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v34"]},
+                receiver: null,
+                mitm: false,
+            },
+            "share-with": {
+                enabled: true,
+                flow_id: "share-with",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v34"]},
+                receiver: {platform: "nextcloud", version_lines: ["v34"]},
+                mitm: true,
+            },
+            "disabled-flow": {
+                enabled: false,
+                flow_id: "login",
+                browsers: ["chrome"],
+                sender: {platform: "nextcloud", version_lines: ["v33"]},
+                receiver: null,
+                mitm: false,
+            },
+        }
+    }
+}
+
+def fixture-prereqs [] {
+    {
+        capability_rules: [
+            {
+                capability_flow: "login",
+                required_for_flows: ["share-with" "contact-token" "contact-wayf" "code-flow"],
+                required_roles: ["sender" "receiver"],
+            }
+        ]
+    }
+}
+
+# Flow caps with no capability requirements (empty sender/receiver lists).
+def fixture-flow-caps [] {
+    {
+        "login": {sender: [], receiver: []},
+        "share-with": {sender: [], receiver: []},
+    }
+}
+
+# ---- tests ----
+
+def test-blocked-output-check [] {
+    test-log "\n[test-blocked-output-check]"
+    let run_wave_yml = (build-run-wave-yml)
+    # Per-cell prereq checking runs at runtime inside ci-run-cell.yml.
+    # ci-run-wave.yml passes cell_depends_on so ci-run-cell.yml can download
+    # and inspect the prerequisite artifact.
+    [
+        (assert-truthy ($run_wave_yml | str contains "cell-depends-on:")
+            "ci-run-wave.yml passes cell-depends-on to ci-run-cell.yml")
+    ]
+}
+
+def test-matrix-calls-run-wave [] {
+    test-log "\n[test-matrix-calls-run-wave]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy ($yml | str contains "./.github/workflows/ci-run-wave.yml")
+            "ci-matrix.yml calls ./.github/workflows/ci-run-wave.yml")
+    ]
+}
+
+def test-run-wave-calls-run-cell [] {
+    test-log "\n[test-run-wave-calls-run-cell]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "./.github/workflows/ci-run-cell.yml")
+            "ci-run-wave.yml calls ./.github/workflows/ci-run-cell.yml")
+    ]
+}
+
+def test-run-wave-properties [] {
+    test-log "\n[test-run-wave-properties]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "fromJson(needs['load-cells'].outputs['cells-json'])")
+            "ci-run-wave.yml uses fromJson with bracket notation for hyphenated names")
+        (assert-truthy ($run_wave_yml | str contains "fail-fast: false")
+            "ci-run-wave.yml sets fail-fast: false")
+        (assert-truthy ($run_wave_yml | str contains "cell_depends_on")
+            "ci-run-wave.yml passes cell_depends_on to ci-run-cell.yml")
+    ]
+}
+
+def test-cells-path-in-matrix [] {
+    test-log "\n[test-cells-path-in-matrix]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy ($yml | str contains "cells-path:")
+            "ci-matrix.yml flow jobs use cells-path:")
+        (assert-truthy (not ($yml | str contains "cells-json: '["))
+            "ci-matrix.yml flow jobs do not contain inline cells-json values")
+        (assert-truthy ($yml | str contains ".github/workflows/assets/")
+            "ci-matrix.yml flow jobs reference assets directory")
+    ]
+}
+
+def test-load-cells-job-in-run-wave [] {
+    test-log "\n[test-load-cells-job-in-run-wave]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "load-cells:")
+            "ci-run-wave.yml has a load-cells job")
+        (assert-truthy ($run_wave_yml | str contains "cells-path:")
+            "ci-run-wave.yml accepts cells-path input")
+        (assert-truthy ($run_wave_yml | str contains "needs: [load-cells]")
+            "ci-run-wave.yml run-wave job depends on load-cells")
+        (assert-truthy ($run_wave_yml | str contains "nu scripts/ocmts.nu ci read-cells-json")
+            "ci-run-wave.yml load-cells job reads JSON via repo-owned read-cells-json command")
+    ]
+}
+
+def test-run-wave-nushell-load-cells [] {
+    test-log "\n[test-run-wave-nushell-load-cells]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "nu scripts/ocmts.nu ci read-cells-json")
+            "ci-run-wave.yml uses repo-owned read-cells-json for cell loading")
+        (assert-truthy (not ($run_wave_yml | str contains "jq"))
+            "ci-run-wave.yml does not call jq")
+        (assert-truthy ($run_wave_yml | str contains "version: '0.108.0'")
+            "ci-run-wave.yml installs nushell with pinned version in load-cells job")
+    ]
+}
+
+def test-hardened-cell-expressions [] {
+    test-log "\n[test-hardened-cell-expressions]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($run_cell_yml | str contains "inputs['failure-reason']")
+            "ci-run-cell.yml uses bracket notation for inputs.failure-reason")
+        (assert-truthy ($run_cell_yml | str contains "inputs['cell-depends-on']")
+            "ci-run-cell.yml uses bracket notation for inputs.cell-depends-on")
+        (assert-truthy ($run_cell_yml | str contains "steps.cell.outputs['execution-id']")
+            "ci-run-cell.yml uses bracket notation for steps.cell.outputs.execution-id")
+        (assert-truthy ($run_cell_yml | str contains "steps.prereq_check.outputs['prereq-failure-reason']")
+            "ci-run-cell.yml uses bracket notation for prereq-failure-reason output")
+        (assert-truthy ($run_cell_yml | str contains "inputs['suite-id']")
+            "ci-run-cell.yml uses bracket notation for inputs.suite-id")
+        (assert-truthy ($run_cell_yml | str contains "inputs['artifact-name']")
+            "ci-run-cell.yml uses bracket notation for inputs.artifact-name")
+        (assert-truthy ($run_cell_yml | str contains "jobs['run-cell'].outputs['cell-status']")
+            "ci-run-cell.yml uses bracket notation for jobs.run-cell output")
+        (assert-truthy (not ($run_cell_yml | str contains "inputs.failure-reason"))
+            "ci-run-cell.yml has no dot-notation inputs.failure-reason")
+        (assert-truthy (not ($run_cell_yml | str contains "inputs.cell-depends-on"))
+            "ci-run-cell.yml has no dot-notation inputs.cell-depends-on")
+    ]
+}
+
+def test-hardened-wave-expressions [] {
+    test-log "\n[test-hardened-wave-expressions]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "inputs['cells-path']")
+            "ci-run-wave.yml uses bracket notation for inputs.cells-path")
+        (assert-truthy ($run_wave_yml | str contains "inputs['suite-id']")
+            "ci-run-wave.yml uses bracket notation for inputs.suite-id")
+        (assert-truthy ($run_wave_yml | str contains "needs['load-cells'].outputs['cells-json']")
+            "ci-run-wave.yml uses bracket notation for needs.load-cells.outputs.cells-json")
+        (assert-truthy ($run_wave_yml | str contains "steps.read.outputs['cells-json']")
+            "ci-run-wave.yml uses bracket notation for load-cells step output")
+        (assert-truthy (not ($run_wave_yml | str contains "inputs.cells-path"))
+            "ci-run-wave.yml has no dot-notation inputs.cells-path")
+        (assert-truthy (not ($run_wave_yml | str contains "inputs.suite-id"))
+            "ci-run-wave.yml has no dot-notation inputs.suite-id")
+    ]
+}
+
+def test-hardened-matrix-expressions [] {
+    test-log "\n[test-hardened-matrix-expressions]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy ($yml | str contains "needs.setup.outputs['suite-id']")
+            "ci-matrix.yml uses bracket notation for needs.setup.outputs.suite-id")
+        (assert-truthy ($yml | str contains "inputs['suite-id']")
+            "ci-matrix.yml uses bracket notation for inputs.suite-id in setup job")
+        (assert-truthy (not ($yml | str contains "needs.setup.outputs.suite-id"))
+            "ci-matrix.yml has no dot-notation needs.setup.outputs.suite-id")
+    ]
+}
+
+def test-run-cell-iterates-all-deps [] {
+    test-log "\n[test-run-cell-iterates-all-deps]"
+    let yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($yml | str contains "nu scripts/ocmts.nu ci download-prereqs")
+            "ci-run-cell.yml prereq step uses public download-prereqs command")
+        (assert-truthy ($yml | str contains "--deps")
+            "ci-run-cell.yml download-prereqs step passes --deps flag")
+        (assert-truthy ($yml | str contains "--deps \"${{ inputs['cell-depends-on'] }}\"")
+            "ci-run-cell.yml download-prereqs step binds cell-depends-on to --deps")
+    ]
+}
+
+def test-run-cell-download-uses-current-run-id [] {
+    test-log "\n[test-run-cell-download-uses-current-run-id]"
+    let yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($yml | str contains "--run-id \"${{ github.run_id }}\"")
+            "ci-run-cell.yml prereq download pins to current run via github.run_id")
+        (assert-truthy ($yml | str contains "GH_TOKEN: ${{ github.token }}")
+            "ci-run-cell.yml prereq download step has GH_TOKEN")
+    ]
+}
+
+def main [] {
+    test-log "=== CI workflow-contract tests ==="
+    let results = (
+        (test-blocked-output-check)
+        | append (test-matrix-calls-run-wave)
+        | append (test-run-wave-calls-run-cell)
+        | append (test-run-wave-properties)
+        | append (test-cells-path-in-matrix)
+        | append (test-load-cells-job-in-run-wave)
+        | append (test-run-wave-nushell-load-cells)
+        | append (test-hardened-cell-expressions)
+        | append (test-hardened-wave-expressions)
+        | append (test-hardened-matrix-expressions)
+        | append (test-run-cell-iterates-all-deps)
+        | append (test-run-cell-download-uses-current-run-id)
+    ) | flatten
+    run-suite "ci/workflow-contract" $SUITE_PATH $results
+}

@@ -5,6 +5,7 @@
 #   meta/optimized-media-summary.v1.json
 
 use ../../lib/artifacts/aggregate-optimized-media.nu [aggregate-optimized-media-cells]
+use ../../lib/site/config.nu [resolve-zstd-archive-policy]
 
 def main [
     ...artifact_dirs: string,
@@ -47,7 +48,8 @@ def main [
     let result = if $no_archive {
         aggregate-optimized-media-cells $dirs $output_dir --no-archive
     } else {
-        aggregate-optimized-media-cells $dirs $output_dir
+        let zstd_policy = (resolve-zstd-archive-policy)
+        aggregate-optimized-media-cells $dirs $output_dir --zstd-policy $zstd_policy
     }
 
     print $"  cells found:            ($result.cells_found)"

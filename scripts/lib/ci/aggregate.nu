@@ -9,6 +9,7 @@ use ../time/utc.nu [utc-now]
 use ../run/status.nu [run-status-precedence]
 use ../run/result-envelope.nu [build-result-v1]
 use ../schema/validate.nu [assert-schema-version]
+use ./zstd.nu [build-zstd-flags default_zstd_archive_policy]
 
 # Merge two suite-manifest records together (right-biased for top-level fields;
 # maps under flows/cells/runs/results/indexes are union-merged).
@@ -299,12 +300,15 @@ def write-summary-files [manifest: record, output_dir: string] {
 # Create a zstd-compressed tar archive of the artifacts directory.
 # Returns the archive path. Fails clearly if tar/zstd are unavailable.
 # archive_name: filename for the archive (default: suite-artifacts.tar.zst).
+# zstd_policy: compression tuning record with level, threads, checksum fields.
+#   Defaults to default_zstd_archive_policy when null.
 # Writes to a temp file first to avoid archiving the output file itself
 # when output_dir is inside artifacts_root.
 export def create-suite-archive [
     artifacts_root: string,
     output_dir: string,
     --archive-name: string = "suite-artifacts.tar.zst",
+    --zstd-policy: any = null,
 ] {
     let out_path = ($output_dir | path join $archive_name)
     let tar_check = (try {
@@ -323,13 +327,15 @@ export def create-suite-archive [
     if $zstd_check.exit_code != 0 {
         error make {msg: "create-suite-archive: zstd is required but not available"}
     }
+    let eff_policy = ($zstd_policy | default $default_zstd_archive_policy)
+    let zstd_flags = (build-zstd-flags $eff_policy)
     # Write to a temp path outside the tree so the archive file is never
     # included in its own contents (self-archival race when output_dir
     # is under artifacts_root).
     let tmp_path = (^mktemp | str trim)
     let result = (try {
         ^tar -c -C ($artifacts_root | path dirname) ($artifacts_root | path basename)
-            | ^zstd -o $tmp_path
+            | ^zstd -f ...$zstd_flags -o $tmp_path
         | complete
     } catch {|e|
         {exit_code: 1, stdout: "", stderr: $e.msg}

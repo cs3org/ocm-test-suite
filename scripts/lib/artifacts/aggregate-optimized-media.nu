@@ -11,6 +11,7 @@
 #   aggregate-optimized-media-cells - main orchestrator
 
 use ../time/utc.nu [utc-now]
+use ../ci/zstd.nu [build-zstd-flags default_zstd_archive_policy]
 
 # Reject paths with traversal sequences, absolute references, or empty strings.
 export def validate-optimized-path [p: string] {
@@ -237,10 +238,13 @@ export def write-optimized-summary [
 
 # Create optimized-media-artifacts.tar.zst from the artifacts subtree.
 # archive_tree: the artifacts/ directory to compress (must already exist).
+# zstd_policy: compression tuning record with level, threads, checksum fields.
+#   Defaults to default_zstd_archive_policy when null.
 # Returns the path to the created archive file.
 export def create-optimized-archive [
     archive_tree: string,
     out_dir: string,
+    --zstd-policy: any = null,
 ]: nothing -> string {
     let out_path = ($out_dir | path join "optimized-media-artifacts.tar.zst")
     let tar_check = (try {
@@ -259,12 +263,14 @@ export def create-optimized-archive [
     if $zstd_check.exit_code != 0 {
         error make {msg: "create-optimized-archive: zstd is required but not available"}
     }
+    let eff_policy = ($zstd_policy | default $default_zstd_archive_policy)
+    let zstd_flags = (build-zstd-flags $eff_policy)
 
     # Write to a temp path first to avoid self-archival if out_dir is under archive_tree.
     let tmp_path = (^mktemp | str trim)
     let result = (try {
         ^tar -c -C ($archive_tree | path dirname) ($archive_tree | path basename)
-            | ^zstd -o $tmp_path
+            | ^zstd -f ...$zstd_flags -o $tmp_path
         | complete
     } catch {|e|
         {exit_code: 1, stdout: "", stderr: $e.msg}
@@ -281,11 +287,14 @@ export def create-optimized-archive [
 # Aggregate per-cell optimized artifact dirs into one bundle.
 # artifact_dirs: list of per-cell optimized artifact directory paths (sorted deterministically).
 # out_dir: destination for archive, summary manifest, and unpacked artifacts tree.
+# zstd_policy: compression tuning record forwarded to create-optimized-archive.
+#   Defaults to default_zstd_archive_policy when null.
 # Returns a record with aggregate stats and output paths.
 export def aggregate-optimized-media-cells [
     artifact_dirs: list<string>,
     out_dir: string,
-    --no-archive,  # skip creating optimized-media-artifacts.tar.zst
+    --no-archive,          # skip creating optimized-media-artifacts.tar.zst
+    --zstd-policy: any = null,
 ]: nothing -> record {
     if ($artifact_dirs | is-empty) {
         error make {msg: "aggregate-optimized-media-cells: no artifact directories provided"}
@@ -361,7 +370,7 @@ export def aggregate-optimized-media-cells [
 
     # Create the archive unless skipped.
     let archive_path = if not $no_archive {
-        create-optimized-archive $artifacts_tree $out_dir
+        create-optimized-archive $artifacts_tree $out_dir --zstd-policy $zstd_policy
     } else {
         null
     }

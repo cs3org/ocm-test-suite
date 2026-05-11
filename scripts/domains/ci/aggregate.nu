@@ -10,6 +10,7 @@
 
 use ../../lib/ci/aggregate.nu [write-aggregated-suite-manifest create-suite-archive reconstruct-suite-index]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/site/config.nu [resolve-zstd-archive-policy]
 
 def main [
     ...artifact_dirs: string,
@@ -63,7 +64,8 @@ def main [
     }
 
     if $archive {
-        let archive_path = (create-suite-archive $artifacts_root $out_dir)
+        let zstd_policy = (resolve-zstd-archive-policy)
+        let archive_path = (create-suite-archive $artifacts_root $out_dir --zstd-policy $zstd_policy)
         print $"Suite archive created: ($archive_path)"
     }
 }

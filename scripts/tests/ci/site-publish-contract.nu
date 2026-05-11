@@ -7,23 +7,19 @@ const SUITE_PATH = path self
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
-def test-suite-publish-flags-in-mod-source [] {
-    test-log "\n[test-suite-publish-flags-in-mod-source]"
-    let mod_source = (open --raw "scripts/domains/test/mod.nu")
-    let suite_source = (open --raw "scripts/domains/test/cypress-suite.nu")
+def test-suite-publish-cli-flags [] {
+    test-log "\n[test-suite-publish-cli-flags]"
+    let help = (^nu "scripts/ocmts.nu" "test" "cypress" "suite" "--help" | complete)
+    let out = $help.stdout
     [
-        (assert-truthy ($mod_source | str contains "--publish-site")
-            "test mod.nu usage advertises --publish-site flag")
-        (assert-truthy ($mod_source | str contains "--site-dir")
-            "test mod.nu usage advertises --site-dir flag")
-        (assert-truthy ($suite_source | str contains "--site-dir requires --publish-site")
-            "test cypress-suite.nu has guardrail message for --site-dir without --publish-site")
-        (assert-truthy ($suite_source | str contains "run-site-publish")
-            "test cypress-suite.nu calls run-site-publish after suite finalization")
-        (assert-truthy ($suite_source | str contains "eff_suite_id")
-            "test cypress-suite.nu passes eff_suite_id (not latest-suite) to publish")
-        (assert-truthy ($suite_source | str contains "publish_exit")
-            "test cypress-suite.nu tracks publish exit code separately from suite exit")
+        (assert-eq $help.exit_code 0
+            "ocmts test cypress suite --help exits 0")
+        (assert-truthy ($out | str contains "--publish-site")
+            "help advertises --publish-site flag")
+        (assert-truthy ($out | str contains "--site-dir")
+            "help advertises --site-dir flag")
+        (assert-truthy (($out | str contains "--site-dir") and ($out | str contains "--publish-site"))
+            "help documents both --site-dir and --publish-site in the same surface")
     ]
 }
 
@@ -74,7 +70,7 @@ def test-suite-publish-guardrail-logic [] {
 def main [] {
     test-log "=== CI site publish contract tests ==="
     let results = (
-        (test-suite-publish-flags-in-mod-source)
+        (test-suite-publish-cli-flags)
         | append (test-suite-publish-exit-semantics)
         | append (test-suite-publish-guardrail-logic)
     ) | flatten

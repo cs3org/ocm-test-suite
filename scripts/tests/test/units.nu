@@ -9,8 +9,12 @@ use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
 # Thin wrapper so callers pass flags naturally via --wrapped.
+# Clear OCMTS_TEST_JSON so --human tests are not overridden by the
+# outer runner's JSON mode when this suite runs nested.
 def --wrapped run-units [...args: string] {
-    ^nu "scripts/ocmts.nu" "test" "units" ...$args | complete
+    with-env {OCMTS_TEST_JSON: null} {
+        ^nu "scripts/ocmts.nu" "test" "units" ...$args | complete
+    }
 }
 
 def test-list-excludes-manual [] {
@@ -107,6 +111,42 @@ def test-human-flag-not-suppressed [] {
     ]
 }
 
+def test-ci-suite-inventory [] {
+    test-log "\n[test-ci-suite-inventory]"
+    let r = (run-units --list)
+    let lines = ($r.stdout | lines | where {|l| not ($l | str trim | is-empty)})
+    let expected = [
+        "ci/helpers"
+        "ci/planner"
+        "ci/workflow-gen"
+        "ci/workflow-assets"
+        "ci/workflow-contract"
+        "ci/aggregate"
+        "ci/suite-index"
+        "ci/site-ingest"
+        "ci/capability-plan"
+        "ci/capability-artifacts"
+        "ci/capability-aggregate"
+        "ci/site-publish-contract"
+        "ci/site-reusable-workflow"
+        "ci/run-cell-media"
+    ]
+    let stale = ["ci/site-workflow" "ci/capability-skipped"]
+    let present = ($expected | all {|id| $lines | any {|l| $l | str trim | str ends-with $id}})
+    let absent = ($stale | all {|id| not ($lines | any {|l| $l | str trim | str ends-with $id})})
+    (
+        $expected | each {|id|
+            let found = ($lines | any {|l| $l | str trim | str ends-with $id})
+            (assert-truthy $found $"CI suite '($id)' present in --list output")
+        }
+    ) | append (
+        $stale | each {|id|
+            let found = ($lines | any {|l| $l | str trim | str ends-with $id})
+            (assert-truthy (not $found) $"stale CI suite '($id)' absent from --list output")
+        }
+    )
+}
+
 def main [] {
     test-log "=== test/units CLI contract tests ==="
     let results = (
@@ -117,6 +157,7 @@ def main [] {
         | append (test-suites-combined-json)
         | append (test-suites-human-mode)
         | append (test-human-flag-not-suppressed)
+        | append (test-ci-suite-inventory)
     ) | flatten
     run-suite "test/units" $SUITE_PATH $results
 }

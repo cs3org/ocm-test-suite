@@ -10,84 +10,13 @@ use ../../lib/ci/planner.nu [plan-suite]
 use ../../lib/ci/workflow-gen.nu [build-flow-assets build-ci-matrix-yml]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
-
-# Shared fixtures.
-
-def fixture-prereqs [] {
-    {
-        capability_rules: [
-            {
-                capability_flow: "login",
-                required_for_flows: ["share-with" "contact-token" "contact-wayf" "code-flow"],
-                required_roles: ["sender" "receiver"],
-            }
-        ]
-    }
-}
-
-def fixture-rules-cap-tests [] {
-    {
-        scenarios: {
-            "login-nc": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "login-oc": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "opencloud", version_lines: ["v6"]},
-                receiver: null,
-                mitm: false,
-            },
-        }
-    }
-}
-
-def fixture-flow-caps-with-reqs [] {
-    {
-        "login": {
-            sender: ["flow.login.sender"],
-            receiver: [],
-        }
-    }
-}
-
-def fixture-adapters-cap [] {
-    {
-        "nextcloud/v34": {
-            capabilities: {
-                "flow.login.sender": {status: "supported"},
-            }
-        },
-        "opencloud/v6": {
-            capabilities: {
-                "flow.login.sender": {status: "test-implementation-pending"},
-            }
-        },
-    }
-}
-
-# Rules where ONLY a capability-skipped cell exists in a flow,
-# to test that flows with zero runnable cells are omitted.
-def fixture-rules-only-cap-skipped [] {
-    {
-        scenarios: {
-            "login-oc-only": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "opencloud", version_lines: ["v6"]},
-                receiver: null,
-                mitm: false,
-            },
-        }
-    }
-}
+use ./fixtures.nu [
+    fixture-prereqs
+    fixture-rules-cap-tests
+    fixture-flow-caps-with-reqs
+    fixture-adapters-cap
+    fixture-rules-only-cap-skipped
+]
 
 # ---- tests ----
 

@@ -2,9 +2,12 @@
 # Covers: compute-capability-id, compute-cell-capabilities-produced,
 # compute-cell-depends-on, plan-suite shape, blocked/transitive-blocked eval,
 # status-precedence delegation, flow-order sorting.
-# Capability-skipped tests live in scripts/tests/ci/capability-skipped.nu.
 # Workflow-generation tests live in scripts/tests/ci/workflow-gen.nu.
-# Aggregate/suite-index/ingest tests live in scripts/tests/ci/aggregate.nu.
+# Aggregate tests live in scripts/tests/ci/aggregate.nu.
+# Suite-index tests live in scripts/tests/ci/suite-index.nu.
+# Site-ingest tests live in scripts/tests/ci/site-ingest.nu.
+# Capability-plan tests live in scripts/tests/ci/capability-plan.nu.
+# Capability-artifact tests live in scripts/tests/ci/capability-artifacts.nu.
 # Run: nu scripts/tests/ci/planner.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
@@ -24,68 +27,7 @@ use ../../lib/suite/index.nu [compute-suite-status]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [make-cell]
 use ../../lib/tests/runner.nu [run-suite]
-
-# Minimal matrix rules fixture covering key cases.
-def fixture-rules [] {
-    {
-        scenarios: {
-            login: {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v33" "v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "login-v34-only": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "share-with": {
-                enabled: true,
-                flow_id: "share-with",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: {platform: "nextcloud", version_lines: ["v34"]},
-                mitm: true,
-            },
-            "disabled-flow": {
-                enabled: false,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v33"]},
-                receiver: null,
-                mitm: false,
-            },
-        }
-    }
-}
-
-def fixture-prereqs [] {
-    {
-        capability_rules: [
-            {
-                capability_flow: "login",
-                required_for_flows: ["share-with" "contact-token" "contact-wayf" "code-flow"],
-                required_roles: ["sender" "receiver"],
-            }
-        ]
-    }
-}
-
-# Flow caps with no capability requirements (empty sender/receiver lists).
-# Passing this to plan-suite means derive-cell-impl-info finds no blockers
-# and every enabled cell comes out as "supported" / capability_action "run".
-def fixture-flow-caps [] {
-    {
-        "login": {sender: [], receiver: []},
-        "share-with": {sender: [], receiver: []},
-    }
-}
+use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
 
 # ---- tests ----
 

@@ -14,66 +14,7 @@ use ../../lib/ci/workflow-gen.nu [
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [make-cell]
 use ../../lib/tests/runner.nu [run-suite]
-
-# Minimal matrix rules fixture covering key cases.
-def fixture-rules [] {
-    {
-        scenarios: {
-            login: {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v33" "v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "login-v34-only": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "share-with": {
-                enabled: true,
-                flow_id: "share-with",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: {platform: "nextcloud", version_lines: ["v34"]},
-                mitm: true,
-            },
-            "disabled-flow": {
-                enabled: false,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v33"]},
-                receiver: null,
-                mitm: false,
-            },
-        }
-    }
-}
-
-def fixture-prereqs [] {
-    {
-        capability_rules: [
-            {
-                capability_flow: "login",
-                required_for_flows: ["share-with" "contact-token" "contact-wayf" "code-flow"],
-                required_roles: ["sender" "receiver"],
-            }
-        ]
-    }
-}
-
-# Flow caps with no capability requirements (empty sender/receiver lists).
-def fixture-flow-caps [] {
-    {
-        "login": {sender: [], receiver: []},
-        "share-with": {sender: [], receiver: []},
-    }
-}
+use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
 
 # Fixture: plan with a share-with cell that depends on two distinct login cells
 # (sender=nextcloud-v34, receiver=nextcloud-v33 -> needs login for both).

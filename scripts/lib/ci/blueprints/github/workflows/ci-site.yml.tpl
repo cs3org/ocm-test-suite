@@ -115,8 +115,10 @@ jobs:
       - name: Publish site
         env:
           OCMTS_SITE_REPO_SLUG: ${{ vars.OCMTS_SITE_REPO_SLUG || '' }}
-          OCMTS_SITE_REF: ${{ vars.OCMTS_SITE_REF || 'main' }}
+          OCMTS_SITE_REF: ${{ vars.OCMTS_SITE_REF || '' }}
           OCMTS_SITE_REPO_URL: ${{ vars.OCMTS_SITE_REPO_URL || '' }}
+          ASTRO_BASE: {{placeholder:astro.base}}
+          ASTRO_SITE: '{{placeholder:astro.site}}'
         run: |
           nu scripts/ocmts.nu site publish \
             --artifacts-root artifacts \

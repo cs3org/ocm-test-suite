@@ -233,10 +233,19 @@ export def build-run-cell-yml [] {
 # Generate ci-site.yml YAML content.
 # Supports workflow_call (called from ci-matrix after aggregate) and
 # workflow_dispatch (manual rebuild: resolves latest successful source run).
-export def build-ci-site-yml [] {
+# --site-cfg-overrides: optional record merged into the loaded site config;
+# useful in tests to inject custom or empty field values without editing config.
+export def build-ci-site-yml [
+    --site-cfg-overrides: any = null
+] {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
-    let site_cfg = (load-site-config $root)
+    let raw_site_cfg = (load-site-config $root)
+    let site_cfg = if ($site_cfg_overrides != null) {
+        $raw_site_cfg | merge $site_cfg_overrides
+    } else {
+        $raw_site_cfg
+    }
     let gh = $cfg.workflows.github
     let nu_ver = $cfg.toolchain.nushell.version
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
@@ -249,6 +258,11 @@ export def build-ci-site-yml [] {
     let ci_site_checkout_dir = "../ocm-web-site"
     let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
     let build_out = ($ci_site_checkout_dir | path join $site_output_subpath)
+    # Deploy-target: base path and optional full URL for the Pages host repo
+    # (cs3org/ocm-test-suite). Injected as ASTRO_BASE / ASTRO_SITE env vars so
+    # the Astro build produces correct asset paths and canonical URLs.
+    let deploy_base = ($site_cfg.deploy_base_path? | default "/")
+    let deploy_site_url = ($site_cfg.deploy_site_url? | default "")
     let ci_site_tpl = (bp-path $root "github/workflows/ci-site.yml.tpl")
 
     render-blueprint $ci_site_tpl {
@@ -262,5 +276,7 @@ export def build-ci-site-yml [] {
         "optimized.aggregate.artifact.name": $opt_agg_name
         "site.rebuild.source.workflow": $rebuild_src
         "site.build.output.path": $build_out
+        "astro.base": $deploy_base
+        "astro.site": $deploy_site_url
     }
 }

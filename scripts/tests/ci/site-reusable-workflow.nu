@@ -256,6 +256,54 @@ def test-ci-site-download-no-or-true [] {
     ]
 }
 
+# OCMTS_SITE_REF must not hardcode any branch name as a fallback in ci-site.yml.
+# When the env var is unset the value should fall through to config/site.nuon
+# (ref field), not silently default to a hardcoded branch name in the YAML.
+# Positive assertion: empty-string fallback proves config fall-through is wired.
+def test-ci-site-ref-not-hardcoded [] {
+    test-log "\n[test-ci-site-ref-not-hardcoded]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "OCMTS_SITE_REF || ''")
+            "ci-site.yml uses empty-string fallback for OCMTS_SITE_REF so config supplies ref when var is unset")
+        (assert-truthy (not ($ci_site_yml | str contains "OCMTS_SITE_REF || 'main'"))
+            "ci-site.yml does not hardcode 'main' as OCMTS_SITE_REF fallback")
+        (assert-truthy ($ci_site_yml | str contains "OCMTS_SITE_REF")
+            "ci-site.yml still passes OCMTS_SITE_REF env to publish step")
+    ]
+}
+
+# ci-site.yml passes deploy-target env vars (ASTRO_BASE, ASTRO_SITE) to the
+# Astro build step. Values come from config/site.nuon deploy_base_path and
+# deploy_site_url so the built site has correct asset base paths and canonical
+# URL for the Pages host repo (cs3org/ocm-test-suite).
+def test-ci-site-deploy-target-env [] {
+    test-log "\n[test-ci-site-deploy-target-env]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "ASTRO_BASE:")
+            "ci-site.yml Publish site step sets ASTRO_BASE env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains "ASTRO_SITE:")
+            "ci-site.yml Publish site step sets ASTRO_SITE env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains "/ocm-test-suite/")
+            "ci-site.yml ASTRO_BASE uses deploy_base_path from config")
+        (assert-truthy ($ci_site_yml | str contains "cs3org.github.io")
+            "ci-site.yml ASTRO_SITE references the cs3org GitHub Pages host")
+    ]
+}
+
+# When deploy_site_url is empty, ASTRO_SITE must render as ASTRO_SITE: ''
+# (explicit empty scalar) rather than bare ASTRO_SITE: (ambiguous YAML).
+# The non-empty case is covered by test-ci-site-deploy-target-env.
+def test-ci-site-empty-site-url-renders-explicit [] {
+    test-log "\n[test-ci-site-empty-site-url-renders-explicit]"
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {deploy_site_url: ""})
+    [
+        (assert-truthy ($ci_site_yml | str contains "ASTRO_SITE: ''")
+            "empty deploy_site_url renders ASTRO_SITE: '' (explicit empty scalar, not bare ASTRO_SITE:)")
+    ]
+}
+
 def main [] {
     test-log "=== CI site reusable workflow tests ==="
     let results = (
@@ -273,6 +321,9 @@ def main [] {
         | append (test-ci-site-deploy-job)
         | append (test-ci-site-has-optimizer-probe-step)
         | append (test-ci-site-download-no-or-true)
+        | append (test-ci-site-ref-not-hardcoded)
+        | append (test-ci-site-deploy-target-env)
+        | append (test-ci-site-empty-site-url-renders-explicit)
     ) | flatten
     run-suite "ci/site-reusable-workflow" $SUITE_PATH $results
 }

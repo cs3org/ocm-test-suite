@@ -15,7 +15,7 @@ use ../matrix/rules-gen.nu [load-matrix-rules]
 # artifacts_root:      artifacts root override ("" = <ocmts-root>/artifacts)
 # skip_clone:          skip git clone/refresh step; also auto-skipped when
 #                      site_dir or OCM_WEB_SITE_DIR signals a local source
-# ref:                 git ref ("" = OCMTS_SITE_REF env or main)
+# ref:                 git ref ("" = OCMTS_SITE_REF env, then config ref)
 # suite_id:            ingest from this suite only ("" = all suites)
 # latest_suite:        ingest from the latest suite (LATEST_SUITE_ID)
 # optimized_media_dir: optional optimized media aggregate dir. If provided,

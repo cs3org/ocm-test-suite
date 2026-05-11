@@ -47,7 +47,7 @@ Site publish settings: `config/site.nuon`.
 
 | Key | Purpose |
 | --- | --- |
-| `repo_slug` | Site repo `<owner>/<name>` for clone and Pages target |
+| `repo_slug` | Source site repo `<owner>/<name>` used for clone |
 | `ref` | Default git ref for site checkout |
 | `publish_branch_gate` | Branch on which optimized-media work runs |
 | `site_build_output_path` | Output dir relative to site repo (`dist`) |
@@ -55,6 +55,8 @@ Site publish settings: `config/site.nuon`.
 | `optimized_artifact_pattern` | Glob for per-cell optimized artifacts |
 | `optimized_aggregate_artifact_name` | Optimized aggregate artifact name |
 | `rebuild_source_workflow` | Workflow that produced inputs for manual rebuild |
+| `deploy_base_path` | GitHub Pages base path passed to Astro as `ASTRO_BASE` |
+| `deploy_site_url` | Optional full Pages URL passed to Astro as `ASTRO_SITE` |
 
 Optimizer image: `config/images.nuon` exposes `helpers.media_optimizer`.
 Override per run with `OCMTS_MEDIA_OPTIMIZER_IMAGE`.

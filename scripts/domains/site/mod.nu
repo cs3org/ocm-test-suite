@@ -1,6 +1,7 @@
 # Site domain: clone, ingest, build, publish, and preview the ocm-web-site.
 
 use ../../lib/site/clone.nu [resolve-site-dir, clone-or-refresh-site]
+use ../../lib/site/config.nu [resolve-effective-site-ref]
 use ../../lib/site/ingest.nu [ingest-site]
 use ../../lib/site/build.nu [run-site-build]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
@@ -21,20 +22,16 @@ def main [] {
     print "Environment variables:"
     print "  OCMTS_SITE_REPO_SLUG  default: MahdiBaghbani/ocm-web-site"
     print "  OCMTS_SITE_REPO_URL   optional full URL override"
-    print "  OCMTS_SITE_REF        git ref to checkout (default: main)"
+    print "  OCMTS_SITE_REF        git ref to checkout (overrides config/site.nuon ref)"
     print "  OCM_WEB_SITE_DIR      local site dir override for all verbs; skips clone"
 }
 
 # Clone or refresh the ocm-web-site repo.
 def "main clone" [
     --site-dir: string = "",  # Destination dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site)
-    --ref: string = "",       # Git ref; falls back to OCMTS_SITE_REF, then main
+    --ref: string = "",       # Git ref; falls back to OCMTS_SITE_REF env, then config/site.nuon ref
 ] {
-    let effective_ref = if not ($ref | is-empty) {
-        $ref
-    } else {
-        ($env.OCMTS_SITE_REF? | default "main")
-    }
+    let effective_ref = (resolve-effective-site-ref $ref)
     let site = (resolve-site-dir $site_dir)
     clone-or-refresh-site $site $effective_ref
     print $"Site dir: ($site)"
@@ -102,7 +99,7 @@ def "main publish" [
     --site-dir: string = "",            # Site repo dir (default: OCM_WEB_SITE_DIR env, then ../ocm-web-site; skips clone when set)
     --artifacts-root: string = "",      # OCMTS artifacts root (default: <ocmts-root>/artifacts)
     --skip-clone,                       # Skip git clone/refresh
-    --ref: string = "",                 # Git ref; falls back to OCMTS_SITE_REF, then main
+    --ref: string = "",                 # Git ref; falls back to OCMTS_SITE_REF env, then config/site.nuon ref
     --suite-id: string = "",            # Ingest runs from this suite_id only
     --latest-suite,                     # Ingest runs from the latest suite (LATEST_SUITE_ID)
     --optimized-media-dir: string = "", # Optimized media aggregate dir (skip projection if empty)

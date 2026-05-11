@@ -2,11 +2,18 @@
   "schema_version": 1,
   "repo_slug": "MahdiBaghbani/ocm-web-site",
   "repo_url_override": "",
-  "ref": "main",
+  "ref": "master",
   "publish_branch_gate": "main",
   "site_build_output_path": "dist",
   "raw_aggregate_artifact_name": "aggregate-summary",
   "optimized_artifact_pattern": "optimized-media-cell-*",
   "optimized_aggregate_artifact_name": "optimized-media-summary",
-  "rebuild_source_workflow": "ci-matrix.yml"
+  "rebuild_source_workflow": "ci-matrix.yml",
+  "deploy_base_path": "/ocm-test-suite/",
+  "deploy_site_url": "https://cs3org.github.io/ocm-test-suite/",
+  "archive_zstd": {
+    "level": 3,
+    "threads": 0,
+    "checksum": true
+  }
 }

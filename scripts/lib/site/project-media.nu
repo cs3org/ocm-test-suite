@@ -388,6 +388,9 @@ export def apply-media-projection [
     if not ($opt_agg_dir | path exists) {
         error make {msg: $"apply-media-projection: optimized media dir not found: ($opt_agg_dir)"}
     }
+    # Normalize to absolute so project-one-evidence-item and orphan detection
+    # both produce absolute src_abs paths that match glob output.
+    let opt_agg_dir = ($opt_agg_dir | path expand)
 
     let manifest = (open $manifest_path)
     let results = ($manifest.results? | default {})

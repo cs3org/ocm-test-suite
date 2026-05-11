@@ -604,6 +604,72 @@ def test-manifest-has-media-rows-video [] {
 
 # --- apply-media-projection: no opt dir guard ---
 
+def test-apply-media-projection-relative-opt-dir [] {
+    test-log "\n[test-apply-media-projection-relative-opt-dir]"
+    # Create under CWD so the opt dir can be referenced via a bare relative path.
+    # mktemp -p $env.PWD places the temp dir as a child of the working directory,
+    # making ($base | path basename) a valid relative reference from CWD.
+    let base = (^mktemp -d -p $env.PWD | str trim)
+    let pub_dir = ($base | path join "public")
+    let opt_dir = ($base | path join "opt-agg")
+    let base_name = ($base | path basename)
+
+    let flow_id = "login"
+    let pair = "nc-v34"
+    let exec_id = "exec-rel"
+    let cell_id = $"($flow_id)__($pair)"
+    let run_id = "run-rel"
+    let result_id = "res-rel"
+    let run_prefix = $"artifacts/($flow_id)/($pair)/($exec_id)"
+
+    let manifest = {
+        schema_version: 1
+        generated_at: "2026-01-01T00:00:00Z"
+        runs: {
+            ($run_id): {id: $run_id, cell_id: $cell_id, execution_id: $exec_id}
+        }
+        cells: {
+            ($cell_id): {id: $cell_id, flow_id: $flow_id, pair: $pair}
+        }
+        results: {
+            ($result_id): {
+                id: $result_id
+                run_id: $run_id
+                cell_id: $cell_id
+                evidence: [
+                    {
+                        kind: "screenshot"
+                        scope: "cypress"
+                        logical_name: "foo.png"
+                        path: "cypress/screenshots/foo.png"
+                        availability: "artifact"
+                        evidence_id: "ev-ss-rel"
+                    }
+                ]
+            }
+        }
+    }
+
+    mkdir $pub_dir
+    $manifest | to json --indent 2 | save ($pub_dir | path join "suite-manifest.v1.json")
+
+    let opt_ss_dir = ($opt_dir | path join $run_prefix "cypress/screenshots")
+    mkdir $opt_ss_dir
+    $"avif-bytes" | save ($opt_ss_dir | path join "foo.avif")
+    $"webp-bytes" | save ($opt_ss_dir | path join "foo.webp")
+
+    # Relative path from CWD: just base_name/opt-agg.
+    let rel_opt_dir = ($base_name | path join "opt-agg")
+
+    let result = (try { apply-media-projection $pub_dir $rel_opt_dir; "ok" } catch {|e| $e.msg})
+
+    ^rm -rf $base
+    [
+        (assert-eq $result "ok"
+            "relative opt_agg_dir works without false orphan rejection")
+    ]
+}
+
 def test-apply-media-projection-missing-opt-dir-fails [] {
     test-log "\n[test-apply-media-projection-missing-opt-dir-fails]"
     let tmp = (^mktemp -d | str trim)
@@ -967,6 +1033,7 @@ def main [] {
         | append (test-apply-media-projection-full)
         | append (test-apply-media-projection-fails-missing-optimized)
         | append (test-apply-media-projection-missing-manifest-fails)
+        | append (test-apply-media-projection-relative-opt-dir)
         | append (test-apply-media-projection-missing-opt-dir-fails)
         | append (test-manifest-has-media-rows-true)
         | append (test-manifest-has-media-rows-false-no-media)

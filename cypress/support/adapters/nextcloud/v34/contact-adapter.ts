@@ -11,6 +11,7 @@ import {
   createInviteAndCopyInviteCode,
   createInviteAndCopyInviteLink,
   ensureContactsAppActive,
+  getAcceptInviteButton,
   resolveReceiverBaseUrl,
 } from "../shared/contacts-ocm-invites";
 
@@ -191,9 +192,7 @@ function openManualInviteAccept(): void {
   ensureContactsAppActive();
   cy.visit("/apps/contacts/ocm-invites");
 
-  cy.contains("button, a, [role=\"button\"]", /Accept invite/i, {
-    timeout: 20000,
-  })
+  getAcceptInviteButton()
     .should("be.visible")
     .click({ force: true });
 

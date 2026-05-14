@@ -54,6 +54,17 @@ function getInviteContactButton(): Cypress.Chainable<JQuery<HTMLElement>> {
     .first();
 }
 
+export function getAcceptInviteButton(): Cypress.Chainable<JQuery<HTMLElement>> {
+  return cy
+    .get("button, a, [role=\"button\"]", { timeout: 20000 })
+    .filter((_, el) => {
+      const text = (el.textContent ?? "").trim();
+      const aria = (el.getAttribute("aria-label") ?? "").trim();
+      return text === "Accept invite" || aria === "Accept invite" || aria.includes("Accept invite");
+    })
+    .first();
+}
+
 export function ensureOcmInvitesViewActive(): void {
   cy.viewport(1280, 720);
   ensureContactsAppActive();

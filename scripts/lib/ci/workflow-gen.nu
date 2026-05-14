@@ -41,12 +41,18 @@ def build-cell-json-record [
             $cell_id_to_artifact | get --optional $dep_id | default ""
         } | where {|a| not ($a | is-empty)} | str join ","
     }
+    let display_name = if $cell.is_two_party {
+        $"($cell.scenario): ($cell.sender_platform) ($cell.sender_version) -> ($recv_platform) ($recv_version)"
+    } else {
+        $"($cell.scenario): ($cell.sender_platform) ($cell.sender_version)"
+    }
     {
         scenario: $cell.scenario
         sender_platform: $cell.sender_platform
         sender_version: $cell.sender_version
         receiver_platform: $recv_platform
         receiver_version: $recv_version
+        display_name: $display_name
         artifact_name: $cell.artifact_name
         cell_id: $cell.cell_id
         cell_depends_on: $cell_depends_on

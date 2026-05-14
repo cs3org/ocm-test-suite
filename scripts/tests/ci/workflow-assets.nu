@@ -182,6 +182,61 @@ def test-multi-dep-cell-depends-on [] {
     ]
 }
 
+def test-asset-cell-display-name-present [] {
+    test-log "\n[test-asset-cell-display-name-present]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let flow_assets = (build-flow-assets $plan)
+    let all_cells = ($flow_assets | each {|a| $a.content | from json} | flatten)
+    [
+        (assert-truthy (not ($all_cells | is-empty))
+            "assets have at least one cell")
+        (assert-truthy ($all_cells | all {|c| (($c.display_name? | default "") | str length) > 0})
+            "every cell in asset JSON has a non-empty display_name")
+    ]
+}
+
+def test-asset-display-name-one-party-format [] {
+    test-log "\n[test-asset-display-name-one-party-format]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let flow_assets = (build-flow-assets $plan)
+    let login_asset_list = ($flow_assets | where {|a| ($a.path | path basename) == "login.json"})
+    let login_cells = if not ($login_asset_list | is-empty) {
+        $login_asset_list | first | get content | from json
+    } else { [] }
+    let target_cell_list = ($login_cells | where cell_id == "login__nextcloud-v33")
+    [
+        (assert-truthy (not ($target_cell_list | is-empty))
+            "login asset has a cell with cell_id login__nextcloud-v33")
+        (assert-eq ($target_cell_list | first | get display_name)
+            "login: nextcloud v33"
+            "one-party display_name is <scenario>: <sender_platform> <sender_version>")
+        (assert-truthy (not (($target_cell_list | first | get display_name) | str contains " -> "))
+            "one-party display_name has no -> arrow")
+    ]
+}
+
+def test-asset-display-name-two-party-format [] {
+    test-log "\n[test-asset-display-name-two-party-format]"
+    let plan = fixture-plan-with-multi-dep
+    let flow_assets = (build-flow-assets $plan)
+    let share_asset_list = ($flow_assets | where {|a| ($a.path | path basename) | str starts-with "share-with"})
+    let share_cells = if not ($share_asset_list | is-empty) {
+        $share_asset_list | first | get content | from json
+    } else { [] }
+    let two_party_cell_list = ($share_cells | where cell_id == "share-with__nextcloud-v34__nextcloud-v33")
+    [
+        (assert-truthy (not ($two_party_cell_list | is-empty))
+            "share-with asset has the two-party cell")
+        (assert-eq ($two_party_cell_list | first | get display_name)
+            "share-with: nextcloud v34 -> nextcloud v33"
+            "two-party display_name is <scenario>: <sender_platform> <sv> -> <receiver_platform> <rv>")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-assets tests ==="
     let results = (
@@ -191,6 +246,9 @@ def main [] {
         | append (test-matrix-flow-job-asset-path-matches-flow-id)
         | append (test-flow-separation)
         | append (test-multi-dep-cell-depends-on)
+        | append (test-asset-cell-display-name-present)
+        | append (test-asset-display-name-one-party-format)
+        | append (test-asset-display-name-two-party-format)
     ) | flatten
     run-suite "ci/workflow-assets" $SUITE_PATH $results
 }

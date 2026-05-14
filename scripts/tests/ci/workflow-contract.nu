@@ -192,6 +192,21 @@ def test-run-cell-download-uses-current-run-id [] {
     ]
 }
 
+# Regression: one-party cells must not receive empty receiver flags.
+# ci-run-cell.yml passed --receiver-platform / --receiver-version unconditionally,
+# causing emit-blocked (and services-up-run) to see empty receiver args for
+# one-party scenarios. The fix must use a conditional guard pattern instead.
+def test-run-cell-one-party-receiver-flag-guard [] {
+    test-log "\n[test-run-cell-one-party-receiver-flag-guard]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy (not ($run_cell_yml | str contains "--receiver-platform \"${{ inputs['receiver-platform'] }}\" \\"))
+            "ci-run-cell.yml does not unconditionally pass --receiver-platform (one-party guard required)")
+        (assert-truthy (not ($run_cell_yml | str contains "--receiver-version \"${{ inputs['receiver-version'] }}\" \\"))
+            "ci-run-cell.yml does not unconditionally pass --receiver-version (one-party guard required)")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-contract tests ==="
     let results = (
@@ -207,6 +222,7 @@ def main [] {
         | append (test-hardened-matrix-expressions)
         | append (test-run-cell-iterates-all-deps)
         | append (test-run-cell-download-uses-current-run-id)
+        | append (test-run-cell-one-party-receiver-flag-guard)
     ) | flatten
     run-suite "ci/workflow-contract" $SUITE_PATH $results
 }

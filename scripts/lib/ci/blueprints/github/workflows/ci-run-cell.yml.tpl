@@ -87,15 +87,21 @@ jobs:
           if [ -z "$REASON" ]; then
             REASON="${{ steps.prereq_check.outputs['prereq-failure-reason'] }}"
           fi
-          nu scripts/ocmts.nu ci emit-blocked \
-            --scenario "${{ inputs.scenario }}" \
-            --sender-platform "${{ inputs['sender-platform'] }}" \
-            --sender-version "${{ inputs['sender-version'] }}" \
-            --receiver-platform "${{ inputs['receiver-platform'] }}" \
-            --receiver-version "${{ inputs['receiver-version'] }}" \
-            --execution-id "${{ steps.cell.outputs['execution-id'] }}" \
-            --failure-reason "$REASON" \
+          ARGS=(
+            --scenario "${{ inputs.scenario }}"
+            --sender-platform "${{ inputs['sender-platform'] }}"
+            --sender-version "${{ inputs['sender-version'] }}"
+            --execution-id "${{ steps.cell.outputs['execution-id'] }}"
+            --failure-reason "$REASON"
             --suite-id "${{ inputs['suite-id'] }}"
+          )
+          if [ -n "${{ inputs['receiver-platform'] }}" ]; then
+            ARGS+=(--receiver-platform "${{ inputs['receiver-platform'] }}")
+          fi
+          if [ -n "${{ inputs['receiver-version'] }}" ]; then
+            ARGS+=(--receiver-version "${{ inputs['receiver-version'] }}")
+          fi
+          nu scripts/ocmts.nu ci emit-blocked "${ARGS[@]}"
           echo "cell-status=blocked" >> $GITHUB_OUTPUT
       - name: Run cell (when no prerequisite failure)
         id: run_cell
@@ -104,15 +110,21 @@ jobs:
           SUITE_ID: ${{ inputs['suite-id'] }}
           EXECUTION_ID: ${{ steps.cell.outputs['execution-id'] }}
         run: |
-          if nu scripts/ocmts.nu services up run \
-            --scenario "${{ inputs.scenario }}" \
-            --sender-platform "${{ inputs['sender-platform'] }}" \
-            --sender-version "${{ inputs['sender-version'] }}" \
-            --receiver-platform "${{ inputs['receiver-platform'] }}" \
-            --receiver-version "${{ inputs['receiver-version'] }}" \
-            --suite-id "${{ inputs['suite-id'] }}" \
-            --suite-kind suite \
-            --execution-id "${{ steps.cell.outputs['execution-id'] }}"; then
+          ARGS=(
+            --scenario "${{ inputs.scenario }}"
+            --sender-platform "${{ inputs['sender-platform'] }}"
+            --sender-version "${{ inputs['sender-version'] }}"
+            --suite-id "${{ inputs['suite-id'] }}"
+            --suite-kind suite
+            --execution-id "${{ steps.cell.outputs['execution-id'] }}"
+          )
+          if [ -n "${{ inputs['receiver-platform'] }}" ]; then
+            ARGS+=(--receiver-platform "${{ inputs['receiver-platform'] }}")
+          fi
+          if [ -n "${{ inputs['receiver-version'] }}" ]; then
+            ARGS+=(--receiver-version "${{ inputs['receiver-version'] }}")
+          fi
+          if nu scripts/ocmts.nu services up run "${ARGS[@]}"; then
             echo "cell-status=passed" >> $GITHUB_OUTPUT
           else
             echo "cell-status=failed" >> $GITHUB_OUTPUT

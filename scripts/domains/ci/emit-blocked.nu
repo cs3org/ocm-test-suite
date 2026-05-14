@@ -33,7 +33,7 @@ def main [
         $flow_id
     } else {
         let rules = (load-matrix-rules $root)
-        let sc_rules = ($rules.scenarios? | default {} | get? $scenario | default {})
+        let sc_rules = ($rules.scenarios? | default {} | get --optional $scenario | default {})
         $sc_rules.flow_id? | default $scenario
     }
 

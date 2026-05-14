@@ -28,7 +28,7 @@ jobs:
     outputs:
       cells-json: ${{ steps.read.outputs['cells-json'] }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:

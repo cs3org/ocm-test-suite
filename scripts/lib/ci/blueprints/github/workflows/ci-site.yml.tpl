@@ -33,7 +33,7 @@ jobs:
     outputs:
       source-run-id: ${{ steps.resolve.outputs['source-run-id'] }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
@@ -59,7 +59,7 @@ jobs:
     needs: [prepare]
     runs-on: {{placeholder:runner.label}}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
@@ -80,7 +80,7 @@ jobs:
             --scan-dir artifacts/optimized \
             --output-dir artifacts/optimized-summary/
       - name: Upload optimized media summary
-        uses: actions/upload-artifact@v4
+        uses: {{placeholder:action.upload.artifact}}
         with:
           name: {{placeholder:optimized.aggregate.artifact.name}}
           path: artifacts/optimized-summary/
@@ -90,13 +90,13 @@ jobs:
     needs: [prepare, aggregate-media]
     runs-on: {{placeholder:runner.label}}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
           version: '{{placeholder:nushell.version}}'
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: {{placeholder:action.setup.bun}}
       - name: Download raw aggregate artifact
         env:
           GH_TOKEN: ${{ github.token }}
@@ -108,7 +108,7 @@ jobs:
         run: |
           tar -x -I zstd -f artifacts/suites/aggregated/suite-artifacts.tar.zst
       - name: Download optimized media summary
-        uses: actions/download-artifact@v4
+        uses: {{placeholder:action.download.artifact}}
         with:
           name: {{placeholder:optimized.aggregate.artifact.name}}
           path: artifacts/optimized-summary/
@@ -125,7 +125,7 @@ jobs:
             --latest-suite \
             --optimized-media-dir artifacts/optimized-summary/
       - name: Upload built site
-        uses: actions/upload-pages-artifact@v3
+        uses: {{placeholder:action.upload.pages.artifact}}
         with:
           path: {{placeholder:site.build.output.path}}
 
@@ -141,4 +141,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: {{placeholder:action.deploy.pages}}

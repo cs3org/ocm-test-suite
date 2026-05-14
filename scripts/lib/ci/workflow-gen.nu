@@ -175,6 +175,10 @@ export def build-ci-matrix-yml [plan: record] {
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
         "runner.label": $gh.runner
         "setup.nu.action": $gh.setup_nu_action
+        "action.checkout": ($gh.action_checkout? | default "actions/checkout@v6")
+        "action.upload.artifact": ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
+        "action.download.artifact": ($gh.action_download_artifact? | default "actions/download-artifact@v7")
+        "action.setup.bun": ($gh.action_setup_bun? | default "oven-sh/setup-bun@v2")
         "nushell.version": $nu_ver
         "flow.jobs": $"\n\n($flow_jobs_text)"
         "aggregate.needs.block": $aggregate_needs_block
@@ -203,6 +207,7 @@ export def build-run-wave-yml [] {
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
         "runner.label": $gh.runner
         "setup.nu.action": $gh.setup_nu_action
+        "action.checkout": ($gh.action_checkout? | default "actions/checkout@v6")
         "nushell.version": $nu_ver
         "max_parallel_line": $max_parallel_line
     }
@@ -225,6 +230,8 @@ export def build-run-cell-yml [] {
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
         "runner.label": $gh.runner
         "setup.nu.action": $gh.setup_nu_action
+        "action.checkout": ($gh.action_checkout? | default "actions/checkout@v6")
+        "action.upload.artifact": ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
         "nushell.version": $nu_ver
         "publish.branch.gate": $publish_branch_gate
     }
@@ -269,6 +276,12 @@ export def build-ci-site-yml [
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
         "runner.label": $gh.runner
         "setup.nu.action": $gh.setup_nu_action
+        "action.checkout": ($gh.action_checkout? | default "actions/checkout@v6")
+        "action.upload.artifact": ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
+        "action.download.artifact": ($gh.action_download_artifact? | default "actions/download-artifact@v7")
+        "action.setup.bun": ($gh.action_setup_bun? | default "oven-sh/setup-bun@v2")
+        "action.upload.pages.artifact": ($gh.action_upload_pages_artifact? | default "actions/upload-pages-artifact@v5")
+        "action.deploy.pages": ($gh.action_deploy_pages? | default "actions/deploy-pages@v5")
         "nushell.version": $nu_ver
         "publish.branch.gate": $publish_branch_gate
         "raw.aggregate.artifact.name": $raw_agg_name

@@ -18,13 +18,13 @@ jobs:
   preflight:
     runs-on: {{placeholder:runner.label}}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
           version: '{{placeholder:nushell.version}}'
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: {{placeholder:action.setup.bun}}
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Workflow drift check
@@ -42,7 +42,7 @@ jobs:
     outputs:
       suite-id: ${{ steps.gen.outputs['suite-id'] }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
@@ -63,13 +63,13 @@ jobs:
     if: always() && needs.setup.result == 'success'
     runs-on: {{placeholder:runner.label}}
     steps:
-      - uses: actions/checkout@v4
+      - uses: {{placeholder:action.checkout}}
       - name: Install Nushell
         uses: {{placeholder:setup.nu.action}}
         with:
           version: '{{placeholder:nushell.version}}'
       - name: Download all cell artifacts
-        uses: actions/download-artifact@v4
+        uses: {{placeholder:action.download.artifact}}
         with:
           path: artifacts/
           pattern: 'cell-*'
@@ -88,7 +88,7 @@ jobs:
             --archive
       - name: Upload aggregate outputs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: {{placeholder:action.upload.artifact}}
         with:
           name: aggregate-summary
           path: artifacts/suites/aggregated/

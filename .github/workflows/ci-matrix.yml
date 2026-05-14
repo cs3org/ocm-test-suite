@@ -5,7 +5,7 @@ name: OCM Test Suite CI
 
 on:
   push:
-    branches: ['**']
+    branches: ['main']
   pull_request:
   workflow_dispatch:
     inputs:

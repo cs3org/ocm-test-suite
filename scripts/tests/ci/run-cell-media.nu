@@ -90,8 +90,28 @@ def test-public-commands-in-generated-yaml [] {
             "ci-run-cell.yml uses public nu scripts/ocmts.nu ci download-prereqs command")
         (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu artifacts show-optimizer-image")
             "ci-run-cell.yml uses public nu scripts/ocmts.nu artifacts show-optimizer-image command")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu services list-cell-images")
+            "ci-run-cell.yml uses public nu scripts/ocmts.nu services list-cell-images for pre-pull")
         (assert-truthy (not ($run_cell_yml | str contains "nu -c \"use scripts/lib/images"))
             "ci-run-cell.yml does not use internal nu -c image import in pre-pull step")
+    ]
+}
+
+def test-run-cell-prepull-runtime-images-gated [] {
+    test-log "\n[test-run-cell-prepull-runtime-images-gated]"
+    let run_cell_yml = (build-run-cell-yml)
+    let prepull_pos = ($run_cell_yml | str index-of "Pre-pull runtime images")
+    let run_pos = ($run_cell_yml | str index-of "Run cell (when no prerequisite failure)")
+    let prepull_section = ($run_cell_yml | str substring $prepull_pos..$run_pos)
+    [
+        (assert-truthy ($prepull_section | str contains "inputs['failure-reason'] == ''")
+            "Pre-pull runtime images is gated: no failure-reason")
+        (assert-truthy ($prepull_section | str contains "steps.prereq_check.outputs['prereq-failure-reason'] == ''")
+            "Pre-pull runtime images is gated: no prereq failure")
+        (assert-truthy ($prepull_section | str contains "docker pull")
+            "Pre-pull runtime images step runs docker pull")
+        (assert-truthy ($prepull_pos < $run_pos)
+            "Pre-pull runtime images step appears before Run cell step")
     ]
 }
 
@@ -123,6 +143,7 @@ def main [] {
         | append (test-run-cell-has-prepull-optimizer-step)
         | append (test-public-commands-in-generated-yaml)
         | append (test-run-cell-optimize-branch-gated)
+        | append (test-run-cell-prepull-runtime-images-gated)
     ) | flatten
     run-suite "ci/run-cell-media" $SUITE_PATH $results
 }

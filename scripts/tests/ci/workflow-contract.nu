@@ -207,6 +207,69 @@ def test-run-cell-one-party-receiver-flag-guard [] {
     ]
 }
 
+def test-action-refs-from-ssot [] {
+    test-log "\n[test-action-refs-from-ssot]"
+    let run_cell_yml = (build-run-cell-yml)
+    let run_wave_yml = (build-run-wave-yml)
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let matrix_yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy (not ($run_cell_yml | str contains "actions/checkout@v4"))
+            "ci-run-cell.yml does not hardcode actions/checkout@v4")
+        (assert-truthy ($run_cell_yml | str contains "actions/checkout@v6")
+            "ci-run-cell.yml uses actions/checkout@v6 from SSOT")
+        (assert-truthy (not ($run_cell_yml | str contains "actions/upload-artifact@v4"))
+            "ci-run-cell.yml does not hardcode actions/upload-artifact@v4")
+        (assert-truthy ($run_cell_yml | str contains "actions/upload-artifact@v7")
+            "ci-run-cell.yml uses actions/upload-artifact@v7 from SSOT")
+        (assert-truthy ($run_wave_yml | str contains "actions/checkout@v6")
+            "ci-run-wave.yml uses actions/checkout@v6 from SSOT")
+        (assert-truthy ($matrix_yml | str contains "actions/checkout@v6")
+            "ci-matrix.yml uses actions/checkout@v6 from SSOT")
+        (assert-truthy ($matrix_yml | str contains "actions/download-artifact@v7")
+            "ci-matrix.yml uses actions/download-artifact@v7 from SSOT")
+        (assert-truthy (not ($matrix_yml | str contains "actions/download-artifact@v4"))
+            "ci-matrix.yml does not hardcode actions/download-artifact@v4")
+    ]
+}
+
+def test-upload-excludes-mitm-conf [] {
+    test-log "\n[test-upload-excludes-mitm-conf]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy ($run_cell_yml | str contains "!artifacts/**/mitm/conf/**")
+            "ci-run-cell.yml upload excludes artifacts/**/mitm/conf/** via negated pattern")
+        (assert-truthy ($run_cell_yml | str contains "artifacts/")
+            "ci-run-cell.yml upload still includes artifacts/ root")
+    ]
+}
+
+def test-run-cell-no-suite-kind-suite [] {
+    test-log "\n[test-run-cell-no-suite-kind-suite]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy (not ($run_cell_yml | str contains "--suite-kind suite"))
+            "ci-run-cell.yml Run cell step does not pass --suite-kind suite (each cell job has no local suite record)")
+    ]
+}
+
+def test-run-cell-has-prepull-runtime-images [] {
+    test-log "\n[test-run-cell-has-prepull-runtime-images]"
+    let run_cell_yml = (build-run-cell-yml)
+    let prepull_pos = ($run_cell_yml | str index-of "Pre-pull runtime images")
+    let run_pos = ($run_cell_yml | str index-of "Run cell (when no prerequisite failure)")
+    [
+        (assert-truthy ($run_cell_yml | str contains "Pre-pull runtime images")
+            "ci-run-cell.yml has Pre-pull runtime images step")
+        (assert-truthy ($run_cell_yml | str contains "nu scripts/ocmts.nu services list-cell-images")
+            "ci-run-cell.yml pre-pull step calls services list-cell-images")
+        (assert-truthy ($prepull_pos < $run_pos)
+            "Pre-pull runtime images step appears before Run cell step")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-contract tests ==="
     let results = (
@@ -223,6 +286,10 @@ def main [] {
         | append (test-run-cell-iterates-all-deps)
         | append (test-run-cell-download-uses-current-run-id)
         | append (test-run-cell-one-party-receiver-flag-guard)
+        | append (test-action-refs-from-ssot)
+        | append (test-upload-excludes-mitm-conf)
+        | append (test-run-cell-no-suite-kind-suite)
+        | append (test-run-cell-has-prepull-runtime-images)
     ) | flatten
     run-suite "ci/workflow-contract" $SUITE_PATH $results
 }

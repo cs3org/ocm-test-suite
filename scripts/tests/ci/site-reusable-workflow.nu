@@ -205,10 +205,21 @@ def test-ci-site-build-job [] {
             "ci-site.yml build job downloads optimized media summary from aggregate-media job")
         (assert-truthy ($ci_site_yml | str contains "Upload built site")
             "ci-site.yml build job uploads built site artifact")
-        (assert-truthy ($ci_site_yml | str contains "actions/upload-pages-artifact@v3")
-            "ci-site.yml build job uses upload-pages-artifact action")
+        (assert-truthy ($ci_site_yml | str contains "actions/upload-pages-artifact@v5")
+            "ci-site.yml build job uses upload-pages-artifact@v5 action")
         (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
             "ci-site.yml upload-pages-artifact path is CI checkout dir joined with site output subpath")
+    ]
+}
+
+def test-ci-site-action-refs [] {
+    test-log "\n[test-ci-site-action-refs]"
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "actions/download-artifact@v7")
+            "ci-site.yml uses download-artifact@v7 (from config)")
+        (assert-truthy (not ($ci_site_yml | str contains "actions/download-artifact@v4"))
+            "ci-site.yml does not contain stale download-artifact@v4")
     ]
 }
 
@@ -218,8 +229,8 @@ def test-ci-site-deploy-job [] {
     [
         (assert-truthy ($ci_site_yml | str contains "Deploy to GitHub Pages")
             "ci-site.yml deploy job has Deploy to GitHub Pages step")
-        (assert-truthy ($ci_site_yml | str contains "actions/deploy-pages@v4")
-            "ci-site.yml deploy job uses deploy-pages action")
+        (assert-truthy ($ci_site_yml | str contains "actions/deploy-pages@v5")
+            "ci-site.yml deploy job uses deploy-pages@v5 action")
         (assert-truthy ($ci_site_yml | str contains "pages: write")
             "ci-site.yml deploy job has pages: write permission")
         (assert-truthy ($ci_site_yml | str contains "id-token: write")
@@ -318,6 +329,7 @@ def main [] {
         | append (test-ci-site-config-values-injected)
         | append (test-ci-site-job-topology)
         | append (test-ci-site-build-job)
+        | append (test-ci-site-action-refs)
         | append (test-ci-site-deploy-job)
         | append (test-ci-site-has-optimizer-probe-step)
         | append (test-ci-site-download-no-or-true)

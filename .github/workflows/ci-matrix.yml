@@ -18,7 +18,7 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
@@ -42,7 +42,7 @@ jobs:
     outputs:
       suite-id: ${{ steps.gen.outputs['suite-id'] }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
@@ -106,13 +106,13 @@ jobs:
     if: always() && needs.setup.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
           version: '0.108.0'
       - name: Download all cell artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts/
           pattern: 'cell-*'
@@ -131,7 +131,7 @@ jobs:
             --archive
       - name: Upload aggregate outputs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aggregate-summary
           path: artifacts/suites/aggregated/

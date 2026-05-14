@@ -52,7 +52,7 @@ jobs:
     outputs:
       cell-status: ${{ steps.run_cell.outputs['cell-status'] || steps.blocked_cell.outputs['cell-status'] || 'failed' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
@@ -103,6 +103,25 @@ jobs:
           fi
           nu scripts/ocmts.nu ci emit-blocked "${ARGS[@]}"
           echo "cell-status=blocked" >> $GITHUB_OUTPUT
+      - name: Pre-pull runtime images
+        id: prepull_images
+        if: inputs['failure-reason'] == '' && steps.prereq_check.outputs['prereq-failure-reason'] == ''
+        run: |
+          ARGS=(
+            --scenario "${{ inputs.scenario }}"
+            --sender-platform "${{ inputs['sender-platform'] }}"
+            --sender-version "${{ inputs['sender-version'] }}"
+          )
+          if [ -n "${{ inputs['receiver-platform'] }}" ]; then
+            ARGS+=(--receiver-platform "${{ inputs['receiver-platform'] }}")
+          fi
+          if [ -n "${{ inputs['receiver-version'] }}" ]; then
+            ARGS+=(--receiver-version "${{ inputs['receiver-version'] }}")
+          fi
+          nu scripts/ocmts.nu services list-cell-images "${ARGS[@]}" | while IFS= read -r img; do
+            [ -z "$img" ] && continue
+            docker pull "$img"
+          done
       - name: Run cell (when no prerequisite failure)
         id: run_cell
         if: inputs['failure-reason'] == '' && steps.prereq_check.outputs['prereq-failure-reason'] == ''
@@ -115,7 +134,6 @@ jobs:
             --sender-platform "${{ inputs['sender-platform'] }}"
             --sender-version "${{ inputs['sender-version'] }}"
             --suite-id "${{ inputs['suite-id'] }}"
-            --suite-kind suite
             --execution-id "${{ steps.cell.outputs['execution-id'] }}"
           )
           if [ -n "${{ inputs['receiver-platform'] }}" ]; then
@@ -145,15 +163,17 @@ jobs:
             --output-dir artifacts-optimized/
       - name: Upload optimized media artifact
         if: always() && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: optimized-media-${{ inputs['artifact-name'] }}
           path: artifacts-optimized/
           if-no-files-found: error
       - name: Upload cell artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs['artifact-name'] }}
-          path: artifacts/
+          path: |
+            artifacts/
+            !artifacts/**/mitm/conf/**
           if-no-files-found: warn

@@ -65,9 +65,11 @@ jobs:
         with:
           version: '0.108.0'
       - name: Probe optimizer image
+        if: false
         run: |
           nu scripts/ocmts.nu artifacts probe-optimizer
       - name: Download optimized media artifacts
+        if: false
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,11 +77,13 @@ jobs:
             --pattern 'optimized-media-cell-*' \
             --dir artifacts/optimized/
       - name: Aggregate optimized media
+        if: false
         run: |
           nu scripts/ocmts.nu artifacts aggregate-optimized-media \
             --scan-dir artifacts/optimized \
             --output-dir artifacts/optimized-summary/
       - name: Upload optimized media summary
+        if: false
         uses: actions/upload-artifact@v7
         with:
           name: optimized-media-summary
@@ -108,6 +112,7 @@ jobs:
         run: |
           tar -x -I zstd -f artifacts/suites/aggregated/suite-artifacts.tar.zst
       - name: Download optimized media summary
+        if: false
         uses: actions/download-artifact@v7
         with:
           name: optimized-media-summary
@@ -123,7 +128,7 @@ jobs:
           nu scripts/ocmts.nu site publish \
             --artifacts-root artifacts \
             --latest-suite \
-            --optimized-media-dir artifacts/optimized-summary/
+            --optimized-media-dir ''
       - name: Upload built site
         uses: actions/upload-pages-artifact@v5
         with:

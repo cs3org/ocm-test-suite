@@ -17,7 +17,7 @@ use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
 
 def test-run-cell-has-optimize-media-step [] {
     test-log "\n[test-run-cell-has-optimize-media-step]"
-    let run_cell_yml = (build-run-cell-yml)
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
     let upload_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
     let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_pos)
@@ -39,7 +39,7 @@ def test-run-cell-has-optimize-media-step [] {
 
 def test-run-cell-uploads-optimized-media-artifact [] {
     test-log "\n[test-run-cell-uploads-optimized-media-artifact]"
-    let run_cell_yml = (build-run-cell-yml)
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     [
         (assert-truthy ($run_cell_yml | str contains "Upload optimized media artifact")
             "ci-run-cell.yml has Upload optimized media artifact step")
@@ -56,7 +56,7 @@ def test-run-cell-uploads-optimized-media-artifact [] {
 
 def test-run-cell-has-prepull-optimizer-step [] {
     test-log "\n[test-run-cell-has-prepull-optimizer-step]"
-    let run_cell_yml = (build-run-cell-yml)
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     let prepull_pos = ($run_cell_yml | str index-of "Pre-pull optimizer image")
     let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
     let prepull_section = ($run_cell_yml | str substring $prepull_pos..$optimize_pos)
@@ -119,7 +119,7 @@ def test-run-cell-prepull-runtime-images-gated [] {
 
 def test-run-cell-optimize-branch-gated [] {
     test-log "\n[test-run-cell-optimize-branch-gated]"
-    let run_cell_yml = (build-run-cell-yml)
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     # Both optimize and upload steps must be gated on publish_branch_gate.
     let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
     let upload_opt_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
@@ -137,6 +137,31 @@ def test-run-cell-optimize-branch-gated [] {
     ]
 }
 
+def test-run-cell-raw-mode-optimizer-steps-gated [] {
+    test-log "\n[test-run-cell-raw-mode-optimizer-steps-gated]"
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides {media_lane_mode: "raw"})
+    let prepull_pos = ($run_cell_yml | str index-of "Pre-pull optimizer image")
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let upload_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
+    let prepull_section = ($run_cell_yml | str substring $prepull_pos..$optimize_pos)
+    let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_pos)
+    let upload_section = ($run_cell_yml | str substring $upload_pos..)
+    [
+        (assert-truthy ($run_cell_yml | str contains "Pre-pull optimizer image")
+            "raw mode: Pre-pull optimizer image step still present")
+        (assert-truthy ($run_cell_yml | str contains "Optimize cell media")
+            "raw mode: Optimize cell media step still present")
+        (assert-truthy ($run_cell_yml | str contains "Upload optimized media artifact")
+            "raw mode: Upload optimized media artifact step still present")
+        (assert-truthy ($prepull_section | str contains "&& false")
+            "raw mode: Pre-pull optimizer image if condition includes && false")
+        (assert-truthy ($optimize_section | str contains "&& false")
+            "raw mode: Optimize cell media if condition includes && false")
+        (assert-truthy ($upload_section | str contains "&& false")
+            "raw mode: Upload optimized media artifact if condition includes && false")
+    ]
+}
+
 def main [] {
     test-log "=== CI run-cell media tests ==="
     let results = (
@@ -146,6 +171,7 @@ def main [] {
         | append (test-public-commands-in-generated-yaml)
         | append (test-run-cell-optimize-branch-gated)
         | append (test-run-cell-prepull-runtime-images-gated)
+        | append (test-run-cell-raw-mode-optimizer-steps-gated)
     ) | flatten
     run-suite "ci/run-cell-media" $SUITE_PATH $results
 }

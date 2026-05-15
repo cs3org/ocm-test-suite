@@ -244,13 +244,27 @@ export def build-run-wave-yml [] {
 # execution_id is generated per-cell at runtime in the workflow (not an input).
 # artifact-name is passed from the matrix workflow as a stable derived value
 # matching the 'cell-*' download pattern in the aggregate job.
-export def build-run-cell-yml [] {
+# --site-cfg-overrides: optional record merged into the loaded site config;
+# mirrors build-ci-site-yml for test injection without editing config.
+export def build-run-cell-yml [
+    --site-cfg-overrides: any = null
+] {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
-    let site_cfg = (load-site-config $root)
+    let raw_site_cfg = (load-site-config $root)
+    let site_cfg = if ($site_cfg_overrides != null) {
+        $raw_site_cfg | merge $site_cfg_overrides
+    } else {
+        $raw_site_cfg
+    }
     let gh = $cfg.workflows.github
     let nu_ver = $cfg.toolchain.nushell.version
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
+    let lane = ($site_cfg.media_lane_mode? | default "optimized")
+    if $lane not-in ["raw" "optimized"] {
+        error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
+    }
+    let optimized_literal = if $lane == "optimized" { "true" } else { "false" }
     let run_cell_tpl = (bp-path $root "github/workflows/ci-run-cell.yml.tpl")
 
     render-blueprint $run_cell_tpl {
@@ -261,6 +275,7 @@ export def build-run-cell-yml [] {
         "action.upload.artifact": ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
         "nushell.version": $nu_ver
         "publish.branch.gate": $publish_branch_gate
+        "media.lane.optimized.literal": $optimized_literal
     }
 }
 
@@ -297,6 +312,16 @@ export def build-ci-site-yml [
     # the Astro build produces correct asset paths and canonical URLs.
     let deploy_base = ($site_cfg.deploy_base_path? | default "/")
     let deploy_site_url = ($site_cfg.deploy_site_url? | default "")
+    let lane = ($site_cfg.media_lane_mode? | default "optimized")
+    if $lane not-in ["raw" "optimized"] {
+        error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
+    }
+    let optimized_literal = if $lane == "optimized" { "true" } else { "false" }
+    let optimized_media_dir_scalar = if $lane == "optimized" {
+        "'artifacts/optimized-summary/'"
+    } else {
+        "''"
+    }
     let ci_site_tpl = (bp-path $root "github/workflows/ci-site.yml.tpl")
 
     render-blueprint $ci_site_tpl {
@@ -318,5 +343,7 @@ export def build-ci-site-yml [
         "site.build.output.path": $build_out
         "astro.base": $deploy_base
         "astro.site": $deploy_site_url
+        "media.lane.optimized.literal": $optimized_literal
+        "media.lane.optimized.media.dir.scalar": $optimized_media_dir_scalar
     }
 }

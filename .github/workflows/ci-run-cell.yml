@@ -154,19 +154,19 @@ jobs:
           fi
       - name: Pre-pull optimizer image
         id: prepull_optimizer
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && github.ref == 'refs/heads/main' && false
         run: |
           IMG=$(nu scripts/ocmts.nu artifacts show-optimizer-image)
           docker pull "$IMG"
       - name: Optimize cell media
         id: optimize_media
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && github.ref == 'refs/heads/main' && false
         run: |
           nu scripts/ocmts.nu artifacts optimize-media \
             --raw-dir . \
             --output-dir artifacts-optimized/
       - name: Upload optimized media artifact
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && github.ref == 'refs/heads/main' && false
         uses: actions/upload-artifact@v7
         with:
           name: optimized-media-${{ inputs['artifact-name'] }}

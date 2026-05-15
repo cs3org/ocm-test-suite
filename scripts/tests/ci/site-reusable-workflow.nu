@@ -138,7 +138,7 @@ def test-ci-site-resolves-source-run [] {
 
 def test-ci-site-downloads-optimized-media [] {
     test-log "\n[test-ci-site-downloads-optimized-media]"
-    let ci_site_yml = (build-ci-site-yml)
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     [
         (assert-truthy ($ci_site_yml | str contains "Download optimized media artifacts")
             "ci-site.yml downloads optimized media artifacts")
@@ -218,12 +218,12 @@ def test-ci-site-build-job [] {
     let site_cfg = (open ($real_root | path join "config/site.nuon"))
     let upload_pages_action = ($wf.github.action_upload_pages_artifact? | default "actions/upload-pages-artifact@v5")
     let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
-    let ci_site_yml = (build-ci-site-yml)
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     [
         (assert-truthy ($ci_site_yml | str contains "Publish site")
             "ci-site.yml build job has Publish site step")
-        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir artifacts/optimized-summary/")
-            "ci-site.yml build job passes --optimized-media-dir to site publish")
+        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir 'artifacts/optimized-summary/'")
+            "ci-site.yml build job passes --optimized-media-dir to site publish in optimized mode")
         (assert-truthy ($ci_site_yml | str contains "Download optimized media summary")
             "ci-site.yml build job downloads optimized media summary from aggregate-media job")
         (assert-truthy ($ci_site_yml | str contains "Upload built site")
@@ -273,7 +273,7 @@ def test-ci-site-deploy-job [] {
 
 def test-ci-site-has-optimizer-probe-step [] {
     test-log "\n[test-ci-site-has-optimizer-probe-step]"
-    let ci_site_yml = (build-ci-site-yml)
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "optimized"})
     let probe_pos = ($ci_site_yml | str index-of "Probe optimizer image")
     let download_pos = ($ci_site_yml | str index-of "Download optimized media artifacts")
     let probe_section = ($ci_site_yml | str substring $probe_pos..$download_pos)
@@ -344,6 +344,29 @@ def test-ci-site-empty-site-url-renders-explicit [] {
     ]
 }
 
+def test-ci-site-raw-mode-lane [] {
+    test-log "\n[test-ci-site-raw-mode-lane]"
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "raw"})
+    [
+        (assert-truthy ($ci_site_yml | str contains "  prepare:")
+            "raw mode: ci-site.yml still has prepare job")
+        (assert-truthy ($ci_site_yml | str contains "  aggregate-media:")
+            "raw mode: ci-site.yml still has aggregate-media job")
+        (assert-truthy ($ci_site_yml | str contains "  build:")
+            "raw mode: ci-site.yml still has build job")
+        (assert-truthy ($ci_site_yml | str contains "  deploy:")
+            "raw mode: ci-site.yml still has deploy job")
+        (assert-truthy ($ci_site_yml | str contains "if: false")
+            "raw mode: at least one optimized step has if: false gate")
+        (assert-truthy ($ci_site_yml | str contains "if: false\n        run: |\n          nu scripts/ocmts.nu artifacts probe-optimizer")
+            "raw mode: Probe optimizer image step is gated off with if: false")
+        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir ''")
+            "raw mode: Publish site uses --optimized-media-dir '' (empty)")
+        (assert-truthy (not ($ci_site_yml | str contains "--optimized-media-dir 'artifacts/optimized-summary/'"))
+            "raw mode: Publish site does not use optimized summary dir")
+    ]
+}
+
 def main [] {
     test-log "=== CI site reusable workflow tests ==="
     let results = (
@@ -365,6 +388,7 @@ def main [] {
         | append (test-ci-site-ref-not-hardcoded)
         | append (test-ci-site-deploy-target-env)
         | append (test-ci-site-empty-site-url-renders-explicit)
+        | append (test-ci-site-raw-mode-lane)
     ) | flatten
     run-suite "ci/site-reusable-workflow" $SUITE_PATH $results
 }

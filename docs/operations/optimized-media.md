@@ -41,12 +41,34 @@ the public manifest, copies derived media into the public artifact tree,
 removes raw `.png` and `.mp4` from public, builds the Astro site, deploys
 to GitHub Pages.
 
+## Media lane mode
+
+`config/site.nuon` has a `media_lane_mode` key that selects between the two
+publish lanes:
+
+| Value | Behavior |
+| --- | --- |
+| `"raw"` | Skip all ffmpeg/optimizer work. Per-cell optimizer steps and the site aggregate/projection steps are gated off via `if: false`. The site publishes raw MP4 and PNG. Default. |
+| `"optimized"` | Full optimizer pipeline runs. Per-cell steps pre-pull the image, run `optimize-media`, and upload the optimized artifact. `ci-site.yml` downloads, aggregates, and projects optimized media into the published site. |
+
+After changing `media_lane_mode`, regenerate the workflows:
+
+```shell
+nu scripts/ocmts.nu ci workflows generate github
+```
+
+The generated `ci-run-cell.yml` and `ci-site.yml` bake the lane as literal
+`true` or `false` in each relevant `if:` condition. The `--optimized-media-dir`
+argument to `site publish` renders as `'artifacts/optimized-summary/'` in
+optimized mode and `''` (empty string) in raw mode.
+
 ## Configuration
 
 Site publish settings: `config/site.nuon`.
 
 | Key | Purpose |
 | --- | --- |
+| `media_lane_mode` | Lane selector: `"raw"` (default) or `"optimized"` |
 | `repo_slug` | Source site repo `<owner>/<name>` used for clone |
 | `ref` | Default git ref for site checkout |
 | `publish_branch_gate` | Branch on which optimized-media work runs |

@@ -16,6 +16,9 @@ architecture and authoring rules that should remain stable across flows.
   manifests, CI aggregation, and public publication.
 - `operations/optimized-media.md` documents the AVIF/WebP/WebM optimized
   media lane, configuration, CLI commands, and CI workflow surface.
+- `operations/cli.md` documents the CLI entry point and common local run flows.
+- `operations/configuration.md` documents image overrides, actors, and Cypress
+  env conventions.
 
 ## Architecture
 
@@ -36,3 +39,7 @@ architecture and authoring rules that should remain stable across flows.
 - CI aggregation lives in `scripts/lib/ci/aggregate.nu`.
 - Optimized media production lives in `scripts/lib/artifacts/`.
 - Public media projection lives in `scripts/lib/site/project-media.nu`.
+
+## CI workflow configuration
+
+CI workflow generation SSOT lives under `config/ci/`. See `config/ci/README.md`.

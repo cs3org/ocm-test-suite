@@ -104,8 +104,9 @@ export def build-flow-assets [plan: record]: any -> list {
     $flow_ids_ordered | each {|flow_id|
         let flow_cells = ($cells_by_flow | get --optional $flow_id | default [])
         if ($flow_cells | is-empty) { return null }
-        let cell_records = ($flow_cells | each {|c|
-            build-cell-json-record $c $cell_id_to_artifact
+        let cell_records = ($flow_cells | enumerate | each {|e|
+            (build-cell-json-record $e.item $cell_id_to_artifact)
+            | insert wave_index ($e.index + 1)
         })
         {
             path: (flow-asset-rel-path $flow_id)

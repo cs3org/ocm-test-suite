@@ -20,6 +20,11 @@ def main [
         error make {msg: "Missing required flag --output-dir"}
     }
 
+    let artifacts_path = ($raw_dir | path join "artifacts")
+    if not ($artifacts_path | path exists) {
+        error make {msg: "optimize-media: --raw-dir must be a directory that contains artifacts/<flow>/<pair>/<exec-id>/. Pass repo root (.) or the artifact download root, not artifacts/ or a single cell dir."}
+    }
+
     let img = if ($image | is-empty) {
         resolve-media-optimizer-image
     } else {

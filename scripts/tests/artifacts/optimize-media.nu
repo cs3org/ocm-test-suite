@@ -39,15 +39,18 @@ def test-discover-screenshots-and-videos [] {
     mkdir ($tmp | path join $"($FX)/cypress/videos")
     "fake png" | save ($tmp | path join $"($FX)/cypress/screenshots/foo.png")
     "fake png" | save ($tmp | path join $"($FX)/cypress/screenshots/bar.png")
+    # MP4 under cypress/videos/ (classic layout)
     "fake mp4" | save ($tmp | path join $"($FX)/cypress/videos/baz.mp4")
+    # MP4 directly under cypress/ (real CI layout)
+    "fake mp4" | save ($tmp | path join $"($FX)/cypress/run.mp4")
     let items = (discover-raw-media $tmp)
     try { rm -rf $tmp } catch {}
     let ss = ($items | where kind == "screenshot")
     let vid = ($items | where kind == "video")
     [
-        (assert-eq ($items | length) 3 "discovers 3 items total")
+        (assert-eq ($items | length) 4 "discovers 4 items total")
         (assert-eq ($ss | length) 2 "discovers 2 screenshots")
-        (assert-eq ($vid | length) 1 "discovers 1 video")
+        (assert-eq ($vid | length) 2 "discovers 2 videos (one direct, one in videos/)")
     ]
 }
 
@@ -71,8 +74,9 @@ def test-discover-ignores-non-media [] {
     test-log "\n[test-discover-ignores-non-media]"
     let id = (random uuid)
     let tmp = $"/tmp/ocmts-test-disc-ignore-($id)"
-    # These paths do not match artifacts/**/cypress/screenshots/**/*.png
-    # or artifacts/**/cypress/videos/*.mp4 so they are all ignored.
+    # These paths do not match artifacts/**/cypress/screenshots/**/*.png,
+    # artifacts/**/cypress/*.mp4, or artifacts/**/cypress/videos/**/*.mp4
+    # so they are all ignored.
     mkdir ($tmp | path join $"($FX)/cypress/downloads")
     mkdir ($tmp | path join $"($FX)/docker/logs")
     mkdir ($tmp | path join $"($FX)/meta")

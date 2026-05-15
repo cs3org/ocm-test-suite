@@ -79,12 +79,20 @@ both as a manual diagnostic and as a strict gate inside `ci-site.yml`.
 nu scripts/ocmts.nu artifacts optimize-media --raw-dir <dir> --output-dir <dir>
 ```
 
-Optimizes one cell artifact directory. Discovers `cypress/screenshots/**/*.png`
-and `cypress/videos/*.mp4` under `<raw-dir>/artifacts/`, converts each via
-the optimizer image, preserves the run-relative path layout, and writes
+Optimizes one cell artifact directory. Discovers
+`cypress/screenshots/**/*.png`, `cypress/*.mp4` (MP4 placed directly under
+the `cypress/` directory, as Cypress sometimes emits), and
+`cypress/videos/**/*.mp4` (MP4 under `videos/` sub-directories) under
+`<raw-dir>/artifacts/`. Converts each via the optimizer image, preserves
+the run-relative path layout, and writes
 `meta/optimized-media-cell.v1.json` in `<out-dir>`. Emits a
 `no-source-media` manifest (with empty items) when the cell carries no
 publishable media.
+
+`--raw-dir` must be the directory that contains the `artifacts/` sub-tree
+(for example the repo root `.` on a CI runner, or the artifact download
+root). Passing `artifacts/` itself or a single cell directory will be
+rejected with an error.
 
 ### `aggregate-optimized-media`
 
@@ -312,8 +320,9 @@ cd ../ocm-web-site && bun run build
 `ci-run-cell.yml` per cell, gated on `publish_branch_gate`:
 
 1. `Pre-pull optimizer image` warms the docker layer cache.
-2. `Optimize cell media` runs `artifacts optimize-media` against the
-   uploaded raw cell tree.
+2. `Optimize cell media` runs `artifacts optimize-media --raw-dir .`
+   (the runner working directory, which contains `artifacts/`) against
+   the uploaded raw cell tree.
 3. `Upload optimized media artifact` uploads
    `optimized-media-${{ inputs['artifact-name'] }}` (single
    `optimized-media-` prefix; the input already starts with `cell-`).

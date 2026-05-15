@@ -70,9 +70,14 @@ export def discover-raw-media [raw_dir: string] {
     let ss_abs = (try {
         glob ($base | path join "artifacts/**/cypress/screenshots/**/*.png")
     } catch { [] })
-    let vid_abs = (try {
-        glob ($base | path join "artifacts/**/cypress/videos/*.mp4")
+    # Discover MP4s in both layouts: directly under cypress/ and under cypress/videos/**/.
+    let vid_direct = (try {
+        glob ($base | path join "artifacts/**/cypress/*.mp4")
     } catch { [] })
+    let vid_nested = (try {
+        glob ($base | path join "artifacts/**/cypress/videos/**/*.mp4")
+    } catch { [] })
+    let vid_abs = ($vid_direct | append $vid_nested)
 
     let ss_items = ($ss_abs | each {|p|
         {rel: ($p | str replace $prefix ""), kind: "screenshot"}

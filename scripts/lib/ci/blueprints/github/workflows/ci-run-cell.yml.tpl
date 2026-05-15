@@ -163,7 +163,7 @@ jobs:
         if: always() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}'
         run: |
           nu scripts/ocmts.nu artifacts optimize-media \
-            --raw-dir artifacts/ \
+            --raw-dir . \
             --output-dir artifacts-optimized/
       - name: Upload optimized media artifact
         if: always() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}'

@@ -64,12 +64,39 @@ visual ordering.
 
 Fields under `github`:
 
-- `filenames.{matrix,run_wave,run_cell,site}` (string): output basenames
-  for each generated workflow. Changing one renames the file under
-  `.github/workflows/` on the next generate.
+- `filenames.matrix` (string, default `"ci-matrix.yml"`): output basename
+  for the matrix orchestrator workflow.
+- `filenames.run_wave` (string, default `"ci-run-wave.yml"`): output
+  basename for the reusable wave workflow.
+- `filenames.run_cell` (string, default `"ci-run-cell.yml"`): output
+  basename for the reusable cell workflow.
+- `filenames.site` (string, default `"ci-site.yml"`): output basename for
+  the site publish workflow.
+
+  All four keys are optional; the defaults above apply when a key is
+  absent. Both the generator (`ci workflows generate github`) and the
+  checker (`ci workflows check github`) resolve output and expected paths
+  from the configured basenames, so renaming a key takes effect in both
+  commands without extra configuration.
+
 - `runner` (string): the `runs-on:` label baked into every job.
-- `setup_nu_action` (string): the action used to install Nushell. Bumping
-  this pin updates every workflow that installs nu.
+- `setup_nu_action` (string): the action used to install Nushell.
+  Bumping this pin updates every workflow that installs nu.
+- `action_checkout` (string): the `actions/checkout` pin used in every
+  workflow.
+- `action_upload_artifact` (string): artifact upload action pin used in
+  ci-matrix.yml, ci-run-cell.yml, and ci-site.yml.
+- `action_download_artifact` (string): artifact download action pin used
+  in ci-matrix.yml and ci-site.yml.
+- `action_upload_pages_artifact` (string): Pages artifact upload pin used
+  in ci-site.yml.
+- `action_deploy_pages` (string): Pages deploy action pin used in
+  ci-site.yml.
+- `action_setup_bun` (string): Bun setup action pin used in ci-matrix.yml
+  and ci-site.yml.
+- `max_parallel` (int, optional): when set to a positive integer, adds a
+  `max-parallel:` constraint to the matrix strategy in ci-run-wave.yml.
+  Omit or set to `0` to disable the constraint (default behavior).
 - `job_order` (string[]): visual ordering for cell-group jobs in the
   matrix workflow. Cells are sorted by their flow's position in this
   list; flows not listed appear after all listed flows in their natural

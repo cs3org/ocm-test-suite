@@ -240,12 +240,15 @@ def test-ci-site-action-refs [] {
     let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
     let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
     let download = ($wf.github.action_download_artifact? | default "actions/download-artifact@v7")
+    let setup_node = ($wf.github.action_setup_node? | default "actions/setup-node@v4")
     let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy ($ci_site_yml | str contains $download)
             "ci-site.yml uses download-artifact action from config")
         (assert-truthy (not ($ci_site_yml | str contains "actions/download-artifact@v4"))
             "ci-site.yml does not contain stale download-artifact@v4")
+        (assert-truthy ($ci_site_yml | str contains $setup_node)
+            "ci-site.yml uses setup-node action from config in build job")
     ]
 }
 
@@ -344,6 +347,24 @@ def test-ci-site-empty-site-url-renders-explicit [] {
     ]
 }
 
+def test-ci-site-build-setup-node [] {
+    test-log "\n[test-ci-site-build-setup-node]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let toolchain = (open ($real_root | path join "config/ci/toolchain.nuon"))
+    let node_ver = ($toolchain.node?.version? | default "22")
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "Setup Node")
+            "ci-site.yml build job has Setup Node step")
+        (assert-truthy ($ci_site_yml | str contains "setup-node")
+            "ci-site.yml Setup Node step uses setup-node action")
+        (assert-truthy ($ci_site_yml | str contains "node-version:")
+            "ci-site.yml Setup Node step sets node-version")
+        (assert-truthy ($ci_site_yml | str contains $"node-version: '($node_ver)'")
+            "ci-site.yml Setup Node step uses node version from toolchain config")
+    ]
+}
+
 def test-ci-site-raw-mode-lane [] {
     test-log "\n[test-ci-site-raw-mode-lane]"
     let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "raw"})
@@ -388,6 +409,7 @@ def main [] {
         | append (test-ci-site-ref-not-hardcoded)
         | append (test-ci-site-deploy-target-env)
         | append (test-ci-site-empty-site-url-renders-explicit)
+        | append (test-ci-site-build-setup-node)
         | append (test-ci-site-raw-mode-lane)
     ) | flatten
     run-suite "ci/site-reusable-workflow" $SUITE_PATH $results

@@ -1,4 +1,7 @@
 {
+    "node": {
+        "version": "22.12.0"
+    },
     "nushell": {
         "version": "0.108.0"
     }

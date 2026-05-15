@@ -39,6 +39,11 @@ workflow downloads cell artifacts, aggregates their run envelopes, writes the
 suite aggregate under `artifacts/suites/aggregated/`, and creates the archive
 used by the site-publish job.
 
+The reusable `ci-site.yml` **build** job installs Node from
+`config/ci/toolchain.nuon` via `actions/setup-node` (see
+`config/ci/workflows.nuon`), then Bun, before `bun run build`. Astro 6 rejects
+Node 20 on hosted runners; pin at least **22.12.0** there.
+
 The aggregate step must preserve screenshot, video, log, metadata, and MITM
 evidence rows from the selected run for each cell.
 

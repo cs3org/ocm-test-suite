@@ -99,6 +99,10 @@ jobs:
         uses: hustcer/setup-nu@v3
         with:
           version: '0.108.0'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
       - name: Download raw aggregate artifact

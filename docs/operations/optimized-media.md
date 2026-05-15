@@ -361,9 +361,11 @@ cd ../ocm-web-site && bun run build
    `optimized-media-cell-*` from the source run, runs
    `artifacts aggregate-optimized-media`, uploads
    `optimized-media-summary`.
-3. `build`: downloads `aggregate-summary` and `optimized-media-summary`,
-   runs `site publish` with both inputs, builds the Astro site, uploads
-   the Pages artifact.
+3. `build`: configures Node (`actions/setup-node`) from
+   `config/ci/workflows.nuon` using `config/ci/toolchain.nuon` so Astro 6
+   sees Node **>=22.12.0**, then Bun; downloads `aggregate-summary` and
+   `optimized-media-summary`; runs `site publish`, builds the Astro site,
+   uploads the Pages artifact.
 4. `deploy`: deploys the Pages artifact.
 
 ## Manual rebuild

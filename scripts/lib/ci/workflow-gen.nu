@@ -332,6 +332,8 @@ export def build-ci-site-yml [
         "action.upload.artifact": ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
         "action.download.artifact": ($gh.action_download_artifact? | default "actions/download-artifact@v7")
         "action.setup.bun": ($gh.action_setup_bun? | default "oven-sh/setup-bun@v2")
+        "action.setup.node": ($gh.action_setup_node? | default "actions/setup-node@v4")
+        "node.version": ($cfg.toolchain.node?.version? | default "22.12.0")
         "action.upload.pages.artifact": ($gh.action_upload_pages_artifact? | default "actions/upload-pages-artifact@v5")
         "action.deploy.pages": ($gh.action_deploy_pages? | default "actions/deploy-pages@v5")
         "nushell.version": $nu_ver

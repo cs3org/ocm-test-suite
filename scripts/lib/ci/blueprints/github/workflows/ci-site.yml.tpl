@@ -99,6 +99,10 @@ jobs:
         uses: {{placeholder:setup.nu.action}}
         with:
           version: '{{placeholder:nushell.version}}'
+      - name: Setup Node
+        uses: {{placeholder:action.setup.node}}
+        with:
+          node-version: '{{placeholder:node.version}}'
       - name: Setup Bun
         uses: {{placeholder:action.setup.bun}}
       - name: Download raw aggregate artifact

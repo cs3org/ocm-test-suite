@@ -45,7 +45,7 @@ jobs:
       fail-fast: false{{placeholder:max_parallel_line}}
       matrix:
         include: ${{ fromJson(needs['load-cells'].outputs['cells-json']) }}
-    name: test
+    name: test ${{ matrix.wave_index }}
     uses: ./.github/workflows/{{placeholder:run.cell.filename}}
     with:
       display-name: ${{ matrix.display_name }}

@@ -8,7 +8,8 @@
     "display_name": "nextcloud v32",
     "artifact_name": "cell-login-nextcloud-v32",
     "cell_id": "login__nextcloud-v32",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 1
   },
   {
     "scenario": "login",
@@ -19,7 +20,8 @@
     "display_name": "nextcloud v33",
     "artifact_name": "cell-login-nextcloud-v33",
     "cell_id": "login__nextcloud-v33",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 2
   },
   {
     "scenario": "login",
@@ -30,7 +32,8 @@
     "display_name": "nextcloud v34",
     "artifact_name": "cell-login-nextcloud-v34",
     "cell_id": "login__nextcloud-v34",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 3
   },
   {
     "scenario": "login-ocis",
@@ -41,7 +44,8 @@
     "display_name": "ocis v8",
     "artifact_name": "cell-login-ocis-v8",
     "cell_id": "login__ocis-v8",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 4
   },
   {
     "scenario": "login-ocmgo",
@@ -52,7 +56,8 @@
     "display_name": "ocmgo v1",
     "artifact_name": "cell-login-ocmgo-v1",
     "cell_id": "login__ocmgo-v1",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 5
   },
   {
     "scenario": "login-opencloud",
@@ -63,6 +68,7 @@
     "display_name": "opencloud v6",
     "artifact_name": "cell-login-opencloud-v6",
     "cell_id": "login__opencloud-v6",
-    "cell_depends_on": ""
+    "cell_depends_on": "",
+    "wave_index": 6
   }
 ]

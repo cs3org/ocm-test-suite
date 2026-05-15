@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs['load-cells'].outputs['cells-json']) }}
-    name: test
+    name: test ${{ matrix.wave_index }}
     uses: ./.github/workflows/ci-run-cell.yml
     with:
       display-name: ${{ matrix.display_name }}

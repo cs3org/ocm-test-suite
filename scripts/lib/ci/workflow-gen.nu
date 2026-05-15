@@ -26,6 +26,23 @@ export def build-aggregate-needs-block [job_names: list<string>]: any -> string 
     $"    needs:\n      [\n($items)\n      ]"
 }
 
+# Format the display_name string for one-party or two-party cells.
+# Format: <flow_id> / test / <sender_platform> <sender_version> [to <recv_platform> <recv_version>]
+def cell-display-name [
+    flow_id: string,
+    sender_platform: string,
+    sender_version: string,
+    is_two_party: bool,
+    recv_platform: string,
+    recv_version: string,
+]: any -> string {
+    if $is_two_party {
+        $"($flow_id) / test / ($sender_platform) ($sender_version) to ($recv_platform) ($recv_version)"
+    } else {
+        $"($flow_id) / test / ($sender_platform) ($sender_version)"
+    }
+}
+
 # Build a cell record for asset JSON (all fields needed by ci-run-cell.yml).
 def build-cell-json-record [
     cell: record,
@@ -41,11 +58,9 @@ def build-cell-json-record [
             $cell_id_to_artifact | get --optional $dep_id | default ""
         } | where {|a| not ($a | is-empty)} | str join ","
     }
-    let display_name = if $cell.is_two_party {
-        $"($cell.scenario): ($cell.sender_platform) ($cell.sender_version) -> ($recv_platform) ($recv_version)"
-    } else {
-        $"($cell.scenario): ($cell.sender_platform) ($cell.sender_version)"
-    }
+    let display_name = (cell-display-name
+        $cell.flow_id $cell.sender_platform $cell.sender_version
+        $cell.is_two_party $recv_platform $recv_version)
     {
         scenario: $cell.scenario
         sender_platform: $cell.sender_platform
@@ -153,6 +168,7 @@ export def build-ci-matrix-yml [plan: record] {
     let run_wave_filename = ($gh.filenames.run_wave? | default "ci-run-wave.yml")
     let site_filename = ($gh.filenames.site? | default "ci-site.yml")
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
+    let raw_agg_name = ($site_cfg.raw_aggregate_artifact_name? | default "aggregate-summary")
 
     let ordered_cells = (sort-cells-by-flow-order ($plan.cells | where capability_action == "run") $gh.job_order)
     let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
@@ -189,6 +205,7 @@ export def build-ci-matrix-yml [plan: record] {
         "flow.jobs": $"\n\n($flow_jobs_text)"
         "aggregate.needs.block": $aggregate_needs_block
         "publish.branch.gate": $publish_branch_gate
+        "raw.aggregate.artifact.name": $raw_agg_name
         "site.workflow.filename": $site_filename
     }
 }
@@ -208,6 +225,7 @@ export def build-run-wave-yml [] {
     } else {
         ""
     }
+    let run_cell_filename = ($gh.filenames.run_cell? | default "ci-run-cell.yml")
     let run_wave_tpl = (bp-path $root "github/workflows/ci-run-wave.yml.tpl")
     render-blueprint $run_wave_tpl {
         "generator.command": "nu scripts/ocmts.nu ci workflows generate github"
@@ -216,6 +234,7 @@ export def build-run-wave-yml [] {
         "action.checkout": ($gh.action_checkout? | default "actions/checkout@v6")
         "nushell.version": $nu_ver
         "max_parallel_line": $max_parallel_line
+        "run.cell.filename": $run_cell_filename
     }
 }
 
@@ -265,7 +284,7 @@ export def build-ci-site-yml [
     let raw_agg_name = ($site_cfg.raw_aggregate_artifact_name? | default "aggregate-summary")
     let opt_pattern = ($site_cfg.optimized_artifact_pattern? | default "optimized-media-cell-*")
     let opt_agg_name = ($site_cfg.optimized_aggregate_artifact_name? | default "optimized-media-summary")
-    let rebuild_src = ($site_cfg.rebuild_source_workflow? | default "ci-matrix.yml")
+    let rebuild_src = ($site_cfg.rebuild_source_workflow? | default ($gh.filenames.matrix? | default "ci-matrix.yml"))
     # CI-owned site checkout dir (relative to the GitHub Actions working dir = repo root).
     # The site publish step clones here when no --site-dir is passed.
     let ci_site_checkout_dir = "../ocm-web-site"

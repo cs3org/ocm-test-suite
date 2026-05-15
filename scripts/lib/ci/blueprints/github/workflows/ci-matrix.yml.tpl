@@ -96,7 +96,7 @@ jobs:
 
   ci-site:
     needs: [aggregate]
-    if: github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}' && needs.aggregate.result == 'success'
+    if: always() && !cancelled() && github.ref == 'refs/heads/{{placeholder:publish.branch.gate}}' && needs.aggregate.result == 'success'
     uses: ./.github/workflows/{{placeholder:site.workflow.filename}}
     with:
       source-run-id: ${{ github.run_id }}

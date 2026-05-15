@@ -99,6 +99,8 @@ def test-ci-matrix-branch-gate-from-config [] {
     [
         (assert-truthy ($ci_site_section | str contains $"refs/heads/($branch_gate)")
             "ci-site if condition uses publish_branch_gate from config")
+        (assert-truthy ($ci_site_section | str contains "always() && !cancelled()")
+            "ci-site if condition overrides implicit success() via always() and !cancelled()")
         (assert-truthy (not ($yml | str contains $"refs/heads/($branch_gate)\n      runs-on:"))
             "ci-matrix.yml has no inline runner after branch gate (site is reusable call)")
     ]

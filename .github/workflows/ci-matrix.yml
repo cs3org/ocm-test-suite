@@ -139,7 +139,7 @@ jobs:
 
   ci-site:
     needs: [aggregate]
-    if: github.ref == 'refs/heads/main' && needs.aggregate.result == 'success'
+    if: always() && !cancelled() && github.ref == 'refs/heads/main' && needs.aggregate.result == 'success'
     uses: ./.github/workflows/ci-site.yml
     with:
       source-run-id: ${{ github.run_id }}

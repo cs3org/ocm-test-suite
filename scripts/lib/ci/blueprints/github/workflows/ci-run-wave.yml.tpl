@@ -45,6 +45,7 @@ jobs:
       fail-fast: false{{placeholder:max_parallel_line}}
       matrix:
         include: ${{ fromJson(needs['load-cells'].outputs['cells-json']) }}
+    name: ${{ matrix.display_name }}
     uses: ./.github/workflows/ci-run-cell.yml
     with:
       scenario: ${{ matrix.scenario }}

@@ -270,6 +270,60 @@ def test-run-cell-has-prepull-runtime-images [] {
     ]
 }
 
+def test-run-wave-display-name-in-matrix [] {
+    test-log "\n[test-run-wave-display-name-in-matrix]"
+    let run_wave_yml = (build-run-wave-yml)
+    [
+        (assert-truthy ($run_wave_yml | str contains "name: ${{ matrix.display_name }}")
+            "ci-run-wave.yml matrix job has name: ${{ matrix.display_name }}")
+    ]
+}
+
+def test-run-wave-display-name-position [] {
+    test-log "\n[test-run-wave-display-name-position]"
+    let run_wave_yml = (build-run-wave-yml)
+    let name_pos = ($run_wave_yml | str index-of "name: ${{ matrix.display_name }}")
+    let uses_pos = ($run_wave_yml | str index-of "    uses: ./.github/workflows/ci-run-cell.yml")
+    # Use a specific substring to locate the matrix job's with: block
+    # (avoids matching the 8-space `with:` inside load-cells steps).
+    let with_pos = ($run_wave_yml | str index-of "    with:\n      scenario:")
+    [
+        (assert-truthy ($name_pos < $uses_pos)
+            "display_name name: appears before uses: in ci-run-wave.yml")
+        (assert-truthy ($name_pos < $with_pos)
+            "display_name name: is not inside the with: block in ci-run-wave.yml")
+    ]
+}
+
+def test-run-cell-no-display-name [] {
+    test-log "\n[test-run-cell-no-display-name]"
+    let run_cell_yml = (build-run-cell-yml)
+    [
+        (assert-truthy (not ($run_cell_yml | str contains "display_name"))
+            "ci-run-cell.yml does not mention display_name")
+    ]
+}
+
+def test-matrix-trigger-policy [] {
+    test-log "\n[test-matrix-trigger-policy]"
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    let yml = (build-ci-matrix-yml $plan)
+    [
+        (assert-truthy ($yml | str contains "pull_request:")
+            "ci-matrix.yml contains pull_request: trigger")
+        (assert-truthy ($yml | str contains "workflow_dispatch:")
+            "ci-matrix.yml contains workflow_dispatch: trigger")
+        (assert-truthy ($yml | str contains "push:")
+            "ci-matrix.yml contains push: trigger")
+        (assert-truthy ($yml | str contains "branches: ['main']")
+            "ci-matrix.yml push trigger uses branches: ['main']")
+        (assert-truthy (not ($yml | str contains "branches: ['**']"))
+            "ci-matrix.yml push trigger does not use branches: ['**']")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-contract tests ==="
     let results = (
@@ -290,6 +344,10 @@ def main [] {
         | append (test-upload-excludes-mitm-conf)
         | append (test-run-cell-no-suite-kind-suite)
         | append (test-run-cell-has-prepull-runtime-images)
+        | append (test-run-wave-display-name-in-matrix)
+        | append (test-run-wave-display-name-position)
+        | append (test-run-cell-no-display-name)
+        | append (test-matrix-trigger-policy)
     ) | flatten
     run-suite "ci/workflow-contract" $SUITE_PATH $results
 }

@@ -46,7 +46,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs['load-cells'].outputs['cells-json']) }}
     name: ${{ matrix.display_name }}
-    uses: ./.github/workflows/ci-run-cell.yml
+    uses: ./.github/workflows/{{placeholder:run.cell.filename}}
     with:
       display-name: ${{ matrix.display_name }}
       scenario: ${{ matrix.scenario }}

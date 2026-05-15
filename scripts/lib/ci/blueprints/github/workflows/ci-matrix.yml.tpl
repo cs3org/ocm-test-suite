@@ -90,7 +90,7 @@ jobs:
         if: always()
         uses: {{placeholder:action.upload.artifact}}
         with:
-          name: aggregate-summary
+          name: {{placeholder:raw.aggregate.artifact.name}}
           path: artifacts/suites/aggregated/
           if-no-files-found: warn
 

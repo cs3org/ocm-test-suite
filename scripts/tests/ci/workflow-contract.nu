@@ -290,8 +290,10 @@ def test-run-wave-display-name-in-matrix [] {
     test-log "\n[test-run-wave-display-name-in-matrix]"
     let run_wave_yml = (build-run-wave-yml)
     [
-        (assert-truthy ($run_wave_yml | str contains "name: ${{ matrix.display_name }}")
-            "ci-run-wave.yml matrix job has name: ${{ matrix.display_name }}")
+        (assert-truthy ($run_wave_yml | str contains "name: test")
+            "ci-run-wave.yml matrix job has fixed name: test (wave layer, avoids label duplication)")
+        (assert-truthy (not ($run_wave_yml | str contains "    name: ${{ matrix.display_name }}"))
+            "ci-run-wave.yml matrix job-level name: does not repeat display_name (no 4-space name: display_name line)")
     ]
 }
 
@@ -301,16 +303,16 @@ def test-run-wave-display-name-position [] {
     let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
     let run_cell = ($wf.github.filenames.run_cell? | default "ci-run-cell.yml")
     let run_wave_yml = (build-run-wave-yml)
-    let name_pos = ($run_wave_yml | str index-of "name: ${{ matrix.display_name }}")
+    let name_pos = ($run_wave_yml | str index-of "    name: test")
     let uses_pos = ($run_wave_yml | str index-of $"    uses: ./.github/workflows/($run_cell)")
     # Use a specific substring to locate the matrix job's with: block
     # (avoids matching the 8-space `with:` inside load-cells steps).
     let with_pos = ($run_wave_yml | str index-of "    with:\n      display-name:")
     [
         (assert-truthy ($name_pos < $uses_pos)
-            "display_name name: appears before uses: in ci-run-wave.yml")
+            "wave job name: test appears before uses: in ci-run-wave.yml")
         (assert-truthy ($name_pos < $with_pos)
-            "display_name name: is not inside the with: block in ci-run-wave.yml")
+            "wave job name: test is not inside the with: block in ci-run-wave.yml")
     ]
 }
 

@@ -27,9 +27,10 @@ export def build-aggregate-needs-block [job_names: list<string>]: any -> string 
 }
 
 # Format the display_name string for one-party or two-party cells.
-# Format: <flow_id> / test / <sender_platform> <sender_version> [to <recv_platform> <recv_version>]
+# Used as the cell-layer job title; the wave layer uses a fixed "test" label,
+# so this returns only the pair part to avoid duplicated prefixes in the UI.
+# Format: <sender_platform> <sender_version> [to <recv_platform> <recv_version>]
 def cell-display-name [
-    flow_id: string,
     sender_platform: string,
     sender_version: string,
     is_two_party: bool,
@@ -37,9 +38,9 @@ def cell-display-name [
     recv_version: string,
 ]: any -> string {
     if $is_two_party {
-        $"($flow_id) / test / ($sender_platform) ($sender_version) to ($recv_platform) ($recv_version)"
+        $"($sender_platform) ($sender_version) to ($recv_platform) ($recv_version)"
     } else {
-        $"($flow_id) / test / ($sender_platform) ($sender_version)"
+        $"($sender_platform) ($sender_version)"
     }
 }
 
@@ -59,7 +60,7 @@ def build-cell-json-record [
         } | where {|a| not ($a | is-empty)} | str join ","
     }
     let display_name = (cell-display-name
-        $cell.flow_id $cell.sender_platform $cell.sender_version
+        $cell.sender_platform $cell.sender_version
         $cell.is_two_party $recv_platform $recv_version)
     {
         scenario: $cell.scenario

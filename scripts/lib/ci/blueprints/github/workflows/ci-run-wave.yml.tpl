@@ -48,6 +48,7 @@ jobs:
     name: ${{ matrix.display_name }}
     uses: ./.github/workflows/ci-run-cell.yml
     with:
+      display-name: ${{ matrix.display_name }}
       scenario: ${{ matrix.scenario }}
       sender-platform: ${{ matrix.sender_platform }}
       sender-version: ${{ matrix.sender_version }}

@@ -286,7 +286,7 @@ def test-run-wave-display-name-position [] {
     let uses_pos = ($run_wave_yml | str index-of "    uses: ./.github/workflows/ci-run-cell.yml")
     # Use a specific substring to locate the matrix job's with: block
     # (avoids matching the 8-space `with:` inside load-cells steps).
-    let with_pos = ($run_wave_yml | str index-of "    with:\n      scenario:")
+    let with_pos = ($run_wave_yml | str index-of "    with:\n      display-name:")
     [
         (assert-truthy ($name_pos < $uses_pos)
             "display_name name: appears before uses: in ci-run-wave.yml")
@@ -295,12 +295,17 @@ def test-run-wave-display-name-position [] {
     ]
 }
 
-def test-run-cell-no-display-name [] {
-    test-log "\n[test-run-cell-no-display-name]"
+def test-run-cell-display-name [] {
+    test-log "\n[test-run-cell-display-name]"
+    let run_wave_yml = (build-run-wave-yml)
     let run_cell_yml = (build-run-cell-yml)
     [
-        (assert-truthy (not ($run_cell_yml | str contains "display_name"))
-            "ci-run-cell.yml does not mention display_name")
+        (assert-truthy ($run_wave_yml | str contains "display-name: ${{ matrix.display_name }}")
+            "ci-run-wave.yml passes display-name: ${{ matrix.display_name }} in with: block to ci-run-cell.yml")
+        (assert-truthy ($run_cell_yml | str contains "display-name:")
+            "ci-run-cell.yml declares display-name workflow_call input")
+        (assert-truthy ($run_cell_yml | str contains "name: ${{ inputs['display-name'] }}")
+            "ci-run-cell.yml sets name: ${{ inputs['display-name'] }} on job run-cell")
     ]
 }
 
@@ -346,7 +351,7 @@ def main [] {
         | append (test-run-cell-has-prepull-runtime-images)
         | append (test-run-wave-display-name-in-matrix)
         | append (test-run-wave-display-name-position)
-        | append (test-run-cell-no-display-name)
+        | append (test-run-cell-display-name)
         | append (test-matrix-trigger-policy)
     ) | flatten
     run-suite "ci/workflow-contract" $SUITE_PATH $results

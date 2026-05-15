@@ -322,6 +322,14 @@ export def build-ci-site-yml [
     } else {
         "''"
     }
+    # Full flag fragment for the bash args array in the Publish site step.
+    # In raw mode this renders as a comment, so the array stays valid and the
+    # YAML does not contain a dangling flag.
+    let optimized_media_dir_flag = if $lane == "optimized" {
+        $"--optimized-media-dir ($optimized_media_dir_scalar)"
+    } else {
+        "# raw mode"
+    }
     let ci_site_tpl = (bp-path $root "github/workflows/ci-site.yml.tpl")
 
     render-blueprint $ci_site_tpl {
@@ -347,5 +355,6 @@ export def build-ci-site-yml [
         "astro.site": $deploy_site_url
         "media.lane.optimized.literal": $optimized_literal
         "media.lane.optimized.media.dir.scalar": $optimized_media_dir_scalar
+        "media.lane.optimized.media.dir.flag": $optimized_media_dir_flag
     }
 }

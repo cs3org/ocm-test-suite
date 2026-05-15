@@ -129,10 +129,12 @@ jobs:
           ASTRO_BASE: {{placeholder:astro.base}}
           ASTRO_SITE: '{{placeholder:astro.site}}'
         run: |
-          nu scripts/ocmts.nu site publish \
-            --artifacts-root artifacts \
-            --latest-suite \
-            --optimized-media-dir {{placeholder:media.lane.optimized.media.dir.scalar}}
+          ARGS=(
+            --artifacts-root artifacts
+            --latest-suite
+            {{placeholder:media.lane.optimized.media.dir.flag}}
+          )
+          nu scripts/ocmts.nu site publish "${ARGS[@]}"
       - name: Upload built site
         uses: {{placeholder:action.upload.pages.artifact}}
         with:

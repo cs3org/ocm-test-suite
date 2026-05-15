@@ -129,10 +129,12 @@ jobs:
           ASTRO_BASE: /ocm-test-suite/
           ASTRO_SITE: 'https://cs3org.github.io/ocm-test-suite/'
         run: |
-          nu scripts/ocmts.nu site publish \
-            --artifacts-root artifacts \
-            --latest-suite \
-            --optimized-media-dir ''
+          ARGS=(
+            --artifacts-root artifacts
+            --latest-suite
+            # raw mode
+          )
+          nu scripts/ocmts.nu site publish "${ARGS[@]}"
       - name: Upload built site
         uses: actions/upload-pages-artifact@v5
         with:

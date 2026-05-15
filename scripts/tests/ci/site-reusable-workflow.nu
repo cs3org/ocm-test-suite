@@ -55,8 +55,6 @@ def test-site-publish-artifacts-root [] {
             "ci-site.yml publish command uses --artifacts-root artifacts")
         (assert-truthy ($ci_site_yml | str contains "--latest-suite")
             "ci-site.yml publish command uses --latest-suite for suite-based ingest")
-        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir")
-            "ci-site.yml publish command passes --optimized-media-dir")
     ]
 }
 
@@ -381,8 +379,8 @@ def test-ci-site-raw-mode-lane [] {
             "raw mode: at least one optimized step has if: false gate")
         (assert-truthy ($ci_site_yml | str contains "if: false\n        run: |\n          nu scripts/ocmts.nu artifacts probe-optimizer")
             "raw mode: Probe optimizer image step is gated off with if: false")
-        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir ''")
-            "raw mode: Publish site uses --optimized-media-dir '' (empty)")
+        (assert-truthy (not ($ci_site_yml | str contains "--optimized-media-dir"))
+            "raw mode: Publish site does not pass --optimized-media-dir flag")
         (assert-truthy (not ($ci_site_yml | str contains "--optimized-media-dir 'artifacts/optimized-summary/'"))
             "raw mode: Publish site does not use optimized summary dir")
     ]

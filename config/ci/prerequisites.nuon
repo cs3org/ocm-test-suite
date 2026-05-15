@@ -1,0 +1,20 @@
+{
+    # Each rule here declares that a given capability must pass before listed flows can run.
+    # This is a CI-level gate separate from the per-flow required_capabilities in config/matrix/flows/.
+    "capability_rules": [
+        {
+            # op.login is the shared login operation required by all multi-step flows.
+            # code-flow has no required_capabilities so it is excluded.
+            "capability_flow": "login",
+            "required_for_flows": [
+                "share-with",
+                "contact-token",
+                "contact-wayf"
+            ],
+            "required_roles": [
+                "sender",
+                "receiver"
+            ]
+        }
+    ]
+}

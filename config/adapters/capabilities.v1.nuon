@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "adapters": {
+    "nextcloud/v32": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud does not implement code-flow in this version."
+        },
+        "flow.code-flow.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud does not implement code-flow in this version."
+        },
+        "flow.contact-token.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "flow.contact-token.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "flow.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "supported"
+        },
+        "flow.share-with.sender": {
+          "status": "supported"
+        },
+        "op.contact-token.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "op.contact-token.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "op.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "op.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds provider-identity in v34."
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
+    "nextcloud/v33": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud does not implement code-flow in this version."
+        },
+        "flow.code-flow.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud does not implement code-flow in this version."
+        },
+        "flow.contact-token.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "flow.contact-token.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "flow.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "supported"
+        },
+        "flow.share-with.sender": {
+          "status": "supported"
+        },
+        "op.contact-token.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "op.contact-token.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-token in v34."
+        },
+        "op.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "op.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds contact-wayf in v34."
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "vendor-unsupported",
+          "tracking_note": "Nextcloud adds provider-identity in v34."
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
+    "nextcloud/v34": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.code-flow.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.contact-token.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-token.sender": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.sender": {
+          "status": "supported"
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "supported"
+        },
+        "flow.share-with.sender": {
+          "status": "supported"
+        },
+        "op.contact-token.receiver": {
+          "status": "supported"
+        },
+        "op.contact-token.sender": {
+          "status": "supported"
+        },
+        "op.contact-wayf.receiver": {
+          "status": "supported"
+        },
+        "op.contact-wayf.sender": {
+          "status": "supported"
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "supported"
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
+    "ocis/v8": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.code-flow.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.contact-token.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-token.sender": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "ocis does not implement contact-wayf."
+        },
+        "flow.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "ocis does not implement contact-wayf."
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "ocis requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "flow.share-with.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "ocis requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "op.contact-token.receiver": {
+          "status": "supported"
+        },
+        "op.contact-token.sender": {
+          "status": "supported"
+        },
+        "op.contact-wayf.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "ocis does not implement contact-wayf."
+        },
+        "op.contact-wayf.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "ocis does not implement contact-wayf."
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "supported"
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
+    "ocmgo/v1": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.code-flow.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.contact-token.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-token; OCMTS test not yet implemented."
+        },
+        "flow.contact-token.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-token; OCMTS test not yet implemented."
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-wayf; OCMTS test not yet implemented."
+        },
+        "flow.contact-wayf.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-wayf; OCMTS test not yet implemented."
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "supported"
+        },
+        "flow.share-with.sender": {
+          "status": "supported"
+        },
+        "op.contact-token.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-token; OCMTS test not yet implemented."
+        },
+        "op.contact-token.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-token; OCMTS test not yet implemented."
+        },
+        "op.contact-wayf.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-wayf; OCMTS test not yet implemented."
+        },
+        "op.contact-wayf.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements contact-wayf; OCMTS test not yet implemented."
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "test-implementation-pending",
+          "tracking_note": "ocmgo implements provider-identity for contact-token flows; OCMTS test not yet implemented."
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
+    "opencloud/v6": {
+      "capabilities": {
+        "flow.code-flow.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.code-flow.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
+        },
+        "flow.contact-token.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-token.sender": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "OpenCloud is expected to support contact-wayf; OCMTS test not yet implemented."
+        },
+        "flow.contact-wayf.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "OpenCloud is expected to support contact-wayf; OCMTS test not yet implemented."
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "OpenCloud requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "flow.share-with.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "OpenCloud requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "op.contact-token.receiver": {
+          "status": "supported"
+        },
+        "op.contact-token.sender": {
+          "status": "supported"
+        },
+        "op.contact-wayf.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "OpenCloud is expected to support contact-wayf; OCMTS test not yet implemented."
+        },
+        "op.contact-wayf.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "OpenCloud is expected to support contact-wayf; OCMTS test not yet implemented."
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "supported"
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    }
+  }
+}

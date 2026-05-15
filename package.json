@@ -1,0 +1,9 @@
+{
+  "name": "ocm-test-suite",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.3.13",
+    "cypress": "15.14.1",
+    "typescript": "^5.9.2"
+  }
+}

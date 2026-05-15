@@ -1,0 +1,29 @@
+# Open Cloud Mesh Go receiver service (two-party right party).
+# No db/cache helpers. TLS cert expected at /tls/ocmgo.crt.
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  receiver:
+    image: ${RECEIVER_IMAGE}
+    hostname: receiver
+    networks:
+      ocm-net:
+        aliases:
+          - ${RECEIVER_PARTY_HOST}
+    healthcheck:
+      test: ["CMD-SHELL", "HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= NO_PROXY= nu -c \"if ((http get --raw --insecure https://localhost/api/healthz | str contains '\\\"status\\\":\\\"ok\\\"')) { exit 0 } else { exit 1 }\""]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+    environment:
+      - HOST=${OCM_GO_RECEIVER_HOST}
+      - PUBLIC_ORIGIN=${RECEIVER_PUBLIC_ORIGIN}
+      - OCM_GO_ADMIN_USER=${OCM_GO_RECEIVER_ADMIN_USER}
+      - OCM_GO_ADMIN_PASSWORD=${OCM_GO_RECEIVER_ADMIN_PASSWORD}
+      - OCM_GO_SSRF_MODE=off
+      - HTTP_PROXY=${RECEIVER_HTTP_PROXY}
+      - HTTPS_PROXY=${RECEIVER_HTTPS_PROXY}
+      - NO_PROXY=${RECEIVER_NO_PROXY}
+    volumes:
+      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro
+      - ${OCMTS_ARTIFACTS_BASE}/share:/tmp/ocmts-share:rw

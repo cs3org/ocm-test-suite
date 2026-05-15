@@ -1,0 +1,16 @@
+{
+  "accounts": {
+    "alan": {
+      "username": "alan",
+      "password": "demo",
+      "display_name": "Alan Turing",
+      "email": "alan@example.test"
+    },
+    "lynn": {
+      "username": "lynn",
+      "password": "demo",
+      "display_name": "Lynn Conway",
+      "email": "lynn@example.test"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "flows": {
+    "login": {
+      "actor": {
+        "by_platform": {
+          "nextcloud": "michiel",
+          "ocmgo": "marie",
+          "ocis": "einstein",
+          "opencloud": "alan"
+        }
+      }
+    },
+    "share-with": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel",
+          "ocmgo": "marie"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie",
+          "ocmgo": "einstein"
+        }
+      }
+    },
+    "contact-wayf": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie"
+        }
+      }
+    },
+    "contact-token": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel",
+          "ocis": "einstein",
+          "opencloud": "alan"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "nextcloud": "marie",
+          "ocis": "marie",
+          "opencloud": "lynn"
+        }
+      }
+    }
+  }
+}

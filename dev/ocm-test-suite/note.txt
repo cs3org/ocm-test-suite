@@ -1,3 +1,0 @@
-
-// command to test ocis post invite flow
-docker run --detach --network=testnet --name="revanextcloud1.docker" -e HOST="revanextcloud1" -v "./docker/tls/certificates/revanextcloud1.crt:/tls/revanextcloud1.crt" -v "./docker/tls/certificates/revanextcloud1.key:/tls/revanextcloud1.key" pondersource/dev-stock-ocmstub:latest

@@ -1,0 +1,66 @@
+# Nextcloud receiver service (two-party right party).
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  receiver:
+    image: ${RECEIVER_IMAGE}
+    hostname: receiver
+    networks:
+      ocm-net:
+        aliases:
+          - ${RECEIVER_PARTY_HOST}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sfL http://localhost/status.php | grep -q ''"installed":true''',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      receiver-db:
+        condition: service_started
+      receiver-cache:
+        condition: service_healthy
+    environment:
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=admin
+      - NEXTCLOUD_HTTPS_MODE=https-only
+      - NEXTCLOUD_ALLOW_LOCAL_REMOTE_SERVERS_MODE=allow
+      - OVERWRITEPROTOCOL=https
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloudpassword
+      - REDIS_HOST_PORT=6379
+      - APACHE_SERVER_NAME=${RECEIVER_PARTY_HOST}
+      - OVERWRITEHOST=${RECEIVER_PARTY_HOST}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${RECEIVER_PARTY_HOST}
+      - MYSQL_HOST=${RECEIVER_MYSQL_HOST}
+      - REDIS_HOST=${RECEIVER_REDIS_HOST}
+      - NEXTCLOUD_SEEDED_USERS_FILE=/ocmts/actors/platforms/nextcloud.nuon
+      - CONTACTS_ENABLE_OCM_INVITES=true
+      - CONTACTS_OCM_INVITES_MODE=advanced
+      - HTTP_PROXY=${RECEIVER_HTTP_PROXY}
+      - HTTPS_PROXY=${RECEIVER_HTTPS_PROXY}
+      - NO_PROXY=${RECEIVER_NO_PROXY}
+    volumes:
+      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro
+  receiver-db:
+    image: ${MARIADB_IMAGE}
+    networks: [ocm-net]
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloudpassword
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-file-per-table=1 --skip-innodb-read-only-compressed
+  receiver-cache:
+    image: ${VALKEY_IMAGE}
+    networks: [ocm-net]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s

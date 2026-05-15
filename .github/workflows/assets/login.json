@@ -1,0 +1,68 @@
+[
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v32",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "nextcloud v32",
+    "artifact_name": "cell-login-nextcloud-v32",
+    "cell_id": "login__nextcloud-v32",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v33",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "nextcloud v33",
+    "artifact_name": "cell-login-nextcloud-v33",
+    "cell_id": "login__nextcloud-v33",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v34",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "nextcloud v34",
+    "artifact_name": "cell-login-nextcloud-v34",
+    "cell_id": "login__nextcloud-v34",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login-ocis",
+    "sender_platform": "ocis",
+    "sender_version": "v8",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "ocis v8",
+    "artifact_name": "cell-login-ocis-v8",
+    "cell_id": "login__ocis-v8",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login-ocmgo",
+    "sender_platform": "ocmgo",
+    "sender_version": "v1",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "ocmgo v1",
+    "artifact_name": "cell-login-ocmgo-v1",
+    "cell_id": "login__ocmgo-v1",
+    "cell_depends_on": ""
+  },
+  {
+    "scenario": "login-opencloud",
+    "sender_platform": "opencloud",
+    "sender_version": "v6",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "opencloud v6",
+    "artifact_name": "cell-login-opencloud-v6",
+    "cell_id": "login__opencloud-v6",
+    "cell_depends_on": ""
+  }
+]

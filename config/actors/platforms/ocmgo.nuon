@@ -1,0 +1,16 @@
+{
+  "accounts": {
+    "marie": {
+      "username": "marie",
+      "password": "radioactivity",
+      "display_name": "Marie Curie",
+      "email": "marie@example.test"
+    },
+    "einstein": {
+      "username": "einstein",
+      "password": "relativity",
+      "display_name": "Albert Einstein",
+      "email": "einstein@example.test"
+    }
+  }
+}

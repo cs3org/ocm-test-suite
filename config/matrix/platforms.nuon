@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "platforms": {
+    "nextcloud": {
+      "slug": "nc",
+      "display_name": "Nextcloud",
+      "version_lines": [
+        "v32",
+        "v33",
+        "v34"
+      ],
+      "ocm_endpoints": {
+        "default": {
+          "ocm_path": "/ocm/",
+          "webdav_path": "/remote.php/webdav/",
+          "ocm_host_role": "party",
+          "webdav_host_role": "party"
+        }
+      }
+    },
+    "ocmgo": {
+      "slug": "ocmgo",
+      "display_name": "Open Cloud Mesh Golang",
+      "version_lines": [
+        "v1"
+      ],
+      "ocm_endpoints": {
+        "default": {
+          "ocm_path": "/ocm/",
+          "webdav_path": "/webdav/",
+          "ocm_host_role": "party",
+          "webdav_host_role": "party"
+        }
+      }
+    },
+    "ocis": {
+      "slug": "ocis",
+      "display_name": "oCIS",
+      "version_lines": [
+        "v8"
+      ],
+      "ocm_endpoints": {
+        "default": {
+          "ocm_path": "/ocm/",
+          "webdav_path": "/dav/",
+          "ocm_host_role": "party",
+          "webdav_host_role": "party"
+        }
+      }
+    },
+    "opencloud": {
+      "slug": "opencloud",
+      "display_name": "OpenCloud",
+      "version_lines": [
+        "v6"
+      ],
+      "ocm_endpoints": {
+        "default": {
+          "ocm_path": "/ocm/",
+          "webdav_path": "/dav/",
+          "ocm_host_role": "party",
+          "webdav_host_role": "party"
+        }
+      }
+    }
+  }
+}

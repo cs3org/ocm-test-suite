@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "body_max_bytes_default": 10240,
+  "endpoints": [
+    {
+      "id": "discovery",
+      "method": "GET",
+      "path_prefix": "/.well-known/ocm"
+    },
+    {
+      "id": "shares",
+      "method": "POST",
+      "path_prefix": "/ocm/shares"
+    },
+    {
+      "id": "notifications",
+      "method": "POST",
+      "path_prefix": "/ocm/notifications"
+    },
+    {
+      "id": "webdav",
+      "method": "PROPFIND",
+      "path_prefix": "/public.php/webdav/",
+      "source": "static-nextcloud-fallback"
+    },
+    {
+      "id": "webdav",
+      "method": "GET",
+      "path_prefix": "/public.php/webdav/",
+      "source": "static-nextcloud-fallback"
+    }
+  ],
+  "headers": {
+    "request": [
+      "Signature",
+      "Digest",
+      "Date",
+      "Host",
+      "Content-Type"
+    ],
+    "response": [
+      "Date",
+      "Content-Type"
+    ]
+  },
+  "discovery": {
+    "response_fields": [
+      "enabled",
+      "apiVersion",
+      "version",
+      "endPoint",
+      "publicKey.keyId",
+      "provider",
+      "capabilities"
+    ]
+  },
+  "shares": {
+    "request_fields": [
+      "shareWith",
+      "providerId",
+      "owner",
+      "sender",
+      "shareType",
+      "resourceType",
+      "name",
+      "protocol"
+    ],
+    "response_fields": [
+      "recipientUserId",
+      "recipientDisplayName",
+      "recipientPublicKeys"
+    ]
+  }
+}

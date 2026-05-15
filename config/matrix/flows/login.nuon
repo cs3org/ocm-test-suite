@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "label": "Login Flow",
+  "subtitle": "Single-party login on each platform",
+  "display_order": 10,
+  "flow_id": "login",
+  "two_party": false,
+  "enabled": true,
+  "mitm": false,
+  "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "flow.login",
+      "op.login"
+    ],
+    "receiver": []
+  },
+  "include": {
+    "senders": [
+      "nextcloud",
+      "ocmgo",
+      "ocis",
+      "opencloud"
+    ]
+  },
+  "versions_sender": {
+    "nextcloud": [
+      "v32",
+      "v33",
+      "v34"
+    ],
+    "ocmgo": [
+      "v1"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
+    ]
+  }
+}

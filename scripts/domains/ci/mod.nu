@@ -1,0 +1,92 @@
+# CI domain: workflow generation, suite planning, artifact aggregation.
+# Run `nu scripts/ocmts.nu ci <verb> [flags]` from the repo root.
+
+use ../../lib/domain/core/nu-forward.nu [forward-to]
+
+def main [] {
+    print "Usage: nu scripts/ocmts.nu ci <verb> [flags]"
+    print ""
+    print "Verbs:"
+    print "  suite-id                    Print a suite ID (generate or pass through --override)"
+    print "  exec-id                     Print a new unique execution ID"
+    print "  plan                        Compute a CI execution plan and emit it as JSON"
+    print "  workflows generate github   Generate committed .github/workflows/ YAML files"
+    print "  workflows check github      Check committed .github/workflows/ for drift"
+    print "  aggregate                   Aggregate per-cell artifacts into one suite manifest"
+    print "  emit-blocked                Emit a blocked artifact for a planned cell"
+    print "  check-prereq-status         Check prerequisite artifact status; print failure reason if any"
+    print "  read-cells-json             Read a cells JSON asset file and print compact JSON"
+    print "  find-suite-dirs             Find suite-manifest.v1.json parent dirs under a root"
+    print "  resolve-source-run          Resolve artifact source run ID (GH lookup or passthrough)"
+    print "  download-prereqs            Download prerequisite artifacts into prereqs/<dep> dirs"
+}
+
+def --wrapped "main suite-id" [...args: string] {
+    forward-to "scripts/domains/ci/suite-id.nu" $args
+}
+
+def --wrapped "main exec-id" [...args: string] {
+    forward-to "scripts/domains/ci/exec-id.nu" $args
+}
+
+def --wrapped "main plan" [...args: string] {
+    forward-to "scripts/domains/ci/plan.nu" $args
+}
+
+def "main workflows" [] {
+    print "Usage: nu scripts/ocmts.nu ci workflows <action> <provider> [flags]"
+    print ""
+    print "Actions:"
+    print "  generate github   Generate committed .github/workflows/ YAML files"
+    print "  check github      Compare committed .github/workflows/ against expected"
+}
+
+def "main workflows generate" [] {
+    print "Usage: nu scripts/ocmts.nu ci workflows generate <provider>"
+    print ""
+    print "Providers:"
+    print "  github   Generate GitHub Actions workflow YAML files"
+}
+
+def --wrapped "main workflows generate github" [...args: string] {
+    forward-to "scripts/domains/ci/workflows-generate-github.nu" $args
+}
+
+def "main workflows check" [] {
+    print "Usage: nu scripts/ocmts.nu ci workflows check <provider>"
+    print ""
+    print "Providers:"
+    print "  github   Check GitHub Actions workflow files for drift"
+}
+
+def --wrapped "main workflows check github" [...args: string] {
+    forward-to "scripts/domains/ci/workflows-check-github.nu" $args
+}
+
+def --wrapped "main aggregate" [...args: string] {
+    forward-to "scripts/domains/ci/aggregate.nu" $args
+}
+
+def --wrapped "main emit-blocked" [...args: string] {
+    forward-to "scripts/domains/ci/emit-blocked.nu" $args
+}
+
+def --wrapped "main check-prereq-status" [...args: string] {
+    forward-to "scripts/domains/ci/check-prereq-status.nu" $args
+}
+
+def --wrapped "main read-cells-json" [...args: string] {
+    forward-to "scripts/domains/ci/read-cells-json.nu" $args
+}
+
+def --wrapped "main find-suite-dirs" [...args: string] {
+    forward-to "scripts/domains/ci/find-suite-dirs.nu" $args
+}
+
+def --wrapped "main resolve-source-run" [...args: string] {
+    forward-to "scripts/domains/ci/resolve-source-run.nu" $args
+}
+
+def --wrapped "main download-prereqs" [...args: string] {
+    forward-to "scripts/domains/ci/download-prereqs.nu" $args
+}

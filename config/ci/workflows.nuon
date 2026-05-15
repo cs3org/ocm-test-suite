@@ -1,0 +1,25 @@
+{
+    "github": {
+        "filenames": {
+            "matrix": "ci-matrix.yml",
+            "run_wave": "ci-run-wave.yml",
+            "run_cell": "ci-run-cell.yml",
+            "site": "ci-site.yml"
+        },
+        "runner": "ubuntu-latest",
+        "setup_nu_action": "hustcer/setup-nu@v3",
+        "action_checkout": "actions/checkout@v6",
+        "action_upload_artifact": "actions/upload-artifact@v7",
+        "action_download_artifact": "actions/download-artifact@v7",
+        "action_upload_pages_artifact": "actions/upload-pages-artifact@v5",
+        "action_deploy_pages": "actions/deploy-pages@v5",
+        "action_setup_bun": "oven-sh/setup-bun@v2",
+        "job_order": [
+            "login",
+            "share-with",
+            "contact-token",
+            "contact-wayf",
+            "code-flow"
+        ]
+    }
+}

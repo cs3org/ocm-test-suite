@@ -1,7 +1,0 @@
-name = "PonderMatrix"
-description = "A theme for the OCM Test Suite Compatibility Matrix"
-license = "MIT"
-homepage = "https://github.com/cs3org/ocm-test-suite"
-
-[author]
-name = "Mahdi Baghbani"

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "cell_key": "blocked-no-media",
+  "suite_id": "suite-fixture",
+  "execution_id": "exec-fixture-blocked",
+  "status": "no-source-media",
+  "optimizer": {
+    "image": "linuxserver/ffmpeg:version-8.1-cli"
+  },
+  "items": []
+}

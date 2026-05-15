@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-11T00:00:00Z",
+  "producer": {
+    "name": "ocmts",
+    "version": "fixture"
+  },
+  "flows": {
+    "login": {
+      "id": "login",
+      "description": "fixture login flow"
+    }
+  },
+  "cells": {
+    "login__nextcloud-v34": {
+      "id": "login__nextcloud-v34",
+      "flow_id": "login",
+      "pair": "nextcloud-v34",
+      "artifact_name": "cell-login-nextcloud-v34",
+      "scenario": "login",
+      "sender_platform": "nextcloud",
+      "sender_version": "v34",
+      "browser": "chrome",
+      "is_two_party": false,
+      "scenario_module": "login"
+    }
+  },
+  "runs": {
+    "exec-fixture": {
+      "id": "exec-fixture",
+      "cell_id": "login__nextcloud-v34",
+      "execution_id": "exec-fixture",
+      "artifact_name": "cell-login-nextcloud-v34",
+      "lifecycle_status": "completed"
+    }
+  },
+  "results": {
+    "result-exec-fixture": {
+      "id": "result-exec-fixture",
+      "run_id": "exec-fixture",
+      "cell_id": "login__nextcloud-v34",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": [
+        {
+          "kind": "metadata",
+          "scope": "meta",
+          "logical_name": "result.v1.json",
+          "path": "meta/result.v1.json",
+          "availability": "artifact",
+          "evidence_id": "meta--result.v1"
+        },
+        {
+          "kind": "log",
+          "scope": "docker",
+          "logical_name": "cypress-run.log",
+          "path": "docker/logs/cypress-run.log",
+          "availability": "artifact",
+          "evidence_id": "docker--logs--cypress-run"
+        },
+        {
+          "kind": "screenshot",
+          "scope": "cypress",
+          "logical_name": "sample.png",
+          "path": "cypress/screenshots/sample.png",
+          "availability": "artifact",
+          "evidence_id": "cypress--screenshots--sample",
+          "capture_class": "proof",
+          "order": 1,
+          "actor": "sender",
+          "checkpoint": "fixture",
+          "cell_id": "login__nextcloud-v34"
+        },
+        {
+          "kind": "video",
+          "scope": "cypress",
+          "logical_name": "sample.mp4",
+          "path": "cypress/videos/sample.mp4",
+          "availability": "artifact",
+          "evidence_id": "cypress--videos--sample",
+          "capture_class": "supporting",
+          "cell_id": "login__nextcloud-v34"
+        }
+      ]
+    }
+  }
+}

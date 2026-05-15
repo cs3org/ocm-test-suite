@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "label": "Contact via Token",
+  "subtitle": "Cross-vendor contact discovery using a token",
+  "display_order": 30,
+  "flow_id": "contact-token",
+  "two_party": true,
+  "enabled": true,
+  "mitm": true,
+  "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "flow.contact-token.sender",
+      "op.login",
+      "op.contact-token.sender",
+      "op.share-file.sender"
+    ],
+    "receiver": [
+      "flow.contact-token.receiver",
+      "op.login",
+      "op.contact-token.receiver",
+      "op.provider-identity",
+      "op.share-file.receiver"
+    ]
+  },
+  "include": [
+    {
+      "sender": [
+        "nextcloud",
+        "ocis",
+        "opencloud"
+      ],
+      "receiver": [
+        "nextcloud",
+        "ocis",
+        "opencloud"
+      ]
+    }
+  ],
+  "versions_sender": {
+    "nextcloud": [
+      "v34"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
+    ]
+  },
+  "versions_receiver": {
+    "nextcloud": [
+      "v34"
+    ],
+    "ocis": [
+      "v8"
+    ],
+    "opencloud": [
+      "v6"
+    ]
+  }
+}

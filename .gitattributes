@@ -1,0 +1,3 @@
+*.nuon linguist-language=JSON5
+*.nuon linguist-detectable=true
+*.nuon linguist-vendored=false

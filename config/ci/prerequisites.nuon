@@ -5,7 +5,7 @@
         {
             # op.login is the shared login operation required by all multi-step flows.
             # code-flow has no required_capabilities so it is excluded.
-            "capability_flow": "op.login",
+            "capability_flow": "login",
             "required_for_flows": [
                 "share-with",
                 "contact-token",

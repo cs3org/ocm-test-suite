@@ -237,6 +237,37 @@ def test-asset-display-name-two-party-format [] {
     ]
 }
 
+# Regression: the production prerequisites config must generate non-empty
+# cell_depends_on for share-with cells. Loads config/ci/prerequisites.nuon
+# directly so any capability_flow mismatch is caught here rather than masked
+# by the fixture-prereqs shim (which already uses the correct flow id).
+def test-prod-prereqs-share-with-cell-depends-on [] {
+    test-log "\n[test-prod-prereqs-share-with-cell-depends-on]"
+    let repo_root = ($SUITE_PATH | path dirname | path join ".." ".." ".." | path expand)
+    let prod_prereqs = (open ($repo_root | path join "config" "ci" "prerequisites.nuon"))
+    let rules = fixture-rules
+    let plan = (plan-suite $rules $prod_prereqs (fixture-flow-caps) {})
+    let flow_assets = (build-flow-assets $plan)
+    let share_asset_list = ($flow_assets | where {|a| ($a.path | path basename) == "share-with.json"})
+    let share_cells = if not ($share_asset_list | is-empty) {
+        $share_asset_list | first | get content | from json
+    } else { [] }
+    let share_cell_list = ($share_cells | where cell_id == "share-with__nextcloud-v34__nextcloud-v34")
+    let cell_dep = if not ($share_cell_list | is-empty) {
+        ($share_cell_list | first).cell_depends_on? | default ""
+    } else { "" }
+    [
+        (assert-truthy (not ($share_cells | is-empty))
+            "prod prereqs: share-with asset has cells")
+        (assert-truthy (not ($share_cell_list | is-empty))
+            "prod prereqs: share-with asset has nextcloud-v34->nextcloud-v34 cell")
+        (assert-truthy (($cell_dep | str length) > 0)
+            "prod prereqs: share-with cell_depends_on is non-empty (capability_flow in prerequisites.nuon must match producer flow_id 'login')")
+        (assert-truthy ($cell_dep | str contains "cell-login-nextcloud-v34")
+            "prod prereqs: share-with cell_depends_on references cell-login-nextcloud-v34 artifact")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-assets tests ==="
     let results = (
@@ -249,6 +280,7 @@ def main [] {
         | append (test-asset-cell-display-name-present)
         | append (test-asset-display-name-one-party-format)
         | append (test-asset-display-name-two-party-format)
+        | append (test-prod-prereqs-share-with-cell-depends-on)
     ) | flatten
     run-suite "ci/workflow-assets" $SUITE_PATH $results
 }

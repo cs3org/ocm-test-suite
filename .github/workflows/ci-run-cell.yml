@@ -7,6 +7,9 @@ name: Run OCM Test Cell
 on:
   workflow_call:
     inputs:
+      display-name:
+        required: true
+        type: string
       scenario:
         required: true
         type: string
@@ -48,6 +51,7 @@ on:
 
 jobs:
   run-cell:
+    name: ${{ inputs['display-name'] }}
     runs-on: ubuntu-latest
     outputs:
       cell-status: ${{ steps.run_cell.outputs['cell-status'] || steps.blocked_cell.outputs['cell-status'] || 'failed' }}

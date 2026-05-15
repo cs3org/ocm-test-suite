@@ -5,7 +5,7 @@
     "sender_version": "v32",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login: nextcloud v32",
+    "display_name": "login / test / nextcloud v32",
     "artifact_name": "cell-login-nextcloud-v32",
     "cell_id": "login__nextcloud-v32",
     "cell_depends_on": ""
@@ -16,7 +16,7 @@
     "sender_version": "v33",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login: nextcloud v33",
+    "display_name": "login / test / nextcloud v33",
     "artifact_name": "cell-login-nextcloud-v33",
     "cell_id": "login__nextcloud-v33",
     "cell_depends_on": ""
@@ -27,7 +27,7 @@
     "sender_version": "v34",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login: nextcloud v34",
+    "display_name": "login / test / nextcloud v34",
     "artifact_name": "cell-login-nextcloud-v34",
     "cell_id": "login__nextcloud-v34",
     "cell_depends_on": ""
@@ -38,7 +38,7 @@
     "sender_version": "v8",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login-ocis: ocis v8",
+    "display_name": "login / test / ocis v8",
     "artifact_name": "cell-login-ocis-v8",
     "cell_id": "login__ocis-v8",
     "cell_depends_on": ""
@@ -49,7 +49,7 @@
     "sender_version": "v1",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login-ocmgo: ocmgo v1",
+    "display_name": "login / test / ocmgo v1",
     "artifact_name": "cell-login-ocmgo-v1",
     "cell_id": "login__ocmgo-v1",
     "cell_depends_on": ""
@@ -60,7 +60,7 @@
     "sender_version": "v6",
     "receiver_platform": "",
     "receiver_version": "",
-    "display_name": "login-opencloud: opencloud v6",
+    "display_name": "login / test / opencloud v6",
     "artifact_name": "cell-login-opencloud-v6",
     "cell_id": "login__opencloud-v6",
     "cell_depends_on": ""

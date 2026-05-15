@@ -5,7 +5,7 @@
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
     "receiver_version": "v34",
-    "display_name": "contact-token: nextcloud v34 -> nextcloud v34",
+    "display_name": "contact-token / test / nextcloud v34 to nextcloud v34",
     "artifact_name": "cell-contact-token-nextcloud-v34-nextcloud-v34",
     "cell_id": "contact-token__nextcloud-v34__nextcloud-v34",
     "cell_depends_on": "cell-login-nextcloud-v34"
@@ -16,7 +16,7 @@
     "sender_version": "v34",
     "receiver_platform": "ocis",
     "receiver_version": "v8",
-    "display_name": "contact-token-nc-ocis: nextcloud v34 -> ocis v8",
+    "display_name": "contact-token / test / nextcloud v34 to ocis v8",
     "artifact_name": "cell-contact-token-nextcloud-v34-ocis-v8",
     "cell_id": "contact-token__nextcloud-v34__ocis-v8",
     "cell_depends_on": "cell-login-nextcloud-v34,cell-login-ocis-v8"
@@ -27,7 +27,7 @@
     "sender_version": "v34",
     "receiver_platform": "opencloud",
     "receiver_version": "v6",
-    "display_name": "contact-token-nc-opencloud: nextcloud v34 -> opencloud v6",
+    "display_name": "contact-token / test / nextcloud v34 to opencloud v6",
     "artifact_name": "cell-contact-token-nextcloud-v34-opencloud-v6",
     "cell_id": "contact-token__nextcloud-v34__opencloud-v6",
     "cell_depends_on": "cell-login-nextcloud-v34,cell-login-opencloud-v6"
@@ -38,7 +38,7 @@
     "sender_version": "v8",
     "receiver_platform": "nextcloud",
     "receiver_version": "v34",
-    "display_name": "contact-token-ocis-nc: ocis v8 -> nextcloud v34",
+    "display_name": "contact-token / test / ocis v8 to nextcloud v34",
     "artifact_name": "cell-contact-token-ocis-v8-nextcloud-v34",
     "cell_id": "contact-token__ocis-v8__nextcloud-v34",
     "cell_depends_on": "cell-login-ocis-v8,cell-login-nextcloud-v34"
@@ -49,7 +49,7 @@
     "sender_version": "v8",
     "receiver_platform": "ocis",
     "receiver_version": "v8",
-    "display_name": "contact-token-ocis-ocis: ocis v8 -> ocis v8",
+    "display_name": "contact-token / test / ocis v8 to ocis v8",
     "artifact_name": "cell-contact-token-ocis-v8-ocis-v8",
     "cell_id": "contact-token__ocis-v8__ocis-v8",
     "cell_depends_on": "cell-login-ocis-v8"
@@ -60,7 +60,7 @@
     "sender_version": "v8",
     "receiver_platform": "opencloud",
     "receiver_version": "v6",
-    "display_name": "contact-token-ocis-opencloud: ocis v8 -> opencloud v6",
+    "display_name": "contact-token / test / ocis v8 to opencloud v6",
     "artifact_name": "cell-contact-token-ocis-v8-opencloud-v6",
     "cell_id": "contact-token__ocis-v8__opencloud-v6",
     "cell_depends_on": "cell-login-ocis-v8,cell-login-opencloud-v6"
@@ -71,7 +71,7 @@
     "sender_version": "v6",
     "receiver_platform": "nextcloud",
     "receiver_version": "v34",
-    "display_name": "contact-token-opencloud-nc: opencloud v6 -> nextcloud v34",
+    "display_name": "contact-token / test / opencloud v6 to nextcloud v34",
     "artifact_name": "cell-contact-token-opencloud-v6-nextcloud-v34",
     "cell_id": "contact-token__opencloud-v6__nextcloud-v34",
     "cell_depends_on": "cell-login-opencloud-v6,cell-login-nextcloud-v34"
@@ -82,7 +82,7 @@
     "sender_version": "v6",
     "receiver_platform": "ocis",
     "receiver_version": "v8",
-    "display_name": "contact-token-opencloud-ocis: opencloud v6 -> ocis v8",
+    "display_name": "contact-token / test / opencloud v6 to ocis v8",
     "artifact_name": "cell-contact-token-opencloud-v6-ocis-v8",
     "cell_id": "contact-token__opencloud-v6__ocis-v8",
     "cell_depends_on": "cell-login-opencloud-v6,cell-login-ocis-v8"
@@ -93,7 +93,7 @@
     "sender_version": "v6",
     "receiver_platform": "opencloud",
     "receiver_version": "v6",
-    "display_name": "contact-token-opencloud-opencloud: opencloud v6 -> opencloud v6",
+    "display_name": "contact-token / test / opencloud v6 to opencloud v6",
     "artifact_name": "cell-contact-token-opencloud-v6-opencloud-v6",
     "cell_id": "contact-token__opencloud-v6__opencloud-v6",
     "cell_depends_on": "cell-login-opencloud-v6"

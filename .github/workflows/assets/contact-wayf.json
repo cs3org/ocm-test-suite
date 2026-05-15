@@ -5,7 +5,7 @@
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
     "receiver_version": "v34",
-    "display_name": "contact-wayf: nextcloud v34 -> nextcloud v34",
+    "display_name": "contact-wayf / test / nextcloud v34 to nextcloud v34",
     "artifact_name": "cell-contact-wayf-nextcloud-v34-nextcloud-v34",
     "cell_id": "contact-wayf__nextcloud-v34__nextcloud-v34",
     "cell_depends_on": "cell-login-nextcloud-v34"

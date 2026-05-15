@@ -62,6 +62,9 @@ def test-site-publish-artifacts-root [] {
 
 def test-ci-matrix-calls-ci-site [] {
     test-log "\n[test-ci-matrix-calls-ci-site]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let site = ($wf.github.filenames.site? | default "ci-site.yml")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
@@ -69,8 +72,8 @@ def test-ci-matrix-calls-ci-site [] {
     [
         (assert-truthy ($yml | str contains "  ci-site:")
             "ci-matrix.yml has ci-site reusable workflow job")
-        (assert-truthy ($yml | str contains "./.github/workflows/ci-site.yml")
-            "ci-matrix.yml ci-site job calls ci-site.yml")
+        (assert-truthy ($yml | str contains $"./.github/workflows/($site)")
+            "ci-matrix.yml ci-site job calls configured site workflow")
         (assert-truthy (not ($yml | str contains "  site-publish:"))
             "ci-matrix.yml does not have inline site-publish job")
         (assert-truthy ($yml | str contains "needs: [aggregate]")
@@ -82,18 +85,21 @@ def test-ci-matrix-calls-ci-site [] {
 
 def test-ci-matrix-branch-gate-from-config [] {
     test-log "\n[test-ci-matrix-branch-gate-from-config]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let site_cfg = (open ($real_root | path join "config/site.nuon"))
+    let branch_gate = ($site_cfg.publish_branch_gate? | default "main")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
-    # Branch gate must come from config/site.nuon (publish_branch_gate: "main"),
+    # Branch gate must come from config/site.nuon (publish_branch_gate),
     # not hardcoded in multiple places.
     let ci_site_pos = ($yml | str index-of "  ci-site:")
     let ci_site_section = ($yml | str substring $ci_site_pos..)
     [
-        (assert-truthy ($ci_site_section | str contains "refs/heads/main")
+        (assert-truthy ($ci_site_section | str contains $"refs/heads/($branch_gate)")
             "ci-site if condition uses publish_branch_gate from config")
-        (assert-truthy (not ($yml | str contains "refs/heads/main\n      runs-on:"))
+        (assert-truthy (not ($yml | str contains $"refs/heads/($branch_gate)\n      runs-on:"))
             "ci-matrix.yml has no inline runner after branch gate (site is reusable call)")
     ]
 }
@@ -153,21 +159,31 @@ def test-ci-site-downloads-optimized-media [] {
 
 def test-ci-site-config-values-injected [] {
     test-log "\n[test-ci-site-config-values-injected]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let site_cfg = (open ($real_root | path join "config/site.nuon"))
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let matrix_filename = ($wf.github.filenames.matrix? | default "ci-matrix.yml")
+    let branch_gate = ($site_cfg.publish_branch_gate? | default "main")
+    let rebuild_src = ($site_cfg.rebuild_source_workflow? | default $matrix_filename)
+    let raw_agg_name = ($site_cfg.raw_aggregate_artifact_name? | default "aggregate-summary")
+    let opt_pattern = ($site_cfg.optimized_artifact_pattern? | default "optimized-media-cell-*")
+    let opt_agg_name = ($site_cfg.optimized_aggregate_artifact_name? | default "optimized-media-summary")
+    let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
     let ci_site_yml = (build-ci-site-yml)
     # Values come from config/site.nuon.
     # gh run list takes a bare branch name (not refs/heads/ prefix).
     [
-        (assert-truthy ($ci_site_yml | str contains "ci-matrix.yml")
+        (assert-truthy ($ci_site_yml | str contains $rebuild_src)
             "ci-site.yml uses rebuild_source_workflow from site config")
-        (assert-truthy ($ci_site_yml | str contains "aggregate-summary")
+        (assert-truthy ($ci_site_yml | str contains $raw_agg_name)
             "ci-site.yml uses raw_aggregate_artifact_name from site config")
-        (assert-truthy ($ci_site_yml | str contains "optimized-media-cell-*")
+        (assert-truthy ($ci_site_yml | str contains $opt_pattern)
             "ci-site.yml uses optimized_artifact_pattern from site config")
-        (assert-truthy ($ci_site_yml | str contains "--branch main")
+        (assert-truthy ($ci_site_yml | str contains $"--branch ($branch_gate)")
             "ci-site.yml uses publish_branch_gate from site config in resolve-source-run call")
-        (assert-truthy ($ci_site_yml | str contains "optimized-media-summary")
+        (assert-truthy ($ci_site_yml | str contains $opt_agg_name)
             "ci-site.yml uses optimized_aggregate_artifact_name from site config")
-        (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
+        (assert-truthy ($ci_site_yml | str contains ("../ocm-web-site" | path join $site_output_subpath))
             "ci-site.yml upload path is CI-owned site checkout dir joined with site output subpath")
     ]
 }
@@ -195,6 +211,11 @@ def test-ci-site-job-topology [] {
 
 def test-ci-site-build-job [] {
     test-log "\n[test-ci-site-build-job]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let site_cfg = (open ($real_root | path join "config/site.nuon"))
+    let upload_pages_action = ($wf.github.action_upload_pages_artifact? | default "actions/upload-pages-artifact@v5")
+    let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
     let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy ($ci_site_yml | str contains "Publish site")
@@ -205,19 +226,22 @@ def test-ci-site-build-job [] {
             "ci-site.yml build job downloads optimized media summary from aggregate-media job")
         (assert-truthy ($ci_site_yml | str contains "Upload built site")
             "ci-site.yml build job uploads built site artifact")
-        (assert-truthy ($ci_site_yml | str contains "actions/upload-pages-artifact@v5")
-            "ci-site.yml build job uses upload-pages-artifact@v5 action")
-        (assert-truthy ($ci_site_yml | str contains "../ocm-web-site/dist")
+        (assert-truthy ($ci_site_yml | str contains $upload_pages_action)
+            "ci-site.yml build job uses upload-pages-artifact action from config")
+        (assert-truthy ($ci_site_yml | str contains ("../ocm-web-site" | path join $site_output_subpath))
             "ci-site.yml upload-pages-artifact path is CI checkout dir joined with site output subpath")
     ]
 }
 
 def test-ci-site-action-refs [] {
     test-log "\n[test-ci-site-action-refs]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let download = ($wf.github.action_download_artifact? | default "actions/download-artifact@v7")
     let ci_site_yml = (build-ci-site-yml)
     [
-        (assert-truthy ($ci_site_yml | str contains "actions/download-artifact@v7")
-            "ci-site.yml uses download-artifact@v7 (from config)")
+        (assert-truthy ($ci_site_yml | str contains $download)
+            "ci-site.yml uses download-artifact action from config")
         (assert-truthy (not ($ci_site_yml | str contains "actions/download-artifact@v4"))
             "ci-site.yml does not contain stale download-artifact@v4")
     ]
@@ -225,12 +249,15 @@ def test-ci-site-action-refs [] {
 
 def test-ci-site-deploy-job [] {
     test-log "\n[test-ci-site-deploy-job]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let deploy_pages_action = ($wf.github.action_deploy_pages? | default "actions/deploy-pages@v5")
     let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy ($ci_site_yml | str contains "Deploy to GitHub Pages")
             "ci-site.yml deploy job has Deploy to GitHub Pages step")
-        (assert-truthy ($ci_site_yml | str contains "actions/deploy-pages@v5")
-            "ci-site.yml deploy job uses deploy-pages@v5 action")
+        (assert-truthy ($ci_site_yml | str contains $deploy_pages_action)
+            "ci-site.yml deploy job uses deploy-pages action from config")
         (assert-truthy ($ci_site_yml | str contains "pages: write")
             "ci-site.yml deploy job has pages: write permission")
         (assert-truthy ($ci_site_yml | str contains "id-token: write")

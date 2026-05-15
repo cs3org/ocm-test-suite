@@ -14,6 +14,7 @@ use ../../lib/ci/workflow-gen.nu [
 ]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
 
 # ---- tests ----
@@ -32,22 +33,28 @@ def test-blocked-output-check [] {
 
 def test-matrix-calls-run-wave [] {
     test-log "\n[test-matrix-calls-run-wave]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let run_wave = ($wf.github.filenames.run_wave? | default "ci-run-wave.yml")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let yml = (build-ci-matrix-yml $plan)
     [
-        (assert-truthy ($yml | str contains "./.github/workflows/ci-run-wave.yml")
-            "ci-matrix.yml calls ./.github/workflows/ci-run-wave.yml")
+        (assert-truthy ($yml | str contains $"./.github/workflows/($run_wave)")
+            "ci-matrix.yml calls configured run-wave workflow path")
     ]
 }
 
 def test-run-wave-calls-run-cell [] {
     test-log "\n[test-run-wave-calls-run-cell]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let run_cell = ($wf.github.filenames.run_cell? | default "ci-run-cell.yml")
     let run_wave_yml = (build-run-wave-yml)
     [
-        (assert-truthy ($run_wave_yml | str contains "./.github/workflows/ci-run-cell.yml")
-            "ci-run-wave.yml calls ./.github/workflows/ci-run-cell.yml")
+        (assert-truthy ($run_wave_yml | str contains $"./.github/workflows/($run_cell)")
+            "ci-run-wave.yml calls configured run-cell workflow path")
     ]
 }
 
@@ -97,13 +104,16 @@ def test-load-cells-job-in-run-wave [] {
 
 def test-run-wave-nushell-load-cells [] {
     test-log "\n[test-run-wave-nushell-load-cells]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let toolchain = (open ($real_root | path join "config/ci/toolchain.nuon"))
+    let nu_ver = $toolchain.nushell.version
     let run_wave_yml = (build-run-wave-yml)
     [
         (assert-truthy ($run_wave_yml | str contains "nu scripts/ocmts.nu ci read-cells-json")
             "ci-run-wave.yml uses repo-owned read-cells-json for cell loading")
         (assert-truthy (not ($run_wave_yml | str contains "jq"))
             "ci-run-wave.yml does not call jq")
-        (assert-truthy ($run_wave_yml | str contains "version: '0.108.0'")
+        (assert-truthy ($run_wave_yml | str contains $"version: '($nu_ver)'")
             "ci-run-wave.yml installs nushell with pinned version in load-cells job")
     ]
 }
@@ -209,6 +219,12 @@ def test-run-cell-one-party-receiver-flag-guard [] {
 
 def test-action-refs-from-ssot [] {
     test-log "\n[test-action-refs-from-ssot]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let gh = $wf.github
+    let checkout = ($gh.action_checkout? | default "actions/checkout@v6")
+    let upload = ($gh.action_upload_artifact? | default "actions/upload-artifact@v7")
+    let download = ($gh.action_download_artifact? | default "actions/download-artifact@v7")
     let run_cell_yml = (build-run-cell-yml)
     let run_wave_yml = (build-run-wave-yml)
     let rules = fixture-rules
@@ -218,18 +234,18 @@ def test-action-refs-from-ssot [] {
     [
         (assert-truthy (not ($run_cell_yml | str contains "actions/checkout@v4"))
             "ci-run-cell.yml does not hardcode actions/checkout@v4")
-        (assert-truthy ($run_cell_yml | str contains "actions/checkout@v6")
-            "ci-run-cell.yml uses actions/checkout@v6 from SSOT")
+        (assert-truthy ($run_cell_yml | str contains $checkout)
+            "ci-run-cell.yml uses checkout action from config")
         (assert-truthy (not ($run_cell_yml | str contains "actions/upload-artifact@v4"))
             "ci-run-cell.yml does not hardcode actions/upload-artifact@v4")
-        (assert-truthy ($run_cell_yml | str contains "actions/upload-artifact@v7")
-            "ci-run-cell.yml uses actions/upload-artifact@v7 from SSOT")
-        (assert-truthy ($run_wave_yml | str contains "actions/checkout@v6")
-            "ci-run-wave.yml uses actions/checkout@v6 from SSOT")
-        (assert-truthy ($matrix_yml | str contains "actions/checkout@v6")
-            "ci-matrix.yml uses actions/checkout@v6 from SSOT")
-        (assert-truthy ($matrix_yml | str contains "actions/download-artifact@v7")
-            "ci-matrix.yml uses actions/download-artifact@v7 from SSOT")
+        (assert-truthy ($run_cell_yml | str contains $upload)
+            "ci-run-cell.yml uses upload-artifact action from config")
+        (assert-truthy ($run_wave_yml | str contains $checkout)
+            "ci-run-wave.yml uses checkout action from config")
+        (assert-truthy ($matrix_yml | str contains $checkout)
+            "ci-matrix.yml uses checkout action from config")
+        (assert-truthy ($matrix_yml | str contains $download)
+            "ci-matrix.yml uses download-artifact action from config")
         (assert-truthy (not ($matrix_yml | str contains "actions/download-artifact@v4"))
             "ci-matrix.yml does not hardcode actions/download-artifact@v4")
     ]
@@ -281,9 +297,12 @@ def test-run-wave-display-name-in-matrix [] {
 
 def test-run-wave-display-name-position [] {
     test-log "\n[test-run-wave-display-name-position]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+    let run_cell = ($wf.github.filenames.run_cell? | default "ci-run-cell.yml")
     let run_wave_yml = (build-run-wave-yml)
     let name_pos = ($run_wave_yml | str index-of "name: ${{ matrix.display_name }}")
-    let uses_pos = ($run_wave_yml | str index-of "    uses: ./.github/workflows/ci-run-cell.yml")
+    let uses_pos = ($run_wave_yml | str index-of $"    uses: ./.github/workflows/($run_cell)")
     # Use a specific substring to locate the matrix job's with: block
     # (avoids matching the 8-space `with:` inside load-cells steps).
     let with_pos = ($run_wave_yml | str index-of "    with:\n      display-name:")
@@ -329,6 +348,29 @@ def test-matrix-trigger-policy [] {
     ]
 }
 
+# Prove the run.cell.filename seam: overriding filenames.run_cell in
+# config/ci/workflows.nuon must flow through to the rendered ci-run-wave.yml.
+def test-run-wave-run-cell-filename-seam [] {
+    test-log "\n[test-run-wave-run-cell-filename-seam]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    with-tmp-dir {|tmp|
+        mkdir ($tmp | path join "config/ci")
+        cp ($real_root | path join "config/ci/toolchain.nuon") ($tmp | path join "config/ci/toolchain.nuon")
+        let wf = (open ($real_root | path join "config/ci/workflows.nuon"))
+        let custom_wf = ($wf | update github.filenames.run_cell "custom-run-cell.yml")
+        ($custom_wf | to nuon) | save --force ($tmp | path join "config/ci/workflows.nuon")
+        mkdir ($tmp | path join "scripts/lib/ci")
+        cp --recursive ($real_root | path join "scripts/lib/ci/blueprints") ($tmp | path join "scripts/lib/ci/blueprints")
+        with-env {OCMTS_ROOT: $tmp} {
+            let yml = (build-run-wave-yml)
+            [
+                (assert-truthy ($yml | str contains "./.github/workflows/custom-run-cell.yml")
+                    "build-run-wave-yml uses run_cell filename from config seam (not hardcoded)")
+            ]
+        }
+    }
+}
+
 def main [] {
     test-log "=== CI workflow-contract tests ==="
     let results = (
@@ -353,6 +395,7 @@ def main [] {
         | append (test-run-wave-display-name-position)
         | append (test-run-cell-display-name)
         | append (test-matrix-trigger-policy)
+        | append (test-run-wave-run-cell-filename-seam)
     ) | flatten
     run-suite "ci/workflow-contract" $SUITE_PATH $results
 }

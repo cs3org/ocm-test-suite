@@ -212,8 +212,8 @@ def test-asset-display-name-one-party-format [] {
         (assert-truthy (not ($target_cell_list | is-empty))
             "login asset has a cell with cell_id login__nextcloud-v33")
         (assert-eq ($target_cell_list | first | get display_name)
-            "login: nextcloud v33"
-            "one-party display_name is <scenario>: <sender_platform> <sender_version>")
+            "login / test / nextcloud v33"
+            "one-party display_name is <flow_id> / test / <sender_platform> <sender_version>")
         (assert-truthy (not (($target_cell_list | first | get display_name) | str contains " -> "))
             "one-party display_name has no -> arrow")
     ]
@@ -232,8 +232,8 @@ def test-asset-display-name-two-party-format [] {
         (assert-truthy (not ($two_party_cell_list | is-empty))
             "share-with asset has the two-party cell")
         (assert-eq ($two_party_cell_list | first | get display_name)
-            "share-with: nextcloud v34 -> nextcloud v33"
-            "two-party display_name is <scenario>: <sender_platform> <sv> -> <receiver_platform> <rv>")
+            "share-with / test / nextcloud v34 to nextcloud v33"
+            "two-party display_name is <flow_id> / test / <sender_platform> <sv> to <receiver_platform> <rv>")
     ]
 }
 

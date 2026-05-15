@@ -16,6 +16,7 @@ use ../../lib/ci/workflow-gen.nu [
 use ../../lib/ci/template-renderer.nu [render-template]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
 
 # ---- tests ----
@@ -96,16 +97,19 @@ def test-setup-failure-guard [] {
 
 def test-nushell-version-from-config [] {
     test-log "\n[test-nushell-version-from-config]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let toolchain = (open ($real_root | path join "config/ci/toolchain.nuon"))
+    let nu_ver = $toolchain.nushell.version
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
     let matrix_yml = (build-ci-matrix-yml $plan)
     let run_cell_yml = (build-run-cell-yml)
     [
-        (assert-truthy ($matrix_yml | str contains "version: '0.108.0'")
-            "ci-matrix.yml uses pinned nushell version 0.108.0")
-        (assert-truthy ($run_cell_yml | str contains "version: '0.108.0'")
-            "ci-run-cell.yml uses pinned nushell version 0.108.0")
+        (assert-truthy ($matrix_yml | str contains $"version: '($nu_ver)'")
+            "ci-matrix.yml uses pinned nushell version from config")
+        (assert-truthy ($run_cell_yml | str contains $"version: '($nu_ver)'")
+            "ci-run-cell.yml uses pinned nushell version from config")
         (assert-truthy (not ($matrix_yml | str contains "version: '*'"))
             "ci-matrix.yml does not use version: '*'")
         (assert-truthy (not ($matrix_yml | str contains "version: \"*\""))
@@ -245,6 +249,9 @@ def test-flow-based-no-wave-jobs [] {
 
 def test-wave-gen-yaml-properties [] {
     test-log "\n[test-wave-gen-yaml-properties]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let site_cfg = (open ($real_root | path join "config/site.nuon"))
+    let branch_gate = ($site_cfg.publish_branch_gate? | default "main")
     let rules = fixture-rules
     let prereqs = fixture-prereqs
     let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
@@ -257,11 +264,39 @@ def test-wave-gen-yaml-properties [] {
             "ci-run-wave.yml has strategy.fail-fast: false")
         (assert-truthy ($yml | str contains "--archive")
             "aggregate job runs aggregate command with --archive flag")
-        (assert-truthy ($yml | str contains "github.ref == 'refs/heads/main'")
-            "ci-site job is gated on main branch")
+        (assert-truthy ($yml | str contains $"github.ref == 'refs/heads/($branch_gate)'")
+            "ci-site job is gated on publish branch from config")
         (assert-truthy (not ($before_ci_site | str contains "github.ref"))
             "aggregate job is NOT gated on main branch (no github.ref before ci-site)")
     ]
+}
+
+# Prove the raw.aggregate.artifact.name seam: overriding
+# raw_aggregate_artifact_name in config/site.nuon must flow through to the
+# rendered ci-matrix.yml aggregate upload step.
+def test-ci-matrix-raw-agg-artifact-seam [] {
+    test-log "\n[test-ci-matrix-raw-agg-artifact-seam]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let rules = fixture-rules
+    let prereqs = fixture-prereqs
+    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
+    with-tmp-dir {|tmp|
+        mkdir ($tmp | path join "config/ci")
+        cp ($real_root | path join "config/ci/toolchain.nuon") ($tmp | path join "config/ci/toolchain.nuon")
+        cp ($real_root | path join "config/ci/workflows.nuon") ($tmp | path join "config/ci/workflows.nuon")
+        let site = (open ($real_root | path join "config/site.nuon"))
+        let custom_site = ($site | update raw_aggregate_artifact_name "custom-aggregate-artifact")
+        ($custom_site | to nuon) | save --force ($tmp | path join "config/site.nuon")
+        mkdir ($tmp | path join "scripts/lib/ci")
+        cp --recursive ($real_root | path join "scripts/lib/ci/blueprints") ($tmp | path join "scripts/lib/ci/blueprints")
+        with-env {OCMTS_ROOT: $tmp} {
+            let yml = (build-ci-matrix-yml $plan)
+            [
+                (assert-truthy ($yml | str contains "custom-aggregate-artifact")
+                    "build-ci-matrix-yml uses raw_aggregate_artifact_name from config seam (not hardcoded)")
+            ]
+        }
+    }
 }
 
 def main [] {
@@ -279,6 +314,7 @@ def main [] {
         | append (test-workflow-deterministic)
         | append (test-flow-based-no-wave-jobs)
         | append (test-wave-gen-yaml-properties)
+        | append (test-ci-matrix-raw-agg-artifact-seam)
     ) | flatten
     run-suite "ci/workflow-gen" $SUITE_PATH $results
 }

@@ -12,6 +12,12 @@ use ../../lib/site/flow-caps.nu [load-flow-caps]
 
 def main [] {
     let root = get-ocmts-root
+    let wf_config = (open ($root | path join "config/ci/workflows.nuon"))
+    let gh_filenames = $wf_config.github.filenames
+    let matrix_filename = ($gh_filenames.matrix? | default "ci-matrix.yml")
+    let run_wave_filename = ($gh_filenames.run_wave? | default "ci-run-wave.yml")
+    let run_cell_filename = ($gh_filenames.run_cell? | default "ci-run-cell.yml")
+    let site_filename = ($gh_filenames.site? | default "ci-site.yml")
     let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
@@ -26,10 +32,10 @@ def main [] {
 
     let wf_dir = ($root | path join ".github/workflows")
     let assets_dir = ($wf_dir | path join "assets")
-    let matrix_path = ($wf_dir | path join "ci-matrix.yml")
-    let run_wave_path = ($wf_dir | path join "ci-run-wave.yml")
-    let run_cell_path = ($wf_dir | path join "ci-run-cell.yml")
-    let ci_site_path = ($wf_dir | path join "ci-site.yml")
+    let matrix_path = ($wf_dir | path join $matrix_filename)
+    let run_wave_path = ($wf_dir | path join $run_wave_filename)
+    let run_cell_path = ($wf_dir | path join $run_cell_filename)
+    let ci_site_path = ($wf_dir | path join $site_filename)
 
     mut drift = false
 

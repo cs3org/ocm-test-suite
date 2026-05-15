@@ -1,10 +1,11 @@
 # Generate committed .github/workflows/ YAML files from the planner and config.
+# Filenames come from config/ci/workflows.nuon (github.filenames.*); defaults in parens.
 # Writes:
-#   .github/workflows/ci-matrix.yml                - orchestration workflow (flow-id jobs)
-#   .github/workflows/ci-run-wave.yml              - reusable per-flow matrix runner
-#   .github/workflows/ci-run-cell.yml              - reusable single-cell runner
-#   .github/workflows/ci-site.yml                  - site publish (workflow_call + workflow_dispatch)
-#   .github/workflows/assets/<flow>.json           - per-flow cell data (one per active flow)
+#   .github/workflows/<matrix>           (ci-matrix.yml)   - orchestration workflow (flow-id jobs)
+#   .github/workflows/<run_wave>         (ci-run-wave.yml) - reusable per-flow matrix runner
+#   .github/workflows/<run_cell>         (ci-run-cell.yml) - reusable single-cell runner
+#   .github/workflows/<site>             (ci-site.yml)     - site publish (workflow_call + workflow_dispatch)
+#   .github/workflows/assets/<flow>.json                   - per-flow cell data (one per active flow)
 #
 # Stale asset files are removed automatically. The assets directory is
 # generator-owned; do not add files there manually.
@@ -25,6 +26,12 @@ def main [
     --dry-run,  # Print generated YAML and JSON to stdout instead of writing files
 ] {
     let root = get-ocmts-root
+    let wf_config = (open ($root | path join "config/ci/workflows.nuon"))
+    let gh_filenames = $wf_config.github.filenames
+    let matrix_filename = ($gh_filenames.matrix? | default "ci-matrix.yml")
+    let run_wave_filename = ($gh_filenames.run_wave? | default "ci-run-wave.yml")
+    let run_cell_filename = ($gh_filenames.run_cell? | default "ci-run-cell.yml")
+    let site_filename = ($gh_filenames.site? | default "ci-site.yml")
     let rules = (load-matrix-rules $root)
     let prereqs = open ($root | path join "config/ci/prerequisites.nuon")
     let flow_caps = (load-flow-caps ($root | path join "config/matrix/flows"))
@@ -38,13 +45,13 @@ def main [
     let flow_assets = (build-flow-assets $plan)
 
     if $dry_run {
-        print "# === ci-matrix.yml ==="
+        print $"# === ($matrix_filename) ==="
         print $matrix_yml
-        print "\n# === ci-run-wave.yml ==="
+        print $"\n# === ($run_wave_filename) ==="
         print $run_wave_yml
-        print "\n# === ci-run-cell.yml ==="
+        print $"\n# === ($run_cell_filename) ==="
         print $run_cell_yml
-        print "\n# === ci-site.yml ==="
+        print $"\n# === ($site_filename) ==="
         print $ci_site_yml
         for asset in $flow_assets {
             print $"\n# === ($asset.path) ==="
@@ -56,10 +63,10 @@ def main [
     let wf_dir = ($root | path join ".github/workflows")
     let assets_dir = ($wf_dir | path join "assets")
     mkdir $assets_dir
-    $matrix_yml | save --force ($wf_dir | path join "ci-matrix.yml")
-    $run_wave_yml | save --force ($wf_dir | path join "ci-run-wave.yml")
-    $run_cell_yml | save --force ($wf_dir | path join "ci-run-cell.yml")
-    $ci_site_yml | save --force ($wf_dir | path join "ci-site.yml")
+    $matrix_yml | save --force ($wf_dir | path join $matrix_filename)
+    $run_wave_yml | save --force ($wf_dir | path join $run_wave_filename)
+    $run_cell_yml | save --force ($wf_dir | path join $run_cell_filename)
+    $ci_site_yml | save --force ($wf_dir | path join $site_filename)
 
     # Write per-flow asset files.
     for asset in $flow_assets {
@@ -80,10 +87,10 @@ def main [
     }
 
     print "Generated workflows:"
-    print $"  ($wf_dir | path join 'ci-matrix.yml')"
-    print $"  ($wf_dir | path join 'ci-run-wave.yml')"
-    print $"  ($wf_dir | path join 'ci-run-cell.yml')"
-    print $"  ($wf_dir | path join 'ci-site.yml')"
+    print $"  ($wf_dir | path join $matrix_filename)"
+    print $"  ($wf_dir | path join $run_wave_filename)"
+    print $"  ($wf_dir | path join $run_cell_filename)"
+    print $"  ($wf_dir | path join $site_filename)"
     for asset in $flow_assets {
         print $"  ($root | path join $asset.path)"
     }

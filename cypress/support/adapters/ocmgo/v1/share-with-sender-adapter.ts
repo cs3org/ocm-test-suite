@@ -3,17 +3,23 @@
 import type { ShareWithFlowSenderAdapter } from "../../../contracts/share-with";
 import type { ShareFileSenderAdapter } from "../../../contracts/share-file";
 
-// Must match the OCMGo share-creation form's source-file input default.
+// UI form path: sender-container mount point for the source file.
 const SHARE_DIR = "/tmp/ocmts-share";
+
+// Runner-visible path: the shared host artifacts mount exposed to the
+// Cypress runner. The sender platform container mounts
+// ${OCMTS_ARTIFACTS_BASE}/share at /tmp/ocmts-share, so writing here
+// makes the file visible inside the sender container at SHARE_DIR.
+const ARTIFACTS_SHARE_DIR = "/artifacts/share";
 
 function prepareShareFileImpl(
   { sharedFileName, sourceFileName: _sourceFileName }: { sharedFileName: string; sourceFileName?: string },
 ): Cypress.Chainable<{ expectedContent?: string }> {
-  const sharePath = `${SHARE_DIR}/${sharedFileName}`;
+  const artifactsPath = `${ARTIFACTS_SHARE_DIR}/${sharedFileName}`;
 
-  cy.exec(`mkdir -p ${SHARE_DIR}`, { log: false });
+  cy.exec(`mkdir -p ${ARTIFACTS_SHARE_DIR}`, { log: false });
   cy.writeFile(
-    sharePath,
+    artifactsPath,
     `OCMGo shared file: ${sharedFileName}\n`,
     { log: false },
   );

@@ -34,7 +34,48 @@ function sendShareImpl({ sharedFileName, federatedRecipientId }: { sharedFileNam
   cy.get("#local-path", { timeout: 20000 })
     .clear()
     .type(`${SHARE_DIR}/${sharedFileName}`);
+
+  // Intercept before click so the alias is registered in time.
+  cy.intercept("POST", "**/api/shares/outgoing**").as("postOutgoingShare");
+
   cy.get("#share-submit", { timeout: 20000 }).click();
+
+  // Assert on the raw API response first. On non-2xx this surfaces the HTTP
+  // status and server message immediately instead of timing out on #share-result.
+  cy.wait("@postOutgoingShare", { timeout: 20000 }).then((interception) => {
+    if (interception.response == null) {
+      throw new Error("api/shares/outgoing failed: no response received");
+    }
+    const status = interception.response.statusCode;
+    if (typeof status !== "number" || Number.isNaN(status)) {
+      throw new Error(`api/shares/outgoing failed: invalid or missing HTTP status code (got ${String(status)})`);
+    }
+    if (status < 200 || status >= 300) {
+      const body = interception.response.body as unknown;
+      let detail: string;
+      if (typeof body === "object" && body !== null && "message" in body) {
+        const msg = (body as Record<string, unknown>).message;
+        if (typeof msg === "string") {
+          detail = msg;
+        } else {
+          try {
+            detail = JSON.stringify(msg) ?? String(msg);
+          } catch {
+            detail = String(msg);
+          }
+        }
+      } else if (typeof body === "string") {
+        detail = body;
+      } else {
+        try {
+          detail = JSON.stringify(body) ?? String(body);
+        } catch {
+          detail = "[unstringifiable body]";
+        }
+      }
+      throw new Error(`api/shares/outgoing failed: HTTP ${status} - ${detail}`);
+    }
+  });
 
   cy.get("#share-result", { timeout: 20000 })
     .should("be.visible")

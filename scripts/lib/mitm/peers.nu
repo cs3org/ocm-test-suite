@@ -1,5 +1,44 @@
 # Resolve container IPs from Docker labels and write mitm/peers.json.
 
+# Parse SENDER_*/RECEIVER_* proxy keys from a stack.env file.
+# Returns a proxy record with empty strings for any absent key; never errors.
+def read-stack-env-proxy [stack_env_path: string] {
+    let target_keys = [
+        "SENDER_HTTP_PROXY" "SENDER_HTTPS_PROXY" "SENDER_NO_PROXY"
+        "RECEIVER_HTTP_PROXY" "RECEIVER_HTTPS_PROXY" "RECEIVER_NO_PROXY"
+    ]
+    let rows = if ($stack_env_path | path exists) {
+        (
+            try { open --raw $stack_env_path | lines } catch { [] }
+            | where {|l|
+                let t = ($l | str trim)
+                (not ($t | is-empty)) and (not ($t | str starts-with "#")) and ($t | str contains "=")
+            }
+            | each {|l|
+                let parts = ($l | str trim | split row "=")
+                {key: ($parts | first | str trim), val: ($parts | skip 1 | str join "=")}
+            }
+            | where {|r| $r.key in $target_keys}
+        )
+    } else {
+        []
+    }
+    let m = ($rows | reduce --fold {} {|row, acc| $acc | upsert $row.key $row.val})
+    {
+        sender: {
+            http: ($m.SENDER_HTTP_PROXY? | default ""),
+            https: ($m.SENDER_HTTPS_PROXY? | default ""),
+            no_proxy: ($m.SENDER_NO_PROXY? | default ""),
+        },
+        receiver: {
+            http: ($m.RECEIVER_HTTP_PROXY? | default ""),
+            https: ($m.RECEIVER_HTTPS_PROXY? | default ""),
+            no_proxy: ($m.RECEIVER_NO_PROXY? | default ""),
+        },
+        mitm_service: "mitm:8080",
+    }
+}
+
 # Resolve IPv4 for a compose service by querying Docker with label filters.
 # Returns empty string when the container or network cannot be found.
 def resolve-service-ip [stack_id: string, service: string] {
@@ -66,6 +105,9 @@ export def write-mitm-peers [
     let sp = ($cell.sender_platform? | default "")
     let rp = ($cell.receiver_platform? | default "")
 
+    let stack_env_path = ($artifacts_base | path join "compose" "inputs" "stack.env")
+    let proxy = (read-stack-env-proxy $stack_env_path)
+
     let peers = {
         schema_version: 1,
         roles: {
@@ -82,6 +124,7 @@ export def write-mitm-peers [
                 hosts: ["mitm"],
             },
         },
+        proxy: $proxy,
     }
 
     let peers_path = ($artifacts_base | path join "mitm" "peers.json")

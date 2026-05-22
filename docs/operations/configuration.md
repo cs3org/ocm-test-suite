@@ -17,6 +17,33 @@ Preview effective image refs for a real run:
 Note: `images show` is a raw platform/version view and does not apply
 scenario-scoped overrides.
 
+### Image overrides
+
+Platform image refs can be overridden through `config/images.nuon`
+`override_env` keys.
+
+For `ocmgo/v1`, the operator override is:
+
+- `OCMTS_OCMGO_IMAGE`
+
+Example local `ocmgo` image flow:
+
+```bash
+export OCMTS_OCMGO_IMAGE=opencloudmesh-go:local
+nu scripts/ocmts.nu images show --platform ocmgo --version v1
+nu scripts/ocmts.nu images resolve \
+  --scenario share-with-ocmgo-nc \
+  --sender-platform ocmgo --sender-version v1 \
+  --receiver-platform nextcloud --receiver-version v34
+```
+
+This override is temporary and shell-scoped. It is the preferred way to point
+OCMTS at a locally built `ocmgo` image without changing the published image
+defaults.
+
+For `ocmgo` sender/receiver pairs, the same override applies to both roles
+unless a narrower role-specific override is added in `config/images.nuon`.
+
 ## Actors (test accounts)
 
 Actor configuration lives under `config/actors/`:
@@ -38,6 +65,22 @@ keys):
 
 For manual overrides, pass the matching Cypress env keys (without the `CYPRESS_`
 prefix), for example `nextcloud_username` or `sender_username`.
+
+## MITM and proxy evidence
+
+Two-party MITM scenarios write the platform proxy contract into
+`compose/inputs/stack.env` before Docker starts. Review these files in order
+when debugging outbound traffic routing:
+
+- `compose/inputs/stack.env`
+- `mitm/startup.v1.json`
+- `mitm/peers.json`
+- `mitm/flows/traffic.jsonl`
+- `mitm/reports/*`
+
+For share-with flows, `stack.env` is the first place to confirm
+`SENDER_HTTP_PROXY`, `SENDER_HTTPS_PROXY`, `RECEIVER_HTTP_PROXY`, and
+`RECEIVER_HTTPS_PROXY` point at `http://mitm:8080`.
 
 ## Cypress environment access
 

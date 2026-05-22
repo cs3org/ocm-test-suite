@@ -57,6 +57,12 @@ sidecars (`meta/result.v1.json`, `meta/images.v1.json`,
 `mitm/connect-errors.v1.jsonl`) carry their own structured records and are
 referenced from the master sidecar.
 
+For MITM-backed flows, the platform proxy contract lives in
+`compose/inputs/stack.env`. Treat that file as the source of truth for
+`SENDER_*` and `RECEIVER_*_PROXY` values, and use `mitm/peers.json` plus
+`mitm/flows/traffic.jsonl` to relate those settings to the observed network
+traffic.
+
 ## Evidence Classes
 
 | Class | Local artifact | Manifest evidence | Site artifact | Policy |
@@ -65,7 +71,7 @@ referenced from the master sidecar.
 | Screenshots | yes | yes | yes | Primary proof evidence. |
 | Videos | yes | yes | yes | Published by default; use `--no-video` only for fast local checks. |
 | Docker logs | yes | yes | yes | Supporting debug evidence. The mitm container log itself is no longer collected; mitm activity is captured via the `mitm/flows/` and `mitm/reports/` evidence below. |
-| MITM flows and reports | yes | yes | yes | Supporting protocol evidence for MITM flows (`traffic.jsonl`, `session.json`, derived reports under `mitm/reports/`, plus `startup.v1.json` and `connect-errors.v1.jsonl`). |
+| MITM flows and reports | yes | yes | yes | Supporting protocol evidence for MITM flows (`traffic.jsonl`, `session.json`, derived reports under `mitm/reports/`, plus `startup.v1.json`, `peers.json`, and `connect-errors.v1.jsonl`). |
 | Downloads | yes | yes | no | Local/per-run evidence only unless a future site feature needs them. |
 | Compose inputs | yes | yes (`compose/manifest.v1.json` only) | yes (manifest only) | Reproducibility artifact; the structured manifest is published, the raw rendered files are not. |
 

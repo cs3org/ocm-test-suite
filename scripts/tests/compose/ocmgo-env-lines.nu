@@ -14,40 +14,40 @@ def fixture-actor [] {
     {username: "admin", password: "secret", platform: "ocmgo"}
 }
 
-# Two-party ocmgo sender: ROUTE_PEER_HOSTS equals receiver short host.
+# Two-party ocmgo sender: ROUTE_PEER_HOSTS equals receiver party hostname (FQDN).
 def test-two-party-ocmgo-sender-route-peer-hosts [] {
     test-log "\n[test-two-party-ocmgo-sender-route-peer-hosts]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2")
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker")
     [
-        (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_PEER_HOSTS=nc2"
-            "sender ROUTE_PEER_HOSTS is receiver short host nc2")
+        (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_PEER_HOSTS=nc2.docker"
+            "sender ROUTE_PEER_HOSTS is receiver FQDN nc2.docker")
     ]
 }
 
 # Two-party ocmgo sender: ROUTE_SUFFIXES is .docker.
 def test-two-party-ocmgo-sender-route-suffixes [] {
     test-log "\n[test-two-party-ocmgo-sender-route-suffixes]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2")
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker")
     [
         (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_SUFFIXES=.docker"
             "sender ROUTE_SUFFIXES is .docker")
     ]
 }
 
-# Two-party ocmgo receiver: ROUTE_PEER_HOSTS equals sender short host.
+# Two-party ocmgo receiver: ROUTE_PEER_HOSTS equals sender party hostname (FQDN).
 def test-two-party-ocmgo-receiver-route-peer-hosts [] {
     test-log "\n[test-two-party-ocmgo-receiver-route-peer-hosts]"
-    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1")
+    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1.docker")
     [
-        (assert-list-contains $lines "OCM_GO_RECEIVER_ROUTE_PEER_HOSTS=nc1"
-            "receiver ROUTE_PEER_HOSTS is sender short host nc1")
+        (assert-list-contains $lines "OCM_GO_RECEIVER_ROUTE_PEER_HOSTS=nc1.docker"
+            "receiver ROUTE_PEER_HOSTS is sender FQDN nc1.docker")
     ]
 }
 
 # Two-party ocmgo receiver: ROUTE_SUFFIXES is .docker.
 def test-two-party-ocmgo-receiver-route-suffixes [] {
     test-log "\n[test-two-party-ocmgo-receiver-route-suffixes]"
-    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1")
+    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1.docker")
     [
         (assert-list-contains $lines "OCM_GO_RECEIVER_ROUTE_SUFFIXES=.docker"
             "receiver ROUTE_SUFFIXES is .docker")
@@ -107,7 +107,7 @@ def test-one-party-ocmgo-receiver-route-vars-blank [] {
 # Two-party ocmgo sender: host and admin envs are still present alongside route vars.
 def test-two-party-ocmgo-sender-host-admin-coexist [] {
     test-log "\n[test-two-party-ocmgo-sender-host-admin-coexist]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2")
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker")
     [
         (assert-list-contains $lines "OCM_GO_SENDER_HOST=nc1"
             "sender HOST still emitted alongside route vars")
@@ -115,8 +115,8 @@ def test-two-party-ocmgo-sender-host-admin-coexist [] {
             "sender ADMIN_USER still emitted alongside route vars")
         (assert-list-contains $lines "OCM_GO_SENDER_ADMIN_PASSWORD=secret"
             "sender ADMIN_PASSWORD still emitted alongside route vars")
-        (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_PEER_HOSTS=nc2"
-            "sender ROUTE_PEER_HOSTS present when host/admin also present")
+        (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_PEER_HOSTS=nc2.docker"
+            "sender ROUTE_PEER_HOSTS is FQDN when host/admin also present")
     ]
 }
 

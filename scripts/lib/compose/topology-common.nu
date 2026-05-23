@@ -62,9 +62,9 @@ export def copy-overlays-to-artifacts [
 
 # Return OCM_GO_<ROLE_UPPER>_* env lines for ocmgo platforms.
 # For non-ocmgo platforms returns blank slot lines.
-# peer_host: short host of the opposite party (without .docker); when provided
-# for an ocmgo role, emits route intent vars. Pass null (default) for one-party
-# or non-ocmgo roles to emit blank route slots.
+# peer_host: resolvable hostname of the opposite party (e.g. ocmgo2.docker);
+# when provided for an ocmgo role, emits ROUTE_PEER_HOSTS and ROUTE_SUFFIXES.
+# Pass null (default) for one-party or non-ocmgo roles to emit blank slots.
 export def ocmgo-env-lines [
     role: string,
     platform: string,
@@ -75,7 +75,6 @@ export def ocmgo-env-lines [
     let role_upper = ($role | str upcase)
     let route_lines = if ($platform == "ocmgo" and $peer_host != null) {
         [
-            # peer host is the bare hostname only; .docker extension is separate via ROUTE_SUFFIXES
             $"OCM_GO_($role_upper)_ROUTE_PEER_HOSTS=($peer_host)"
             $"OCM_GO_($role_upper)_ROUTE_SUFFIXES=.docker"
         ]
@@ -87,7 +86,7 @@ export def ocmgo-env-lines [
     }
     if $platform == "ocmgo" {
         if $actor == null {
-            error make {msg: $"($role) platform 'ocmgo' requires a ($role) actor (admin credentials); none configured for this scenario"}
+            error make {msg: $"($role) platform 'ocmgo' requires a ($role) actor \(admin credentials\); none configured for this scenario"}
         }
         [
             $"OCM_GO_($role_upper)_HOST=($short_host)"

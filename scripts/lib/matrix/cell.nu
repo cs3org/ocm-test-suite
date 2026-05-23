@@ -138,7 +138,7 @@ export def validate-cell-rules [
     let sc_receiver = $sc.receiver?
     if $sc_receiver != null {
         if ($receiver_platform | is-empty) {
-            error make {msg: $"Scenario '($scenario)' requires --receiver-platform (expected: ($sc_receiver.platform))"}
+            error make {msg: $"Scenario '($scenario)' requires --receiver-platform \(expected: ($sc_receiver.platform)\)"}
         }
         if ($receiver_version | is-empty) {
             error make {msg: $"Scenario '($scenario)' requires --receiver-version"}

@@ -28,7 +28,7 @@ def parse-and-validate-ssot [path: string] {
         error make {msg: $"($path): top-level value must be an object"}
     }
     if ($raw.schema_version? | default null) != 1 {
-        error make {msg: $"($path): unsupported schema_version (expected 1), got ($raw.schema_version?)"}
+        error make {msg: $"($path): unsupported schema_version \(expected 1\), got ($raw.schema_version?)"}
     }
     let adapters_in = ($raw.adapters? | default null)
     if $adapters_in == null or (not (($adapters_in | describe) | str starts-with "record")) {

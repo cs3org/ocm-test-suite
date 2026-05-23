@@ -35,7 +35,7 @@ export def resolve-account [
         error make {msg: $"($label) account not in scenario config and no defaults file found at config/actors/defaults.nuon"}
     }
     if ($flow_id | is-empty) {
-        error make {msg: $"($label) account not in scenario config and cannot look up defaults: flow_id unknown (no matrix rule for this scenario)"}
+        error make {msg: $"($label) account not in scenario config and cannot look up defaults: flow_id unknown \(no matrix rule for this scenario\)"}
     }
     let flow_entry = ($defaults.flows? | default {} | get --optional $flow_id)
     if $flow_entry == null {

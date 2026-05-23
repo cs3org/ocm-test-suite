@@ -62,13 +62,29 @@ export def copy-overlays-to-artifacts [
 
 # Return OCM_GO_<ROLE_UPPER>_* env lines for ocmgo platforms.
 # For non-ocmgo platforms returns blank slot lines.
+# peer_host: short host of the opposite party (without .docker); when provided
+# for an ocmgo role, emits route intent vars. Pass null (default) for one-party
+# or non-ocmgo roles to emit blank route slots.
 export def ocmgo-env-lines [
     role: string,
     platform: string,
     actor: any,
     short_host: string,
+    peer_host: any = null,
 ]: nothing -> list<string> {
     let role_upper = ($role | str upcase)
+    let route_lines = if ($platform == "ocmgo" and $peer_host != null) {
+        [
+            # peer host is the bare hostname only; .docker extension is separate via ROUTE_SUFFIXES
+            $"OCM_GO_($role_upper)_ROUTE_PEER_HOSTS=($peer_host)"
+            $"OCM_GO_($role_upper)_ROUTE_SUFFIXES=.docker"
+        ]
+    } else {
+        [
+            $"OCM_GO_($role_upper)_ROUTE_PEER_HOSTS="
+            $"OCM_GO_($role_upper)_ROUTE_SUFFIXES="
+        ]
+    }
     if $platform == "ocmgo" {
         if $actor == null {
             error make {msg: $"($role) platform 'ocmgo' requires a ($role) actor (admin credentials); none configured for this scenario"}
@@ -77,12 +93,12 @@ export def ocmgo-env-lines [
             $"OCM_GO_($role_upper)_HOST=($short_host)"
             $"OCM_GO_($role_upper)_ADMIN_USER=($actor.username)"
             $"OCM_GO_($role_upper)_ADMIN_PASSWORD=($actor.password)"
-        ]
+        ] | append $route_lines
     } else {
         [
             $"OCM_GO_($role_upper)_HOST="
             $"OCM_GO_($role_upper)_ADMIN_USER="
             $"OCM_GO_($role_upper)_ADMIN_PASSWORD="
-        ]
+        ] | append $route_lines
     }
 }

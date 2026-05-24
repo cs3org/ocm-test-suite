@@ -30,6 +30,7 @@ def write-two-party-env [
     root: string,
     sender_actor: any,
     receiver_actor: any,
+    exec_cidr: string,
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -88,8 +89,8 @@ def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $receiver_party_host))
-    $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $sender_party_host))
+    $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $receiver_party_host $exec_cidr))
+    $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $sender_party_host $exec_cidr))
     if $sender_actor != null {
         $lines = ($lines | append [
             $"CYPRESS_sender_username=($sender_actor.username)"
@@ -141,12 +142,13 @@ export def write-two-party-overlays [
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
+    let exec_cidr = $ctx.exec_cidr
     let compose_d = $ctx.compose_d
     let art_inputs = $ctx.art_inputs
     let base_yml = $ctx.base_yml
 
-    # exec.yml: network name binding
-    write-exec-yml $compose_d $stack_id
+    # exec.yml: network name binding with deterministic IPAM subnet
+    write-exec-yml $compose_d $stack_id $exec_cidr
 
     # Copy sender and receiver cookbook YAMLs
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
@@ -157,7 +159,7 @@ export def write-two-party-overlays [
         $art_inputs $sender_platform $receiver_platform
         $sender_version $receiver_version
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
-        $record_video $root $sender_actor $receiver_actor)
+        $record_video $root $sender_actor $receiver_actor $exec_cidr)
 
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)

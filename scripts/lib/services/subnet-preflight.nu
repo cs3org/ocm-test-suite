@@ -65,6 +65,54 @@ export def find-conflict-networks [
     } | compact
 }
 
+# Validate that exec_cidr is a well-formed IPv4 CIDR; errors with a clear
+# message if malformed. Does nothing if the input is valid.
+def validate-exec-cidr [cidr: string] {
+    let err = (
+        if not ($cidr | str contains "/") {
+            $"exec_cidr '($cidr)' is malformed: missing '/' separator"
+        } else {
+            let parts = ($cidr | split row "/")
+            if ($parts | length) != 2 {
+                $"exec_cidr '($cidr)' is malformed: extra '/' separator"
+            } else {
+                let octets = ($parts.0 | split row ".")
+                if ($octets | length) != 4 {
+                    let n = ($octets | length)
+                    $"exec_cidr '($cidr)' is malformed: IP part must have 4 octets, got ($n)"
+                } else {
+                    let prefix_valid = (try {
+                        let p = ($parts.1 | into int)
+                        ($p >= 0) and ($p <= 32)
+                    } catch { false })
+                    if not $prefix_valid {
+                        $"exec_cidr '($cidr)' is malformed: prefix '($parts.1)' must be an integer in 0..32"
+                    } else {
+                        let octet_status = (try {
+                            let parsed = ($octets | each { into int })
+                            if ($parsed | any {|o| (($o < 0) or ($o > 255))}) {
+                                "out-of-range"
+                            } else {
+                                "ok"
+                            }
+                        } catch { "non-integer" })
+                        if $octet_status == "non-integer" {
+                            $"exec_cidr '($cidr)' is malformed: one or more octets are not integers"
+                        } else if $octet_status == "out-of-range" {
+                            $"exec_cidr '($cidr)' is malformed: one or more octets are out of range 0..255"
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+        }
+    )
+    if $err != null {
+        error make {msg: $err}
+    }
+}
+
 # Thin wrapper: list active Docker networks with their IPAM subnets.
 # Returns list<{name: string, subnets: list<string>}>.
 # Errors when docker is not installed, docker network ls fails, or any inspect fails.
@@ -112,7 +160,8 @@ export def list-active-docker-networks []: nothing -> list<record> {
     }
 }
 
-# Fail fast if exec_cidr overlaps any active Docker network subnet.
+# Fail fast if exec_cidr is malformed or overlaps any active Docker network subnet.
+# Errors immediately with a clear message if exec_cidr is not a well-formed IPv4 CIDR.
 # Error message includes exec_cidr and all conflicting network name/subnet pairs.
 # --networks: inject a list<{name, subnets}> for unit tests; null (default) uses Docker.
 # Docker command failures propagate as errors when --networks is not provided.
@@ -120,6 +169,7 @@ export def check-subnet-preflight [
     exec_cidr: string,
     --networks: any = null,
 ] {
+    validate-exec-cidr $exec_cidr
     let active = if $networks != null { $networks } else { list-active-docker-networks }
     let conflicts = (find-conflict-networks $exec_cidr $active)
     if ($conflicts | is-not-empty) {

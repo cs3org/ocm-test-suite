@@ -319,6 +319,35 @@ def test-preflight-passes-when-exec-cidr-from-known-id [] {
     ]
 }
 
+def test-preflight-fails-on-malformed-exec-cidr [] {
+    test-log "\n[test-preflight-fails-on-malformed-exec-cidr]"
+    let nets = [{name: "bridge", subnets: ["172.17.0.0/16"]}]
+    let cases = [
+        {cidr: "not-a-cidr",              label: "missing slash"}
+        {cidr: "10.1.1/24",               label: "3-octet IP"}
+        {cidr: "10.42.bad.0/24",          label: "non-integer octet"}
+        {cidr: "256.1.1.0/24",            label: "octet out of range"}
+        {cidr: "10.0.0.0/33",             label: "prefix out of range"}
+        {cidr: "10.0.0.0/not-a-prefix",   label: "non-integer prefix"}
+        {cidr: "",                         label: "empty string"}
+        {cidr: "10.0.0.0/24/garbage",     label: "extra slash"}
+    ]
+    $cases | each {|c|
+        let result = (try {
+            check-subnet-preflight $c.cidr --networks $nets
+            "ok"
+        } catch {|e| $e.msg})
+        [
+            (assert-truthy ($result | str contains "malformed")
+                $"($c.label): error must contain 'malformed'")
+            (assert-truthy ($result | str contains "exec_cidr")
+                $"($c.label): error must mention 'exec_cidr'")
+            (assert-truthy ($result | str contains $"'($c.cidr)'")
+                $"($c.label): error must contain the quoted offending input '($c.cidr)'")
+        ]
+    } | flatten
+}
+
 def main [] {
     test-log "=== services/subnet-preflight tests ==="
     let results = (
@@ -343,6 +372,7 @@ def main [] {
         | append (test-preflight-error-names-multiple-conflicts)
         | append (test-preflight-docker-not-found-is-error)
         | append (test-preflight-passes-when-exec-cidr-from-known-id)
+        | append (test-preflight-fails-on-malformed-exec-cidr)
     ) | flatten
     run-suite "services/subnet-preflight" $SUITE_PATH $results
 }

@@ -25,7 +25,7 @@ def fixture-exec-cidr [] { "10.197.228.0/24" }
 # Two-party ocmgo sender: ROUTE_SUFFIXES is .docker.
 def test-two-party-ocmgo-sender-route-suffixes [] {
     test-log "\n[test-two-party-ocmgo-sender-route-suffixes]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker" (fixture-exec-cidr))
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" (fixture-exec-cidr))
     [
         (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_SUFFIXES=.docker"
             "sender ROUTE_SUFFIXES is .docker")
@@ -35,7 +35,7 @@ def test-two-party-ocmgo-sender-route-suffixes [] {
 # Two-party ocmgo sender: ROUTE_PRIVATE_CIDRS equals the execution CIDR.
 def test-two-party-ocmgo-sender-route-private-cidrs [] {
     test-log "\n[test-two-party-ocmgo-sender-route-private-cidrs]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker" (fixture-exec-cidr))
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" (fixture-exec-cidr))
     [
         (assert-list-contains $lines
             $"OCM_GO_SENDER_ROUTE_PRIVATE_CIDRS=(fixture-exec-cidr)"
@@ -46,7 +46,7 @@ def test-two-party-ocmgo-sender-route-private-cidrs [] {
 # Two-party ocmgo receiver: ROUTE_SUFFIXES is .docker.
 def test-two-party-ocmgo-receiver-route-suffixes [] {
     test-log "\n[test-two-party-ocmgo-receiver-route-suffixes]"
-    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1.docker" (fixture-exec-cidr))
+    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" (fixture-exec-cidr))
     [
         (assert-list-contains $lines "OCM_GO_RECEIVER_ROUTE_SUFFIXES=.docker"
             "receiver ROUTE_SUFFIXES is .docker")
@@ -56,7 +56,7 @@ def test-two-party-ocmgo-receiver-route-suffixes [] {
 # Two-party ocmgo receiver: ROUTE_PRIVATE_CIDRS equals the execution CIDR.
 def test-two-party-ocmgo-receiver-route-private-cidrs [] {
     test-log "\n[test-two-party-ocmgo-receiver-route-private-cidrs]"
-    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" "nc1.docker" (fixture-exec-cidr))
+    let lines = (ocmgo-env-lines "receiver" "ocmgo" (fixture-actor) "nc2" (fixture-exec-cidr))
     [
         (assert-list-contains $lines
             $"OCM_GO_RECEIVER_ROUTE_PRIVATE_CIDRS=(fixture-exec-cidr)"
@@ -64,7 +64,7 @@ def test-two-party-ocmgo-receiver-route-private-cidrs [] {
     ]
 }
 
-# One-party ocmgo: ROUTE_SUFFIXES is blank (no peer host passed).
+# One-party ocmgo: ROUTE_SUFFIXES is blank (exec_cidr is null).
 def test-one-party-ocmgo-route-suffixes-blank [] {
     test-log "\n[test-one-party-ocmgo-route-suffixes-blank]"
     let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1")
@@ -74,7 +74,7 @@ def test-one-party-ocmgo-route-suffixes-blank [] {
     ]
 }
 
-# One-party ocmgo: ROUTE_PRIVATE_CIDRS is blank (no peer host means no route).
+# One-party ocmgo: ROUTE_PRIVATE_CIDRS is blank (exec_cidr null means no route).
 def test-one-party-ocmgo-route-private-cidrs-blank [] {
     test-log "\n[test-one-party-ocmgo-route-private-cidrs-blank]"
     let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1")
@@ -84,10 +84,10 @@ def test-one-party-ocmgo-route-private-cidrs-blank [] {
     ]
 }
 
-# Non-ocmgo platform: all OCM_GO var slots are blank regardless of peer_host.
+# Non-ocmgo platform: all OCM_GO var slots are blank.
 def test-non-ocmgo-platform-vars-blank [] {
     test-log "\n[test-non-ocmgo-platform-vars-blank]"
-    let lines = (ocmgo-env-lines "sender" "nextcloud" null "nc1" "nc2")
+    let lines = (ocmgo-env-lines "sender" "nextcloud" null "nc1")
     [
         (assert-list-contains $lines "OCM_GO_SENDER_ROUTE_SUFFIXES="
             "non-ocmgo sender ROUTE_SUFFIXES is blank")
@@ -117,7 +117,7 @@ def test-one-party-ocmgo-receiver-route-vars-blank [] {
 # Two-party ocmgo sender: host and admin envs are still present alongside route vars.
 def test-two-party-ocmgo-sender-host-admin-coexist [] {
     test-log "\n[test-two-party-ocmgo-sender-host-admin-coexist]"
-    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker" (fixture-exec-cidr))
+    let lines = (ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" (fixture-exec-cidr))
     [
         (assert-list-contains $lines "OCM_GO_SENDER_HOST=nc1"
             "sender HOST still emitted alongside route vars")
@@ -169,45 +169,30 @@ def test-execution-cidr-distinct [] {
     ]
 }
 
-# Two-party ocmgo: null exec_cidr with peer_host set should error.
-def test-two-party-ocmgo-null-exec-cidr-fails [] {
-    test-log "\n[test-two-party-ocmgo-null-exec-cidr-fails]"
-    let err = (try {
-        ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker" null
-        null
-    } catch {|e| $e})
-    let msg = (try { $err.msg } catch { "" })
-    [
-        (assert-truthy ($err != null) "null exec_cidr with peer_host should error")
-        (assert-string-contains $msg "exec_cidr"
-            "null exec_cidr error mentions exec_cidr")
-    ]
-}
-
-# Two-party ocmgo: empty-string exec_cidr with peer_host set should error.
+# Two-party ocmgo: empty-string exec_cidr should error (must be valid CIDR or null).
 def test-two-party-ocmgo-empty-exec-cidr-fails [] {
     test-log "\n[test-two-party-ocmgo-empty-exec-cidr-fails]"
     let err = (try {
-        ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" "nc2.docker" ""
+        ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" ""
         null
     } catch {|e| $e})
     let msg = (try { $err.msg } catch { "" })
     [
-        (assert-truthy ($err != null) "empty exec_cidr with peer_host should error")
+        (assert-truthy ($err != null) "empty exec_cidr should error")
         (assert-string-contains $msg "exec_cidr"
             "empty exec_cidr error mentions exec_cidr")
     ]
 }
 
-# One-party ocmgo: null exec_cidr without peer_host is fine (no route envs emitted).
+# One-party ocmgo: null exec_cidr is valid (no route envs emitted, blank slots).
 def test-one-party-ocmgo-null-exec-cidr-ok [] {
     test-log "\n[test-one-party-ocmgo-null-exec-cidr-ok]"
     let err = (try {
-        ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" null null
+        ocmgo-env-lines "sender" "ocmgo" (fixture-actor) "nc1" null
         null
     } catch {|e| $e})
     [
-        (assert-null $err "null exec_cidr without peer_host should not error")
+        (assert-null $err "null exec_cidr should not error")
     ]
 }
 
@@ -316,7 +301,6 @@ def main [] {
         | append (test-execution-cidr-known-tail)
         | append (test-execution-cidr-zero-tail)
         | append (test-execution-cidr-distinct)
-        | append (test-two-party-ocmgo-null-exec-cidr-fails)
         | append (test-two-party-ocmgo-empty-exec-cidr-fails)
         | append (test-one-party-ocmgo-null-exec-cidr-ok)
         | append (test-execution-cidr-no-dash)

@@ -66,6 +66,35 @@ keys):
 For manual overrides, pass the matching Cypress env keys (without the `CYPRESS_`
 prefix), for example `nextcloud_username` or `sender_username`.
 
+## Execution subnet and ocmgo route envs
+
+Every run derives a deterministic execution subnet from `execution_id`.
+OCMTS maps the first two hex byte pairs in the `execution_id` suffix to
+`10.<B>.<C>.0/24`, then writes that `exec_cidr` into
+`compose/inputs/exec.yml` as the `ocm-net` subnet.
+
+Two-party runs reuse that same `exec_cidr` when a role platform is
+`ocmgo`. `compose/inputs/stack.env` sets
+`OCM_GO_<ROLE>_ROUTE_SUFFIXES=.docker` and
+`OCM_GO_<ROLE>_ROUTE_PRIVATE_CIDRS=<exec_cidr>` for each `ocmgo`
+sender or receiver. One-party runs, and any role whose platform is not
+`ocmgo`, still emit those keys but leave them blank.
+
+Before Docker Compose starts, OCMTS runs subnet preflight against the
+derived `exec_cidr`. Malformed CIDRs and overlaps with active Docker
+network subnets fail early with a clear error that names the rejected
+`exec_cidr` and the conflicting Docker networks.
+
+When debugging route or subnet issues, inspect these in order:
+
+- `compose/inputs/exec.yml` for the resolved `ocm-net` subnet.
+- `compose/inputs/stack.env` for the `OCM_GO_<ROLE>_ROUTE_SUFFIXES` and
+  `OCM_GO_<ROLE>_ROUTE_PRIVATE_CIDRS` values that were handed to Docker
+  Compose.
+- If setup fails before `compose/inputs/` exists, use the CLI error as
+  the source of truth for the rejected `exec_cidr` and any overlapping
+  active Docker network subnets.
+
 ## MITM and proxy evidence
 
 Two-party MITM scenarios write the platform proxy contract into

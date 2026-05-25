@@ -89,8 +89,8 @@ def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $receiver_party_host $exec_cidr))
-    $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $sender_party_host $exec_cidr))
+    $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
+    $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
     if $sender_actor != null {
         $lines = ($lines | append [
             $"CYPRESS_sender_username=($sender_actor.username)"

@@ -97,25 +97,22 @@ export def copy-overlays-to-artifacts [
 
 # Return OCM_GO_<ROLE_UPPER>_* env lines for ocmgo platforms.
 # For non-ocmgo platforms returns blank slot lines.
-# peer_host: FQDN of the opposite party (e.g. ocmgo2.docker); when provided
-#   for an ocmgo role, enables two-party route env emission.
-# exec_cidr: deterministic /24 CIDR from execution_id; when provided for an
-#   ocmgo two-party role, emits ROUTE_SUFFIXES and ROUTE_PRIVATE_CIDRS.
-# Pass null (default) for one-party or non-ocmgo roles to emit blank slots.
+# exec_cidr is the two-party route gate: pass the execution CIDR for
+# two-party runs to emit ROUTE_SUFFIXES and ROUTE_PRIVATE_CIDRS; omit it
+# (default null) for one-party or non-ocmgo callers to emit blank slots.
 export def ocmgo-env-lines [
     role: string,
     platform: string,
     actor: any,
     short_host: string,
-    peer_host: any = null,
     exec_cidr: any = null,
 ]: nothing -> list<string> {
     let role_upper = ($role | str upcase)
-    let route_lines = if ($platform == "ocmgo" and $peer_host != null) {
-        let cidr_empty = (($exec_cidr | default "" | into string | str trim | str length) == 0)
+    let route_lines = if ($platform == "ocmgo" and $exec_cidr != null) {
+        let cidr_empty = (($exec_cidr | into string | str trim | str length) == 0)
         if $cidr_empty {
             error make {
-                msg: $"ocmgo role '($role)' with peer_host requires exec_cidr for ROUTE_PRIVATE_CIDRS; none provided"
+                msg: $"ocmgo role '($role)': exec_cidr must be a non-empty CIDR when provided \(got empty string\)"
             }
         }
         [

@@ -35,14 +35,19 @@ Cypress.on("window:before:load", (win) => {
 
 // Policy: Do not use cy.origin().
 // Avoid cross-origin flows by splitting sender and receiver into separate tests.
-// Exception: contact-wayf may use cy.origin() only to capture the receiver
-// redirect URL after WAYF provider discovery. Login, invite accept, contact
-// proof, and share flow must stay on the receiver origin without cy.origin().
+// Exceptions:
+// - contact-wayf may use cy.origin() only to capture the receiver redirect URL
+//   after WAYF provider discovery.
+// - login may use cy.origin() solely to drive an external IdP (Keycloak) login
+//   form; it must not act as a second EFSS party.
+// Invite accept, contact proof, and share flow must stay on the receiver origin
+// without cy.origin().
 const normalizedSpecRelative = String(Cypress.spec.relative ?? "")
   .split("\\")
   .join("/");
 const allowOriginForSpec =
-  normalizedSpecRelative === "cypress/e2e/contact-wayf/index.cy.ts";
+  normalizedSpecRelative === "cypress/e2e/contact-wayf/index.cy.ts" ||
+  normalizedSpecRelative === "cypress/e2e/login/index.cy.ts";
 try {
   if (!allowOriginForSpec) {
     Cypress.Commands.overwrite("origin", () => {
@@ -50,7 +55,7 @@ try {
         [
           "cy.origin() is forbidden in this test suite.",
           "Rule: split sender and receiver work into separate tests.",
-          "Only contact-wayf redirect capture may use cy.origin(), and it must not login, accept invites, prove contacts, or share files.",
+          "Only contact-wayf redirect capture and login IdP form submission may use cy.origin(); it must not act as a second EFSS party or drive invite accept, contact proof, or share flows.",
         ].join(" "),
       );
     });

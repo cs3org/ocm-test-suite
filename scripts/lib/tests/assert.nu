@@ -10,6 +10,11 @@
 export def PASS []: nothing -> string { "PASS" }
 export def FAIL [msg: string]: nothing -> string { $"FAIL: ($msg)" }
 
+# Marker for a test that could not run (e.g. missing daemon). Counted as
+# neither pass nor fail by run-suite, but surfaced so a green suite never
+# silently hides a chain that never executed.
+export def SKIP [msg: string]: nothing -> string { $"SKIP: ($msg)" }
+
 # Print msg only in human mode; no-op when OCMTS_TEST_JSON=1.
 export def test-log [msg: string]: nothing -> nothing {
     if ($env.OCMTS_TEST_JSON? != "1") { print $msg }

@@ -19,6 +19,24 @@
         "default": "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
       }
     },
+    "cernbox": {
+      "override_env": "OCMTS_CERNBOX_WEB_IMAGE",
+      "v11": {
+        "default": "ghcr.io/mahdibaghbani/containers/cernbox-web:master",
+        "bundle": {
+          "revad": {
+            "default": "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development",
+            "override_env": "OCMTS_CERNBOX_REVAD_IMAGE",
+            "service": "sender-revad-gateway"
+          },
+          "idp": {
+            "default": "ghcr.io/mahdibaghbani/containers/idp:v26.4.2",
+            "override_env": "OCMTS_CERNBOX_IDP_IMAGE",
+            "service": "idp"
+          }
+        }
+      }
+    },
     "nextcloud": {
       "override_env": "OCMTS_NEXTCLOUD_IMAGE",
       "v32": {

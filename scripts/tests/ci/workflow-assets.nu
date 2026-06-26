@@ -11,6 +11,8 @@ use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml
     build-flow-assets
 ]
+use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
+use ../../lib/site/flow-caps.nu [load-flow-caps]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [make-cell]
 use ../../lib/tests/runner.nu [run-suite]
@@ -237,10 +239,79 @@ def test-asset-display-name-two-party-format [] {
     ]
 }
 
+# Builds the production login flow asset from real config (matrix rules,
+# prerequisites.nuon, flow-caps, adapter capabilities). Returns repo_root plus
+# the parsed login cells so login/cernbox/drift tests share one prod plan.
+def prod-plan-and-login-asset [] {
+    let repo_root = ($SUITE_PATH | path dirname | path join ".." ".." ".." | path expand)
+    let rules = (load-matrix-rules $repo_root)
+    let prod_prereqs = (open ($repo_root | path join "config" "ci" "prerequisites.nuon"))
+    let flow_caps = (load-flow-caps ($repo_root | path join "config" "matrix" "flows"))
+    let adapters = (open ($repo_root | path join "config" "adapters" "capabilities.v1.nuon") | get adapters)
+    let plan = (plan-suite $rules $prod_prereqs $flow_caps $adapters)
+    let flow_assets = (build-flow-assets $plan)
+    let login_asset_list = ($flow_assets | where {|a| ($a.path | path basename) == "login.json"})
+    let login_content = if not ($login_asset_list | is-empty) {
+        $login_asset_list | first | get content
+    } else { "" }
+    let login_cells = if ($login_content | is-empty) { [] } else { $login_content | from json }
+    {repo_root: $repo_root, login_cells: $login_cells, login_content: $login_content}
+}
+
+# Regression: production matrix + adapter config must emit login__cernbox-v11
+# in the login flow asset (one-party shape, consistent naming).
+def test-prod-login-asset-includes-cernbox-v11 [] {
+    test-log "\n[test-prod-login-asset-includes-cernbox-v11]"
+    let ctx = (prod-plan-and-login-asset)
+    let cernbox_cell_list = ($ctx.login_cells | where cell_id == "login__cernbox-v11")
+    [
+        (assert-truthy (not ($cernbox_cell_list | is-empty))
+            "prod config: login asset includes login__cernbox-v11")
+        (assert-eq ($cernbox_cell_list | first | get sender_platform) "cernbox"
+            "cernbox login cell sender_platform is cernbox")
+        (assert-eq ($cernbox_cell_list | first | get sender_version) "v11"
+            "cernbox login cell sender_version is v11")
+        (assert-eq ($cernbox_cell_list | first | get receiver_platform) ""
+            "cernbox login cell is one-party (empty receiver_platform)")
+        (assert-eq ($cernbox_cell_list | first | get receiver_version) ""
+            "cernbox login cell is one-party (empty receiver_version)")
+        (assert-eq ($cernbox_cell_list | first | get scenario) "login-cernbox"
+            "cernbox login cell scenario is login-cernbox (runtime wiring keys on scenario)")
+        (assert-eq ($cernbox_cell_list | first | get artifact_name) "cell-login-cernbox-v11"
+            "cernbox login cell artifact_name is cell-login-cernbox-v11")
+        (assert-eq ($cernbox_cell_list | first | get display_name) "cernbox v11"
+            "cernbox login cell display_name is cernbox v11")
+    ]
+}
+
+# Regression: committed login.json must match prod generator output (no stale drift).
+def test-committed-login-asset-matches-prod-generator [] {
+    test-log "\n[test-committed-login-asset-matches-prod-generator]"
+    let ctx = (prod-plan-and-login-asset)
+    let committed_path = ($ctx.repo_root | path join ".github" "workflows" "assets" "login.json")
+    # Parsed compare in emitted order gives a readable failure for content,
+    # array-order, or wave_index drift (generator order is deterministic: flow
+    # position then cell_id, with wave_index following that order).
+    let committed_cells = (open $committed_path)
+    # Byte-exact compare mirrors the authoritative CI preflight
+    # (workflows-check-github.nu uses `open --raw`), so formatting, key order,
+    # and trailing-newline drift fail locally instead of only in CI.
+    let committed_raw = (open --raw $committed_path)
+    [
+        (assert-eq $committed_cells $ctx.login_cells
+            "committed login.json matches prod generator in emitted order (regenerate via: nu scripts/ocmts.nu ci workflows generate github)")
+        (assert-eq $committed_raw $ctx.login_content
+            "committed login.json is byte-exact with prod generator output (regenerate via: nu scripts/ocmts.nu ci workflows generate github)")
+    ]
+}
+
 # Regression: the production prerequisites config must generate non-empty
 # cell_depends_on for share-with cells. Loads config/ci/prerequisites.nuon
-# directly so any capability_flow mismatch is caught here rather than masked
-# by the fixture-prereqs shim (which already uses the correct flow id).
+# directly so a capability_flow mismatch is caught here rather than masked by
+# the fixture-prereqs shim. Rules/flow-caps/adapters stay fixture/empty on
+# purpose: build-flow-assets only emits capability_action == "run" cells, so
+# real adapters could capability-skip the share-with cell and mask the prereqs
+# wiring this test exists to protect.
 def test-prod-prereqs-share-with-cell-depends-on [] {
     test-log "\n[test-prod-prereqs-share-with-cell-depends-on]"
     let repo_root = ($SUITE_PATH | path dirname | path join ".." ".." ".." | path expand)
@@ -280,6 +351,8 @@ def main [] {
         | append (test-asset-cell-display-name-present)
         | append (test-asset-display-name-one-party-format)
         | append (test-asset-display-name-two-party-format)
+        | append (test-prod-login-asset-includes-cernbox-v11)
+        | append (test-committed-login-asset-matches-prod-generator)
         | append (test-prod-prereqs-share-with-cell-depends-on)
     ) | flatten
     run-suite "ci/workflow-assets" $SUITE_PATH $results

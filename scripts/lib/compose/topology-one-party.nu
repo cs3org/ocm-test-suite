@@ -26,6 +26,8 @@ def write-one-party-env [
     record_video: bool,
     root: string,
     actor: any,
+    # Optional per-slot image refs written as SENDER_<SLOT>_IMAGE lines in stack.env.
+    bundle: record = {},
 ]: nothing -> string {
     let party_host = (platform-party-host $platform 1)
     let record_str = if $record_video { "true" } else { "false" }
@@ -70,6 +72,12 @@ def write-one-party-env [
     }
     $lines = ($lines | append $ocm_provider_lines | append $ocm_blank_1_lines)
 
+    for slot in ($bundle | columns) {
+        let slot_up = ($slot | str upcase)
+        let slot_ref = ($bundle | get $slot)
+        $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($slot_ref)")
+    }
+
     let env_path = ($art_inputs | path join "stack.env")
     $lines | str join "\n" | save --force $env_path
     $env_path
@@ -93,6 +101,8 @@ export def write-one-party-overlays [
     root: string,
     artifacts_base: string,
     sender_version: string = "",
+    # Optional per-slot image refs for bundle platforms; forwarded to stack.env.
+    bundle: record = {},
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
@@ -114,7 +124,7 @@ export def write-one-party-overlays [
     # Write stack.env with all substitution variables
     let env_file = (write-one-party-env
         $art_inputs $platform $sender_version $image_ref $mariadb_image $valkey_image
-        $record_video $root $actor)
+        $record_video $root $actor $bundle)
 
     let party_host = (platform-party-host $platform 1)
     let record_str = if $record_video { "true" } else { "false" }

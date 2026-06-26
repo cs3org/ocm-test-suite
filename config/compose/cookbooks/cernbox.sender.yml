@@ -1,0 +1,385 @@
+# CERNBox sender stack (one-party: web + idp + Reva microservices).
+# All dynamic values filled by docker compose env substitution from stack.env.
+# Internal Reva hostnames are hardcoded compose service names (stable DNS).
+# Login needs no volumes: the dev Reva image self-generates /etc/revad from env.
+# Share flows will require a shared /var/tmp/reva (shares.json) across Reva
+# containers; add it when share-with lands.
+services:
+  sender:
+    image: ${SENDER_IMAGE}
+    hostname: sender
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      ocm-net:
+        aliases:
+          - ${SENDER_PARTY_HOST}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -skf https://127.0.0.1/ >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 90s
+    depends_on:
+      idp:
+        condition: service_healthy
+      sender-revad-gateway:
+        condition: service_started
+      sender-revad-dataprovider-localhome:
+        condition: service_started
+      sender-revad-dataprovider-ocm:
+        condition: service_started
+      sender-revad-dataprovider-sciencemesh:
+        condition: service_started
+    environment:
+      - CERNBOX_WEB_HOSTNAME=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_PORT=80
+      - IDP_URL=https://idp.docker
+      - WEB_DOMAIN=${SENDER_PARTY_HOST}
+      - WEB_PROTOCOL=https
+      - WEB_TLS_ENABLED=true
+      - TLS_CRT=/tls/cernbox.crt
+      - TLS_KEY=/tls/cernbox.key
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
+  idp:
+    image: ${SENDER_IDP_IMAGE}
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      ocm-net:
+        aliases:
+          - idp.docker
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME=https://idp.docker
+      - KC_HOSTNAME_ADMIN=https://idp.docker
+      - KC_HTTP_ENABLED=true
+      - KC_HTTPS_PORT=443
+      - KC_HTTPS_CERTIFICATE_FILE=/tls/idp.crt
+      - KC_HTTPS_CERTIFICATE_KEY_FILE=/tls/idp.key
+      - KC_HEALTH_ENABLED=true
+      - KC_HTTP_MANAGEMENT_SCHEME=http
+      - IDP_DOMAIN=idp.docker
+      - IDP_URL=https://idp.docker
+    # Gate on Keycloak readiness so the login redirect never races a cold boot.
+    # Keycloak exposes /health/ready on the management interface (port 9000). That
+    # interface inherits the main HTTPS settings by default, so force plain HTTP
+    # with KC_HTTP_MANAGEMENT_SCHEME=http and probe with nu (the Keycloak image
+    # has no curl; nu is baked in via common-tools). nu http get exits non-zero
+    # on any non-2xx or connection failure, which is exactly the readiness signal.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/nu",
+          "-c",
+          "http get http://127.0.0.1:9000/health/ready | ignore",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 90s
+  sender-revad-gateway:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      idp:
+        condition: service_healthy
+    environment:
+      - REVAD_CONTAINER_MODE=gateway
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_PORT=80
+      - REVAD_GATEWAY_PROTOCOL=http
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_OCMSHARES_JSON_FILE=/var/tmp/reva/shares.json
+      - WEB_DOMAIN=${SENDER_PARTY_HOST}
+      - WEB_PROTOCOL=https
+      - IDP_DOMAIN=idp.docker
+      - IDP_URL=https://idp.docker
+      - REVAD_CONFIG_DIR=/etc/revad
+      - REVAD_DATAPROVIDER_LOCALHOME_HOST=sender-revad-dataprovider-localhome
+      - REVAD_DATAPROVIDER_LOCALHOME_GRPC_PORT=9143
+      - REVAD_DATAPROVIDER_OCM_HOST=sender-revad-dataprovider-ocm
+      - REVAD_DATAPROVIDER_OCM_GRPC_PORT=9146
+      - REVAD_DATAPROVIDER_SCIENCEMESH_HOST=sender-revad-dataprovider-sciencemesh
+      - REVAD_DATAPROVIDER_SCIENCEMESH_GRPC_PORT=9147
+      - REVAD_AUTHPROVIDER_OIDC_HOST=sender-revad-authprovider-oidc
+      - REVAD_AUTHPROVIDER_OIDC_GRPC_PORT=9158
+      - REVAD_AUTHPROVIDER_MACHINE_HOST=sender-revad-authprovider-machine
+      - REVAD_AUTHPROVIDER_MACHINE_GRPC_PORT=9166
+      - REVAD_AUTHPROVIDER_OCMSHARES_HOST=sender-revad-authprovider-ocmshares
+      - REVAD_AUTHPROVIDER_OCMSHARES_GRPC_PORT=9278
+      - REVAD_AUTHPROVIDER_OCMSHARECODE_HOST=sender-revad-authprovider-ocmsharecode
+      - REVAD_AUTHPROVIDER_OCMSHARECODE_GRPC_PORT=9280
+      - REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_HOST=sender-revad-authprovider-ocmexchangedtoken
+      - REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_GRPC_PORT=9282
+      - REVAD_AUTHPROVIDER_PUBLICSHARES_HOST=sender-revad-authprovider-publicshares
+      - REVAD_AUTHPROVIDER_PUBLICSHARES_GRPC_PORT=9160
+      - OCM_ENABLE_CODE_FLOW=true
+      - OCM_TIMEOUT=10
+      - REVAD_SHAREPROVIDERS_HOST=sender-revad-shareproviders
+      - REVAD_SHAREPROVIDERS_GRPC_PORT=9144
+      - REVAD_GROUPUSERPROVIDERS_HOST=sender-revad-groupuserproviders
+      - REVAD_GROUPUSERPROVIDERS_GRPC_PORT=9145
+      - OCM_PROVIDER_0_NAME=${OCM_PROVIDER_0_NAME}
+      - OCM_PROVIDER_0_FULL_NAME=${OCM_PROVIDER_0_FULL_NAME}
+      - OCM_PROVIDER_0_ORGANIZATION=${OCM_PROVIDER_0_ORGANIZATION}
+      - OCM_PROVIDER_0_DESCRIPTION=${OCM_PROVIDER_0_DESCRIPTION}
+      - OCM_PROVIDER_0_DOMAIN=${OCM_PROVIDER_0_DOMAIN}
+      - OCM_PROVIDER_0_HOMEPAGE=${OCM_PROVIDER_0_HOMEPAGE}
+      - OCM_PROVIDER_0_OCM_ENDPOINT=${OCM_PROVIDER_0_OCM_ENDPOINT}
+      - OCM_PROVIDER_0_OCM_PATH=${OCM_PROVIDER_0_OCM_PATH}
+      - OCM_PROVIDER_0_OCM_HOST=${OCM_PROVIDER_0_OCM_HOST}
+      - OCM_PROVIDER_0_WEBDAV_ENDPOINT=${OCM_PROVIDER_0_WEBDAV_ENDPOINT}
+      - OCM_PROVIDER_0_WEBDAV_PATH=${OCM_PROVIDER_0_WEBDAV_PATH}
+      - OCM_PROVIDER_0_WEBDAV_HOST=${OCM_PROVIDER_0_WEBDAV_HOST}
+  sender-revad-authprovider-oidc:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-oidc
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_OIDC_HOST=sender-revad-authprovider-oidc
+      - REVAD_AUTHPROVIDER_OIDC_GRPC_PORT=9158
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+      - IDP_URL=https://idp.docker
+  sender-revad-authprovider-machine:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-machine
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_MACHINE_HOST=sender-revad-authprovider-machine
+      - REVAD_AUTHPROVIDER_MACHINE_GRPC_PORT=9166
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-authprovider-ocmshares:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-ocmshares
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_OCMSHARES_HOST=sender-revad-authprovider-ocmshares
+      - REVAD_AUTHPROVIDER_OCMSHARES_GRPC_PORT=9278
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-authprovider-ocmsharecode:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-ocmsharecode
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_OCMSHARECODE_HOST=sender-revad-authprovider-ocmsharecode
+      - REVAD_AUTHPROVIDER_OCMSHARECODE_GRPC_PORT=9280
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-authprovider-ocmexchangedtoken:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-ocmexchangedtoken
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_HOST=sender-revad-authprovider-ocmexchangedtoken
+      - REVAD_AUTHPROVIDER_OCMEXCHANGEDTOKEN_GRPC_PORT=9282
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-authprovider-publicshares:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=authprovider-publicshares
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_AUTHPROVIDER_PUBLICSHARES_HOST=sender-revad-authprovider-publicshares
+      - REVAD_AUTHPROVIDER_PUBLICSHARES_GRPC_PORT=9160
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-shareproviders:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=shareproviders
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_SHAREPROVIDERS_HOST=sender-revad-shareproviders
+      - REVAD_SHAREPROVIDERS_GRPC_PORT=9144
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+      - REVAD_OCMSHARES_JSON_FILE=/var/tmp/reva/shares.json
+      - WEB_DOMAIN=${SENDER_PARTY_HOST}
+      - WEB_PROTOCOL=https
+  sender-revad-groupuserproviders:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=groupuserproviders
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_GROUPUSERPROVIDERS_HOST=sender-revad-groupuserproviders
+      - REVAD_GROUPUSERPROVIDERS_GRPC_PORT=9145
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-dataprovider-localhome:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=dataprovider-localhome
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_DATAPROVIDER_LOCALHOME_HOST=sender-revad-dataprovider-localhome
+      - REVAD_DATAPROVIDER_LOCALHOME_PORT=80
+      - REVAD_DATAPROVIDER_LOCALHOME_PROTOCOL=http
+      - REVAD_DATAPROVIDER_LOCALHOME_GRPC_PORT=9143
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-dataprovider-ocm:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=dataprovider-ocm
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_DATAPROVIDER_OCM_HOST=sender-revad-dataprovider-ocm
+      - REVAD_DATAPROVIDER_OCM_PORT=80
+      - REVAD_DATAPROVIDER_OCM_PROTOCOL=http
+      - REVAD_DATAPROVIDER_OCM_GRPC_PORT=9146
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+  sender-revad-dataprovider-sciencemesh:
+    image: ${SENDER_REVAD_IMAGE}
+    networks: [ocm-net]
+    depends_on:
+      sender-revad-gateway:
+        condition: service_started
+    environment:
+      - REVAD_CONTAINER_MODE=dataprovider-sciencemesh
+      - DOMAIN=${SENDER_PARTY_HOST}
+      - REVAD_TLS_ENABLED=false
+      - REVAD_PROTOCOL=http
+      - REVAD_PORT=80
+      - REVAD_DATAPROVIDER_SCIENCEMESH_HOST=sender-revad-dataprovider-sciencemesh
+      - REVAD_DATAPROVIDER_SCIENCEMESH_PORT=80
+      - REVAD_DATAPROVIDER_SCIENCEMESH_PROTOCOL=http
+      - REVAD_DATAPROVIDER_SCIENCEMESH_GRPC_PORT=9147
+      - REVAD_GATEWAY_HOST=sender-revad-gateway
+      - REVAD_GATEWAY_GRPC_PORT=9142
+      - REVAD_LOG_LEVEL=debug
+      - REVAD_LOG_OUTPUT=/var/log/revad.log
+      - REVAD_JWT_SECRET=reva-secret
+      - REVAD_CONFIG_DIR=/etc/revad
+      - OCM_TIMEOUT=10

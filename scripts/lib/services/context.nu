@@ -68,6 +68,7 @@ export def setup-run-context [
         $root $artifacts_base
         $receiver_platform $receiver_image $mitmproxy_image
         $cell.flow_id $sender_version $receiver_version
+        $images.bundle
         --cell-id $cell.cell_id
     )
 

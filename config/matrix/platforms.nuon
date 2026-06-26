@@ -1,6 +1,21 @@
 {
   "schema_version": 1,
   "platforms": {
+    "cernbox": {
+      "slug": "cernbox",
+      "display_name": "CERNBox",
+      "version_lines": [
+        "v11"
+      ],
+      "ocm_endpoints": {
+        "default": {
+          "ocm_path": "/ocm/",
+          "webdav_path": "/dav/",
+          "ocm_host_role": "party",
+          "webdav_host_role": "party"
+        }
+      }
+    },
     "nextcloud": {
       "slug": "nc",
       "display_name": "Nextcloud",

@@ -29,11 +29,18 @@ const opencloudActor: ActorRef = {
   passwordEnvKeys: ["opencloud_password"],
 };
 
+const cernboxActor: ActorRef = {
+  id: "cernbox",
+  usernameEnvKeys: ["cernbox_username"],
+  passwordEnvKeys: ["cernbox_password"],
+};
+
 const actorByPlatform: Record<string, ActorRef> = {
   nextcloud: nextcloudMichielActor,
   ocmgo: ocmgoActor,
   ocis: ocisActor,
   opencloud: opencloudActor,
+  cernbox: cernboxActor,
 };
 
 function parsePlatformVersionToken(token: string): AdapterRef {

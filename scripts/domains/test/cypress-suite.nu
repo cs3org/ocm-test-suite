@@ -160,7 +160,7 @@ def main [
         print $"\n--- ($cell.cell_id) ---"
         mut args: list<string> = [
             "services" "up" "run"
-            "--scenario" $cell.scenario
+            "--flow" $cell.flow_id
             "--sender-platform" $cell.sender_platform
             "--sender-version" $cell.sender_version
             "--browser" $cell.browser

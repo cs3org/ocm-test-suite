@@ -39,7 +39,7 @@ Run fast internal unit tests (no Docker):
 - **Docs index**: `docs/README.md`
 - **CLI and local run details**: `docs/operations/cli.md`
 - **Configuration (images, actors, Cypress env)**: `docs/operations/configuration.md`
-- **Flow identity (flow_id vs scenario key)**: `docs/architecture/scenario-keys.md`
+- **Flow identity (tuple + matrix_key)**: `docs/architecture/scenario-keys.md`
 - **Evidence and publication**: `docs/architecture/evidence-standard.md`,
   `docs/operations/site-publish.md`
 - **Automation layout**: `scripts/README.md`

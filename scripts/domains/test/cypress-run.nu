@@ -1,6 +1,6 @@
 # Run Cypress tests headless against an already-up stack.
 
-use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
+use ../../lib/matrix/cell.nu [compute-cell validate-cell-rules assert-matrix-entry-enabled]
 use ../../lib/artifacts/init.nu [read-last-execution-id]
 use ../../lib/run/execution-id.nu [execution-artifacts-path]
 use ../../lib/compose/validate.nu [validate-compose-strict]
@@ -33,7 +33,7 @@ def stack-platform-running [f_args: list<string>, stack_id: string, is_two_party
 }
 
 def main [
-    --scenario: string,
+    --flow: string,
     --sender-platform: string,
     --sender-version: string,
     --receiver-platform: string = "",
@@ -43,13 +43,9 @@ def main [
     --verbose,     # Show all docker compose output; default is quiet mode
 ] {
     let root = get-ocmts-root
-    assert-scenario-enabled $scenario
-    let flow_id = (validate-cell-rules
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version)
-    let cell = (compute-cell
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version $flow_id)
+    assert-matrix-entry-enabled $flow $sender_platform $receiver_platform
+    validate-cell-rules $flow $sender_platform $sender_version $browser $receiver_platform $receiver_version
+    let cell = (compute-cell $flow $sender_platform $sender_version $browser $receiver_platform $receiver_version)
     let exec_id = if ($execution_id | is-empty) {
         read-last-execution-id $cell.flow_id $cell.pair
     } else {

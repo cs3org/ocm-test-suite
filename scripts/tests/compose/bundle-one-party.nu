@@ -47,7 +47,7 @@ def test-write-compose-overlays-bundle-env-lines [] {
             "mariadb:11" "valkey:7"
             "cypress/e2e/login/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "" "" "" "login" "v11" "" $bundle
+            "" "" "" "v11" "" $bundle
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let results = [
@@ -69,7 +69,7 @@ def test-cernbox-cookbook-stack-env-parity [] {
     let root = (get-ocmts-root)
     let cookbook_path = ($root | path join $CERNBOX_COOKBOOK)
     let cookbook = (open -r $cookbook_path)
-    let imgs = (resolve-images "cernbox" "v11" --scenario "login" --flow-id "login")
+    let imgs = (resolve-images "cernbox" "v11" --matrix-key "login__cernbox" --flow-id "login")
     let artifacts_base = (make-artifacts-base)
     let overlay = (
         write-compose-overlays
@@ -78,7 +78,7 @@ def test-cernbox-cookbook-stack-env-parity [] {
             $imgs.mariadb $imgs.valkey
             "cypress/e2e/login/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "" "" "" "login" "v11" "" $imgs.bundle
+            "" "" "" "v11" "" $imgs.bundle
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let revad_line = $"SENDER_REVAD_IMAGE=($imgs.bundle.revad)"
@@ -111,9 +111,9 @@ def test-setup-run-context-bundle-passthrough [] {
     }
     let root = (get-ocmts-root)
     let exec_id = "20260101t000000-bbccddee"
-    let imgs = (resolve-images "cernbox" "v11" --scenario "login" --flow-id "login")
+    let imgs = (resolve-images "cernbox" "v11" --matrix-key "login__cernbox" --flow-id "login")
     let ctx = (
-        setup-run-context "login-cernbox" "cernbox" "v11" "chrome" false
+        setup-run-context "login" "cernbox" "v11" "chrome" false
             --execution-id $exec_id
     )
     let lines = (read-stack-env-lines $ctx.env_file)

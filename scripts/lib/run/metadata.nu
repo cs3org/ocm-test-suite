@@ -14,6 +14,9 @@
 
 use ../publish/envelope.nu [detect-execution-context collect-evidence]
 use ./result-envelope.nu [build-result-v1]
+use ./tuple-identity.nu [resolve-matrix-key]
+
+export use ./tuple-identity.nu [resolve-matrix-key]
 
 # Open meta/run.json for artifacts_base, error fast if missing or stack_id empty.
 # Returns the full run record so callers can access any field.
@@ -40,6 +43,7 @@ export def write-prepared-run [
     stack_id: string,
     --suite-id: string = "",
     --suite-kind: string = "single",
+    --matrix-key: string = "",
 ] {
     mut r = {
         schema_version: 1,
@@ -54,6 +58,7 @@ export def write-prepared-run [
         suite_kind: $suite_kind,
     }
     if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
+    if not ($matrix_key | is-empty) { $r = ($r | upsert matrix_key $matrix_key) }
     $r | to json | save --force ($artifacts_base | path join "meta/run.json")
 }
 
@@ -74,7 +79,9 @@ export def write-terminal-run [
     --fail-error: string = "",
     --suite-id: string = "",
     --suite-kind: string = "",
+    --matrix-key: string = "",
 ] {
+    let eff_matrix_key = (resolve-matrix-key $artifacts_base --explicit $matrix_key)
     mut r = {
         schema_version: 1,
         id: $execution_id,
@@ -93,6 +100,7 @@ export def write-terminal-run [
     if not ($fail_error | is-empty) { $r = ($r | upsert error $fail_error) }
     if not ($suite_id | is-empty) { $r = ($r | upsert suite_id $suite_id) }
     if not ($suite_kind | is-empty) { $r = ($r | upsert suite_kind $suite_kind) }
+    if not ($eff_matrix_key | is-empty) { $r = ($r | upsert matrix_key $eff_matrix_key) }
     $r | to json | save --force ($artifacts_base | path join "meta/run.json")
 }
 
@@ -148,11 +156,13 @@ export def write-terminal-outcome [
     --fail-error: string = "",
     --suite-id: string = "",
     --suite-kind: string = "",
+    --matrix-key: string = "",
 ] {
+    let eff_matrix_key = (resolve-matrix-key $artifacts_base --explicit $matrix_key)
     (write-terminal-run $artifacts_base $execution_id $cell_id $artifact_name
         $started_at $finished_at $status $exit_code $stack_id $images
         --phase $phase --fail-error $fail_error
-        --suite-id $suite_id --suite-kind $suite_kind)
+        --suite-id $suite_id --suite-kind $suite_kind --matrix-key $eff_matrix_key)
 
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
@@ -179,6 +189,7 @@ export def write-terminal-outcome [
         warnings: [],
         suite_id: $suite_id,
         suite_kind: $suite_kind,
+        matrix_key: $eff_matrix_key,
     })
     $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
 }

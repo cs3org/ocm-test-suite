@@ -36,6 +36,29 @@ export def validate-path-segment [segment: string, label: string] {
     $segment
 }
 
+# Validate version-less matrix lookup key: <flow_id>__<sender>[__<receiver>].
+export def validate-matrix-key [key: string] {
+    if ($key | is-empty) {
+        error make {msg: "matrix_key must not be empty"}
+    }
+    if ($key | str contains "/") {
+        error make {msg: $"matrix_key contains slash: ($key)"}
+    }
+    let parts = ($key | split row "__")
+    if ($parts | length) < 2 {
+        error make {msg: $"matrix_key must have at least flow__sender shape: ($key)"}
+    }
+    if ($parts | length) > 3 {
+        error make {
+            msg: $"matrix_key must match <flow>__<sender>[__<receiver>]: ($key)"
+        }
+    }
+    for p in $parts {
+        validate-path-segment $p "matrix_key segment"
+    }
+    $key
+}
+
 # Validate an artifact name: lowercase alphanumeric groups separated by single
 # hyphens only. Accepts cell-login-nextcloud-v33; rejects dots, spaces, slashes,
 # consecutive hyphens, and leading/trailing hyphens.

@@ -42,7 +42,7 @@ export def build-implemented-cells-record [
         })
         {
             ($c.cell_id): {
-                scenario: $c.scenario,
+                matrix_key: $c.matrix_key,
                 flow_id: $c.flow_id,
                 pair: $c.pair,
                 browser: $c.browser,

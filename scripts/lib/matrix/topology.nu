@@ -24,6 +24,37 @@ export def flow-is-two-party [flow_id: string]: nothing -> bool {
     $val
 }
 
+# Two-party flows require --receiver-platform; one-party flows reject it early.
+export def require-receiver-platform-for-two-party [
+    flow_id: string,
+    receiver_platform: string = "",
+] {
+    let canonical_two_party = (flow-is-two-party $flow_id)
+    if $canonical_two_party and ($receiver_platform | is-empty) {
+        error make {
+            msg: $"Flow '($flow_id)' requires --receiver-platform for two-party flows"
+        }
+    }
+    if (not $canonical_two_party) and (not ($receiver_platform | is-empty)) {
+        error make {
+            msg: $"Flow '($flow_id)' is one-party; do not pass --receiver-platform"
+        }
+    }
+    $canonical_two_party
+}
+
+# One-party flows must not carry a receiver version flag.
+export def reject-spurious-receiver-version-for-one-party [
+    flow_id: string,
+    receiver_version: string = "",
+] {
+    if (not (flow-is-two-party $flow_id)) and (not ($receiver_version | is-empty)) {
+        error make {
+            msg: $"Flow '($flow_id)' is one-party; do not pass --receiver-version"
+        }
+    }
+}
+
 # Assert that derived_two_party matches the canonical two_party for flow_id.
 # source names the caller context for a readable error (e.g. "compute-cell args").
 # Errors with a clear mismatch message; returns nothing on match.

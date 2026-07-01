@@ -19,32 +19,32 @@ export def evidence-path-allowed [rel: string] {
 
 # Build a flat cell list from the in-memory matrix rules record.
 # Mirrors `matrix list --json`: one row per
-# (scenario, sender_version, receiver_version, browser) for two-party,
-# or (scenario, sender_version, browser) for one-party. Includes disabled
-# scenarios (placeholder universe). Does NOT call assert-scenario-enabled.
+# (flow, sender_version, receiver_version, browser) for two-party,
+# or (flow, sender_version, browser) for one-party. Includes disabled
+# flows (placeholder universe). Does NOT call assert-matrix-entry-enabled.
 #
 # Best-effort: each compute-cell call is wrapped in try/catch. On failure
 # the row is warned to stderr and dropped. This differs from
 # expand-matrix-cells (matrix/cells.nu) which fails hard on any cell error.
 # Site ingest favors a partial result over a complete abort.
 export def compute-matrix-cells [rules: record] {
-    $rules.scenarios | items {|scenario, sc|
-        let recv_platform = ($sc.receiver?.platform? | default "")
-        let flow_id_arg = ($sc.flow_id? | default $scenario)
-        let version_pairs = (expand-version-pairs $sc)
+    $rules.matrix | items {|_matrix_key, entry|
+        let recv_platform = ($entry.receiver?.platform? | default "")
+        let flow_id_arg = ($entry.flow_id? | default "")
+        let version_pairs = (expand-version-pairs $entry)
         $version_pairs | each {|vp|
-            $sc.browsers | each {|browser|
+            $entry.browsers | each {|browser|
                 let cell = (try {
-                    (compute-cell $scenario $sc.sender.platform $vp.sender_version $browser
-                        $recv_platform $vp.receiver_version $flow_id_arg)
+                    (compute-cell $flow_id_arg $entry.sender.platform $vp.sender_version $browser
+                        $recv_platform $vp.receiver_version)
                 } catch {|e|
-                    print --stderr $"WARNING: compute-cell failed for ($scenario)/($vp.sender_version)/($browser): ($e.msg)"
+                    print --stderr $"WARNING: compute-cell failed for ($flow_id_arg)/($vp.sender_version)/($browser): ($e.msg)"
                     null
                 })
                 if $cell != null {
                     $cell | merge {
-                        enabled: ($sc.enabled? | default false),
-                        mitm: ($sc.mitm? | default false),
+                        enabled: ($entry.enabled? | default false),
+                        mitm: ($entry.mitm? | default false),
                     }
                 }
             } | where {|x| $x != null}

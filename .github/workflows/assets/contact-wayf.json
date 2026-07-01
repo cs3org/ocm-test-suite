@@ -1,6 +1,6 @@
 [
   {
-    "scenario": "contact-wayf",
+    "flow": "contact-wayf",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",

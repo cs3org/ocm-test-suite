@@ -2,7 +2,6 @@
   "schema_version": 1,
   "platforms": {
     "cernbox": {
-      "slug": "cernbox",
       "display_name": "CERNBox",
       "version_lines": [
         "v11"
@@ -21,7 +20,6 @@
       }
     },
     "nextcloud": {
-      "slug": "nc",
       "display_name": "Nextcloud",
       "version_lines": [
         "v32",
@@ -41,7 +39,6 @@
       }
     },
     "ocmgo": {
-      "slug": "ocmgo",
       "display_name": "Open Cloud Mesh Golang",
       "version_lines": [
         "v1"
@@ -59,7 +56,6 @@
       }
     },
     "ocis": {
-      "slug": "ocis",
       "display_name": "oCIS",
       "version_lines": [
         "v8"
@@ -77,7 +73,6 @@
       }
     },
     "opencloud": {
-      "slug": "opencloud",
       "display_name": "OpenCloud",
       "version_lines": [
         "v6"

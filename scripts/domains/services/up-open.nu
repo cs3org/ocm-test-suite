@@ -28,7 +28,7 @@ def collect-open-failure-logs [ctx: record, compose_files: list<string>, phase: 
 }
 
 def main [
-    --scenario: string,
+    --flow: string,
     --sender-platform: string,
     --sender-version: string,
     --receiver-platform: string = "",
@@ -40,7 +40,7 @@ def main [
     --suite-kind: string = "single",
 ] {
     let ctx = (setup-run-context
-        $scenario $sender_platform $sender_version $browser (not $no_video)
+        $flow $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version
         --suite-id $suite_id --suite-kind $suite_kind)
     let env_file = $ctx.env_file

@@ -88,7 +88,7 @@ def make-cell [flow_id: string, platform: string, version: string, --enabled = t
     {
         cell_id: $"($flow_id)__($platform)-($version)",
         flow_id: $flow_id,
-        scenario: $flow_id,
+        matrix_key: $flow_id,
         sender_platform: $platform,
         sender_version: $version,
         receiver_platform: "",
@@ -211,7 +211,7 @@ def test-worst-role-wins [] {
     let cell = {
         cell_id: "share-with__nextcloud-v34__opencloud-v6",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__opencloud",
         sender_platform: "nextcloud",
         sender_version: "v34",
         receiver_platform: "opencloud",

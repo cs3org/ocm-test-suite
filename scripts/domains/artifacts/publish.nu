@@ -10,7 +10,7 @@ use ../../lib/publish/envelope.nu [emit-publish-envelope]
 
 def main [
     --artifacts-base: string,
-    --scenario: string = "",
+    --flow: string = "",
     --sender-platform: string = "",
     --sender-version: string = "",
     --receiver-platform: string = "",
@@ -22,12 +22,8 @@ def main [
         $artifacts_base
     } else {
         let root = get-ocmts-root
-        let flow_id = (validate-cell-rules
-            $scenario $sender_platform $sender_version "chrome"
-            $receiver_platform $receiver_version)
-        let cell = (compute-cell
-            $scenario $sender_platform $sender_version "chrome"
-            $receiver_platform $receiver_version $flow_id)
+        validate-cell-rules $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version
+        let cell = (compute-cell $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version)
         let exec_id = if ($execution_id | is-empty) {
             read-last-execution-id $cell.flow_id $cell.pair
         } else {

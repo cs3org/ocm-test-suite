@@ -23,7 +23,7 @@ use ../../lib/suite/index.nu [load-suite-entry]
 def main [
     --all,                              # target all flow+pair combinations (excludes suites/)
     --artifacts-base: string = "",      # target exactly one run directory
-    --scenario: string = "",
+    --flow: string = "",
     --sender-platform: string = "",
     --sender-version: string = "",
     --receiver-platform: string = "",
@@ -61,7 +61,7 @@ def main [
 
     # Resolve target run_bases depending on selector.
     let run_bases = if $suite_active {
-        if $all or (not ($artifacts_base | is-empty)) or (not ($scenario | is-empty)) {
+        if $all or (not ($artifacts_base | is-empty)) or (not ($flow | is-empty)) {
             error make {msg: (
                 "--suite-id/--latest-suite cannot be combined with "
                 + "--all, --artifacts-base, or cell selectors"
@@ -102,18 +102,14 @@ def main [
         collect-all-scoped-runs $root $eff_scope $published_only $include_nonterminal
     } else {
         # Cell selector target.
-        if ($scenario | is-empty) {
+        if ($flow | is-empty) {
             error make {msg: (
                 "Provide --all, --artifacts-base, or cell selectors "
-                + "(--scenario, --sender-platform, --sender-version)"
+                + "(--flow, --sender-platform, --sender-version)"
             )}
         }
-        let flow_id = (validate-cell-rules
-            $scenario $sender_platform $sender_version "chrome"
-            $receiver_platform $receiver_version)
-        let cell = (compute-cell
-            $scenario $sender_platform $sender_version "chrome"
-            $receiver_platform $receiver_version $flow_id)
+        validate-cell-rules $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version
+        let cell = (compute-cell $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version)
         collect-scoped-runs $root $cell.flow_id $cell.pair $eff_scope $published_only $include_nonterminal
     }
 

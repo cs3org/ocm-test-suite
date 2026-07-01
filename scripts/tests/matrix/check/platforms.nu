@@ -5,6 +5,7 @@
 const SUITE_PATH = path self
 
 use ../../../lib/matrix/check/platforms.nu [check-platform-completeness check-platform-login]
+use ../../../lib/matrix/rules-gen.nu [matrix-key]
 use ../../../lib/tests/assert.nu *
 use ../../../lib/tests/runner.nu [run-suite]
 use ../../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -16,12 +17,10 @@ def write-platforms-config [tmp_root: string] {
         schema_version: 1,
         platforms: {
             nextcloud: {
-                slug: "nc",
                 version_lines: ["v32", "v33"],
                 login: {mechanism: "same-origin"},
             },
             ocmgo: {
-                slug: "ocmgo",
                 version_lines: ["v1"],
                 login: {mechanism: "same-origin"},
             },
@@ -117,7 +116,6 @@ def test-login-missing-block [] {
         let cfg_path = ($tmp | path join "config/matrix/platforms.nuon")
         let cfg = (open $cfg_path)
         let bad = ($cfg | upsert platforms.nextcloud {
-            slug: "nc",
             version_lines: ["v32", "v33"],
         })
         ($bad | to json) | save --force $cfg_path

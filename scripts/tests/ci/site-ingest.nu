@@ -20,7 +20,7 @@ def test-ingest-missing-injection [] {
     let suite_id = "20260101t000000-aabbccdd"
 
     # Inline matrix rules record with no scenarios (ingest from suite only).
-    let rules = {scenarios: {}}
+    let rules = {matrix: {}}
 
     # Write a fake per-run manifest for cell-a (passed).
     let run_dir = ($artifacts_root | path join "login" "nextcloud-v34" "exec-aaa")
@@ -130,7 +130,7 @@ def test-ingest-missing-injection-cell-list-fallback [] {
     let suite_id = "20260101t000000-aabbccee"
 
     # Matrix rules record with one cell: login__nextcloud-v34 (flow_id=login, pair=nextcloud-v34).
-    let rules = {scenarios: {login: {
+    let rules = {matrix: {login__nextcloud: {
         enabled: true,
         flow_id: "login",
         browsers: ["chrome"],

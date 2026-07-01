@@ -4,6 +4,7 @@
 
 const SUITE_PATH = path self
 
+use ../../lib/matrix/rules-gen.nu [matrix-key]
 use ../../lib/site/cell-impl.nu [
     derive-cell-impl-info
     worst-status-of-blockers
@@ -385,7 +386,6 @@ def test-missing-capability-entry [] {
 # would produce). Use sensible defaults for unused fields.
 def make-full-cell [
     --flow_id: string = "share-with",
-    --scenario: string = "share-with",
     --sender_platform: string = "nextcloud",
     --sender_version: string = "v34",
     --receiver_platform: string = "nextcloud",
@@ -410,9 +410,10 @@ def make-full-cell [
     } else {
         $"cell-($flow_id)-($sender_platform)-($sender_version)"
     }
+    let recv_plat = (if $is_two_party { $receiver_platform } else { "" })
     {
         flow_id: $flow_id,
-        scenario: $scenario,
+        matrix_key: (matrix-key $flow_id $sender_platform $recv_plat),
         scenario_module: $flow_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
@@ -525,7 +526,6 @@ def test-build-implemented-cells-emits-display-fields [] {
     }
     let cell = (make-full-cell
         --flow_id "contact-token"
-        --scenario "contact-token-opencloud-nextcloud"
         --sender_platform "opencloud"
         --sender_version "v6"
         --receiver_platform "nextcloud"
@@ -561,7 +561,6 @@ def test-build-implemented-cells-placeholder-for-disabled [] {
     let adapters = fixture-adapters
     let cell = (make-full-cell
         --flow_id "share-with"
-        --scenario "share-with"
         --sender_platform "nextcloud"
         --sender_version "v34"
         --receiver_platform "nextcloud"
@@ -584,7 +583,7 @@ def test-build-implemented-cells-json-provenance-shape [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
-    let rules = {scenarios: {}}
+    let rules = {matrix: {}}
     let out = (build-implemented-cells-json $rules {} {} $tmp)
     let rfc_re = '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$'
     let hex_re = '^[0-9a-f]{64}$'
@@ -596,8 +595,8 @@ def test-build-implemented-cells-json-provenance-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 10
-            "sources has 10 entries")
+        (assert-eq ($out.sources | length) 9
+            "sources has 9 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})

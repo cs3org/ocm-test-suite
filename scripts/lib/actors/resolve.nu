@@ -11,13 +11,13 @@ export def resolve-platform [
 ] {
     if (not ($cfg_platform | is-empty)) and (not ($expected_platform | is-empty)) {
         if $cfg_platform != $expected_platform {
-            error make {msg: $"($label) platform '($cfg_platform)' in scenario config mismatches expected '($expected_platform)'"}
+            error make {msg: $"($label) platform '($cfg_platform)' in actor config mismatches expected '($expected_platform)'"}
         }
     }
     if not ($cfg_platform | is-empty) { return $cfg_platform }
     if not ($expected_platform | is-empty) { return $expected_platform }
     if not ($matrix_platform | is-empty) { return $matrix_platform }
-    error make {msg: $"Cannot infer ($label) platform: scenario file omits platform, no expected platform provided, and no matrix rule found for this scenario"}
+    error make {msg: $"Cannot infer ($label) platform: actor override omits platform, no expected platform provided, and no matrix rule found for this flow"}
 }
 
 # Resolve account from cfg or defaults lookup; error if neither resolves.
@@ -32,23 +32,23 @@ export def resolve-account [
 ] {
     if not ($cfg_account | is-empty) { return $cfg_account }
     if $defaults == null {
-        error make {msg: $"($label) account not in scenario config and no defaults file found at config/actors/defaults.nuon"}
+        error make {msg: $"($label) account not in actor config and no defaults file found at config/actors/defaults.nuon"}
     }
     if ($flow_id | is-empty) {
-        error make {msg: $"($label) account not in scenario config and cannot look up defaults: flow_id unknown \(no matrix rule for this scenario\)"}
+        error make {msg: $"($label) account not in actor config and cannot look up defaults: flow_id unknown \(no matrix rule for this flow\)"}
     }
     let flow_entry = ($defaults.flows? | default {} | get --optional $flow_id)
     if $flow_entry == null {
-        error make {msg: $"($label) account not in scenario config and defaults have no entry for flow '($flow_id)'"}
+        error make {msg: $"($label) account not in actor config and defaults have no entry for flow '($flow_id)'"}
     }
     let role_entry = ($flow_entry | get --optional $role_key)
     if $role_entry == null {
-        error make {msg: $"($label) account not in scenario config and defaults have no entry for flow '($flow_id)', role '($role_key)'"}
+        error make {msg: $"($label) account not in actor config and defaults have no entry for flow '($flow_id)', role '($role_key)'"}
     }
     let by_platform = ($role_entry.by_platform? | default {})
     let acct = ($by_platform | get --optional $platform)
     if $acct == null {
-        error make {msg: $"($label) account not in scenario config and defaults have no mapping for flow '($flow_id)', role '($role_key)', platform '($platform)'"}
+        error make {msg: $"($label) account not in actor config and defaults have no mapping for flow '($flow_id)', role '($role_key)', platform '($platform)'"}
     }
     $acct
 }

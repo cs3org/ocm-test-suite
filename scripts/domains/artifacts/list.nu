@@ -5,19 +5,15 @@ use ../../lib/run/execution-id.nu [validate-execution-id]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 
 def main [
-    --scenario: string,
+    --flow: string,
     --sender-platform: string,
     --sender-version: string,
     --receiver-platform: string = "",
     --receiver-version: string = "",
 ] {
     let root = get-ocmts-root
-    let flow_id = (validate-cell-rules
-        $scenario $sender_platform $sender_version "chrome"
-        $receiver_platform $receiver_version)
-    let cell = (compute-cell
-        $scenario $sender_platform $sender_version "chrome"
-        $receiver_platform $receiver_version $flow_id)
+    validate-cell-rules $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version
+    let cell = (compute-cell $flow $sender_platform $sender_version "chrome" $receiver_platform $receiver_version)
     let base = ($root | path join "artifacts" $cell.flow_id $cell.pair)
     if not ($base | path exists) {
         print $"No artifacts found for ($cell.flow_id)/($cell.pair)"

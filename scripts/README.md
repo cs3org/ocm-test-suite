@@ -32,9 +32,10 @@ scripts/
   lib/                     # implementation modules (no top-level `main`)
     domain/core/           # CLI primitives (forward-to, root resolution)
     common/                # generic helpers (complete-record, stderr-match)
-    actors/                # credentials, resolve, load (4 scenario loaders,
-                           # list scenarios via list-matrix-scenarios or
-                           # list-override-files), validate
+    actors/                # credentials, resolve, load (tuple loaders for
+                           # actor/sender/receiver; list keys via
+                           # list-matrix-keys or list-override-files),
+                           # validate
     artifacts/             # init, prune
     ci/                    # planner, blocker, aggregator, workflow-gen,
                            # template-renderer, flow-order, suite-stop-on-fail

@@ -26,7 +26,7 @@ use ../../lib/run/finalize.nu [finalize-run]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 
 def main [
-    --scenario: string,
+    --flow: string,
     --sender-platform: string,
     --sender-version: string,
     --receiver-platform: string = "",
@@ -35,13 +35,13 @@ def main [
     --no-video,
     --preserve-temp,
     --keep-up,
-    --verbose,     # Show all docker compose output; default is quiet mode
+    --verbose,
     --suite-id: string = "",
     --suite-kind: string = "single",
-    --execution-id: string = "",   # Override generated execution_id (used by CI)
+    --execution-id: string = "",
 ] {
     let ctx = (setup-run-context
-        $scenario $sender_platform $sender_version $browser (not $no_video)
+        $flow $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version
         --suite-id $suite_id --suite-kind $suite_kind
         --execution-id $execution_id)

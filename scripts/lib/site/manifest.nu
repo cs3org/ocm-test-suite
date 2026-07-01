@@ -39,7 +39,7 @@ export def build-matrix-rules-json [
     if ($platforms_raw == null) or ($platforms_raw | is-empty) {
         error make {msg: $"build-matrix-rules-json: ($rules_path) has no 'platforms' record or it is empty"}
     }
-    let required_platform_fields = ["display_name" "slug" "version_lines"]
+    let required_platform_fields = ["display_name" "version_lines"]
     mut platforms_out = []
     for row in ($platforms_raw | transpose id platform_data) {
         let pid = $row.id
@@ -55,7 +55,6 @@ export def build-matrix-rules-json [
         $platforms_out = ($platforms_out | append {
             id: $pid,
             display_name: $p.display_name,
-            slug: $p.slug,
             version_lines: $p.version_lines,
         })
     }
@@ -71,9 +70,9 @@ export def build-matrix-rules-json [
         source: $rules_path,
         flows: $flows_out,
         platforms: $platforms_out,
-        scenarios: ($result.kept_cells | each {|c|
+        matrix: ($result.kept_cells | each {|c|
             mut out = {
-                scenario: $c.scenario,
+                matrix_key: $c.matrix_key,
                 flow_id: $c.flow_id,
                 pair: $c.pair,
                 enabled: $c.enabled,

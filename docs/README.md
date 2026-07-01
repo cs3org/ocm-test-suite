@@ -26,10 +26,9 @@ architecture and authoring rules that should remain stable across flows.
 - `architecture/evidence-standard.md` for the broader evidence contract.
 - `architecture/media-projection.md` for the raw-vs-derived publish
   projection rationale and format choices.
-- `architecture/scenario-keys.md` for the `flow_id` vs `scenario_key` vs
-  `cell_id` vocabulary, the per-pair scenario-key naming convention, the
-  live table of every scenario key, and operator recipes for picking the
-  right `--scenario` value.
+- `architecture/scenario-keys.md` for the `flow_id` vs `matrix_key` vs
+  `cell_id` vocabulary, the tuple naming convention, and operator recipes
+  for the explicit `--flow` + platform/version flags.
 
 ## Implementation Pointers
 

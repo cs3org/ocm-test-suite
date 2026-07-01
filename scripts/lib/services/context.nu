@@ -1,7 +1,7 @@
 # Shared run context setup: validate, compute cell, create dirs, render overlays,
 # write initial metadata.
 
-use ../matrix/cell.nu [compute-cell validate-cell-rules assert-scenario-enabled]
+use ../matrix/cell.nu [compute-cell validate-cell-rules assert-matrix-entry-enabled]
 use ../images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../run/execution-id.nu [new-execution-id validate-execution-id]
 use ../actors/validate.nu [validate-actor-config]
@@ -13,12 +13,8 @@ use ../artifacts/init.nu [init-artifact-dirs write-last-execution-id]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 use ./subnet-preflight.nu [check-subnet-preflight]
 
-# Compute IDs, create dirs, generate overlays, write initial metadata.
-# Returns the run context record used by services domain commands.
-# --suite-id: group this run under an existing suite. Defaults to execution_id when empty.
-# --suite-kind: "suite" for full suite runs, "single" for standalone runs (default).
 export def setup-run-context [
-    scenario: string,
+    flow_id: string,
     sender_platform: string,
     sender_version: string,
     browser: string,
@@ -27,25 +23,21 @@ export def setup-run-context [
     receiver_version: string = "",
     --suite-id: string = "",
     --suite-kind: string = "single",
-    --execution-id: string = "",   # Override generated execution_id when provided
+    --execution-id: string = "",
 ] {
     let root = get-ocmts-root
-    assert-scenario-enabled $scenario
-    let flow_id = (validate-cell-rules
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version)
-    (validate-actor-config $scenario $root $sender_platform $receiver_platform)
-    let cell = (compute-cell
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version $flow_id)
+    assert-matrix-entry-enabled $flow_id $sender_platform $receiver_platform
+    validate-cell-rules $flow_id $sender_platform $sender_version $browser $receiver_platform $receiver_version
+    validate-actor-config $flow_id $root $sender_platform $receiver_platform
+    let cell = (compute-cell $flow_id $sender_platform $sender_version $browser $receiver_platform $receiver_version)
     let images = (resolve-images $sender_platform $sender_version
-        --scenario $scenario --flow-id $cell.flow_id)
+        --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
     let receiver_image = if $cell.is_two_party {
         (resolve-receiver-image $receiver_platform $receiver_version
-            --scenario $scenario --flow-id $cell.flow_id)
+            --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
     } else { "" }
     let mitmproxy_image = if $cell.is_two_party {
-        resolve-mitmproxy-image --scenario $scenario --flow-id $cell.flow_id
+        resolve-mitmproxy-image --matrix-key $cell.matrix_key --flow-id $cell.flow_id
     } else { "" }
 
     let execution_id = if not ($execution_id | is-empty) {
@@ -54,20 +46,19 @@ export def setup-run-context [
         new-execution-id
     }
     check-subnet-preflight (execution-cidr $execution_id)
-    # Default suite_id to execution_id for uniform metadata on single runs.
     let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
     let artifacts_base = (init-artifact-dirs $cell.flow_id $cell.pair $execution_id)
 
     let spec_entrypoint = $"cypress/e2e/($cell.scenario_module)/index.cy.ts"
     let overlay = (write-compose-overlays
-        $scenario $sender_platform
+        $cell.flow_id $sender_platform
         $cell.artifact_name $execution_id
         $images.platform $images.cypress_ci $images.cypress_dev
         $images.mariadb $images.valkey
         $spec_entrypoint $browser $record_video
         $root $artifacts_base
         $receiver_platform $receiver_image $mitmproxy_image
-        $cell.flow_id $sender_version $receiver_version
+        $sender_version $receiver_version
         $images.bundle
         --cell-id $cell.cell_id
     )
@@ -91,7 +82,8 @@ export def setup-run-context [
     (write-prepared-run
         $artifacts_base $execution_id $cell.cell_id
         $cell.artifact_name $started_at $overlay.stack_id
-        --suite-id $eff_suite_id --suite-kind $suite_kind)
+        --suite-id $eff_suite_id --suite-kind $suite_kind
+        --matrix-key $cell.matrix_key)
 
     write-last-execution-id $cell.flow_id $cell.pair $execution_id
 

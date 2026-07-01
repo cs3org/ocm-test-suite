@@ -5,6 +5,7 @@
 const SUITE_PATH = path self
 
 use ../../lib/run/finalize.nu [finalize-run]
+use ../../lib/run/metadata.nu [write-prepared-run]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
@@ -46,7 +47,7 @@ def test-finalize-run-pass-no-override [] {
     let no_op_report = {validators: [], override_outcome: null, override_exit_code: null, notes: []}
     let exit_code = (finalize-run $tmp "exec-fv-001" "login__nc-v34"
         "cell-login-nc-v34" $ts $ts "stack-fv-001" 0 "after-down" null
-        --validator-report $no_op_report)
+        --validator-report $no_op_report --matrix-key "login__nextcloud")
     let result_path = ($tmp | path join "meta/result.v1.json")
     let run_path = ($tmp | path join "meta/run.json")
     let result = if ($result_path | path exists) { open $result_path } else { {} }
@@ -70,6 +71,10 @@ def test-finalize-run-pass-no-override [] {
             "run.json status=passed")
         (assert-eq ($run.exit_code? | default (-99)) 0
             "run.json exit_code=0")
+        (assert-eq ($run.matrix_key? | default "") "login__nextcloud"
+            "run.json has matrix_key when provided")
+        (assert-eq ($result.matrix_key? | default "") "login__nextcloud"
+            "result.v1.json has matrix_key when provided")
     ]
 }
 
@@ -279,6 +284,30 @@ def test-finalize-run-suite-fields-passthrough [] {
     ]
 }
 
+# matrix_key inherits from prepared run when finalize-run omits --matrix-key.
+def test-finalize-run-inherits-matrix-key-from-prepared-run [] {
+    test-log "\n[test-finalize-run-inherits-matrix-key-from-prepared-run]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    let ts = (utc-now)
+    (write-prepared-run $tmp "exec-fv-mk" "login__nc-v34"
+        "cell-login-nc-v34" $ts "stack-fv-mk"
+        --matrix-key "login__nextcloud")
+    let no_op_report = {validators: [], override_outcome: null, override_exit_code: null, notes: []}
+    let _exit_code = (finalize-run $tmp "exec-fv-mk" "login__nc-v34"
+        "cell-login-nc-v34" $ts $ts "stack-fv-mk" 0 "after-down" null
+        --validator-report $no_op_report)
+    let run = (open ($tmp | path join "meta/run.json"))
+    let result = (open ($tmp | path join "meta/result.v1.json"))
+    ^rm -rf $tmp
+    [
+        (assert-eq ($run.matrix_key? | default "") "login__nextcloud"
+            "finalize-run run.json inherits matrix_key from prepared run")
+        (assert-eq ($result.matrix_key? | default "") "login__nextcloud"
+            "finalize-run result.v1.json inherits matrix_key from prepared run")
+    ]
+}
+
 def main [] {
     test-log "=== Finalize Run Tests ==="
     let results = (
@@ -289,6 +318,7 @@ def main [] {
         | append (test-finalize-run-validator-override-pass-to-fail)
         | append (test-finalize-run-auto-dispatch-no-op)
         | append (test-finalize-run-suite-fields-passthrough)
+        | append (test-finalize-run-inherits-matrix-key-from-prepared-run)
         | append (test-domain-sources-route-through-finalize-run)
     ) | flatten
     run-suite "run/finalize" $SUITE_PATH $results

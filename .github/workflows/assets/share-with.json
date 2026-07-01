@@ -1,6 +1,6 @@
 [
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -12,7 +12,7 @@
     "wave_index": 1
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -24,7 +24,7 @@
     "wave_index": 2
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -36,7 +36,7 @@
     "wave_index": 3
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "ocmgo",
@@ -48,7 +48,7 @@
     "wave_index": 4
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -60,7 +60,7 @@
     "wave_index": 5
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -72,7 +72,7 @@
     "wave_index": 6
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -84,7 +84,7 @@
     "wave_index": 7
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "ocmgo",
@@ -96,7 +96,7 @@
     "wave_index": 8
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -108,7 +108,7 @@
     "wave_index": 9
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -120,7 +120,7 @@
     "wave_index": 10
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -132,7 +132,7 @@
     "wave_index": 11
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "ocmgo",
@@ -144,7 +144,7 @@
     "wave_index": 12
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -156,7 +156,7 @@
     "wave_index": 13
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -168,7 +168,7 @@
     "wave_index": 14
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -180,7 +180,7 @@
     "wave_index": 15
   },
   {
-    "scenario": "share-with-ocmgo-ocmgo",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "ocmgo",

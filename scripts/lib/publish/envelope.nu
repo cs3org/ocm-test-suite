@@ -4,6 +4,7 @@
 # evidence rows on result, indexes. Banned fields: backend, executor,
 # provenance, trust, publication_state, published_at.
 
+use ../run/tuple-identity.nu [coalesce-matrix-key load-meta-identity]
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 use ../time/utc.nu [utc-now]
 
@@ -396,17 +397,18 @@ export def emit-publish-envelope [artifacts_base: string] {
     let result_id = ($result.id? | default $"result-($result.execution_id)")
     let result_run_id = ($result.run_id? | default $result.execution_id)
 
-    let flow_id = ($cell.flow_id? | default $cell.scenario)
-    # flow entry: id field is the map key; description for human readers
+    let identity = (load-meta-identity $base)
+    let flow_id = $identity.flow_id
     let flow_entry = {id: $flow_id, description: (flow-description $flow_id)}
 
-    # cell entry: id field is the map key
+    let matrix_key = (coalesce-matrix-key $cell $run $result)
+
     let cell_entry = {
         id: $cell.cell_id,
         flow_id: $flow_id,
         pair: ($cell.pair? | default ""),
         artifact_name: $cell.artifact_name,
-        scenario: $cell.scenario,
+        matrix_key: $matrix_key,
         sender_platform: $cell.sender_platform,
         sender_version: $cell.sender_version,
         receiver_platform: ($cell.receiver_platform? | default ""),
@@ -414,7 +416,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         browser: ($cell.browser? | default "chrome"),
         is_two_party: ($cell.is_two_party? | default false),
     }
-    let scenario_module = ($cell.scenario_module? | default "")
+    let scenario_module = $identity.scenario_module
     let cell_entry = if ($scenario_module | is-empty) {
         $cell_entry
     } else {
@@ -438,6 +440,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         cell_id: $cell.cell_id,
         execution_id: $run.execution_id,
         artifact_name: ($cell.artifact_name? | default ""),
+        matrix_key: $matrix_key,
         attempt_number: 1,
         retry_of_run_id: null,
         superseded_by_run_id: null,
@@ -452,6 +455,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         id: $result_id,
         run_id: $result_run_id,
         cell_id: $cell.cell_id,
+        matrix_key: $matrix_key,
         status: $result.status,
         exit_code: $result.exit_code,
         finished_at: $result.finished_at,

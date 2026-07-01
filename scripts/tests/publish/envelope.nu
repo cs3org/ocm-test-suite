@@ -5,12 +5,14 @@
 const SUITE_PATH = path self
 
 use ../../lib/publish/envelope.nu [
+    emit-publish-envelope
     path-to-evidence-id
     parse-screenshot-stem
     parse-video-stem
     enrich-ev-row
     sort-evidence-rows
 ]
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ../../lib/site/copy.nu [copy-allowlisted-artifacts]
 use ../../lib/services/postrun-artifacts.nu [normalize-cypress-video]
 use ../../lib/tests/assert.nu *
@@ -402,10 +404,278 @@ def test-sort-evidence-rows [] {
     ]
 }
 
+def write-sparse-publish-fixture [
+    tmp: string,
+    cell: record,
+    execution_id: string = "20260101t120000-abcdef01",
+    --run-extra: record = {},
+    --result-extra: record = {},
+] {
+    mkdir ($tmp | path join "meta")
+    ($cell | to json) | save --force ($tmp | path join "meta/cell.json")
+    ({
+        execution_id: $execution_id
+        started_at: "2026-01-01T12:00:00Z"
+        finished_at: "2026-01-01T12:05:00Z"
+    } | merge $run_extra | to json) | save --force ($tmp | path join "meta/run.json")
+    ({
+        execution_id: $execution_id
+        status: "passed"
+        exit_code: 0
+        finished_at: "2026-01-01T12:05:00Z"
+    } | merge $result_extra | to json) | save --force ($tmp | path join "meta/result.v1.json")
+}
+
+def test-emit-publish-envelope-falls-back-to-matrix-key-flow-id [] {
+    test-log "\n[test-emit-publish-envelope-falls-back-to-matrix-key-flow-id]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            matrix_key: "login__nextcloud"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        }
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("login" in ($manifest.flows | columns))
+                "flows map key backfilled from matrix_key prefix")
+            (assert-eq ($manifest.flows | get login | get id) "login"
+                "flow_entry.id matches derived flow_id")
+            (assert-eq $cell_entry.flow_id "login"
+                "cell_entry.flow_id backfilled from matrix_key prefix")
+            (assert-eq $cell_entry.scenario_module "login"
+                "cell_entry.scenario_module falls back to derived flow_id")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-falls-back-to-scenario-module [] {
+    test-log "\n[test-emit-publish-envelope-falls-back-to-scenario-module]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "contact-wayf__nextcloud-v34"
+            artifact_name: "cell-contact-wayf-nextcloud-v34"
+            matrix_key: "login__nextcloud"
+            scenario_module: "contact-wayf"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        }
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("contact-wayf" in ($manifest.flows | columns))
+                "flows map key backfilled from scenario_module")
+            (assert-eq ($manifest.flows | get contact-wayf | get id) "contact-wayf"
+                "flow_entry.id matches scenario_module fallback")
+            (assert-eq $cell_entry.flow_id "contact-wayf"
+                "cell_entry.flow_id backfilled from scenario_module")
+            (assert-eq $cell_entry.scenario_module "contact-wayf"
+                "cell_entry.scenario_module stays explicit")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-prefers-matrix-key-over-legacy-scenario [] {
+    test-log "\n[test-emit-publish-envelope-prefers-matrix-key-over-legacy-scenario]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "share-with__nextcloud-v34"
+            artifact_name: "cell-share-with-nextcloud-v34"
+            matrix_key: "share-with__nextcloud"
+            scenario: "contact-wayf"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        }
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("share-with" in ($manifest.flows | columns))
+                "flows map key backfilled from matrix_key prefix over legacy scenario")
+            (assert-eq ($manifest.flows | get share-with | get id) "share-with"
+                "flow_entry.id matches matrix_key-derived flow_id")
+            (assert-eq $cell_entry.flow_id "share-with"
+                "cell_entry.flow_id backfilled from matrix_key prefix over legacy scenario")
+            (assert-eq $cell_entry.scenario_module "share-with"
+                "cell_entry.scenario_module falls back to matrix_key-derived flow_id")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-falls-back-to-legacy-scenario [] {
+    test-log "\n[test-emit-publish-envelope-falls-back-to-legacy-scenario]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            scenario: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        }
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("login" in ($manifest.flows | columns))
+                "flows map key backfilled from legacy scenario")
+            (assert-eq ($manifest.flows | get login | get id) "login"
+                "flow_entry.id matches legacy scenario fallback")
+            (assert-eq $cell_entry.flow_id "login"
+                "cell_entry.flow_id backfilled from legacy scenario")
+            (assert-eq $cell_entry.scenario_module "login"
+                "cell_entry.scenario_module falls back to legacy scenario")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-carries-matrix-key-on-run-and-result [] {
+    test-log "\n[test-emit-publish-envelope-carries-matrix-key-on-run-and-result]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            matrix_key: "login__nextcloud"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        }
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let run_entry = ($manifest.runs | values | first)
+        let result_entry = ($manifest.results | values | first)
+        [
+            (assert-eq ($run_entry.matrix_key? | default "") "login__nextcloud"
+                "run_entry carries matrix_key from cell metadata")
+            (assert-eq ($result_entry.matrix_key? | default "") "login__nextcloud"
+                "result_entry carries matrix_key from cell metadata")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-backfills-flow-id-from-run-matrix-key [] {
+    test-log "\n[test-emit-publish-envelope-backfills-flow-id-from-run-matrix-key]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("login" in ($manifest.flows | columns))
+                "flows map key backfilled from run.json matrix_key prefix")
+            (assert-eq ($manifest.flows | get login | get id) "login"
+                "flow_entry.id matches run.json matrix_key-derived flow_id")
+            (assert-eq $cell_entry.flow_id "login"
+                "cell_entry.flow_id backfilled from run.json matrix_key prefix")
+            (assert-eq $cell_entry.scenario_module "login"
+                "cell_entry.scenario_module falls back to run.json matrix_key-derived flow_id")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-backfills-flow-id-from-result-matrix-key [] {
+    test-log "\n[test-emit-publish-envelope-backfills-flow-id-from-result-matrix-key]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "share-with__nextcloud-v34__ocmgo-v1"
+            artifact_name: "cell-share-with-nextcloud-v34-ocmgo-v1"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+            receiver_platform: "ocmgo"
+            receiver_version: "v1"
+            is_two_party: true
+        } --result-extra {matrix_key: "share-with__nextcloud__ocmgo"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        [
+            (assert-truthy ("share-with" in ($manifest.flows | columns))
+                "flows map key backfilled from result.v1.json matrix_key prefix")
+            (assert-eq ($manifest.flows | get share-with | get id) "share-with"
+                "flow_entry.id matches result matrix_key-derived flow_id")
+            (assert-eq $cell_entry.flow_id "share-with"
+                "cell_entry.flow_id backfilled from result matrix_key prefix")
+            (assert-eq $cell_entry.scenario_module "share-with"
+                "cell_entry.scenario_module falls back to result matrix_key-derived flow_id")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-backfills-matrix-key-from-run-json [] {
+    test-log "\n[test-emit-publish-envelope-backfills-matrix-key-from-run-json]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            flow_id: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        let run_entry = ($manifest.runs | values | first)
+        let result_entry = ($manifest.results | values | first)
+        [
+            (assert-eq ($cell_entry.matrix_key? | default "") "login__nextcloud"
+                "cell_entry backfills matrix_key from run.json when cell omits it")
+            (assert-eq ($run_entry.matrix_key? | default "") "login__nextcloud"
+                "run_entry backfills matrix_key from run.json when cell omits it")
+            (assert-eq ($result_entry.matrix_key? | default "") "login__nextcloud"
+                "result_entry backfills matrix_key from run.json when cell omits it")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-backfills-matrix-key-from-result-json [] {
+    test-log "\n[test-emit-publish-envelope-backfills-matrix-key-from-result-json]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "share-with__nextcloud-v34__ocmgo-v1"
+            artifact_name: "cell-share-with-nextcloud-v34-ocmgo-v1"
+            flow_id: "share-with"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+            receiver_platform: "ocmgo"
+            receiver_version: "v1"
+            is_two_party: true
+        } --result-extra {matrix_key: "share-with__nextcloud__ocmgo"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        let run_entry = ($manifest.runs | values | first)
+        let result_entry = ($manifest.results | values | first)
+        [
+            (assert-eq ($cell_entry.matrix_key? | default "") "share-with__nextcloud__ocmgo"
+                "cell_entry backfills matrix_key from result.v1.json when cell and run omit it")
+            (assert-eq ($run_entry.matrix_key? | default "") "share-with__nextcloud__ocmgo"
+                "run_entry backfills matrix_key from result.v1.json when cell and run omit it")
+            (assert-eq ($result_entry.matrix_key? | default "") "share-with__nextcloud__ocmgo"
+                "result_entry backfills matrix_key from result.v1.json when cell and run omit it")
+        ]
+    }
+}
+
 def main [] {
     test-log "=== Publish Envelope Evidence Tests ==="
     let results = (
-        (test-path-to-evidence-id)
+        (test-emit-publish-envelope-falls-back-to-matrix-key-flow-id)
+        | append (test-emit-publish-envelope-carries-matrix-key-on-run-and-result)
+        | append (test-emit-publish-envelope-backfills-flow-id-from-run-matrix-key)
+        | append (test-emit-publish-envelope-backfills-flow-id-from-result-matrix-key)
+        | append (test-emit-publish-envelope-backfills-matrix-key-from-run-json)
+        | append (test-emit-publish-envelope-backfills-matrix-key-from-result-json)
+        | append (test-emit-publish-envelope-falls-back-to-scenario-module)
+        | append (test-emit-publish-envelope-prefers-matrix-key-over-legacy-scenario)
+        | append (test-emit-publish-envelope-falls-back-to-legacy-scenario)
+        | append (test-path-to-evidence-id)
         | append (test-parse-screenshot-stem)
         | append (test-parse-video-stem)
         | append (test-enrich-ev-row)

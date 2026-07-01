@@ -51,8 +51,9 @@ def write-terminal-run [
     exit_code: int,
     failure_reason: string,
     ts: string,
+    matrix_key: string = "",
 ] {
-    let run = {
+    mut run = {
         schema_version: 1,
         id: $execution_id,
         execution_id: $execution_id,
@@ -65,6 +66,7 @@ def write-terminal-run [
         stack_id: "",
         error: $failure_reason,
     }
+    if not ($matrix_key | is-empty) { $run = ($run | upsert matrix_key $matrix_key) }
     $run | to json | save --force ($meta_dir | path join "run.json")
 }
 
@@ -81,6 +83,7 @@ def write-terminal-result [
     failure_reason: string,
     ts: string,
     extra_fields: record,
+    matrix_key: string = "",
 ] {
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
@@ -106,6 +109,7 @@ def write-terminal-result [
         },
         warnings: [],
         failure_reason: $failure_reason,
+        matrix_key: $matrix_key,
     }
     (build-result-v1 ($base_fields | merge $extra_fields)) | to json --indent 2 | save --force ($meta_dir | path join "result.v1.json")
 }
@@ -122,11 +126,12 @@ def write-terminal-artifacts [
     failure_reason: string,
     extra_result_fields: record,
     ts: string,
+    matrix_key: string = "",
 ] {
     let meta_dir = ($artifacts_base | path join "meta")
     mkdir $meta_dir
-    write-terminal-run $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts
-    write-terminal-result $artifacts_base $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts $extra_result_fields
+    write-terminal-run $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts $matrix_key
+    write-terminal-result $artifacts_base $meta_dir $execution_id $cell_id $artifact_name $status $exit_code $failure_reason $ts $extra_result_fields $matrix_key
 }
 
 # Write blocked run.json and result.v1.json into the cell's artifact directory.
@@ -139,9 +144,10 @@ export def write-blocked-artifacts [
     artifact_name: string,
     failure_reason: string,
     --blocked-at: string = "",
+    --matrix-key: string = "",
 ] {
     let ts = if ($blocked_at | is-empty) { utc-now } else { $blocked_at }
-    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "blocked" 0 $failure_reason {} $ts
+    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "blocked" 0 $failure_reason {} $ts $matrix_key
 }
 
 # Write capability-skipped run.json and result.v1.json into the cell's artifact directory.
@@ -154,10 +160,11 @@ export def write-capability-skipped-artifacts [
     artifact_name: string,
     capability_skip: record,
     --skipped-at: string = "",
+    --matrix-key: string = "",
 ] {
     let ts = if ($skipped_at | is-empty) { utc-now } else { $skipped_at }
     let failure_reason = ($capability_skip.rationale? | default "")
-    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "capability-skipped" 0 $failure_reason {capability_skip: $capability_skip} $ts
+    write-terminal-artifacts $artifacts_base $execution_id $cell_id $artifact_name "capability-skipped" 0 $failure_reason {capability_skip: $capability_skip} $ts $matrix_key
 }
 
 # Shared inner: prepare the artifact dir and cell.json for a terminal planned
@@ -185,7 +192,7 @@ def emit-terminal-cell-artifact-inner [
         cell_id: $planned_cell.cell_id,
         artifact_name: $planned_cell.artifact_name,
         flow_id: $planned_cell.flow_id,
-        scenario: $planned_cell.scenario,
+        matrix_key: $planned_cell.matrix_key,
         scenario_module: ($planned_cell.scenario_module? | default $planned_cell.flow_id),
         pair: $planned_cell.pair,
         sender_platform: $planned_cell.sender_platform,
@@ -197,7 +204,8 @@ def emit-terminal-cell-artifact-inner [
     } | merge $suite_extra
     $cell_meta | to json | save --force ($artifacts_base | path join "meta/cell.json")
 
-    do $write_fn $artifacts_base $exec_id
+    let mk = ($planned_cell.matrix_key? | default "" | into string | str trim)
+    do $write_fn $artifacts_base $exec_id $mk
     publish-envelope-safe $artifacts_base
     $artifacts_base
 }
@@ -213,8 +221,8 @@ export def emit-blocked-cell-artifact [
     --suite-kind: string = "suite",
 ] {
     let fr = $failure_reason
-    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid|
-        write-blocked-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $fr
+    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid, mk|
+        write-blocked-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $fr --matrix-key $mk
     }
 }
 
@@ -229,7 +237,7 @@ export def emit-capability-skipped-cell-artifact [
     --suite-kind: string = "suite",
 ]: any -> string {
     let cap_skip = ($planned_cell.capability_skip? | default {rationale: ""})
-    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid|
-        write-capability-skipped-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $cap_skip
+    emit-terminal-cell-artifact-inner $root $planned_cell $suite_id $suite_kind {|ab, eid, mk|
+        write-capability-skipped-artifacts $ab $eid $planned_cell.cell_id $planned_cell.artifact_name $cap_skip --matrix-key $mk
     }
 }

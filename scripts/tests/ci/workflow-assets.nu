@@ -40,7 +40,7 @@ def fixture-plan-with-multi-dep [] {
             (make-cell {
                 cell_id: "share-with__nextcloud-v34__nextcloud-v33",
                 artifact_name: "cell-share-with-nextcloud-v34-nextcloud-v33",
-                scenario: "share-with",
+                matrix_key: "share-with__nextcloud__nextcloud",
                 flow_id: "share-with",
                 receiver_platform: "nextcloud",
                 receiver_version: "v33",
@@ -154,12 +154,12 @@ def test-flow-separation [] {
             "login job section references login asset file")
         (assert-truthy (not ($login_cells | is-empty))
             "login asset is non-empty")
-        (assert-truthy ($login_cells | all {|c| not ($c.scenario | str starts-with "share-with")})
-            "login asset contains no share-with scenario cells")
+        (assert-truthy ($login_cells | all {|c| $c.flow != "share-with"})
+            "login asset contains no share-with flow cells")
         (assert-truthy (not ($share_cells | is-empty))
             "share-with asset is non-empty")
-        (assert-truthy ($share_cells | all {|c| $c.scenario | str starts-with "share-with"})
-            "share-with asset contains only share-with scenario cells")
+        (assert-truthy ($share_cells | all {|c| $c.flow == "share-with"})
+            "share-with asset contains only share-with flow cells")
     ]
 }
 
@@ -275,8 +275,8 @@ def test-prod-login-asset-includes-cernbox-v11 [] {
             "cernbox login cell is one-party (empty receiver_platform)")
         (assert-eq ($cernbox_cell_list | first | get receiver_version) ""
             "cernbox login cell is one-party (empty receiver_version)")
-        (assert-eq ($cernbox_cell_list | first | get scenario) "login-cernbox"
-            "cernbox login cell scenario is login-cernbox (runtime wiring keys on scenario)")
+        (assert-eq ($cernbox_cell_list | first | get flow) "login"
+            "cernbox login cell flow is login")
         (assert-eq ($cernbox_cell_list | first | get artifact_name) "cell-login-cernbox-v11"
             "cernbox login cell artifact_name is cell-login-cernbox-v11")
         (assert-eq ($cernbox_cell_list | first | get display_name) "cernbox v11"

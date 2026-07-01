@@ -12,11 +12,11 @@ Run from the repo root.
 
 | Command                                              | Purpose                                                           |
 | ---------------------------------------------------- | ----------------------------------------------------------------- |
-| `nu scripts/ocmts.nu actors list`                    | List scenarios enabled in the matrix SSOT.                        |
-| `nu scripts/ocmts.nu actors list overrides`          | List scenarios with override files in `config/actors/scenarios/`. |
-| `nu scripts/ocmts.nu actors show <scenario>`         | Show resolved actor record for a one-party scenario.              |
-| `nu scripts/ocmts.nu actors validate <args>`         | Validate one scenario's resolution.                               |
-| `nu scripts/ocmts.nu actors validate-all`            | Validate every matrix-enabled scenario.                           |
+| `nu scripts/ocmts.nu actors list`                    | List matrix keys enabled in the matrix SSOT.                      |
+| `nu scripts/ocmts.nu actors list overrides`          | List matrix keys with override files in `config/actors/overrides/`. |
+| `nu scripts/ocmts.nu actors show --flow ...`         | Show resolved actor record for a tuple.                           |
+| `nu scripts/ocmts.nu actors validate --flow ...`   | Validate one tuple's resolution.                                  |
+| `nu scripts/ocmts.nu actors validate-all`            | Validate every matrix-enabled tuple.                              |
 
 ## artifacts
 

@@ -55,28 +55,23 @@ def "main list" [--json] {
 }
 
 def "main cell" [
-    --scenario: string,                   # Test scenario name (e.g. login, share-with)
-    --sender-platform: string,            # Sender platform (e.g. nextcloud)
-    --sender-version: string,             # Sender platform version (e.g. v33)
-    --receiver-platform: string = "",     # Receiver platform (required for two-party scenarios)
-    --receiver-version: string = "",      # Receiver platform version (required for two-party scenarios)
-    --browser: string = "chrome",         # Browser
-    --json,                               # Output as JSON
+    --flow: string,
+    --sender-platform: string,
+    --sender-version: string,
+    --receiver-platform: string = "",
+    --receiver-version: string = "",
+    --browser: string = "chrome",
+    --json,
 ] {
-    let root = get-ocmts-root
-    let flow_id = (validate-cell-rules
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version)
-    let cell = (compute-cell
-        $scenario $sender_platform $sender_version $browser
-        $receiver_platform $receiver_version $flow_id)
+    validate-cell-rules $flow $sender_platform $sender_version $browser $receiver_platform $receiver_version
+    let cell = (compute-cell $flow $sender_platform $sender_version $browser $receiver_platform $receiver_version)
     let images = (resolve-images $sender_platform $sender_version
-        --scenario $scenario --flow-id $flow_id)
+        --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
     mut result = ($cell | insert images $images)
     if $cell.is_two_party {
         let recv_img = (resolve-receiver-image $receiver_platform $receiver_version
-            --scenario $scenario --flow-id $flow_id)
-        let mitm_img = (resolve-mitmproxy-image --scenario $scenario --flow-id $flow_id)
+            --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
+        let mitm_img = (resolve-mitmproxy-image --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
         $result = ($result | insert receiver_image $recv_img | insert mitmproxy_image $mitm_img)
     }
     if $json {

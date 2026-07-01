@@ -8,33 +8,327 @@ const SUITE_PATH = path self
 
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 
 # Derive repo root from this file's own location.
 def repo-root [] {
     $SUITE_PATH | path dirname | path dirname | path dirname | path dirname
 }
 
+def ocmts-script [] {
+    (repo-root) | path join "scripts/ocmts.nu"
+}
+
+def write-minimal-fixture [tmp_root: string] {
+    mkdir ($tmp_root | path join "config/matrix/flows")
+    mkdir ($tmp_root | path join "config/actors/overrides")
+    mkdir ($tmp_root | path join "config/actors/platforms")
+
+    ({browsers_default: ["chromium"]} | to nuon)
+    | save --force ($tmp_root | path join "config/matrix/defaults.nuon")
+
+    ({platforms: {
+        nextcloud: {version_lines: ["v32"]},
+        ocmgo: {version_lines: ["v1"]}
+    }} | to nuon)
+    | save --force ($tmp_root | path join "config/matrix/platforms.nuon")
+
+    ({schema_version: 1, flow_id: "login", two_party: false, enabled: true,
+      mitm: false, browsers: null,
+      required_capabilities: {sender: [], receiver: []},
+      include: {senders: ["nextcloud"]},
+      versions_sender: {nextcloud: ["v32"]}
+    } | to nuon)
+    | save --force ($tmp_root | path join "config/matrix/flows/login.nuon")
+
+    ({schema_version: 1, flow_id: "contact-wayf", two_party: true, enabled: false,
+      mitm: true, browsers: null,
+      required_capabilities: {sender: [], receiver: []},
+      include: [{sender: ["nextcloud"], receiver: ["ocmgo"]}],
+      versions_sender: {nextcloud: ["v32"]},
+      versions_receiver: {ocmgo: ["v1"]}
+    } | to nuon)
+    | save --force ($tmp_root | path join "config/matrix/flows/contact-wayf.nuon")
+
+    ({flows: {
+        login: {actor: {by_platform: {nextcloud: "michiel"}}},
+        "contact-wayf": {
+            sender: {by_platform: {nextcloud: "michiel"}},
+            receiver: {by_platform: {ocmgo: "marie"}}
+        }
+    }} | to nuon)
+    | save --force ($tmp_root | path join "config/actors/defaults.nuon")
+
+    ({accounts: {
+        michiel: {username: "michiel_user", password: "michiel_pass"},
+        marie: {username: "marie_user", password: "marie_pass"}
+    }} | to nuon)
+    | save --force ($tmp_root | path join "config/actors/platforms/nextcloud.nuon")
+}
+
 # `actors list` exits 0 and prints at least one matrix-enabled scenario.
 def test-actors-list [] {
     test-log "\n[test-actors-list]"
-    let root = (repo-root)
-    let out = (^nu ($root | path join "scripts/ocmts.nu") actors list | complete)
+    let out = (^nu (ocmts-script) actors list | complete)
     [
         (assert-eq $out.exit_code 0
             "actors list exits 0")
-        (assert-string-contains $out.stdout "login"
-            "actors list output contains 'login'")
+        (assert-string-contains $out.stdout "login__nextcloud"
+            "actors list output contains login__nextcloud matrix key")
     ]
 }
 
 # `actors list overrides` exits 0 (may print nothing if no override files).
 def test-actors-list-overrides [] {
     test-log "\n[test-actors-list-overrides]"
-    let root = (repo-root)
-    let out = (^nu ($root | path join "scripts/ocmts.nu") actors list overrides | complete)
+    let out = (^nu (ocmts-script) actors list overrides | complete)
     [
         (assert-eq $out.exit_code 0
             "actors list overrides exits 0")
+    ]
+}
+
+def test-actors-show-one-party [] {
+    test-log "\n[test-actors-show-one-party]"
+    let out = (^nu (ocmts-script) actors show
+        --flow login
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 0
+            "actors show one-party exits 0")
+        (assert-string-contains $out.stdout "matrix_key: login__nextcloud"
+            "actors show one-party prints resolved matrix_key")
+        (assert-string-contains $out.stdout "account:    michiel"
+            "actors show one-party prints resolved actor account")
+    ]
+}
+
+def test-actors-show-two-party-requires-receiver [] {
+    test-log "\n[test-actors-show-two-party-requires-receiver]"
+    let out = (^nu (ocmts-script) actors show
+        --flow share-with
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors show two-party without receiver exits 1")
+        (assert-string-contains $out.stderr "requires --receiver-platform"
+            "actors show missing receiver error names --receiver-platform")
+        (assert-string-contains $out.stderr "share-with"
+            "actors show missing receiver error names flow")
+    ]
+}
+
+def test-actors-show-two-party [] {
+    test-log "\n[test-actors-show-two-party]"
+    let out = (^nu (ocmts-script) actors show
+        --flow share-with
+        --sender-platform nextcloud
+        --receiver-platform ocmgo
+        | complete)
+    [
+        (assert-eq $out.exit_code 0
+            "actors show two-party exits 0")
+        (assert-string-contains $out.stdout "matrix_key: share-with__nextcloud__ocmgo"
+            "actors show two-party prints resolved matrix_key")
+        (assert-string-contains $out.stdout "receiver:"
+            "actors show two-party prints receiver block")
+    ]
+}
+
+def test-actors-validate-one-party [] {
+    test-log "\n[test-actors-validate-one-party]"
+    let out = (^nu (ocmts-script) actors validate
+        --flow login
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 0
+            "actors validate one-party exits 0")
+        (assert-string-contains $out.stdout "actor config for 'login__nextcloud': ok"
+            "actors validate one-party prints ok line")
+    ]
+}
+
+def test-actors-validate-two-party-requires-receiver [] {
+    test-log "\n[test-actors-validate-two-party-requires-receiver]"
+    let out = (^nu (ocmts-script) actors validate
+        --flow share-with
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors validate two-party without receiver exits 1")
+        (assert-string-contains $out.stderr "requires --receiver-platform"
+            "actors validate missing receiver error names --receiver-platform")
+        (assert-string-contains $out.stderr "share-with"
+            "actors validate missing receiver error names flow")
+    ]
+}
+
+def test-actors-show-requires-sender-platform [] {
+    test-log "\n[test-actors-show-requires-sender-platform]"
+    let out = (^nu (ocmts-script) actors show --flow login | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors show without sender-platform exits 1")
+        (assert-string-contains $out.stderr "--sender-platform is required"
+            "actors show missing sender error names --sender-platform")
+    ]
+}
+
+def actors-mod-script [] {
+    (repo-root) | path join "scripts/domains/actors/mod.nu"
+}
+
+def test-actors-show-disabled-tuple-errors [] {
+    test-log "\n[test-actors-show-disabled-tuple-errors]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let out = (^nu (actors-mod-script) show
+                --flow contact-wayf
+                --sender-platform nextcloud
+                --receiver-platform ocmgo
+                | complete)
+            [
+                (assert-eq $out.exit_code 1
+                    "actors show disabled tuple exits 1")
+                (assert-string-contains $out.stderr "disabled"
+                    "actors show disabled tuple error names disabled status")
+                (assert-truthy (not ($out.stderr | str contains "cannot be run"))
+                    "actors show disabled tuple error avoids run-only wording")
+                (assert-string-contains $out.stderr "contact-wayf__nextcloud__ocmgo"
+                    "actors show disabled tuple error names matrix_key")
+                (assert-truthy (not ($out.stdout | str contains "password"))
+                    "actors show disabled tuple does not print credentials")
+            ]
+        }
+    }
+}
+
+def test-actors-show-absent-tuple-errors [] {
+    test-log "\n[test-actors-show-absent-tuple-errors]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let out = (^nu (actors-mod-script) show
+                --flow login
+                --sender-platform ocmgo
+                | complete)
+            [
+                (assert-eq $out.exit_code 1
+                    "actors show absent tuple exits 1")
+                (assert-string-contains $out.stderr "not in config/matrix"
+                    "actors show absent tuple error names config/matrix")
+                (assert-truthy (not ($out.stdout | str contains "password"))
+                    "actors show absent tuple does not print credentials")
+            ]
+        }
+    }
+}
+
+def test-actors-validate-disabled-tuple-errors [] {
+    test-log "\n[test-actors-validate-disabled-tuple-errors]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let out = (^nu (actors-mod-script) validate
+                --flow contact-wayf
+                --sender-platform nextcloud
+                --receiver-platform ocmgo
+                | complete)
+            [
+                (assert-eq $out.exit_code 1
+                    "actors validate disabled tuple exits 1")
+                (assert-string-contains $out.stderr "disabled"
+                    "actors validate disabled tuple error names disabled status")
+                (assert-truthy (not ($out.stderr | str contains "cannot be run"))
+                    "actors validate disabled tuple error avoids run-only wording")
+                (assert-string-contains $out.stderr "contact-wayf__nextcloud__ocmgo"
+                    "actors validate disabled tuple error names matrix_key")
+                (assert-truthy (not ($out.stdout | str contains "ok"))
+                    "actors validate disabled tuple does not print ok line")
+            ]
+        }
+    }
+}
+
+def test-actors-validate-absent-tuple-errors [] {
+    test-log "\n[test-actors-validate-absent-tuple-errors]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let out = (^nu (actors-mod-script) validate
+                --flow login
+                --sender-platform ocmgo
+                | complete)
+            [
+                (assert-eq $out.exit_code 1
+                    "actors validate absent tuple exits 1")
+                (assert-string-contains $out.stderr "not in config/matrix"
+                    "actors validate absent tuple error names config/matrix")
+                (assert-truthy (not ($out.stdout | str contains "ok"))
+                    "actors validate absent tuple does not print ok line")
+            ]
+        }
+    }
+}
+
+def test-actors-validate-all [] {
+    test-log "\n[test-actors-validate-all]"
+    let out = (^nu (ocmts-script) actors validate-all | complete)
+    [
+        (assert-eq $out.exit_code 0
+            "actors validate-all exits 0")
+        (assert-string-contains $out.stdout "login__nextcloud: ok"
+            "actors validate-all includes login tuple")
+        (assert-string-contains $out.stdout "share-with__nextcloud__ocmgo: ok"
+            "actors validate-all includes migrated share-with tuple")
+    ]
+}
+
+def test-actors-validate-requires-sender-platform [] {
+    test-log "\n[test-actors-validate-requires-sender-platform]"
+    let out = (^nu (ocmts-script) actors validate --flow login | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors validate without sender-platform exits 1")
+        (assert-string-contains $out.stderr "--sender-platform is required"
+            "actors validate missing sender error names --sender-platform")
+    ]
+}
+
+def test-actors-validate-rejects-invalid-flow-id [] {
+    test-log "\n[test-actors-validate-rejects-invalid-flow-id]"
+    let out = (^nu (actors-mod-script) validate
+        --flow "login/evil"
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors validate rejects slash in flow_id before topology lookup")
+        (assert-string-contains $out.stderr "flow_id contains slash"
+            "actors validate invalid flow_id error names flow_id segment rule")
+        (assert-truthy (not ($out.stderr | str contains "Flow file not found"))
+            "actors validate invalid flow_id does not reach flow file lookup")
+    ]
+}
+
+def test-actors-show-rejects-invalid-flow-id [] {
+    test-log "\n[test-actors-show-rejects-invalid-flow-id]"
+    let out = (^nu (actors-mod-script) show
+        --flow "login/evil"
+        --sender-platform nextcloud
+        | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "actors show rejects slash in flow_id before topology lookup")
+        (assert-string-contains $out.stderr "flow_id contains slash"
+            "actors show invalid flow_id error names flow_id segment rule")
+        (assert-truthy (not ($out.stderr | str contains "Flow file not found"))
+            "actors show invalid flow_id does not reach flow file lookup")
     ]
 }
 
@@ -43,6 +337,20 @@ def main [] {
     let results = (
         (test-actors-list)
         | append (test-actors-list-overrides)
+        | append (test-actors-show-one-party)
+        | append (test-actors-show-two-party-requires-receiver)
+        | append (test-actors-show-two-party)
+        | append (test-actors-show-requires-sender-platform)
+        | append (test-actors-show-disabled-tuple-errors)
+        | append (test-actors-show-absent-tuple-errors)
+        | append (test-actors-validate-disabled-tuple-errors)
+        | append (test-actors-validate-absent-tuple-errors)
+        | append (test-actors-validate-one-party)
+        | append (test-actors-validate-requires-sender-platform)
+        | append (test-actors-validate-two-party-requires-receiver)
+        | append (test-actors-validate-rejects-invalid-flow-id)
+        | append (test-actors-show-rejects-invalid-flow-id)
+        | append (test-actors-validate-all)
     ) | flatten
     run-suite "actors/cli" $SUITE_PATH $results
 }

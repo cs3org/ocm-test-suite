@@ -9,7 +9,7 @@
 # - execution_id is NOT baked per-cell; ci-run-cell.yml generates a fresh
 #   one per cell at runtime in a dedicated step.
 # - artifact-name (e.g. cell-login-nextcloud-v34) is stable and derived from
-#   scenario+participants, so embedding it in YAML is safe and necessary.
+#   flow+participants, so embedding it in YAML is safe and necessary.
 # - cells-json is no longer inline in ci-matrix.yml; each flow's cells are
 #   stored in .github/workflows/assets/<flow>.json and loaded at runtime by
 #   a load-cells job in ci-run-wave.yml.
@@ -63,7 +63,7 @@ def build-cell-json-record [
         $cell.sender_platform $cell.sender_version
         $cell.is_two_party $recv_platform $recv_version)
     {
-        scenario: $cell.scenario
+        flow: $cell.flow_id
         sender_platform: $cell.sender_platform
         sender_version: $cell.sender_version
         receiver_platform: $recv_platform
@@ -159,7 +159,7 @@ def bp-path [root: string, rel: string]: any -> string {
 # Cells are grouped by flow_id; each flow job passes cells-path to
 # ci-run-wave.yml pointing at the pre-generated asset JSON for that flow.
 # suite_id and per-cell execution_ids are resolved at workflow runtime, not
-# embedded here. The `plan` argument provides cell topology (deps, scenario,
+# embedded here. The `plan` argument provides cell topology (deps, flow,
 # participants, artifact_name) which are all stable across runs.
 export def build-ci-matrix-yml [plan: record] {
     let root = get-ocmts-root

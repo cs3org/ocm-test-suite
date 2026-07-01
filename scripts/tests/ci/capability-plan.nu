@@ -24,16 +24,8 @@ use ./fixtures.nu [
 # collide with the enabled "login" scenario cells.
 def fixture-rules-with-unique-disabled [] {
     {
-        scenarios: {
-            "login-only": {
-                enabled: true,
-                flow_id: "login",
-                browsers: ["chrome"],
-                sender: {platform: "nextcloud", version_lines: ["v34"]},
-                receiver: null,
-                mitm: false,
-            },
-            "disabled-login-v99": {
+        matrix: {
+            login__nextcloud: {
                 enabled: false,
                 flow_id: "login",
                 browsers: ["chrome"],

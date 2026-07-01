@@ -4,7 +4,12 @@
 
 const SUITE_PATH = path self
 
-use ../../lib/run/metadata.nu [write-terminal-outcome read-run-meta]
+use ../../lib/run/metadata.nu [
+    write-terminal-outcome
+    read-run-meta
+    write-prepared-run
+    resolve-matrix-key
+]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/ci/suite-stop-on-fail.nu [stop-on-fail-tail]
 use ../../lib/suite/index.nu [
@@ -44,7 +49,8 @@ def test-write-terminal-outcome-run-shape [] {
 
     let ts = (utc-now)
     (write-terminal-outcome $tmp "exec-001" "login__nc-v34"
-        "cell-login-nc-v34" $ts $ts "passed" 0 "stack-001" null)
+        "cell-login-nc-v34" $ts $ts "passed" 0 "stack-001" null
+        --matrix-key "login__nextcloud")
 
     let run_path = ($tmp | path join "meta/run.json")
     let result_path = ($tmp | path join "meta/result.v1.json")
@@ -67,6 +73,8 @@ def test-write-terminal-outcome-run-shape [] {
             "run.json has execution_id")
         (assert-eq ($run.cell_id? | default "") "login__nc-v34"
             "run.json has cell_id")
+        (assert-eq ($run.matrix_key? | default "") "login__nextcloud"
+            "run.json has matrix_key when provided")
         (assert-eq ($result.status? | default "") "passed"
             "result.v1.json has correct status")
         (assert-eq ($result.exit_code? | default (-99)) 0
@@ -79,6 +87,8 @@ def test-write-terminal-outcome-run-shape [] {
             "result.v1.json has run_id matching execution_id")
         (assert-eq ($result.cell_id? | default "") "login__nc-v34"
             "result.v1.json has cell_id")
+        (assert-eq ($result.matrix_key? | default "") "login__nextcloud"
+            "result.v1.json has matrix_key when provided")
         (assert-eq ($result.artifact_name? | default "") "cell-login-nc-v34"
             "result.v1.json has artifact_name")
         (assert-eq ($result.schema_version? | default 0) 1
@@ -91,6 +101,29 @@ def test-write-terminal-outcome-run-shape [] {
             "result.v1.json has evidence record")
         (assert-truthy (not ($result | columns | any {|c| $c == "verdict"}))
             "minimal result.v1.json (no Cypress run) omits verdict field")
+    ]
+}
+
+def test-write-terminal-outcome-inherits-matrix-key-from-prepared-run [] {
+    test-log "\n[test-write-terminal-outcome-inherits-matrix-key-from-prepared-run]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    let ts = (utc-now)
+    (write-prepared-run $tmp "exec-prep-001" "login__nc-v34"
+        "cell-login-nc-v34" $ts "stack-prep"
+        --matrix-key "login__nextcloud")
+    (write-terminal-outcome $tmp "exec-prep-001" "login__nc-v34"
+        "cell-login-nc-v34" $ts $ts "infra-failed" 1 "stack-prep" null
+        --phase "platform-up" --fail-error "simulated failure")
+
+    let run = (open ($tmp | path join "meta/run.json"))
+    let result = (open ($tmp | path join "meta/result.v1.json"))
+    ^rm -rf $tmp
+    [
+        (assert-eq ($run.matrix_key? | default "") "login__nextcloud"
+            "terminal run.json inherits matrix_key from prepared run")
+        (assert-eq ($result.matrix_key? | default "") "login__nextcloud"
+            "terminal result.v1.json inherits matrix_key from prepared run")
     ]
 }
 
@@ -326,6 +359,62 @@ def test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked [] {
     $results
 }
 
+# ---- resolve-matrix-key tests ----
+
+def test-resolve-matrix-key-explicit-precedence [] {
+    test-log "\n[test-resolve-matrix-key-explicit-precedence]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    ({
+        matrix_key: "login__from-run"
+    } | to json) | save --force ($tmp | path join "meta/run.json")
+    ({
+        matrix_key: "login__from-cell"
+        cell_id: "login__nc-v34"
+    } | to json) | save --force ($tmp | path join "meta/cell.json")
+    let mk = (resolve-matrix-key $tmp --explicit "login__explicit")
+    ^rm -rf $tmp
+    [
+        (assert-eq $mk "login__explicit"
+            "explicit --matrix-key wins over run.json and cell.json")
+    ]
+}
+
+def test-resolve-matrix-key-cell-json-fallback [] {
+    test-log "\n[test-resolve-matrix-key-cell-json-fallback]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    ({
+        cell_id: "login__nc-v34"
+        matrix_key: "login__nextcloud"
+    } | to json) | save --force ($tmp | path join "meta/cell.json")
+    let mk = (resolve-matrix-key $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $mk "login__nextcloud"
+            "resolve-matrix-key falls back to cell.json when run.json absent")
+    ]
+}
+
+def test-resolve-matrix-key-run-json-before-cell [] {
+    test-log "\n[test-resolve-matrix-key-run-json-before-cell]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    ({
+        matrix_key: "login__from-run"
+    } | to json) | save --force ($tmp | path join "meta/run.json")
+    ({
+        matrix_key: "login__from-cell"
+        cell_id: "login__nc-v34"
+    } | to json) | save --force ($tmp | path join "meta/cell.json")
+    let mk = (resolve-matrix-key $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $mk "login__from-run"
+            "resolve-matrix-key prefers run.json over cell.json when explicit absent")
+    ]
+}
+
 # ---- read-run-meta tests ----
 
 def test-read-run-meta-happy-path [] {
@@ -386,6 +475,7 @@ def main [] {
     test-log "=== Run Metadata + Suite Index Tests ==="
     let results = (
         (test-write-terminal-outcome-run-shape)
+        | append (test-write-terminal-outcome-inherits-matrix-key-from-prepared-run)
         | append (test-write-terminal-outcome-failure-shape)
         | append (test-write-terminal-outcome-suite-fields)
         | append (test-finish-suite-record-skipped-count)
@@ -394,6 +484,9 @@ def main [] {
         | append (test-blocked-status-precedence)
         | append (test-compute-suite-status-delegates)
         | append (test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked)
+        | append (test-resolve-matrix-key-explicit-precedence)
+        | append (test-resolve-matrix-key-cell-json-fallback)
+        | append (test-resolve-matrix-key-run-json-before-cell)
         | append (test-read-run-meta-happy-path)
         | append (test-read-run-meta-missing-file-errors)
         | append (test-read-run-meta-missing-stack-id-errors)

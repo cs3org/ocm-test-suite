@@ -49,7 +49,7 @@ jobs:
     uses: ./.github/workflows/{{placeholder:run.cell.filename}}
     with:
       display-name: ${{ matrix.display_name }}
-      scenario: ${{ matrix.scenario }}
+      flow: ${{ matrix.flow }}
       sender-platform: ${{ matrix.sender_platform }}
       sender-version: ${{ matrix.sender_version }}
       receiver-platform: ${{ matrix.receiver_platform }}

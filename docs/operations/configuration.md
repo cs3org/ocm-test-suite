@@ -5,17 +5,19 @@ CI runs.
 
 ## Images
 
-`config/images.nuon` (schema v2) defines default image references, plus optional
-environment-based overrides. Defaults may be scoped by `by_flow` and
-`by_scenario`, so effective resolution depends on the scenario context, not
-only platform and version.
+`config/images.nuon` (schema v2) defines default image references, plus
+optional environment-based overrides. Defaults may be scoped by `by_flow` and
+`by_scenario` (keys are `matrix_key` values). Effective resolution uses the
+full tuple (`--flow`, platforms, versions), which derives `matrix_key` and
+`flow_id`.
 
 Preview effective image refs for a real run:
 
-- `nu scripts/ocmts.nu images resolve --scenario ...`
+- `nu scripts/ocmts.nu images resolve --flow ... --sender-platform ... --sender-version ...`
 
-Note: `images show` is a raw platform/version view and does not apply
-scenario-scoped overrides.
+Note: `images show` is a raw platform/version view. It does not apply `by_flow`
+or `by_scenario` (`matrix_key`) overrides; use `images resolve` with the full
+tuple for effective refs.
 
 ### Image overrides
 
@@ -32,7 +34,7 @@ Example local `ocmgo` image flow:
 export OCMTS_OCMGO_IMAGE=opencloudmesh-go:local
 nu scripts/ocmts.nu images show --platform ocmgo --version v1
 nu scripts/ocmts.nu images resolve \
-  --scenario share-with-ocmgo-nc \
+  --flow share-with \
   --sender-platform ocmgo --sender-version v1 \
   --receiver-platform nextcloud --receiver-version v34
 ```
@@ -49,8 +51,27 @@ unless a narrower role-specific override is added in `config/images.nuon`.
 Actor configuration lives under `config/actors/`:
 
 - `config/actors/platforms/*.nuon` defines accounts for each platform
-- `config/actors/scenarios/*.nuon` binds accounts to scenarios (for example
-  sender/receiver for two-party flows)
+- `config/actors/overrides/*.nuon` binds accounts to matrix cells
+
+Override filenames use the tuple `matrix_key` (for example
+`login__nextcloud` or `share-with__nextcloud__ocmgo`), not a legacy
+`--scenario` label. Tuple-based actor commands require `--flow` and
+`--sender-platform`; two-party flows also require `--receiver-platform`.
+
+Examples:
+
+```bash
+nu scripts/ocmts.nu actors show --flow login --sender-platform nextcloud
+nu scripts/ocmts.nu actors validate \
+  --flow share-with \
+  --sender-platform nextcloud \
+  --receiver-platform ocmgo
+```
+
+An override file must contain at least one non-empty `platform` or
+`account` value in `actor`, `sender`, or `receiver`. Empty files and
+empty-string-only role blocks (for example `{actor: {account: ""}}`) are
+rejected with a clear error.
 
 `ocmts` mounts the actor config into Nextcloud and sets
 `NEXTCLOUD_SEEDED_USERS_FILE` so local/CI stacks create the accounts

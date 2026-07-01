@@ -166,7 +166,7 @@ def test-blocked-eval [] {
     let login_v34_cell = {
         cell_id: "login__nextcloud-v34",
         flow_id: "login",
-        scenario: "login",
+        matrix_key: "login__nextcloud",
         sender_platform: "nextcloud",
         sender_version: "v34",
         receiver_platform: "",
@@ -179,7 +179,7 @@ def test-blocked-eval [] {
     let share_cell = {
         cell_id: "share-with__nextcloud-v34__nextcloud-v34",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__nextcloud",
         sender_platform: "nextcloud",
         sender_version: "v34",
         receiver_platform: "nextcloud",
@@ -215,7 +215,7 @@ def test-blocked-result-status [] {
         {
             cell_id: "share-with__nextcloud-v34__nextcloud-v34",
             flow_id: "share-with",
-            scenario: "share-with",
+            matrix_key: "share-with__nextcloud__nextcloud",
             sender_platform: "nextcloud",
             sender_version: "v34",
             receiver_platform: "nextcloud",
@@ -243,7 +243,7 @@ def test-transitive-blocked [] {
     let cell_b = (make-cell {
         cell_id: "b",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__nextcloud",
         receiver_platform: "nextcloud",
         receiver_version: "v34",
         is_two_party: true,
@@ -252,7 +252,7 @@ def test-transitive-blocked [] {
     let cell_c = (make-cell {
         cell_id: "c",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__nextcloud",
         receiver_platform: "nextcloud",
         receiver_version: "v34",
         is_two_party: true,
@@ -347,7 +347,7 @@ def test-compute-cell-depends-on-rejects-unknown-role [] {
     let cell = {
         cell_id: "share-with__nextcloud-v34__nextcloud-v34",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__nextcloud",
         sender_platform: "nextcloud",
         sender_version: "v34",
         receiver_platform: "nextcloud",

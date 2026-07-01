@@ -7,6 +7,10 @@
       "version_lines": [
         "v11"
       ],
+      "login": {
+        "mechanism": "external-idp",
+        "realm": "cernbox"
+      },
       "ocm_endpoints": {
         "default": {
           "ocm_path": "/ocm/",
@@ -24,6 +28,9 @@
         "v33",
         "v34"
       ],
+      "login": {
+        "mechanism": "same-origin"
+      },
       "ocm_endpoints": {
         "default": {
           "ocm_path": "/ocm/",
@@ -39,6 +46,9 @@
       "version_lines": [
         "v1"
       ],
+      "login": {
+        "mechanism": "same-origin"
+      },
       "ocm_endpoints": {
         "default": {
           "ocm_path": "/ocm/",
@@ -54,6 +64,9 @@
       "version_lines": [
         "v8"
       ],
+      "login": {
+        "mechanism": "same-origin"
+      },
       "ocm_endpoints": {
         "default": {
           "ocm_path": "/ocm/",
@@ -69,6 +82,9 @@
       "version_lines": [
         "v6"
       ],
+      "login": {
+        "mechanism": "same-origin"
+      },
       "ocm_endpoints": {
         "default": {
           "ocm_path": "/ocm/",

@@ -74,14 +74,8 @@ export def collect-run-artifacts [
     run_files: list<string>,
     is_two_party: bool,
 ] {
-    let log_services = if $is_two_party {
-        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache"]
-    } else {
-        ["sender" "sender-db" "sender-cache"]
-    }
-
     try {
-        let log_result = (collect-service-logs $artifacts_base $stack_id $run_files $log_services)
+        let log_result = (collect-service-logs $artifacts_base $stack_id $run_files [])
         if not $log_result.ok {
             let failed_svcs = (
                 $log_result.services

@@ -6,6 +6,7 @@
 use ../run/metadata.nu [write-terminal-outcome]
 use ../time/utc.nu [utc-now]
 use ../publish/envelope.nu [publish-envelope-safe]
+use ../compose/logs.nu [collect-service-logs]
 use ./lifecycle.nu [cleanup-temp cleanup-down overwrite-cleanup-failed]
 
 # Run `action` and return its result on success.
@@ -39,6 +40,11 @@ export def with-infra-fail-cleanup [
             $ctx.images --phase $phase --fail-error $e.msg
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         if not ($base_files | is-empty) {
+            try {
+                collect-service-logs $ctx.artifacts_base $ctx.stack_id $base_files []
+            } catch {|log_err|
+                print $"WARNING: log collection failed after ($phase) failure: ($log_err.msg)"
+            }
             let down_fail = (try {
                 cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file
                 null

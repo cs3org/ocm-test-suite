@@ -129,6 +129,10 @@ def "main check capabilities" [] {
         print --stderr "Adapter keys in JSON not in platforms config:"
         for $k in $result.platforms.extra_in_json { print --stderr $"  - ($k)" }
     }
+    if ($result.platform_login.violations | length) > 0 {
+        print --stderr "Platform login (platforms.nuon) violations:"
+        for $v in $result.platform_login.violations { print --stderr $"  - ($v)" }
+    }
     if ($result.completeness.missing | length) > 0 {
         print --stderr "Capabilities missing from adapter entries (declared in capability registry):"
         for $m in $result.completeness.missing { print --stderr $"  - ($m.adapter_key) missing: ($m.capability_key)" }

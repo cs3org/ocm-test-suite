@@ -45,11 +45,17 @@ module.exports = {
   expose: {
     receiver_baseUrl: process.env.CYPRESS_receiver_baseUrl,
     proof_cell: process.env.CYPRESS_proof_cell,
+    idp_origin: process.env.CYPRESS_idp_origin,
+    idp_realm: process.env.CYPRESS_idp_realm,
   },
   e2e: {
     specPattern: "cypress/e2e/**/*.cy.ts",
     supportFile: "cypress/support/e2e.ts",
     baseUrl: process.env.CYPRESS_BASE_URL || process.env.CYPRESS_baseUrl,
+    // Keep Cypress default test isolation ON explicitly: it clears cookies in
+    // all domains between tests, which is the boundary that drops a shared/external
+    // IdP SSO cookie so a later test logs in as the intended user.
+    testIsolation: true,
     setupNodeEvents(on, config) {
       on("task", {
         "runtime:clear"() {

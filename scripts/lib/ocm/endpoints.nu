@@ -44,7 +44,7 @@ def role-to-host [role: string, platform: string, index: int] {
 
 # Load and validate the platforms manifest from config/matrix/platforms.nuon.
 # Errors on missing file, wrong schema_version, or missing platforms key.
-def load-platforms-manifest [root: string] {
+export def load-platforms-manifest [root: string] {
     let path = ($root | path join "config/matrix/platforms.nuon")
     if not ($path | path exists) {
         error make {msg: $"platforms manifest not found: ($path)"}
@@ -57,6 +57,23 @@ def load-platforms-manifest [root: string] {
         error make {msg: $"platforms manifest missing required 'platforms' key: ($path)"}
     }
     $raw
+}
+
+# Login mechanism for a platform from the platforms manifest.
+# Defaults to "same-origin" when unset so non-IdP platforms need no extra config.
+export def platform-login-mechanism [root: string, platform: string]: nothing -> string {
+    (load-platforms-manifest $root).platforms
+        | get --optional $platform | default {}
+        | get --optional login | default {}
+        | get --optional mechanism | default "same-origin"
+}
+
+# Keycloak realm for an external-IdP platform; "" when unset or same-origin.
+export def platform-login-realm [root: string, platform: string]: nothing -> string {
+    (load-platforms-manifest $root).platforms
+        | get --optional $platform | default {}
+        | get --optional login | default {}
+        | get --optional realm | default ""
 }
 
 # Resolve the OCM provider record for one party.

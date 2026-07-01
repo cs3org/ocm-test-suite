@@ -1,6 +1,18 @@
 # Shared helpers for one-party and two-party compose topology writers.
 
 use ../run/execution-id.nu [execution-temp-path validate-execution-id]
+use ./yaml.nu [idp-party-host]
+use ../ocm/endpoints.nu [platform-login-mechanism]
+
+# IdP origin for a party, driven by the platforms.nuon login SSOT.
+# Returns "" for same-origin platforms; https://idp<party>.docker for external-idp.
+export def party-idp-origin [root: string, platform: string, party: int]: nothing -> string {
+    if (platform-login-mechanism $root $platform) == "external-idp" {
+        $"https://(idp-party-host $party)"
+    } else {
+        ""
+    }
+}
 
 # Derive a deterministic /24 private subnet from execution_id for the
 # ocm-net compose network. The execution_id must satisfy the contract

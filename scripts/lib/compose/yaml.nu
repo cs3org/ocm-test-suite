@@ -5,6 +5,12 @@ export def platform-party-host [platform: string, index: int] {
     $"($platform)($index).docker"
 }
 
+# Returns the numbered IdP party hostname: idp<index>.docker
+# (idp image SANs cover idp1.docker..idp4.docker).
+export def idp-party-host [index: int] {
+    $"idp($index).docker"
+}
+
 # Build a YAML environment list entry indented for a service environment block.
 # When the value contains chars unsafe in a YAML plain scalar (e.g. spaces, #),
 # the ENTIRE "KEY=VALUE" string is YAML-double-quoted so the YAML parser strips

@@ -4,7 +4,7 @@
 
 const SUITE_PATH = path self
 
-use ../../../lib/matrix/check/platforms.nu [check-platform-completeness]
+use ../../../lib/matrix/check/platforms.nu [check-platform-completeness check-platform-login]
 use ../../../lib/tests/assert.nu *
 use ../../../lib/tests/runner.nu [run-suite]
 use ../../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -15,8 +15,16 @@ def write-platforms-config [tmp_root: string] {
     let cfg = {
         schema_version: 1,
         platforms: {
-            nextcloud: {slug: "nc", version_lines: ["v32", "v33"]},
-            ocmgo: {slug: "ocmgo", version_lines: ["v1"]},
+            nextcloud: {
+                slug: "nc",
+                version_lines: ["v32", "v33"],
+                login: {mechanism: "same-origin"},
+            },
+            ocmgo: {
+                slug: "ocmgo",
+                version_lines: ["v1"],
+                login: {mechanism: "same-origin"},
+            },
         }
     }
     ($cfg | to json) | save --force ($tmp_root | path join "config/matrix/platforms.nuon")
@@ -88,6 +96,76 @@ def test-both-directions [] {
     }
 }
 
+# Valid login blocks pass the strict login validator.
+def test-login-valid [] {
+    test-log "\n[test-login-valid]"
+    with-tmp-dir {|tmp|
+        write-platforms-config $tmp
+        let result = (check-platform-login $tmp)
+        [
+            (assert-eq $result.violations []
+                "strict login validator accepts explicit same-origin login blocks")
+        ]
+    }
+}
+
+# A platform without a login block fails validation.
+def test-login-missing-block [] {
+    test-log "\n[test-login-missing-block]"
+    with-tmp-dir {|tmp|
+        write-platforms-config $tmp
+        let cfg_path = ($tmp | path join "config/matrix/platforms.nuon")
+        let cfg = (open $cfg_path)
+        let bad = ($cfg | upsert platforms.nextcloud {
+            slug: "nc",
+            version_lines: ["v32", "v33"],
+        })
+        ($bad | to json) | save --force $cfg_path
+        let result = (check-platform-login $tmp)
+        [
+            (assert-list-contains $result.violations
+                "nextcloud: missing required 'login' block"
+                "missing login block is reported")
+        ]
+    }
+}
+
+# An invalid login mechanism fails validation.
+def test-login-invalid-mechanism [] {
+    test-log "\n[test-login-invalid-mechanism]"
+    with-tmp-dir {|tmp|
+        write-platforms-config $tmp
+        let cfg_path = ($tmp | path join "config/matrix/platforms.nuon")
+        let cfg = (open $cfg_path)
+        let bad = ($cfg | upsert platforms.nextcloud.login {mechanism: "oidc"})
+        ($bad | to json) | save --force $cfg_path
+        let result = (check-platform-login $tmp)
+        [
+            (assert-list-contains $result.violations
+                "nextcloud: login.mechanism must be one of [same-origin, external-idp]; got oidc"
+                "invalid login.mechanism is reported")
+        ]
+    }
+}
+
+# external-idp requires a non-empty realm.
+def test-login-external-idp-missing-realm [] {
+    test-log "\n[test-login-external-idp-missing-realm]"
+    with-tmp-dir {|tmp|
+        write-platforms-config $tmp
+        let cfg_path = ($tmp | path join "config/matrix/platforms.nuon")
+        let cfg = (open $cfg_path)
+        let bad = ($cfg | upsert platforms.ocmgo.login {mechanism: "external-idp", realm: ""})
+        ($bad | to json) | save --force $cfg_path
+        let result = (check-platform-login $tmp)
+        [
+            (assert-list-contains $result.violations
+                "ocmgo: external-idp login requires a non-empty 'realm'"
+                "external-idp without realm is reported")
+        ]
+    }
+}
+
 def main [] {
     test-log "=== matrix/check/platforms Tests ==="
     let results = ([]
@@ -95,6 +173,10 @@ def main [] {
         | append (test-missing-from-json)
         | append (test-extra-in-json)
         | append (test-both-directions)
+        | append (test-login-valid)
+        | append (test-login-missing-block)
+        | append (test-login-invalid-mechanism)
+        | append (test-login-external-idp-missing-realm)
     )
     run-suite "matrix/check/platforms" $SUITE_PATH $results
 }

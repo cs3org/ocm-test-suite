@@ -93,6 +93,11 @@ export def overwrite-cleanup-failed [
 
 # CI-tuned wrapper around `docker compose up -d --wait`.
 #
+# wait_services: compose service names to pass after `up -d --wait`. An empty
+# list means no service targets - docker compose brings up and waits on the
+# full project (required for one-party stacks such as CERNBox with many Reva
+# microservices beyond `sender`).
+#
 # Behavior: quiet mode by default - output is buffered and stderr is surfaced
 # only on failure. When verbose=true, output streams live to the terminal.
 #
@@ -113,15 +118,18 @@ export def do-compose-up [
     env_file: string = "",
 ] {
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
+    let up_cmd = {|extra|
+        ^docker compose ...$env_args ...$f_args -p $stack_id up -d --wait ...$wait_services ...$extra
+    }
     if $verbose {
         try {
-            ^docker compose ...$env_args ...$f_args -p $stack_id up -d --wait ...$wait_services
+            do $up_cmd []
             null
         } catch {|e|
             {exit_code: ($env.LAST_EXIT_CODE? | default 1), msg: $e.msg}
         }
     } else {
-        let r = (^docker compose ...$env_args ...$f_args -p $stack_id up -d --wait ...$wait_services | complete)
+        let r = (do $up_cmd [] | complete)
         if $r.exit_code != 0 {
             let msg = if ($r.stderr | str trim | is-empty) {
                 $"docker compose up exited ($r.exit_code)"

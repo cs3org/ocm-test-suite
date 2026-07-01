@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 import type { LoginAdapter } from "../../../contracts/login";
+import { captureSameOriginLoginPageReadyEvidence } from "../../../shared/evidence";
 import {
   assertNextcloudLoggedIn,
   loginNextcloudViaUi,
@@ -14,9 +15,13 @@ export function createNextcloudLoginAdapter(
   version: NextcloudLoginVersion,
 ): LoginAdapter {
   return {
+    mechanism: "same-origin",
     key: `nextcloud/${version}`,
     openLoginPage() {
       openNextcloudLoginPage();
+    },
+    captureLoginPageReadyEvidence(scenarioId) {
+      captureSameOriginLoginPageReadyEvidence(scenarioId);
     },
     submitLogin(credentials) {
       submitNextcloudLoginForm(credentials);

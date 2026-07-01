@@ -3,21 +3,23 @@
 import type { LoginAdapter } from "../../../contracts/login";
 import {
   assertCernboxLoggedIn,
-  loginCernboxViaUi,
-  openCernboxLoginPage,
-  submitCernboxLoginForm,
+  completeCernboxAppLogin,
+  establishCernboxIdpSession,
 } from "../shared/login";
 
 export const cernboxV11LoginAdapter: LoginAdapter = {
+  mechanism: "external-idp",
   key: "cernbox/v11",
-  openLoginPage() {
-    openCernboxLoginPage();
+  establishIdpSession(credentials, scenarioId) {
+    establishCernboxIdpSession(credentials, scenarioId);
   },
-  submitLogin(credentials) {
-    submitCernboxLoginForm(credentials);
+  completeAppLogin() {
+    completeCernboxAppLogin();
   },
   login(credentials) {
-    loginCernboxViaUi(credentials);
+    establishCernboxIdpSession(credentials);
+    completeCernboxAppLogin();
+    assertCernboxLoggedIn();
   },
   assertLoggedIn() {
     assertCernboxLoggedIn();

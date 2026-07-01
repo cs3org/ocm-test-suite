@@ -31,8 +31,7 @@
           },
           "idp": {
             "default": "ghcr.io/mahdibaghbani/containers/idp:v26.4.2",
-            "override_env": "OCMTS_CERNBOX_IDP_IMAGE",
-            "service": "idp"
+            "override_env": "OCMTS_CERNBOX_IDP_IMAGE"
           }
         }
       }

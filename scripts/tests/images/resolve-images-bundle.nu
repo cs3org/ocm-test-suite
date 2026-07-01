@@ -22,7 +22,7 @@ def test-cernbox-v11-bundle-keys-and-defaults [] {
         (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT "idp default ref")
         (assert-eq ($imgs.bundle_services | get revad) "sender-revad-gateway"
             "revad slot maps to real compose service name")
-        (assert-eq ($imgs.bundle_services | get idp) "idp"
+        (assert-eq ($imgs.bundle_services | get idp) "sender-idp"
             "idp slot maps to real compose service name")
     ]
 }

@@ -124,7 +124,7 @@ def test-setup-run-context-bundle-passthrough [] {
             "setup-run-context images include non-empty bundle")
         (assert-eq ($ctx.images.bundle_services | get revad) "sender-revad-gateway"
             "setup-run-context carries revad service name")
-        (assert-eq ($ctx.images.bundle_services | get idp) "idp"
+        (assert-eq ($ctx.images.bundle_services | get idp) "sender-idp"
             "setup-run-context carries idp service name")
         (assert-list-contains $lines $revad_line
             "setup-run-context stack.env has resolved revad image")

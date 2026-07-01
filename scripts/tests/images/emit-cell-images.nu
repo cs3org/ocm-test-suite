@@ -78,7 +78,7 @@ def test-one-party-bundle-services-shape [] {
         },
         bundle_services: {
             revad: "sender-revad-gateway",
-            idp: "idp",
+            idp: "sender-idp",
         },
     }
     emit-cell-images $tmp "stack-bundle-1p" $imgs false
@@ -89,14 +89,14 @@ def test-one-party-bundle-services-shape [] {
         (assert-eq ($svcs | length) 3 "bundle one-party services length is 3")
         (assert-list-contains $svc_names "sender" "sender present")
         (assert-list-contains $svc_names "sender-revad-gateway" "real revad service present")
-        (assert-list-contains $svc_names "idp" "real idp service present")
+        (assert-list-contains $svc_names "sender-idp" "real idp service present")
         (assert-list-not-contains $svc_names "sender-revad" "synthetic sender-revad absent")
-        (assert-list-not-contains $svc_names "sender-idp" "synthetic sender-idp absent")
+        (assert-list-not-contains $svc_names "idp" "bare idp service name absent")
         (assert-list-not-contains $svc_names "sender-db" "sender-db absent for bundle")
         (assert-list-not-contains $svc_names "sender-cache" "sender-cache absent for bundle")
     ]
     let revad_entry = ($svcs | where service == "sender-revad-gateway" | first)
-    let idp_entry = ($svcs | where service == "idp" | first)
+    let idp_entry = ($svcs | where service == "sender-idp" | first)
     let entry_results = [
         (assert-eq $revad_entry.role "revad" "revad service role is revad")
         (assert-eq $revad_entry.tag "ghcr.io/example/cernbox-revad:master"

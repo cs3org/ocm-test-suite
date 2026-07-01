@@ -10,7 +10,7 @@ use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
 def make-tmp [] {
-    let t = ($nu.temp-path | path join $"evidence-emit-test-(random uuid)")
+    let t = ($nu.temp-dir | path join $"evidence-emit-test-(random uuid)")
     mkdir $t
     $t
 }

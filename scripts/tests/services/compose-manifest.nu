@@ -13,7 +13,7 @@ use ../../lib/tests/runner.nu [run-suite]
 # Create a temp dir with compose/inputs/ populated from overlays record.
 # Keys are filenames; values are file contents. stack.env added when with_env.
 def make-fixture [overlays: record, with_env: bool] {
-    let tmp = ($nu.temp-path | path join $"compose-manifest-test-(random uuid)")
+    let tmp = ($nu.temp-dir | path join $"compose-manifest-test-(random uuid)")
     let inputs = ($tmp | path join "compose" "inputs")
     mkdir $inputs
     for k in ($overlays | columns) {

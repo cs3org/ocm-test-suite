@@ -581,7 +581,7 @@ def test-build-implemented-cells-placeholder-for-disabled [] {
 # build-implemented-cells-json stamps a uniform provenance block with 10 sources.
 def test-build-implemented-cells-json-provenance-shape [] {
     test-log "\n[test-build-implemented-cells-json-provenance-shape]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-prov-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     let rules = {scenarios: {}}

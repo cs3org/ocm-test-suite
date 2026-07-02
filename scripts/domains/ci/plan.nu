@@ -1,5 +1,5 @@
 # Compute and print the CI execution plan as JSON.
-# Emits a CI plan record (suite_id, scenarios, cells) that expands every
+# Emits a CI plan record (suite_id, cells) that expands every
 # matrix cell, gates by capability, pre-assigns execution_ids, and resolves
 # prerequisite dependencies from config/ci/prerequisites.nuon.
 

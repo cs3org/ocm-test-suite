@@ -4,7 +4,7 @@
 #
 # Plan JSON shape:
 #   { schema_version, suite_id, generated_at,
-#     cells: [{cell_id, flow_id, scenario, execution_id,
+#     cells: [{cell_id, flow_id, matrix_key, execution_id,
 #               sender_platform, sender_version,
 #               receiver_platform, receiver_version,
 #               is_two_party,

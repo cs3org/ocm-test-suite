@@ -8,7 +8,7 @@ use ../schema/validate.nu [assert-schema-version]
 
 # Build matrix-rules.v1.json content.
 # Cells are filtered through apply-display-rule: vendor-out-of-scope cells
-# are excluded and each kept scenario carries a display_status enum value.
+# are excluded and each kept cell carries a display_status enum value.
 export def build-matrix-rules-json [
     rules: record,
     rules_path: string,

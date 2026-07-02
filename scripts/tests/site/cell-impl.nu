@@ -414,7 +414,6 @@ def make-full-cell [
     {
         flow_id: $flow_id,
         matrix_key: (matrix-key $flow_id $sender_platform $recv_plat),
-        scenario_module: $flow_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
         pair: $pair,

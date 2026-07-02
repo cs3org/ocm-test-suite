@@ -97,7 +97,7 @@ export def aggregate-suite-manifests [
 # expected_cell_ids: list of cell_ids that were planned; cells with no manifest
 # get a synthetic "missing" result injected into the manifest.
 # capability_skipped_cells: subset of planned cells that are capability-skipped
-# (each record has at least cell_id, flow_id, pair, artifact_name, scenario,
+# (each record has at least cell_id, flow_id, pair, artifact_name, matrix_key,
 # sender_platform, sender_version, receiver_platform, receiver_version,
 # is_two_party, execution_id, and capability_skip.rationale).
 # Those cells get a "capability-skipped" result instead of "missing", and their

@@ -1,4 +1,4 @@
-# One-party compose overlay writer (e.g. login scenario).
+# One-party compose overlay writer (e.g. login flow).
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
@@ -96,7 +96,7 @@ def write-one-party-env [
     $env_path
 }
 
-# Write overlays for a one-party scenario (e.g. login).
+# Write overlays for a one-party flow (e.g. login).
 # Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party, env_file}.
 export def write-one-party-overlays [
     flow_id: string,

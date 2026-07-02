@@ -1,12 +1,12 @@
 # Tuple Identity (flow + platforms)
 
-This file keeps the historical filename `scenario-keys.md`, but the content
-documents tuple identity: `flow_id`, `matrix_key`, and `cell_id`.
+OCMTS identifies a matrix cell with an explicit tuple of `flow_id`, platform,
+and version flags. The vocabulary centers on `flow_id`, `matrix_key`, and
+`cell_id`.
 
-OCMTS identifies a matrix cell with an explicit tuple, not a derived
-scenario slug. Operator CLIs take `--flow`, `--sender-platform`,
-`--sender-version`, and (for two-party flows) `--receiver-platform` and
-`--receiver-version`. Internal lookups use a version-less `matrix_key`.
+Operator CLIs take `--flow`, `--sender-platform`, `--sender-version`, and
+(for two-party flows) `--receiver-platform` and `--receiver-version`. Internal
+lookups use a version-less `matrix_key`.
 
 ## Vocabulary
 
@@ -16,7 +16,6 @@ scenario slug. Operator CLIs take `--flow`, `--sender-platform`,
 | `matrix_key`   | Version-less internal lookup key. Shape `<flow_id>__<sender_platform>[__<receiver_platform>]`. Platform names, not slugs. |
 | `cell_id`      | Per-pair, per-version artifact id. Shape `<flow_id>__<sender_platform>-<sender_version>[__<receiver_platform>-<receiver_version>]`. |
 | `pair`         | Role-ordered artifact path segment. One-party: `<sender_platform>-<sender_version>`. Two-party: `<sender>-<sver>-<recv>-<rver>`. |
-| `scenario_module` | Cypress module directory name under `cypress/e2e/`. Equals `flow_id` today. |
 
 The tuple is what operators pass on the CLI. `matrix_key` is what matrix
 rules, actor overrides, and image override resolution use internally.
@@ -38,9 +37,8 @@ Rules:
 2. Two-party: `<flow_id>__<sender_platform>__<receiver_platform>`
    (example: `share-with__nextcloud__ocmgo`).
 
-There is no baseline aliasing, slug shortening, or `naming.nuon`
-remapping. Every enabled (flow, sender, receiver) pair has exactly one
-`matrix_key`.
+Every enabled (flow, sender, receiver) pair has exactly one `matrix_key`
+with the shape defined above.
 
 ## Operator recipes
 
@@ -115,7 +113,7 @@ nu -c 'use scripts/lib/matrix/rules-gen.nu [load-matrix-rules matrix-key]; let r
   two-party flows) platform and version on the CLI.
 - **`matrix_key` uses platform names, not versions.** Versions appear only
   in `cell_id`, artifact paths, and CLI version flags.
-- **Cypress module paths use `scenario_module` (= `flow_id`).** Each module's
-  generated `matrix.ts` lists enabled `cell_id` values in `matrixCellIds`.
-  Regenerate with `nu scripts/ocmts.nu matrix gen cypress` after matrix rule
-  changes; `matrix gen cypress --check` verifies on-disk files match.
+- **Cypress module paths use `flow_id`.** Each module's generated `matrix.ts`
+  lists enabled `cell_id` values in `matrixCellIds`. Regenerate with
+  `nu scripts/ocmts.nu matrix gen cypress` after matrix rule changes;
+  `matrix gen cypress --check` verifies on-disk files match.

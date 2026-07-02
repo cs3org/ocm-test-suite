@@ -19,7 +19,7 @@ def test-ingest-missing-injection [] {
     let ts = "2026-01-01T00:00:00Z"
     let suite_id = "20260101t000000-aabbccdd"
 
-    # Inline matrix rules record with no scenarios (ingest from suite only).
+    # Inline matrix rules record with no matrix entries (ingest from suite only).
     let rules = {matrix: {}}
 
     # Write a fake per-run manifest for cell-a (passed).

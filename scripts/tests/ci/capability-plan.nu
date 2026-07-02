@@ -21,7 +21,7 @@ use ./fixtures.nu [
 ]
 
 # Rules fixture with a unique disabled cell (v99) so its cell_id does not
-# collide with the enabled "login" scenario cells.
+# collide with the enabled login matrix cells.
 def fixture-rules-with-unique-disabled [] {
     {
         matrix: {
@@ -47,7 +47,7 @@ def test-plan-suite-disabled-cell-is-placeholder [] {
     let v99_cells = ($plan.cells | where {|c| $c.cell_id == "login__nextcloud-v99"})
     [
         (assert-truthy (not ($v99_cells | is-empty))
-            "disabled scenario cell login__nextcloud-v99 is included in plan")
+            "disabled matrix cell login__nextcloud-v99 is included in plan")
         (assert-eq ($v99_cells | first | get capability_action) "exclude-placeholder"
             "disabled supported cell has capability_action exclude-placeholder")
         (assert-eq ($v99_cells | first | get capability_status) "placeholder"

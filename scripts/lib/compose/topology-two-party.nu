@@ -1,4 +1,4 @@
-# Two-party compose overlay writer (e.g. share-with scenario with MITM).
+# Two-party compose overlay writer (e.g. share-with flow with MITM).
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
@@ -110,7 +110,7 @@ def write-two-party-env [
     $env_path
 }
 
-# Write overlays for a two-party scenario (e.g. share-with) with MITM.
+# Write overlays for a two-party flow (e.g. share-with) with MITM.
 # Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party, env_file}.
 export def write-two-party-overlays [
     flow_id: string,

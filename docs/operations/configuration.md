@@ -53,8 +53,8 @@ Actor configuration lives under `config/actors/`:
 - `config/actors/overrides/*.nuon` binds accounts to matrix cells
 
 Override filenames use the tuple `matrix_key` (for example
-`login__nextcloud` or `share-with__nextcloud__ocmgo`), not a legacy
-`--scenario` label. Tuple-based actor commands require `--flow` and
+`login__nextcloud` or `share-with__nextcloud__ocmgo`). Tuple-based actor
+commands require `--flow` and
 `--sender-platform`; two-party flows also require `--receiver-platform`.
 
 Examples:
@@ -117,9 +117,9 @@ When debugging route or subnet issues, inspect these in order:
 
 ## MITM and proxy evidence
 
-Two-party MITM scenarios write the platform proxy contract into
-`compose/inputs/stack.env` before Docker starts. Review these files in order
-when debugging outbound traffic routing:
+For MITM-backed two-party matrix cells, OCMTS writes the platform proxy
+contract into `compose/inputs/stack.env` before Docker starts. Review
+these files in order when debugging outbound traffic routing:
 
 - `compose/inputs/stack.env`
 - `mitm/startup.v1.json`

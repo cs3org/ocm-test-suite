@@ -139,7 +139,7 @@ export def ocmgo-env-lines [
     }
     if $platform == "ocmgo" {
         if $actor == null {
-            error make {msg: $"($role) platform 'ocmgo' requires a ($role) actor \(admin credentials\); none configured for this scenario"}
+            error make {msg: $"($role) platform 'ocmgo' requires a ($role) actor \(admin credentials\); none configured for this tuple"}
         }
         [
             $"OCM_GO_($role_upper)_HOST=($short_host)"

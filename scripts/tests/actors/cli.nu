@@ -66,7 +66,7 @@ def write-minimal-fixture [tmp_root: string] {
     | save --force ($tmp_root | path join "config/actors/platforms/nextcloud.nuon")
 }
 
-# `actors list` exits 0 and prints at least one matrix-enabled scenario.
+# `actors list` exits 0 and prints at least one matrix-enabled tuple.
 def test-actors-list [] {
     test-log "\n[test-actors-list]"
     let out = (^nu (ocmts-script) actors list | complete)

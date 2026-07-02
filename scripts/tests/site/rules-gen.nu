@@ -84,7 +84,6 @@ def make-cell [
     {
         flow_id: $flow_id,
         matrix_key: $matrix_key,
-        scenario_module: $flow_id,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
         pair: $pair,
@@ -243,7 +242,7 @@ def test-apply-display-rule-emits-not-in-scope [] {
     ]
 }
 
-# build-matrix-rules-json emits display_status on every scenario; never out-of-scope.
+# build-matrix-rules-json emits display_status on every kept cell; never out-of-scope.
 def test-build-matrix-rules-json-includes-display-status [] {
     test-log "\n[test-build-matrix-rules-json-includes-display-status]"
     # build-matrix-rules-json calls compute-matrix-cells internally, which
@@ -652,7 +651,7 @@ def test-build-matrix-rules-json-matrix-keys-use-tuple-shape [] {
 def test-gate-cells-by-capabilities-locked-mapping [] {
     test-log "\n[test-gate-cells-by-capabilities-locked-mapping]"
     # Verify the locked status->action/display_visible/display_status mapping via
-    # gate-cells-by-capabilities. One cell per status scenario.
+    # gate-cells-by-capabilities. One cell per capability status.
     let flow_caps = {
         "f": {sender: ["cap.f.sender"], receiver: []},
     }

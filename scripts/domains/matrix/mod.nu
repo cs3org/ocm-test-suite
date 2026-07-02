@@ -6,6 +6,7 @@ use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 use ../../lib/matrix/cypress-gen.nu [write-cypress-matrix-files check-cypress-matrix-files]
 use ../../lib/matrix/cells.nu [expand-matrix-cells]
+use ../../lib/matrix/expand.nu [expand-version-pairs]
 use ../../lib/matrix/check/capabilities.nu [check-adapter-capabilities]
 
 def main [] {
@@ -13,7 +14,8 @@ def main [] {
     print ""
     print "Verbs:"
     print "  gen cypress          Generate cypress/e2e/<flow>/matrix.ts files"
-    print "  list                 List all matrix cells from the matrix SSOT under config/matrix/"
+    print "  list                 List expanded matrix cells (version pairs x browsers)"
+    print "  list entries         Summarize matrix rules entries (one row per matrix_key)"
     print "  cell                 Compute cell_id and image refs for a matrix entry"
     print "  check capabilities   Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files"
 }
@@ -42,7 +44,7 @@ def "main gen cypress" [
     }
 }
 
-# List all matrix cells defined in the matrix SSOT under config/matrix/.
+# List expanded matrix cells: one row per version pair and browser.
 def "main list" [--json] {
     let root = get-ocmts-root
     let rules = (load-matrix-rules $root)
@@ -51,6 +53,62 @@ def "main list" [--json] {
         $cells | to json
     } else {
         $cells | table
+    }
+}
+
+# nuon may store a lone version pair as a record; expand may return a table.
+def normalize-pair-list [raw: any] {
+    let desc = ($raw | describe)
+    if ($desc | str starts-with "list") or ($desc | str starts-with "table") {
+        return ($raw | each {|row| $row})
+    }
+    if ($raw | is-empty) {
+        return []
+    }
+    [$raw]
+}
+
+# Version columns for list entries: unique versions from expand-version-pairs.
+def matrix-entry-version-summary [entry: record] {
+    let pairs = (normalize-pair-list (expand-version-pairs $entry))
+    let sender_v = ($pairs | each {|p| $p.sender_version} | uniq | sort | str join ", ")
+    let receiver_v = if ($entry.receiver? == null) {
+        ""
+    } else {
+        $pairs | each {|p| $p.receiver_version} | uniq | sort | str join ", "
+    }
+    {sender_v: $sender_v, receiver_v: $receiver_v}
+}
+
+# One row per matrix_key from the loaded matrix rules (rules-level SSOT summary).
+def matrix-entry-rows [matrix: record] {
+    $matrix | items {|k, v|
+        let versions = (matrix-entry-version-summary $v)
+        {
+            matrix_key: $k,
+            flow: $v.flow_id,
+            sender: $v.sender.platform,
+            sender_v: $versions.sender_v,
+            receiver: ($v.receiver?.platform? | default "-"),
+            receiver_v: $versions.receiver_v,
+        }
+    } | sort-by flow matrix_key
+}
+
+# Summarize matrix rules entries: one row per matrix_key; versions from expanded pairs.
+def "main list entries" [--json, --md] {
+    if $json and $md {
+        error make {msg: "--json and --md are mutually exclusive"}
+    }
+    let root = get-ocmts-root
+    let rules = (load-matrix-rules $root)
+    let rows = (matrix-entry-rows $rules.matrix)
+    if $json {
+        $rows | to json
+    } else if $md {
+        $rows | to md --pretty
+    } else {
+        $rows | table
     }
 }
 

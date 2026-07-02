@@ -99,13 +99,22 @@ List overrides:
 nu scripts/ocmts.nu actors list overrides
 ```
 
-## Regenerating the live matrix table
+## Viewing the live matrix table
 
-From the repo root:
+`matrix list entries` shows one row per `matrix_key` from the matrix rules
+SSOT (platform and version summary). `matrix list` expands those rules
+into enabled matrix cells (version pairs x browsers). Use `entries` when
+you want the rules-level table; use `list` for the full cell inventory.
+
+From the repo root, print the rules-level table as markdown:
 
 ```sh
-nu -c 'use scripts/lib/matrix/rules-gen.nu [load-matrix-rules matrix-key]; let r = (load-matrix-rules (pwd)); $r.matrix | items {|k, v| { matrix_key: $k, flow: $v.flow_id, sender: $v.sender.platform, sender_v: ($v.sender.version_lines | str join ", "), receiver: ($v.receiver?.platform? | default "-"), receiver_v: ($v.receiver?.version_lines? | default [] | str join ", ") }} | sort-by flow matrix_key | to md --pretty'
+nu scripts/ocmts.nu matrix list entries --md
 ```
+
+Table columns: `matrix_key`, `flow`, `sender`, `sender_v`, `receiver`,
+`receiver_v`. Rows are sorted by `flow` then `matrix_key`. Add `--json` for
+machine-readable output instead of `--md`.
 
 ## Gotchas
 

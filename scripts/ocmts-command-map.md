@@ -59,12 +59,13 @@ Run from the repo root.
 
 ## matrix
 
-| Command                                         | Purpose                                                                                         |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `nu scripts/ocmts.nu matrix gen cypress`        | Regenerate `cypress/e2e/<flow>/matrix.ts` files.                                                |
-| `nu scripts/ocmts.nu matrix list [--json]`      | List enabled cells.                                                                             |
-| `nu scripts/ocmts.nu matrix cell ...`           | Show one cell record.                                                                           |
-| `nu scripts/ocmts.nu matrix check capabilities` | Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.   |
+| Command                                                    | Purpose                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `nu scripts/ocmts.nu matrix gen cypress`                   | Regenerate `cypress/e2e/<flow>/matrix.ts` files.                                                  |
+| `nu scripts/ocmts.nu matrix list [--json]`                 | List expanded matrix cells (version pairs x browsers).                                            |
+| `nu scripts/ocmts.nu matrix list entries [--json] [--md]`  | List matrix rules entries (one row per `matrix_key`); `--json` and `--md` are mutually exclusive. |
+| `nu scripts/ocmts.nu matrix cell ...`                      | Show one cell record.                                                                             |
+| `nu scripts/ocmts.nu matrix check capabilities`            | Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.     |
 
 ## services
 

@@ -4,7 +4,6 @@
 
 const PROVENANCE_FILES = [
     "matrix-rules.v1.json",
-    "implemented-cells.v1.json",
     "matrix-not-in-scope.v1.json",
     "suite-manifest.v1.json",
 ]

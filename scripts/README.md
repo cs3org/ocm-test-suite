@@ -54,7 +54,7 @@ scripts/
                            # result-envelope, status
     services/              # compose-files, context, cypress-run,
                            # lifecycle, postrun-artifacts
-    site/                  # blocker-logic, build, cell-impl, clone,
+    site/                  # blocker-logic, build, clone,
                            # config, copy, flow-caps, ingest, internal
                            # (shared private helpers), manifest, preview,
                            # project-media, provenance, publish

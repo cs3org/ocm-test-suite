@@ -54,7 +54,7 @@ each cell. It writes public data files such as:
 
 - `suite-manifest.v1.json`
 - `matrix-rules.v1.json`
-- `implemented-cells.v1.json`
+- `matrix-not-in-scope.v1.json`
 
 It also copies published evidence into:
 

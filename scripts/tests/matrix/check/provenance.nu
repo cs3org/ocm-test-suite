@@ -26,11 +26,10 @@ def write-valid-file [dir: string, name: string] {
     ($content | to json) | save --force ($dir | path join $name)
 }
 
-# Writes all 4 required files with valid content.
+# Writes all 3 required files with valid content.
 def write-all-valid [public_dir: string] {
     mkdir $public_dir
     write-valid-file $public_dir "matrix-rules.v1.json"
-    write-valid-file $public_dir "implemented-cells.v1.json"
     write-valid-file $public_dir "matrix-not-in-scope.v1.json"
     write-valid-file $public_dir "suite-manifest.v1.json"
 }
@@ -132,11 +131,11 @@ def test-bad-producer-violation [] {
             producer: {name: "wrong-tool", version: "9.9.9"},
             sources: [{path: "config/matrix/capabilities.v1.nuon", sha256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"}],
         }
-        ($bad | to json) | save --force ($dirs.public_dir | path join "implemented-cells.v1.json")
+        ($bad | to json) | save --force ($dirs.public_dir | path join "suite-manifest.v1.json")
         let result = (check-provenance-blocks $dirs.ocmts_root)
         [
-            (assert-truthy (($result.violations | any {|v| $v.file == "implemented-cells.v1.json"}))
-                "violation for implemented-cells.v1.json with wrong producer")
+            (assert-truthy (($result.violations | any {|v| $v.file == "suite-manifest.v1.json"}))
+                "violation for suite-manifest.v1.json with wrong producer")
         ]
     }
 }

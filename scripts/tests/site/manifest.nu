@@ -45,10 +45,80 @@ def test-build-aggregated-manifest-provenance-shape [] {
     ]
 }
 
+# Aggregated runs omit per-run image/hash fields; execution_context is injected.
+def test-build-aggregated-manifest-run-shape [] {
+    test-log "\n[test-build-aggregated-manifest-run-shape]"
+    let tmp = (^mktemp -d | str trim)
+    let ts = "2026-01-01T00:00:00Z"
+    let run_dir = ($tmp | path join "login" "nextcloud-v34" "exec-aaa")
+    mkdir ($run_dir | path join "meta")
+    mkdir ($run_dir | path join "compose")
+    let exec_ctx = {browser: "chrome", platform: "nextcloud"}
+    let run_manifest = {
+        schema_version: 1,
+        generated_at: $ts,
+        execution_context: $exec_ctx,
+        flows: {login: {id: "login"}},
+        cells: {"cell-a": {id: "cell-a", flow_id: "login", pair: "nextcloud-v34"}},
+        runs: {"exec-aaa": {id: "exec-aaa", cell_id: "cell-a", started_at: $ts, finished_at: $ts}},
+        results: {
+            "result-a": {
+                schema_version: 1, id: "result-a", run_id: "exec-aaa",
+                execution_id: "exec-aaa", cell_id: "cell-a",
+                exit_code: 0, status: "passed", finished_at: $ts, failure_reason: "",
+                evidence: [],
+            }
+        },
+        indexes: {latest_terminal_result_by_cell: {}},
+    }
+    $run_manifest | to json --indent 2 | save --force ($run_dir | path join "meta/suite-manifest.v1.json")
+    {
+        images: {sender: "ghcr.io/example/sender:tag"},
+    } | to json --indent 2 | save --force ($run_dir | path join "meta/run.json")
+    {
+        schema_version: 1,
+        stack_def_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        stack_env_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    } | to json --indent 2 | save --force ($run_dir | path join "compose/manifest.v1.json")
+
+    let entry = {
+        manifest: $run_manifest,
+        run_dir: $run_dir,
+        artifact_name: "cell-login-nc-v34",
+        exec_id: "exec-aaa",
+        cell_id: "cell-a",
+        result_id: "result-a",
+        finished_at: $ts,
+    }
+    let out = (build-aggregated-manifest [$entry] (ocmts-root))
+    let run_entry = ($out.runs | get "exec-aaa")
+    let run_cols = ($run_entry | columns | sort)
+    let removed = ["images" "images_provenance" "stack_def_sha256" "stack_env_sha256"]
+    let present_removed = ($removed | where {|k| $k in $run_cols})
+
+    ^rm -rf $tmp
+    [
+        (assert-eq ($out.runs | columns | length) 1
+            "one aggregated run entry")
+        (assert-eq ($present_removed | length) 0
+            "aggregated run omits images, images_provenance, stack_def_sha256, stack_env_sha256")
+        (assert-eq ($run_entry.execution_context? | default {})
+            $exec_ctx
+            "execution_context injected from per-run manifest")
+        (assert-eq ($run_entry.id? | default "")
+            "exec-aaa"
+            "run id preserved")
+        (assert-eq ($run_entry.cell_id? | default "")
+            "cell-a"
+            "cell_id preserved")
+    ]
+}
+
 def main [] {
     test-log "=== site/manifest Tests ==="
     let results = (
         (test-build-aggregated-manifest-provenance-shape)
+        | append (test-build-aggregated-manifest-run-shape)
     ) | flatten
     run-suite "site/manifest" $SUITE_PATH $results
 }

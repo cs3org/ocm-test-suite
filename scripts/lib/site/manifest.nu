@@ -1,10 +1,8 @@
-# Manifest aggregation: matrix-rules JSON, image provenance, and suite manifest.
+# Manifest aggregation: matrix-rules JSON and suite manifest.
 
 use ./internal.nu [evidence-path-allowed compute-matrix-cells]
 use ./provenance.nu [build-provenance-block SITE_PROVENANCE_SOURCES]
-use ../images/inspect.nu [inspect-one-image]
 use ../matrix/rules-gen.nu [apply-display-rule]
-use ../schema/validate.nu [assert-schema-version]
 
 # Build matrix-rules.v1.json content.
 # Cells are filtered through apply-display-rule: vendor-out-of-scope cells
@@ -128,18 +126,6 @@ export def compute-latest-index [results: record] {
     $pairs | into record
 }
 
-# For each image ref in the images record, attempt docker inspect.
-# Returns a record with the same keys; per-entry value is provenance or null.
-export def build-images-provenance [images: record] {
-    if ($images | is-empty) { return {} }
-    $images | transpose key ref | each {|row|
-        let prov = (try {
-            inspect-one-image ($row.ref | into string)
-        } catch { null })
-        {($row.key): $prov}
-    } | into record
-}
-
 # Merge per-run entries into a single aggregated suite-manifest.v1.json.
 # Injects run.execution_context from top-level per-run execution_context.
 # Filters evidence[] to allowlisted paths only.
@@ -153,31 +139,10 @@ export def build-aggregated-manifest [entries: list, ocmts_root: string] {
         let m = $entry.manifest
         $flows = ($flows | merge $m.flows)
         $cells = ($cells | merge $m.cells)
-        # Inject per-run execution_context and resolved image pins into run map.
+        # Inject per-run execution_context into run map.
         let run_id = ($m.runs | columns | first)
-        let run_json_path = ($entry.run_dir | path join "meta/run.json")
-        let run_images = if ($run_json_path | path exists) {
-            (open $run_json_path).images? | default {}
-        } else {
-            {}
-        }
-        let run_provenance = (build-images-provenance $run_images)
-        let compose_manifest_path = ($entry.run_dir | path join "compose/manifest.v1.json")
-        let compose_manifest = if ($compose_manifest_path | path exists) {
-            let doc = (open $compose_manifest_path)
-            assert-schema-version $doc 1 $compose_manifest_path
-            $doc
-        } else {
-            null
-        }
-        let stack_def_sha256 = if $compose_manifest != null { $compose_manifest.stack_def_sha256 } else { null }
-        let stack_env_sha256 = if $compose_manifest != null { $compose_manifest.stack_env_sha256 } else { null }
         let run_entry = ($m.runs | get $run_id
-            | upsert execution_context $m.execution_context
-            | upsert images $run_images
-            | upsert images_provenance $run_provenance
-            | upsert stack_def_sha256 $stack_def_sha256
-            | upsert stack_env_sha256 $stack_env_sha256)
+            | upsert execution_context $m.execution_context)
         $runs = ($runs | upsert $run_id $run_entry)
         # Filter evidence to allowlisted paths only.
         let result_id = ($m.results | columns | first)
@@ -186,7 +151,7 @@ export def build-aggregated-manifest [entries: list, ocmts_root: string] {
             | where {|ev| evidence-path-allowed ($ev.path? | default "")})
         $results = ($results | upsert $result_id ($raw_res | upsert evidence $ev_filtered))
     }
-    # Aggregator has no fixed input files; per-run provenance lives inside runs[] (stack_def_sha256, stack_env_sha256, images_provenance).
+    # Aggregator has no fixed input files; per-run execution_context is injected above.
     let prov = (build-provenance-block {
         generator: "scripts/lib/site/manifest.nu#build-aggregated-manifest",
         producer: {name: "ocmts", version: "0.1.0"},

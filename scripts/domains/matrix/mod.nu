@@ -78,7 +78,6 @@ def "main cell" [
         $result | to json
     } else {
         print $"flow_id:           ($result.flow_id)"
-        print $"scenario_module:   ($result.scenario_module)"
         print $"cell_id:           ($result.cell_id)"
         print $"artifact_name:     ($result.artifact_name)"
         print $"browser:           ($result.browser)"

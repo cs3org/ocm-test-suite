@@ -35,7 +35,6 @@ use ../../lib/site/flow-caps.nu [load-flow-caps]
 def main [
     --suite-id: string = "",  # Override generated suite_id for this run
     --stop-on-fail,           # Stop on first failure (default: continue)
-    --continue-on-fail,       # Compat alias: continue after failures (now the default)
     --max: int = 0,           # Limit runs to N cells (0 = unlimited)
     --verbose,                # Pass --verbose to services up run
     --publish-site,           # Publish site after suite finalization

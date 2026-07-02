@@ -173,7 +173,6 @@ export def compute-cell [
         let rv = (validate-path-segment $receiver_version "receiver_version")
         {
             flow_id: $fid,
-            scenario_module: $fid,
             matrix_key: $mk,
             cell_id: $"($fid)__($p)-($v)__($rp)-($rv)",
             artifact_name: $"cell-($fid)-($p)-($v)-($rp)-($rv)",
@@ -188,7 +187,6 @@ export def compute-cell [
     } else {
         {
             flow_id: $fid,
-            scenario_module: $fid,
             matrix_key: $mk,
             cell_id: $"($fid)__($p)-($v)",
             artifact_name: $"cell-($fid)-($p)-($v)",

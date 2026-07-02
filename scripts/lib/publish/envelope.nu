@@ -415,13 +415,6 @@ export def emit-publish-envelope [artifacts_base: string] {
         browser: ($cell.browser? | default "chrome"),
         is_two_party: ($cell.is_two_party? | default false),
     }
-    let scenario_module = ($cell.scenario_module? | default "" | into string | str trim)
-    let cell_entry = if ($scenario_module | is-empty) {
-        $cell_entry
-    } else {
-        $cell_entry | upsert scenario_module $scenario_module
-    }
-
     # failure_reason must be concrete and observed.
     # Prefer run.error when present; otherwise, fall back to a summary derived
     # from terminal status + exit_code for non-passing results.

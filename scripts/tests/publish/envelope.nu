@@ -487,7 +487,6 @@ def test-emit-publish-envelope-errors-without-flow-id [] {
             cell_id: "login__nextcloud-v34"
             artifact_name: "cell-login-nextcloud-v34"
             scenario: "login"
-            scenario_module: "login"
             sender_platform: "nextcloud"
             sender_version: "v34"
         } --run-extra {matrix_key: "login__nextcloud"}
@@ -499,20 +498,20 @@ def test-emit-publish-envelope-errors-without-flow-id [] {
     }
 }
 
-def test-emit-publish-envelope-scenario-module-on-cell-entry [] {
-    test-log "\n[test-emit-publish-envelope-scenario-module-on-cell-entry]"
+def test-emit-publish-envelope-omits-scenario-module-on-cell-entry [] {
+    test-log "\n[test-emit-publish-envelope-omits-scenario-module-on-cell-entry]"
     with-tmp-dir {|tmp|
         write-sparse-publish-fixture $tmp {
             cell_id: "contact-wayf__nextcloud-v34"
             artifact_name: "cell-contact-wayf-nextcloud-v34"
-            flow_id: "share-with"
+            flow_id: "contact-wayf"
             scenario_module: "contact-wayf"
             sender_platform: "nextcloud"
             sender_version: "v34"
-        } --run-extra {matrix_key: "share-with__nextcloud"}
+        } --run-extra {matrix_key: "contact-wayf__nextcloud"}
         emit-publish-envelope $tmp
-        let with_module = (open ($tmp | path join "meta/suite-manifest.v1.json"))
-        let cell_with = ($with_module.cells | values | first)
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
 
         write-sparse-publish-fixture $tmp {
             cell_id: "login__nextcloud-v34"
@@ -522,12 +521,12 @@ def test-emit-publish-envelope-scenario-module-on-cell-entry [] {
             sender_version: "v34"
         } --run-extra {matrix_key: "login__nextcloud"}
         emit-publish-envelope $tmp
-        let without_module = (open ($tmp | path join "meta/suite-manifest.v1.json"))
-        let cell_without = ($without_module.cells | values | first)
+        let manifest2 = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_without = ($manifest2.cells | values | first)
 
         [
-            (assert-eq ($cell_with.scenario_module? | default "") "contact-wayf"
-                "cell_entry preserves scenario_module when present in cell.json")
+            (assert-truthy (not ("scenario_module" in ($cell_entry | columns)))
+                "cell_entry omits scenario_module even when stale cell.json had it")
             (assert-truthy (not ("scenario_module" in ($cell_without | columns)))
                 "cell_entry omits scenario_module when absent from cell.json")
         ]
@@ -540,7 +539,7 @@ def main [] {
         (test-emit-publish-envelope-carries-matrix-key-on-run-and-result)
         | append (test-emit-publish-envelope-backfills-matrix-key-from-run-json)
         | append (test-emit-publish-envelope-errors-without-flow-id)
-        | append (test-emit-publish-envelope-scenario-module-on-cell-entry)
+        | append (test-emit-publish-envelope-omits-scenario-module-on-cell-entry)
         | append (test-path-to-evidence-id)
         | append (test-parse-screenshot-stem)
         | append (test-parse-video-stem)

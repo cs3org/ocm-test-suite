@@ -29,6 +29,7 @@ def test-setup-run-context-persists-matrix-key [] {
     )
     let cell_meta = (open ($ctx.artifacts_base | path join "meta/cell.json"))
     let run_meta = (open ($ctx.artifacts_base | path join "meta/run.json"))
+    let runner_ci = (open -r ($ctx.artifacts_base | path join "compose/inputs/runner-ci.yml"))
     let results = [
         (assert-eq ($ctx.cell.matrix_key? | default "") "login__nextcloud"
             "setup-run-context cell record has matrix_key")
@@ -36,6 +37,10 @@ def test-setup-run-context-persists-matrix-key [] {
             "setup-run-context persists matrix_key in meta/cell.json")
         (assert-eq ($run_meta.matrix_key? | default "") "login__nextcloud"
             "setup-run-context persists matrix_key in meta/run.json")
+        (assert-truthy (not ("scenario_module" in ($cell_meta | columns)))
+            "setup-run-context cell.json omits scenario_module")
+        (assert-string-contains $runner_ci "cypress/e2e/login/index.cy.ts"
+            "setup-run-context derives Cypress spec path from flow_id")
     ]
     rm -rf $ctx.artifacts_base
     rm -rf (execution-temp-path $FIXTURE_EXEC_ID)

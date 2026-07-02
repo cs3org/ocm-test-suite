@@ -14,7 +14,6 @@ def main [
     --cell-id: string = "",
     --execution-id: string,
     --flow: string,
-    --flow-id: string = "",
     --pair: string = "",
     --artifact-name: string = "",
     --sender-platform: string,
@@ -27,12 +26,11 @@ def main [
 ] {
     let root = get-ocmts-root
 
-    let eff_flow_id = if not ($flow_id | is-empty) { $flow_id } else { $flow }
-    assert-matrix-entry-enabled $eff_flow_id $sender_platform $receiver_platform
-    (validate-cell-rules $eff_flow_id $sender_platform $sender_version "chrome"
+    assert-matrix-entry-enabled $flow $sender_platform $receiver_platform
+    (validate-cell-rules $flow $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
 
-    let derived = (compute-cell $eff_flow_id $sender_platform $sender_version "chrome"
+    let derived = (compute-cell $flow $sender_platform $sender_version "chrome"
         $receiver_platform $receiver_version)
     let eff_cell_id = if ($cell_id | is-empty) { $derived.cell_id } else { $cell_id }
     let eff_pair = if ($pair | is-empty) { $derived.pair } else { $pair }
@@ -42,9 +40,8 @@ def main [
     let planned_cell = {
         cell_id: $eff_cell_id,
         execution_id: $execution_id,
-        flow_id: $eff_flow_id,
+        flow_id: $flow,
         matrix_key: $derived.matrix_key,
-        scenario_module: $eff_flow_id,
         pair: $eff_pair,
         artifact_name: $eff_artifact_name,
         sender_platform: $sender_platform,

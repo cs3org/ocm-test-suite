@@ -151,6 +151,8 @@ def test-emit-blocked-writes-enabled-artifact [] {
                     "emit-blocked writes meta/result.v1.json")
                 (assert-eq $cell_meta.matrix_key "login__nextcloud"
                     "emit-blocked writes validated matrix_key into cell metadata")
+                (assert-truthy (not ("scenario_module" in ($cell_meta | columns)))
+                    "emit-blocked cell.json omits scenario_module")
                 (assert-eq $run_meta.matrix_key "login__nextcloud"
                     "emit-blocked writes matrix_key into terminal run.json")
                 (assert-eq $result_meta.matrix_key "login__nextcloud"
@@ -200,6 +202,31 @@ def test-emit-blocked-writes-two-party-artifact [] {
     }
 }
 
+def test-emit-blocked-rejects-flow-id-flag [] {
+    test-log "\n[test-emit-blocked-rejects-flow-id-flag]"
+    with-tmp-dir {|tmp|
+        write-matrix-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let out = (^nu (emit-blocked-script)
+                --execution-id 20260101t000000-aaaaaaaa
+                --flow-id login
+                --sender-platform nextcloud
+                --sender-version v32
+                --failure-reason "blocked by prereq"
+                | complete)
+            [
+                (assert-eq $out.exit_code 1
+                    "emit-blocked --flow-id exits 1")
+                (assert-truthy (
+                    ($out.stderr | str contains "unknown_flag")
+                    or ($out.stderr | str contains "doesn't have flag `flow-id`")
+                    or ($out.stderr | str contains "doesn't have flag 'flow-id'")
+                ) "emit-blocked stderr reports unknown --flow-id flag")
+            ]
+        }
+    }
+}
+
 def main [] {
     test-log "=== ci/emit-blocked Tests ==="
     let results = (
@@ -207,6 +234,7 @@ def main [] {
         | append (test-emit-blocked-rejects-disabled-tuple)
         | append (test-emit-blocked-writes-enabled-artifact)
         | append (test-emit-blocked-writes-two-party-artifact)
+        | append (test-emit-blocked-rejects-flow-id-flag)
     ) | flatten
     run-suite "ci/emit-blocked" $SUITE_PATH $results
 }

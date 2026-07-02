@@ -3,7 +3,7 @@
 
 const SUITE_PATH = path self
 
-use ../../lib/matrix/cell.nu [assert-matrix-entry-enabled validate-cell-rules]
+use ../../lib/matrix/cell.nu [assert-matrix-entry-enabled validate-cell-rules compute-cell]
 use ../../lib/matrix/rules-gen.nu [expand-flow]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
@@ -499,6 +499,17 @@ def test-validate-cell-rules-rejects-path-traversal-flow-id [] {
     }
 }
 
+def test-compute-cell-omits-scenario-module [] {
+    test-log "\n[test-compute-cell-omits-scenario-module]"
+    let cell = (compute-cell "login" "nextcloud" "v32" "chrome")
+    [
+        (assert-eq $cell.flow_id "login"
+            "compute-cell sets flow_id")
+        (assert-truthy (not ("scenario_module" in ($cell | columns)))
+            "compute-cell omits scenario_module")
+    ]
+}
+
 def main [] {
     test-log "=== matrix/cell tests ==="
     let results = (
@@ -521,6 +532,7 @@ def main [] {
         | append (test-public-flow-id-allowlist-rejects-unknown-flow)
         | append (test-assert-enabled-rejects-path-traversal-flow-id)
         | append (test-validate-cell-rules-rejects-path-traversal-flow-id)
+        | append (test-compute-cell-omits-scenario-module)
     ) | flatten
     run-suite "matrix/cell" $SUITE_PATH $results
 }

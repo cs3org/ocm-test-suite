@@ -193,7 +193,6 @@ def emit-terminal-cell-artifact-inner [
         artifact_name: $planned_cell.artifact_name,
         flow_id: $planned_cell.flow_id,
         matrix_key: $planned_cell.matrix_key,
-        scenario_module: ($planned_cell.scenario_module? | default $planned_cell.flow_id),
         pair: $planned_cell.pair,
         sender_platform: $planned_cell.sender_platform,
         sender_version: $planned_cell.sender_version,

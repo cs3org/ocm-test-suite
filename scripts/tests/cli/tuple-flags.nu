@@ -299,6 +299,44 @@ def test-images-resolve-two-party-happy [] {
     ]
 }
 
+def test-ci-emit-blocked-rejects-flow-id-flag [] {
+    test-log "\n[test-ci-emit-blocked-rejects-flow-id-flag]"
+    let out = (^nu (ocmts-script)
+        ci emit-blocked
+        --execution-id 20260101t000000-aaaaaaaa
+        --flow-id login
+        --sender-platform nextcloud
+        --sender-version v32
+        --failure-reason blocked
+        | complete)
+    [
+        (assert-eq $out.exit_code 1
+            "ci emit-blocked --flow-id exits 1")
+        (assert-truthy (
+            ($out.stderr | str contains "unknown_flag")
+            or ($out.stderr | str contains "doesn't have flag `flow-id`")
+            or ($out.stderr | str contains "doesn't have flag 'flow-id'")
+        ) "ci emit-blocked stderr reports unknown --flow-id flag")
+    ]
+}
+
+def test-matrix-cell-json-omits-scenario-module [] {
+    test-log "\n[test-matrix-cell-json-omits-scenario-module]"
+    let out = (^nu (ocmts-script) matrix cell
+        --flow login
+        --sender-platform nextcloud
+        --sender-version v32
+        --json
+        | complete)
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "matrix cell one-party json exits 0")
+        (assert-truthy (not ("scenario_module" in ($data | columns)))
+            "matrix cell json omits scenario_module")
+    ]
+}
+
 def main [] {
     test-log "=== cli/tuple-flags tests ==="
     let results = (
@@ -318,7 +356,9 @@ def main [] {
         | append (test-artifacts-prune-rejects-scenario-flag)
         | append (test-artifacts-show-rejects-scenario-flag)
         | append (test-ci-emit-blocked-rejects-scenario-flag)
+        | append (test-ci-emit-blocked-rejects-flow-id-flag)
         | append (test-help-does-not-mention-scenario-flag)
+        | append (test-matrix-cell-json-omits-scenario-module)
         | append (test-matrix-cell-one-party-happy)
         | append (test-matrix-cell-two-party-happy)
         | append (test-images-resolve-one-party-happy)

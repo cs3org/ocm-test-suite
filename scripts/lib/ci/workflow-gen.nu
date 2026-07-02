@@ -260,7 +260,7 @@ export def build-run-cell-yml [
     let gh = $cfg.workflows.github
     let nu_ver = $cfg.toolchain.nushell.version
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
-    let lane = ($site_cfg.media_lane_mode? | default "optimized")
+    let lane = ($site_cfg.media_lane_mode? | default "raw")
     if $lane not-in ["raw" "optimized"] {
         error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
     }
@@ -312,7 +312,7 @@ export def build-ci-site-yml [
     # the Astro build produces correct asset paths and canonical URLs.
     let deploy_base = ($site_cfg.deploy_base_path? | default "/")
     let deploy_site_url = ($site_cfg.deploy_site_url? | default "")
-    let lane = ($site_cfg.media_lane_mode? | default "optimized")
+    let lane = ($site_cfg.media_lane_mode? | default "raw")
     if $lane not-in ["raw" "optimized"] {
         error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
     }

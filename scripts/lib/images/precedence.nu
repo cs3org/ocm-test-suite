@@ -1,17 +1,15 @@
 # Pure precedence resolvers for image ref lookups (no I/O, no config loading).
 #
 # Platform image precedence (11 levels, role = sender or receiver):
-# The config map is still named by_scenario for compatibility, but its runtime
-# lookup key is now matrix_key.
-#   1.  by_scenario[matrix_key].<role>_override_env -> env lookup
-#   2.  by_flow[flow_id].<role>_override_env      -> env lookup
-#   3.  version <role>_override_env               -> env lookup
-#   4.  platform <role>_override_env              -> env lookup
-#   5.  by_scenario[matrix_key].override_env      -> env lookup
-#   6.  by_flow[flow_id].override_env             -> env lookup
-#   7.  version override_env                      -> env lookup
-#   8.  platform override_env                     -> env lookup
-#   9.  by_scenario[matrix_key].default
+#   1.  by_matrix_key[matrix_key].<role>_override_env -> env lookup
+#   2.  by_flow[flow_id].<role>_override_env         -> env lookup
+#   3.  version <role>_override_env                    -> env lookup
+#   4.  platform <role>_override_env                   -> env lookup
+#   5.  by_matrix_key[matrix_key].override_env        -> env lookup
+#   6.  by_flow[flow_id].override_env                 -> env lookup
+#   7.  version override_env                           -> env lookup
+#   8.  platform override_env                          -> env lookup
+#   9.  by_matrix_key[matrix_key].default
 #   10. by_flow[flow_id].default
 #   11. version default
 
@@ -24,11 +22,10 @@ def try-env-override [env_key: any] {
 }
 
 # Resolve a non-platform leaf using the 6-level precedence:
-# The config map is still named by_scenario, but it is now keyed by matrix_key.
-#   1. by_scenario[matrix_key].override_env -> env lookup
-#   2. by_flow[flow_id].override_env      -> env lookup
-#   3. leaf override_env                  -> env lookup
-#   4. by_scenario[matrix_key].default
+#   1. by_matrix_key[matrix_key].override_env -> env lookup
+#   2. by_flow[flow_id].override_env          -> env lookup
+#   3. leaf override_env                      -> env lookup
+#   4. by_matrix_key[matrix_key].default
 #   5. by_flow[flow_id].default
 #   6. leaf default
 export def resolve-image [
@@ -36,7 +33,7 @@ export def resolve-image [
     matrix_key: string = "",
     flow_id: string = "",
 ] {
-    let by_matrix_key_map = ($spec.by_scenario? | default {})
+    let by_matrix_key_map = ($spec.by_matrix_key? | default {})
     let by_flow_map = ($spec.by_flow? | default {})
     let matrix_spec = if (not ($matrix_key | is-empty)) {
         $by_matrix_key_map | get --optional $matrix_key | default null
@@ -74,7 +71,7 @@ export def resolve-platform-image [
     flow_id: string = "",
 ] {
     let role_env_key = $"($role)_override_env"
-    let by_matrix_key_map = ($version_spec.by_scenario? | default {})
+    let by_matrix_key_map = ($version_spec.by_matrix_key? | default {})
     let by_flow_map = ($version_spec.by_flow? | default {})
     let matrix_spec = if (not ($matrix_key | is-empty)) {
         $by_matrix_key_map | get --optional $matrix_key | default null
@@ -84,7 +81,7 @@ export def resolve-platform-image [
     } else { null }
 
     let candidates = [
-        # 1. by_scenario[matrix_key].<role>_override_env
+        # 1. by_matrix_key[matrix_key].<role>_override_env
         (if $matrix_spec != null {
             try-env-override ($matrix_spec | get --optional $role_env_key | default null)
         } else { null })
@@ -96,7 +93,7 @@ export def resolve-platform-image [
         (try-env-override ($version_spec | get --optional $role_env_key | default null))
         # 4. platform <role>_override_env
         (try-env-override ($platform_spec | get --optional $role_env_key | default null))
-        # 5. by_scenario[matrix_key].override_env
+        # 5. by_matrix_key[matrix_key].override_env
         (if $matrix_spec != null {
             try-env-override ($matrix_spec | get --optional "override_env" | default null)
         } else { null })
@@ -108,7 +105,7 @@ export def resolve-platform-image [
         (try-env-override ($version_spec | get --optional "override_env" | default null))
         # 8. platform override_env
         (try-env-override ($platform_spec | get --optional "override_env" | default null))
-        # 9. by_scenario[matrix_key].default
+        # 9. by_matrix_key[matrix_key].default
         (if $matrix_spec != null {
             $matrix_spec | get --optional "default" | default null
         } else { null })

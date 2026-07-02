@@ -7,17 +7,16 @@ CI runs.
 
 `config/images.nuon` (schema v2) defines default image references, plus
 optional environment-based overrides. Defaults may be scoped by `by_flow` and
-`by_scenario` (keys are `matrix_key` values). Effective resolution uses the
-full tuple (`--flow`, platforms, versions), which derives `matrix_key` and
-`flow_id`.
+`by_matrix_key`. Effective resolution uses the full tuple (`--flow`, platforms,
+versions), which derives `matrix_key` and `flow_id`.
 
 Preview effective image refs for a real run:
 
 - `nu scripts/ocmts.nu images resolve --flow ... --sender-platform ... --sender-version ...`
 
 Note: `images show` is a raw platform/version view. It does not apply `by_flow`
-or `by_scenario` (`matrix_key`) overrides; use `images resolve` with the full
-tuple for effective refs.
+or `by_matrix_key` overrides; use `images resolve` with the full tuple for
+effective refs.
 
 ### Image overrides
 

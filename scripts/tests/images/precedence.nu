@@ -29,7 +29,7 @@ def test-resolve-platform-image-matrix-role-env-wins [] {
                 sender_override_env: "OCMTS_VERSION_ROLE_IMAGE"
                 override_env: "OCMTS_VERSION_GENERIC_IMAGE"
                 default: "ghcr.io/example/version-default:latest"
-                by_scenario: {
+                by_matrix_key: {
                     "share-with__nextcloud__ocmgo": {
                         sender_override_env: "OCMTS_MATRIX_ROLE_IMAGE"
                         override_env: "OCMTS_MATRIX_GENERIC_IMAGE"
@@ -64,7 +64,7 @@ def test-resolve-platform-image-matrix-default-wins-over-flow-default [] {
             }
             {
                 default: "ghcr.io/example/version-default:latest"
-                by_scenario: {
+                by_matrix_key: {
                     "share-with__nextcloud__ocmgo": {
                         default: "ghcr.io/example/matrix-default:latest"
                     }
@@ -92,7 +92,7 @@ def test-resolve-image-matrix-default-wins-over-flow-default [] {
         (resolve-image
             {
                 default: "ghcr.io/example/root-default:latest"
-                by_scenario: {
+                by_matrix_key: {
                     "share-with__nextcloud__ocmgo": {
                         default: "ghcr.io/example/matrix-default:latest"
                     }
@@ -131,7 +131,7 @@ def test-resolve-platform-image-receiver-matrix-role-env-wins [] {
                 receiver_override_env: "OCMTS_VERSION_ROLE_IMAGE"
                 override_env: "OCMTS_VERSION_GENERIC_IMAGE"
                 default: "ghcr.io/example/version-default:latest"
-                by_scenario: {
+                by_matrix_key: {
                     "share-with__nextcloud__ocmgo": {
                         receiver_override_env: "OCMTS_MATRIX_ROLE_IMAGE"
                         override_env: "OCMTS_MATRIX_GENERIC_IMAGE"

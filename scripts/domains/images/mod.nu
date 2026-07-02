@@ -52,7 +52,7 @@ def "main show" [
     if not ($env_val | is-empty) {
         print $"note: ($effective_env) is set; using env override"
     }
-    print "note: by_scenario/by_flow overrides not applied; use 'images resolve --flow' for full resolution"
+    print "note: by_matrix_key/by_flow overrides not applied; use 'images resolve --flow' for full resolution"
 }
 
 def "main resolve" [

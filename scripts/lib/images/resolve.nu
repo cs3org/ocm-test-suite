@@ -8,7 +8,7 @@ use ./precedence.nu [resolve-image resolve-platform-image]
 # bundle maps slot names to resolved refs when ver_spec.bundle is present.
 # bundle_services maps slot names to their real compose service name (for evidence),
 # defaulting to sender-<slot> when a slot omits an explicit service.
-# Pass --matrix-key and --flow-id to enable by_scenario/by_flow precedence.
+# Pass --matrix-key and --flow-id to enable by_matrix_key/by_flow precedence.
 export def resolve-images [
     platform: string,
     version: string,
@@ -50,7 +50,7 @@ export def resolve-images [
 }
 
 # Resolve image ref for a receiver platform/version.
-# Pass --matrix-key and --flow-id to enable by_scenario/by_flow precedence.
+# Pass --matrix-key and --flow-id to enable by_matrix_key/by_flow precedence.
 export def resolve-receiver-image [
     platform: string,
     version: string,

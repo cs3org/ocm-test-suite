@@ -380,24 +380,8 @@ def test-resolve-matrix-key-explicit-precedence [] {
     ]
 }
 
-def test-resolve-matrix-key-cell-json-fallback [] {
-    test-log "\n[test-resolve-matrix-key-cell-json-fallback]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    ({
-        cell_id: "login__nc-v34"
-        matrix_key: "login__nextcloud"
-    } | to json) | save --force ($tmp | path join "meta/cell.json")
-    let mk = (resolve-matrix-key $tmp)
-    ^rm -rf $tmp
-    [
-        (assert-eq $mk "login__nextcloud"
-            "resolve-matrix-key falls back to cell.json when run.json absent")
-    ]
-}
-
-def test-resolve-matrix-key-run-json-before-cell [] {
-    test-log "\n[test-resolve-matrix-key-run-json-before-cell]"
+def test-resolve-matrix-key-run-json-only [] {
+    test-log "\n[test-resolve-matrix-key-run-json-only]"
     let tmp = (^mktemp -d | str trim)
     mkdir ($tmp | path join "meta")
     ({
@@ -411,7 +395,36 @@ def test-resolve-matrix-key-run-json-before-cell [] {
     ^rm -rf $tmp
     [
         (assert-eq $mk "login__from-run"
-            "resolve-matrix-key prefers run.json over cell.json when explicit absent")
+            "resolve-matrix-key reads run.json and ignores cell.json")
+    ]
+}
+
+def test-resolve-matrix-key-empty-without-run-json [] {
+    test-log "\n[test-resolve-matrix-key-empty-without-run-json]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    ({
+        matrix_key: "login__from-cell"
+        cell_id: "login__nc-v34"
+    } | to json) | save --force ($tmp | path join "meta/cell.json")
+    let mk = (resolve-matrix-key $tmp)
+    ^rm -rf $tmp
+    [
+        (assert-eq $mk ""
+            "resolve-matrix-key returns empty when run.json has no matrix_key")
+    ]
+}
+
+def test-resolve-matrix-key-errors-on-malformed-run-json [] {
+    test-log "\n[test-resolve-matrix-key-errors-on-malformed-run-json]"
+    let tmp = (^mktemp -d | str trim)
+    mkdir ($tmp | path join "meta")
+    "{ not valid json" | save --force ($tmp | path join "meta/run.json")
+    let result = (try { resolve-matrix-key $tmp; "no-error" } catch {|e| "error"})
+    ^rm -rf $tmp
+    [
+        (assert-eq $result "error"
+            "resolve-matrix-key fails fast on malformed meta/run.json")
     ]
 }
 
@@ -485,8 +498,9 @@ def main [] {
         | append (test-compute-suite-status-delegates)
         | append (test-stop-on-fail-all-tail-cells-skipped-including-would-be-blocked)
         | append (test-resolve-matrix-key-explicit-precedence)
-        | append (test-resolve-matrix-key-cell-json-fallback)
-        | append (test-resolve-matrix-key-run-json-before-cell)
+        | append (test-resolve-matrix-key-run-json-only)
+        | append (test-resolve-matrix-key-empty-without-run-json)
+        | append (test-resolve-matrix-key-errors-on-malformed-run-json)
         | append (test-read-run-meta-happy-path)
         | append (test-read-run-meta-missing-file-errors)
         | append (test-read-run-meta-missing-stack-id-errors)

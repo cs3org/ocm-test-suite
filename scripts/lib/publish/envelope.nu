@@ -4,7 +4,7 @@
 # evidence rows on result, indexes. Banned fields: backend, executor,
 # provenance, trust, publication_state, published_at.
 
-use ../run/tuple-identity.nu [coalesce-matrix-key load-meta-identity]
+use ../run/tuple-identity.nu [load-meta-identity]
 use ../run/flow-ids.nu [PUBLIC_FLOW_IDS]
 use ../time/utc.nu [utc-now]
 
@@ -401,7 +401,7 @@ export def emit-publish-envelope [artifacts_base: string] {
     let flow_id = $identity.flow_id
     let flow_entry = {id: $flow_id, description: (flow-description $flow_id)}
 
-    let matrix_key = (coalesce-matrix-key $cell $run $result)
+    let matrix_key = $identity.matrix_key
 
     let cell_entry = {
         id: $cell.cell_id,
@@ -416,7 +416,7 @@ export def emit-publish-envelope [artifacts_base: string] {
         browser: ($cell.browser? | default "chrome"),
         is_two_party: ($cell.is_two_party? | default false),
     }
-    let scenario_module = $identity.scenario_module
+    let scenario_module = ($cell.scenario_module? | default "" | into string | str trim)
     let cell_entry = if ($scenario_module | is-empty) {
         $cell_entry
     } else {

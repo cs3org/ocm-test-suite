@@ -197,8 +197,8 @@ def test-actors-show-disabled-tuple-errors [] {
                     "actors show disabled tuple exits 1")
                 (assert-string-contains $out.stderr "disabled"
                     "actors show disabled tuple error names disabled status")
-                (assert-truthy (not ($out.stderr | str contains "cannot be run"))
-                    "actors show disabled tuple error avoids run-only wording")
+                (assert-string-contains $out.stderr "Placeholder cells cannot be run"
+                    "actors show disabled tuple error uses unified disabled wording")
                 (assert-string-contains $out.stderr "contact-wayf__nextcloud__ocmgo"
                     "actors show disabled tuple error names matrix_key")
                 (assert-truthy (not ($out.stdout | str contains "password"))
@@ -244,8 +244,8 @@ def test-actors-validate-disabled-tuple-errors [] {
                     "actors validate disabled tuple exits 1")
                 (assert-string-contains $out.stderr "disabled"
                     "actors validate disabled tuple error names disabled status")
-                (assert-truthy (not ($out.stderr | str contains "cannot be run"))
-                    "actors validate disabled tuple error avoids run-only wording")
+                (assert-string-contains $out.stderr "Placeholder cells cannot be run"
+                    "actors validate disabled tuple error uses unified disabled wording")
                 (assert-string-contains $out.stderr "contact-wayf__nextcloud__ocmgo"
                     "actors validate disabled tuple error names matrix_key")
                 (assert-truthy (not ($out.stdout | str contains "ok"))

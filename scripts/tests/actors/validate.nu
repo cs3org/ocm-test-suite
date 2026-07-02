@@ -228,6 +228,8 @@ def test-disabled-matrix-entry-errors-clearly [] {
                     "disabled matrix entry causes an error")
                 (assert-string-contains $result "disabled"
                     "disabled matrix entry error names disabled status")
+                (assert-string-contains $result "Placeholder cells cannot be run"
+                    "disabled matrix entry error uses unified disabled wording")
                 (assert-string-contains $result "contact-wayf__nextcloud__ocmgo"
                     "disabled matrix entry error names matrix_key")
             ]

@@ -7,6 +7,7 @@
 use ../run/execution-id.nu [validate-matrix-key]
 use ./credentials.nu [load-account-credentials]
 use ./resolve.nu [resolve-platform resolve-account]
+use ../matrix/cell.nu [matrix-entry-state]
 use ../matrix/rules-gen.nu [load-matrix-rules matrix-key]
 use ../matrix/topology.nu [flow-is-two-party]
 
@@ -16,9 +17,24 @@ def load-actor-defaults [root: string] {
     open $path
 }
 
-def load-matrix-entry [root: string, matrix_key: string] {
-    let rules = (load-matrix-rules $root)
-    $rules.matrix | get --optional $matrix_key
+def load-matrix-entry [root: string, flow_id: string, matrix_key: string] {
+    let state = (matrix-entry-state $root $flow_id $matrix_key)
+    match $state.state {
+        "enabled" => {
+            let rules = (load-matrix-rules $root)
+            $rules.matrix | get $matrix_key
+        }
+        "disabled" => {
+            error make {
+                msg: $"Matrix entry '($matrix_key)' is disabled \(enabled: false\). Placeholder cells cannot be run."
+            }
+        }
+        _ => {
+            error make {
+                msg: $"Matrix entry '($matrix_key)' not in config/matrix/. Known: ($state.known | str join ', ')"
+            }
+        }
+    }
 }
 
 export def role-block-has-real-values [role_cfg: record] {
@@ -73,8 +89,8 @@ def load-role-for-tuple [
     let cfg_platform = ($role_cfg.platform? | default "")
     let cfg_account = ($role_cfg.account? | default "")
 
-    let matrix = (load-matrix-entry $root $mk)
-    let eff_flow_id = (if $matrix == null { $flow_id } else { $matrix.flow_id? | default $flow_id })
+    let matrix = (load-matrix-entry $root $flow_id $mk)
+    let eff_flow_id = ($matrix.flow_id? | default $flow_id)
     let matrix_platform = do $matrix_platform_fn $matrix
 
     let defaults = (load-actor-defaults $root)
@@ -90,7 +106,7 @@ export def load-actor-for-tuple [
     expected_platform: string = "",
 ]: nothing -> any {
     load-role-for-tuple $flow_id $sender_platform "" $root $expected_platform "actor" {|matrix|
-        if $matrix == null { "" } else { $matrix.sender?.platform? | default "" }
+        $matrix.sender?.platform? | default ""
     }
 }
 
@@ -102,7 +118,7 @@ export def load-sender-for-tuple [
     expected_platform: string = "",
 ]: nothing -> any {
     load-role-for-tuple $flow_id $sender_platform $receiver_platform $root $expected_platform "sender" {|matrix|
-        if $matrix == null { "" } else { $matrix.sender?.platform? | default "" }
+        $matrix.sender?.platform? | default ""
     }
 }
 
@@ -115,8 +131,8 @@ export def load-receiver-for-tuple [
 ]: nothing -> any {
     let mk = (matrix-key $flow_id $sender_platform $receiver_platform)
     validate-matrix-key $mk
-    let matrix = (load-matrix-entry $root $mk)
-    let eff_flow_id = (if $matrix == null { $flow_id } else { $matrix.flow_id? | default $flow_id })
+    let matrix = (load-matrix-entry $root $flow_id $mk)
+    let eff_flow_id = ($matrix.flow_id? | default $flow_id)
 
     if not ($eff_flow_id | is-empty) {
         if not (flow-is-two-party $eff_flow_id) {
@@ -125,9 +141,7 @@ export def load-receiver-for-tuple [
     }
 
     load-role-for-tuple $flow_id $sender_platform $receiver_platform $root $expected_platform "receiver" {|matrix|
-        if $matrix == null { "" } else {
-            if $matrix.receiver? == null { "" } else { $matrix.receiver.platform? | default "" }
-        }
+        if $matrix.receiver? == null { "" } else { $matrix.receiver.platform? | default "" }
     }
 }
 

@@ -59,7 +59,7 @@ def "main show" [
     let canonical_two_party = (
         require-receiver-platform-for-two-party $fid $receiver_platform
     )
-    validate-actor-config $fid $root $sender_platform $receiver_platform --lookup-only
+    validate-actor-config $fid $root $sender_platform $receiver_platform
     let tuple = (tuple-matrix-key $fid $sender_platform $receiver_platform)
     let mk = $tuple.matrix_key
     if $canonical_two_party {
@@ -105,7 +105,7 @@ def "main validate" [
     let canonical_two_party = (
         require-receiver-platform-for-two-party $fid $receiver_platform
     )
-    validate-actor-config $fid $root $sender_platform $receiver_platform --lookup-only
+    validate-actor-config $fid $root $sender_platform $receiver_platform
     let tuple = (tuple-matrix-key $fid $sender_platform $receiver_platform)
     let mk = $tuple.matrix_key
     print $"actor config for '($mk)': ok"

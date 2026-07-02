@@ -28,7 +28,6 @@ export def validate-actor-config [
     root: string,
     sender_platform: string = "",
     receiver_platform: string = "",
-    --lookup-only,
 ] {
     let sender_platform = (require-sender-platform $sender_platform)
     let fid = (validate-path-segment $flow_id "flow_id")
@@ -41,13 +40,11 @@ export def validate-actor-config [
     match $state.state {
         "enabled" => {}
         "disabled" => {
-            let tail = if $lookup_only {
-                "Placeholder cells are disabled in the matrix SSOT."
-            } else {
-                "Placeholder cells cannot be run."
-            }
             error make {
-                msg: $"Matrix entry '($mk)' is disabled \(enabled: false\). ($tail)"
+                msg: ([
+                    $"Matrix entry '($mk)' is disabled "
+                    "(enabled: false). Placeholder cells cannot be run."
+                ] | str join "")
             }
         }
         _ => {

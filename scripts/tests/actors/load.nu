@@ -45,6 +45,15 @@ def write-minimal-fixture [tmp_root: string] {
     } | to nuon)
     | save --force ($tmp_root | path join "config/matrix/flows/share-with.nuon")
 
+    ({schema_version: 1, flow_id: "contact-wayf", two_party: true, enabled: false,
+      mitm: true, browsers: null,
+      required_capabilities: {sender: [], receiver: []},
+      include: [{sender: ["nextcloud"], receiver: ["ocmgo"]}],
+      versions_sender: {nextcloud: ["v32"]},
+      versions_receiver: {ocmgo: ["v1"]}
+    } | to nuon)
+    | save --force ($tmp_root | path join "config/matrix/flows/contact-wayf.nuon")
+
     ({flows: {
         login: {actor: {by_platform: {nextcloud: "michiel"}}},
         "share-with": {
@@ -226,6 +235,48 @@ def test-override-platform-mismatch-errors [] {
     }
 }
 
+def test-absent-matrix-entry-hard-error [] {
+    test-log "\n[test-absent-matrix-entry-hard-error]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let result = (
+                try { load-actor-for-tuple "login" "ocmgo" $tmp; "no-error" }
+                catch {|e| $"error: ($e.msg)"}
+            )
+            [
+                (assert-truthy ($result | str starts-with "error:")
+                    "absent matrix entry causes a hard error")
+                (assert-string-contains $result "not in config/matrix"
+                    "absent matrix entry error names config/matrix")
+            ]
+        }
+    }
+}
+
+def test-disabled-matrix-entry-hard-error [] {
+    test-log "\n[test-disabled-matrix-entry-hard-error]"
+    with-tmp-dir {|tmp|
+        write-minimal-fixture $tmp
+        with-env {OCMTS_ROOT: $tmp} {
+            let result = (
+                try {
+                    load-sender-for-tuple "contact-wayf" "nextcloud" "ocmgo" $tmp
+                    "no-error"
+                } catch {|e| $"error: ($e.msg)"}
+            )
+            [
+                (assert-truthy ($result | str starts-with "error:")
+                    "disabled matrix entry causes a hard error")
+                (assert-string-contains $result "disabled"
+                    "disabled matrix entry error names disabled status")
+                (assert-string-contains $result "Placeholder cells cannot be run"
+                    "disabled matrix entry error uses unified disabled wording")
+            ]
+        }
+    }
+}
+
 def main [] {
     test-log "=== actors/load Tests ==="
     let results = (
@@ -237,6 +288,8 @@ def main [] {
         | append (test-override-platform-mismatch-errors)
         | append (test-empty-override-hard-error)
         | append (test-empty-string-override-hard-error)
+        | append (test-absent-matrix-entry-hard-error)
+        | append (test-disabled-matrix-entry-hard-error)
         | append (test-list-matrix-keys)
         | append (test-list-override-files)
     ) | flatten

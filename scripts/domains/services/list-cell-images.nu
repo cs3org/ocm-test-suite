@@ -30,6 +30,11 @@ def main [
         $sender_images.valkey
     ]
 
+    let bundle = ($sender_images.bundle? | default {})
+    if not ($bundle | is-empty) {
+        $refs = ($refs | append ($bundle | values))
+    }
+
     if $is_two_party {
         let recv_img = (resolve-receiver-image $receiver_platform $receiver_version
             --matrix-key $cell.matrix_key --flow-id $cell.flow_id)

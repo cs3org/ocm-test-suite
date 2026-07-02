@@ -12,7 +12,8 @@ versions), which derives `matrix_key` and `flow_id`.
 
 Preview effective image refs for a real run:
 
-- `nu scripts/ocmts.nu images resolve --flow ... --sender-platform ... --sender-version ...`
+- `nu scripts/ocmts.nu images resolve --flow ... --sender-platform ...`
+  `--sender-version ...`
 
 Note: `images show` is a raw platform/version view. It does not apply `by_flow`
 or `by_matrix_key` overrides; use `images resolve` with the full tuple for
@@ -20,14 +21,63 @@ effective refs.
 
 ### Image overrides
 
-Platform image refs can be overridden through `config/images.nuon`
-`override_env` keys.
+Platform image refs can be overridden through `config/images.nuon` env keys.
+Each platform may declare up to three platform-level keys:
 
-For `ocmgo/v1`, the operator override is:
+- `override_env` -- generic override for either sender or receiver role
+- `sender_override_env` -- narrower override when the platform is the sender
+- `receiver_override_env` -- narrower override when the platform is the receiver
 
-- `OCMTS_OCMGO_IMAGE`
+Role-specific keys win over the generic key for that role. When a role-specific
+key is unset or empty in the shell, resolution falls back through the generic
+`override_env` chain and then to configured defaults.
 
-Example local `ocmgo` image flow:
+Precedence for a platform version and role (sender or receiver), highest
+first:
+
+1. `by_matrix_key[matrix_key].<role>_override_env` (env lookup)
+2. `by_flow[flow_id].<role>_override_env` (env lookup)
+3. version `<role>_override_env` (env lookup)
+4. platform `<role>_override_env` (env lookup)
+5. `by_matrix_key[matrix_key].override_env` (env lookup)
+6. `by_flow[flow_id].override_env` (env lookup)
+7. version `override_env` (env lookup)
+8. platform `override_env` (env lookup)
+9. `by_matrix_key[matrix_key].default`
+10. `by_flow[flow_id].default`
+11. version `default`
+
+`images resolve` applies this chain with the full run tuple (`--flow`,
+platforms, versions). `images show` prints generic `override_env` keys for a
+platform/version pair only; it does not list role-specific env names and does
+not apply `by_flow`, `by_matrix_key`, or role context. Use this doc and
+`config/images.nuon` for the full override surface.
+
+#### Generic and role-specific env names
+
+For a two-party platform (example: `ocmgo`):
+
+| Scope | Env var |
+| --- | --- |
+| Generic (sender or receiver) | `OCMTS_OCMGO_IMAGE` |
+| Sender only | `OCMTS_OCMGO_SENDER_IMAGE` |
+| Receiver only | `OCMTS_OCMGO_RECEIVER_IMAGE` |
+
+The same pattern applies to other two-party platforms:
+
+- `nextcloud`: `OCMTS_NEXTCLOUD_IMAGE`, `OCMTS_NEXTCLOUD_SENDER_IMAGE`,
+  `OCMTS_NEXTCLOUD_RECEIVER_IMAGE`
+- `opencloud`: `OCMTS_OPENCLOUD_IMAGE`, `OCMTS_OPENCLOUD_SENDER_IMAGE`,
+  `OCMTS_OPENCLOUD_RECEIVER_IMAGE`
+- `ocis`: `OCMTS_OCIS_IMAGE`, `OCMTS_OCIS_SENDER_IMAGE`,
+  `OCMTS_OCIS_RECEIVER_IMAGE`
+
+`cernbox` keeps a single platform web image override
+(`OCMTS_CERNBOX_WEB_IMAGE`) plus per-slot bundle overrides (see below). It
+does not declare platform-level sender/receiver env names because the web
+image name already encodes the primary container role.
+
+Example local `ocmgo` image flow (generic override):
 
 ```bash
 export OCMTS_OCMGO_IMAGE=opencloudmesh-go:local
@@ -38,12 +88,67 @@ nu scripts/ocmts.nu images resolve \
   --receiver-platform nextcloud --receiver-version v34
 ```
 
-This override is temporary and shell-scoped. It is the preferred way to point
-OCMTS at a locally built `ocmgo` image without changing the published image
-defaults.
+Example sender-only override in a two-party run:
 
-For `ocmgo` sender/receiver pairs, the same override applies to both roles
-unless a narrower role-specific override is added in `config/images.nuon`.
+```bash
+export OCMTS_OCMGO_SENDER_IMAGE=opencloudmesh-go:local-sender
+export OCMTS_NEXTCLOUD_RECEIVER_IMAGE=nextcloud:local-receiver
+nu scripts/ocmts.nu images resolve \
+  --flow share-with \
+  --sender-platform ocmgo --sender-version v1 \
+  --receiver-platform nextcloud --receiver-version v34 \
+  --json
+```
+
+Overrides are temporary and shell-scoped. They are the preferred way to point
+OCMTS at locally built images without changing published defaults in
+`config/images.nuon`.
+
+#### Bundle slot overrides
+
+Some platform versions declare a `bundle` map (today: `cernbox/v11`). For
+those runs, `images resolve --json` returns a top-level `platform` ref plus
+`bundle` and `bundle_services` maps. The `platform` value is the sender
+platform image (for cernbox, the web container). It follows the 11-step
+role-aware precedence above. Receiver resolution uses only the receiver
+platform image ref; bundle slots are not recomputed for the receiver role.
+
+Bundle service slots (`revad`, `idp`, ...) are non-platform leaves. Each slot
+uses this six-step precedence (highest first):
+
+1. `by_matrix_key[matrix_key].override_env` (env lookup)
+2. `by_flow[flow_id].override_env` (env lookup)
+3. slot `override_env` (env lookup)
+4. `by_matrix_key[matrix_key].default`
+5. `by_flow[flow_id].default`
+6. slot `default`
+
+Bundle slot precedence is separate from role precedence: slots do not use
+sender/receiver env names. Setting `OCMTS_CERNBOX_REVAD_IMAGE` overrides only
+the revad slot; other bundle slots and the sender platform image keep their
+own resolution paths.
+
+For `cernbox/v11`, the sender platform image is separate from bundle slots:
+
+| Image | Env var | `images resolve --json` field |
+| --- | --- | --- |
+| Sender platform (web) | `OCMTS_CERNBOX_WEB_IMAGE` | `platform` |
+
+Bundle slots for `cernbox/v11`:
+
+| Slot | Env var | Default compose service (`bundle_services`) |
+| --- | --- | --- |
+| `revad` | `OCMTS_CERNBOX_REVAD_IMAGE` | `sender-revad-gateway` |
+| `idp` | `OCMTS_CERNBOX_IDP_IMAGE` | `sender-idp` |
+
+Example cernbox bundle preview:
+
+```bash
+nu scripts/ocmts.nu images resolve \
+  --flow login \
+  --sender-platform cernbox --sender-version v11 \
+  --json
+```
 
 ## Actors (test accounts)
 
@@ -140,4 +245,3 @@ This repo targets Cypress v15.10+ behavior for environment access:
 - Use `cy.env([...])` to read injected environment values in tests.
 - Use `Cypress.expose(key)` for non-sensitive config that is safe to be visible
   in the browser context.
-

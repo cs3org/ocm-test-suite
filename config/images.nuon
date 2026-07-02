@@ -3,18 +3,24 @@
   "platforms": {
     "ocmgo": {
       "override_env": "OCMTS_OCMGO_IMAGE",
+      "sender_override_env": "OCMTS_OCMGO_SENDER_IMAGE",
+      "receiver_override_env": "OCMTS_OCMGO_RECEIVER_IMAGE",
       "v1": {
         "default": "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.0.0"
       }
     },
     "ocis": {
       "override_env": "OCMTS_OCIS_IMAGE",
+      "sender_override_env": "OCMTS_OCIS_SENDER_IMAGE",
+      "receiver_override_env": "OCMTS_OCIS_RECEIVER_IMAGE",
       "v8": {
         "default": "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
       }
     },
     "opencloud": {
       "override_env": "OCMTS_OPENCLOUD_IMAGE",
+      "sender_override_env": "OCMTS_OPENCLOUD_SENDER_IMAGE",
+      "receiver_override_env": "OCMTS_OPENCLOUD_RECEIVER_IMAGE",
       "v6": {
         "default": "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
       }
@@ -38,6 +44,8 @@
     },
     "nextcloud": {
       "override_env": "OCMTS_NEXTCLOUD_IMAGE",
+      "sender_override_env": "OCMTS_NEXTCLOUD_SENDER_IMAGE",
+      "receiver_override_env": "OCMTS_NEXTCLOUD_RECEIVER_IMAGE",
       "v32": {
         "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.9"
       },

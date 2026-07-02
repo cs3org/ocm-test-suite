@@ -278,6 +278,369 @@ def test-images-resolve-one-party-happy [] {
     ]
 }
 
+const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master"
+const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
+const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
+
+def role-image-env-mask [] {
+    [
+        OCMTS_NEXTCLOUD_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_RECEIVER_IMAGE
+        OCMTS_OCMGO_SENDER_IMAGE
+        OCMTS_OCMGO_RECEIVER_IMAGE
+        OCMTS_OPENCLOUD_SENDER_IMAGE
+        OCMTS_OPENCLOUD_RECEIVER_IMAGE
+        OCMTS_OCIS_SENDER_IMAGE
+        OCMTS_OCIS_RECEIVER_IMAGE
+        OCMTS_CERNBOX_WEB_IMAGE
+        OCMTS_CERNBOX_REVAD_IMAGE
+        OCMTS_CERNBOX_IDP_IMAGE
+    ]
+    | reduce --fold {} {|k, acc|
+        if $k in $env { $acc | upsert $k null } else { $acc }
+    }
+}
+
+def test-images-resolve-cernbox-bundle [] {
+    test-log "\n[test-images-resolve-cernbox-bundle]"
+    let out = (
+        with-env (role-image-env-mask) {
+            (^nu (ocmts-script) images resolve
+                --flow login
+                --sender-platform cernbox
+                --sender-version v11
+                --json
+                | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    let bundle = ($data.bundle? | default {})
+    let bundle_services = ($data.bundle_services? | default {})
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve cernbox bundle exits 0")
+        (assert-eq ($data.platform? | default "") $CERNBOX_WEB_DEFAULT
+            "cernbox bundle: platform web ref on public CLI")
+        (assert-eq ($bundle | get --optional revad | default "") $CERNBOX_REVAD_DEFAULT
+            "cernbox bundle: revad slot on public CLI")
+        (assert-eq ($bundle | get --optional idp | default "") $CERNBOX_IDP_DEFAULT
+            "cernbox bundle: idp slot on public CLI")
+        (assert-eq ($bundle_services | get --optional revad | default "") "sender-revad-gateway"
+            "cernbox bundle_services: revad compose name on public CLI")
+        (assert-eq ($bundle_services | get --optional idp | default "") "sender-idp"
+            "cernbox bundle_services: idp compose name on public CLI")
+    ]
+}
+
+def test-images-resolve-cernbox-bundle-env-override [] {
+    test-log "\n[test-images-resolve-cernbox-bundle-env-override]"
+    let custom_web = "ghcr.io/example/cernbox-web:cli-override"
+    let custom_revad = "ghcr.io/example/cernbox-revad:cli-override"
+    let custom_idp = "ghcr.io/example/idp:cli-override"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_CERNBOX_WEB_IMAGE: $custom_web
+                OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad
+                OCMTS_CERNBOX_IDP_IMAGE: $custom_idp
+            }
+        ) {
+            (^nu (ocmts-script) images resolve
+                --flow login
+                --sender-platform cernbox
+                --sender-version v11
+                --json
+                | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    let bundle = ($data.bundle? | default {})
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve cernbox bundle env override exits 0")
+        (assert-eq ($data.platform? | default "") $custom_web
+            "OCMTS_CERNBOX_WEB_IMAGE honored on public CLI")
+        (assert-eq ($bundle | get --optional revad | default "") $custom_revad
+            "OCMTS_CERNBOX_REVAD_IMAGE honored on public CLI")
+        (assert-eq ($bundle | get --optional idp | default "") $custom_idp
+            "OCMTS_CERNBOX_IDP_IMAGE honored on public CLI")
+    ]
+}
+
+def test-images-resolve-role-env-beats-generic [] {
+    test-log "\n[test-images-resolve-role-env-beats-generic]"
+    let sender_role = "ghcr.io/example/nextcloud:sender-role"
+    let receiver_role = "ghcr.io/example/ocmgo:receiver-role"
+    let sender_generic = "ghcr.io/example/nextcloud:generic"
+    let receiver_generic = "ghcr.io/example/ocmgo:generic"
+    let cmd = [
+        images resolve
+        --flow share-with
+        --sender-platform nextcloud
+        --sender-version v32
+        --receiver-platform ocmgo
+        --receiver-version v1
+        --json
+    ]
+    let out = (
+        with-env {
+            OCMTS_NEXTCLOUD_IMAGE: $sender_generic
+            OCMTS_NEXTCLOUD_SENDER_IMAGE: $sender_role
+            OCMTS_OCMGO_IMAGE: $receiver_generic
+            OCMTS_OCMGO_RECEIVER_IMAGE: $receiver_role
+        } {
+            (^nu (ocmts-script) ...$cmd | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve role-env precedence exits 0")
+        (assert-eq ($data.platform? | default "") $sender_role
+            "sender OCMTS_NEXTCLOUD_SENDER_IMAGE beats OCMTS_NEXTCLOUD_IMAGE")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "receiver OCMTS_OCMGO_RECEIVER_IMAGE beats OCMTS_OCMGO_IMAGE")
+    ]
+}
+
+def test-images-resolve-generic-fallback-when-role-env-unset [] {
+    test-log "\n[test-images-resolve-generic-fallback-when-role-env-unset]"
+    let sender_generic = "ghcr.io/example/nextcloud:generic-cli"
+    let receiver_generic = "ghcr.io/example/ocmgo:generic-cli"
+    let cmd = [
+        images resolve
+        --flow share-with
+        --sender-platform nextcloud
+        --sender-version v32
+        --receiver-platform ocmgo
+        --receiver-version v1
+        --json
+    ]
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_IMAGE: $sender_generic
+                OCMTS_OCMGO_IMAGE: $receiver_generic
+            }
+        ) {
+            (^nu (ocmts-script) ...$cmd | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve generic fallback exits 0")
+        (assert-eq ($data.platform? | default "") $sender_generic
+            "OCMTS_NEXTCLOUD_IMAGE applies when sender role env is unset")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_generic
+            "OCMTS_OCMGO_IMAGE applies when receiver role env is unset")
+    ]
+}
+
+def test-images-resolve-empty-role-env-falls-back-to-generic [] {
+    test-log "\n[test-images-resolve-empty-role-env-falls-back-to-generic]"
+    let sender_generic = "ghcr.io/example/nextcloud:generic-empty-cli"
+    let receiver_generic = "ghcr.io/example/ocmgo:generic-empty-cli"
+    let cmd = [
+        images resolve
+        --flow share-with
+        --sender-platform nextcloud
+        --sender-version v32
+        --receiver-platform ocmgo
+        --receiver-version v1
+        --json
+    ]
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_IMAGE: $sender_generic
+                OCMTS_NEXTCLOUD_SENDER_IMAGE: ""
+                OCMTS_OCMGO_IMAGE: $receiver_generic
+                OCMTS_OCMGO_RECEIVER_IMAGE: ""
+            }
+        ) {
+            (^nu (ocmts-script) ...$cmd | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve empty role env fallback exits 0")
+        (assert-eq ($data.platform? | default "") $sender_generic
+            "empty sender role env falls back to OCMTS_NEXTCLOUD_IMAGE on CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_generic
+            "empty receiver role env falls back to OCMTS_OCMGO_IMAGE on CLI")
+    ]
+}
+
+def test-images-resolve-opposite-role-isolation [] {
+    test-log "\n[test-images-resolve-opposite-role-isolation]"
+    let sender_role = "ghcr.io/example/nextcloud:sender-isolated"
+    let receiver_role = "ghcr.io/example/ocmgo:receiver-isolated"
+    let bogus_sender = "ghcr.io/example/nextcloud:sender-leak-cli"
+    let bogus_receiver = "ghcr.io/example/ocmgo:receiver-leak-cli"
+    let cmd = [
+        images resolve
+        --flow share-with
+        --sender-platform nextcloud
+        --sender-version v32
+        --receiver-platform ocmgo
+        --receiver-version v1
+        --json
+    ]
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_SENDER_IMAGE: $sender_role
+                OCMTS_OCMGO_RECEIVER_IMAGE: $receiver_role
+                OCMTS_OCMGO_SENDER_IMAGE: $bogus_receiver
+                OCMTS_NEXTCLOUD_RECEIVER_IMAGE: $bogus_sender
+            }
+        ) {
+            (^nu (ocmts-script) ...$cmd | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve opposite-role isolation exits 0")
+        (assert-eq ($data.platform? | default "") $sender_role
+            "sender path ignores receiver role env on CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "receiver path ignores sender role env on CLI")
+    ]
+}
+
+def opencloud-ocis-images-resolve-cmd [] {
+    [
+        images resolve
+        --flow contact-token
+        --sender-platform opencloud
+        --sender-version v6
+        --receiver-platform ocis
+        --receiver-version v8
+        --json
+    ]
+}
+
+def test-images-resolve-opencloud-ocis-role-env [] {
+    test-log "\n[test-images-resolve-opencloud-ocis-role-env]"
+    let sender_role = "ghcr.io/example/opencloud:sender-role"
+    let receiver_role = "ghcr.io/example/ocis:receiver-role"
+    let sender_generic = "ghcr.io/example/opencloud:generic"
+    let receiver_generic = "ghcr.io/example/ocis:generic"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_OPENCLOUD_IMAGE: $sender_generic
+                OCMTS_OPENCLOUD_SENDER_IMAGE: $sender_role
+                OCMTS_OCIS_IMAGE: $receiver_generic
+                OCMTS_OCIS_RECEIVER_IMAGE: $receiver_role
+            }
+        ) {
+            (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve opencloud/ocis role env exits 0")
+        (assert-eq ($data.platform? | default "") $sender_role
+            "OCMTS_OPENCLOUD_SENDER_IMAGE beats OCMTS_OPENCLOUD_IMAGE on public CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "OCMTS_OCIS_RECEIVER_IMAGE beats OCMTS_OCIS_IMAGE on public CLI")
+    ]
+}
+
+def test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset [] {
+    test-log "\n[test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset]"
+    let sender_generic = "ghcr.io/example/opencloud:generic-cli"
+    let receiver_generic = "ghcr.io/example/ocis:generic-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_OPENCLOUD_IMAGE: $sender_generic
+                OCMTS_OCIS_IMAGE: $receiver_generic
+            }
+        ) {
+            (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve opencloud/ocis generic fallback exits 0")
+        (assert-eq ($data.platform? | default "") $sender_generic
+            "OCMTS_OPENCLOUD_IMAGE applies when sender role env is unset on CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_generic
+            "OCMTS_OCIS_IMAGE applies when receiver role env is unset on CLI")
+    ]
+}
+
+def test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic [] {
+    test-log "\n[test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic]"
+    let sender_generic = "ghcr.io/example/opencloud:generic-empty-cli"
+    let receiver_generic = "ghcr.io/example/ocis:generic-empty-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_OPENCLOUD_IMAGE: $sender_generic
+                OCMTS_OPENCLOUD_SENDER_IMAGE: ""
+                OCMTS_OCIS_IMAGE: $receiver_generic
+                OCMTS_OCIS_RECEIVER_IMAGE: ""
+            }
+        ) {
+            (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve opencloud/ocis empty role env fallback exits 0")
+        (assert-eq ($data.platform? | default "") $sender_generic
+            "empty opencloud sender role env falls back to OCMTS_OPENCLOUD_IMAGE on CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_generic
+            "empty ocis receiver role env falls back to OCMTS_OCIS_IMAGE on CLI")
+    ]
+}
+
+def test-images-resolve-opencloud-ocis-opposite-role-isolation [] {
+    test-log "\n[test-images-resolve-opencloud-ocis-opposite-role-isolation]"
+    let sender_role = "ghcr.io/example/opencloud:sender-isolated"
+    let receiver_role = "ghcr.io/example/ocis:receiver-isolated"
+    let bogus_sender = "ghcr.io/example/opencloud:sender-leak-cli"
+    let bogus_receiver = "ghcr.io/example/ocis:receiver-leak-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_OPENCLOUD_SENDER_IMAGE: $sender_role
+                OCMTS_OCIS_RECEIVER_IMAGE: $receiver_role
+                OCMTS_OCIS_SENDER_IMAGE: $bogus_receiver
+                OCMTS_OPENCLOUD_RECEIVER_IMAGE: $bogus_sender
+            }
+        ) {
+            (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve opencloud/ocis opposite-role isolation exits 0")
+        (assert-eq ($data.platform? | default "") $sender_role
+            "opencloud sender path ignores receiver role env on CLI")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "ocis receiver path ignores sender role env on CLI")
+    ]
+}
+
 def test-images-resolve-two-party-happy [] {
     test-log "\n[test-images-resolve-two-party-happy]"
     let out = (^nu (ocmts-script) images resolve
@@ -362,6 +725,16 @@ def main [] {
         | append (test-matrix-cell-one-party-happy)
         | append (test-matrix-cell-two-party-happy)
         | append (test-images-resolve-one-party-happy)
+        | append (test-images-resolve-cernbox-bundle)
+        | append (test-images-resolve-cernbox-bundle-env-override)
+        | append (test-images-resolve-role-env-beats-generic)
+        | append (test-images-resolve-generic-fallback-when-role-env-unset)
+        | append (test-images-resolve-empty-role-env-falls-back-to-generic)
+        | append (test-images-resolve-opposite-role-isolation)
+        | append (test-images-resolve-opencloud-ocis-role-env)
+        | append (test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset)
+        | append (test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic)
+        | append (test-images-resolve-opencloud-ocis-opposite-role-isolation)
         | append (test-images-resolve-two-party-happy)
     ) | flatten
     run-suite "cli/tuple-flags" $SUITE_PATH $results

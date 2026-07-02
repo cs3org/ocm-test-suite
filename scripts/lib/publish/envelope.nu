@@ -14,7 +14,6 @@ def flow-description [flow_id: string] {
         "share-with" => "OCM share-with flow"
         "contact-token" => "OCM contact-token flow"
         "contact-wayf" => "OCM contact-wayf flow"
-        "code-flow" => "OCM authorization code flow"
         _ => $"OCM ($flow_id) flow"
     }
 }

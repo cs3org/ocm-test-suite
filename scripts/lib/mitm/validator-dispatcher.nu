@@ -9,8 +9,6 @@
 #   override_exit_code: int | null    - explicit exit code; null = derive from status
 #   notes:              list<string>  - diagnostic strings from validators
 
-use ./code-flow-validator.nu [run-after-down]
-
 def noop-report [] {
     {validators: [], override_outcome: null, override_exit_code: null, notes: []}
 }
@@ -77,9 +75,9 @@ export def merge-validator-reports [
 
 # Dispatch post-flow validators for the given stage and return a merged report.
 #
-# Reads meta/cell.json from artifacts_base when present to resolve the flow_id
-# for after-down dispatch. Missing or malformed cell.json degrades gracefully
-# to flow_id = null, which returns the noop report.
+# Stage-only noop: after-cypress, after-down, and unknown stages each return
+# the noop report. artifacts_base and base_outcome are accepted for API
+# compatibility but do not affect dispatch selection.
 export def dispatch-validators [
     artifacts_base: string,
     stage: string,        # "after-cypress" or "after-down"
@@ -87,30 +85,7 @@ export def dispatch-validators [
 ] {
     match $stage {
         "after-cypress" => (noop-report),
-        "after-down" => {
-            let cell_path = ($artifacts_base | path join "meta/cell.json")
-            let flow_id = if ($cell_path | path exists) {
-                try {
-                    let cell = (open $cell_path)
-                    $cell.flow_id? | default null
-                } catch {
-                    null
-                }
-            } else {
-                null
-            }
-
-            let reports = match $flow_id {
-                "code-flow" => [(run-after-down $artifacts_base $base_outcome)],
-                _ => [],
-            }
-
-            if ($reports | is-empty) {
-                noop-report
-            } else {
-                merge-validator-reports $reports $base_outcome
-            }
-        },
+        "after-down" => (noop-report),
         _ => (noop-report),
     }
 }

@@ -22,7 +22,6 @@ use ../../lib/tests/runner.nu [run-suite]
 # validate and read them without error.
 def fill-flow-stubs [tmp_root: string] {
     let flows = [
-        {stem: "code-flow",     label: "Code Flow",       subtitle: "Code flow",      order: 30, enabled: false, two_party: true,  mitm: false}
         {stem: "contact-token", label: "Contact Token",   subtitle: "Token flow",     order: 40, enabled: false, two_party: true,  mitm: false}
         {stem: "contact-wayf",  label: "Contact WAYF",    subtitle: "WAYF flow",      order: 50, enabled: false, two_party: true,  mitm: false}
         {stem: "login",         label: "Login Flow",      subtitle: "Login flow",     order: 10, enabled: true,  two_party: false, mitm: false}
@@ -105,10 +104,6 @@ def fixture-share-with-flow-caps [] {
         "share-with": {
             sender: ["flow.share-with.sender", "op.login", "op.share-file.sender"],
             receiver: ["flow.share-with.receiver", "op.login", "op.share-file.receiver"],
-        },
-        "code-flow": {
-            sender: ["op.login", "flow.code-flow.sender"],
-            receiver: ["op.login", "flow.code-flow.receiver"],
         },
         "contact-wayf": {
             sender: ["flow.contact-wayf.sender", "op.login", "op.contact-wayf.sender", "op.share-file.sender"],
@@ -209,41 +204,41 @@ def test-apply-display-rule-emits-not-in-scope [] {
         "seafile/v1": {
             capabilities: {
                 "op.login": {status: "supported"},
-                "flow.code-flow.sender": {
+                "flow.contact-wayf.sender": {
                     status: "vendor-out-of-scope",
-                    rationale: "seafile does not implement OCM code-flow",
+                    rationale: "seafile does not implement OCM contact-wayf",
                 },
-                "flow.code-flow.receiver": {
+                "flow.contact-wayf.receiver": {
                     status: "vendor-out-of-scope",
-                    rationale: "seafile does not implement OCM code-flow",
+                    rationale: "seafile does not implement OCM contact-wayf",
                 },
             }
         },
         "nextcloud/v34": {
             capabilities: {
                 "op.login": {status: "supported"},
-                "flow.code-flow.sender": {status: "supported"},
-                "flow.code-flow.receiver": {status: "supported"},
+                "flow.contact-wayf.sender": {status: "supported"},
+                "flow.contact-wayf.receiver": {status: "supported"},
             }
         },
     }
     let cells = [
-        (make-cell --flow_id "code-flow" --matrix_key "code-flow__seafile__nextcloud" --sender_platform "seafile" --sender_version "v1" --receiver_platform "nextcloud" --receiver_version "v34")
+        (make-cell --flow_id "contact-wayf" --matrix_key "contact-wayf__seafile__nextcloud" --sender_platform "seafile" --sender_version "v1" --receiver_platform "nextcloud" --receiver_version "v34")
     ]
     let result = (apply-display-rule $cells $adapters (fixture-share-with-flow-caps))
     let seafile_kept = ($result.kept_cells | where {|c| $c.sender_platform == "seafile"})
     let seafile_oos = ($result.not_in_scope
-        | where {|e| ($e.flow_id == "code-flow") and ($e.platform == "seafile") and ($e.version == "v1")})
+        | where {|e| ($e.flow_id == "contact-wayf") and ($e.platform == "seafile") and ($e.version == "v1")})
     let roles = ($seafile_oos | each {|e| $e.role} | uniq | sort)
     [
         (assert-truthy ($seafile_kept | is-empty)
             "seafile cells dropped from kept_cells")
         (assert-truthy (not ($seafile_oos | is-empty))
-            "seafile/v1 lands in not_in_scope for code-flow")
+            "seafile/v1 lands in not_in_scope for contact-wayf")
         (assert-truthy ("sender" in $roles)
             "not_in_scope entry covers sender role")
         (assert-eq ($seafile_oos | first | get rationale)
-            "seafile does not implement OCM code-flow"
+            "seafile does not implement OCM contact-wayf"
             "rationale propagated from worst blocker")
     ]
 }
@@ -318,8 +313,8 @@ def test-build-matrix-rules-json-includes-display-status [] {
 def test-build-matrix-not-in-scope-json-shape [] {
     test-log "\n[test-build-matrix-not-in-scope-json-shape]"
     let not_in_scope = [
-        {flow_id: "code-flow", platform: "seafile", version: "v1", role: "sender", rationale: "r1"}
-        {flow_id: "code-flow", platform: "seafile", version: "v1", role: "receiver", rationale: "r1"}
+        {flow_id: "contact-wayf", platform: "seafile", version: "v1", role: "sender", rationale: "r1"}
+        {flow_id: "contact-wayf", platform: "seafile", version: "v1", role: "receiver", rationale: "r1"}
         {flow_id: "share-with", platform: "ocis", version: "v8", role: "sender", rationale: "r2"}
     ]
     mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
@@ -327,9 +322,9 @@ def test-build-matrix-not-in-scope-json-shape [] {
     materialize-provenance-stubs $tmp
     let out = (build-matrix-not-in-scope-json $not_in_scope $tmp)
     let cols = ($out | columns | sort)
-    let code_flow_entries = ($out.flows | get "code-flow")
+    let contact_wayf_entries = ($out.flows | get "contact-wayf")
     let share_with_entries = ($out.flows | get "share-with")
-    let code_flow_roles = ($code_flow_entries | each {|e| $e.role} | sort)
+    let contact_wayf_roles = ($contact_wayf_entries | each {|e| $e.role} | sort)
     let hex_re = '^[0-9a-f]{64}$'
     let result = [
         (assert-eq $out.schema_version 1
@@ -341,18 +336,18 @@ def test-build-matrix-not-in-scope-json-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 9
-            "sources has 9 entries")
+        (assert-eq ($out.sources | length) 8
+            "sources has 8 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
             "no source path is absolute")
         (assert-truthy ($out.sources | all {|s| ($s.sha256 | parse --regex $hex_re | length) == 1})
             "every sha256 matches 64-hex pattern")
-        (assert-eq ($code_flow_entries | length) 2
-            "code-flow flow has two entries (sender + receiver)")
-        (assert-eq $code_flow_roles ["receiver", "sender"]
-            "code-flow entries cover both roles")
+        (assert-eq ($contact_wayf_entries | length) 2
+            "contact-wayf flow has two entries (sender + receiver)")
+        (assert-eq $contact_wayf_roles ["receiver", "sender"]
+            "contact-wayf entries cover both roles")
         (assert-eq ($share_with_entries | length) 1
             "share-with flow has one entry")
     ]
@@ -378,8 +373,8 @@ def test-build-matrix-rules-json-provenance-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 9
-            "sources has 9 entries")
+        (assert-eq ($out.sources | length) 8
+            "sources has 8 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
@@ -400,7 +395,7 @@ def test-expand-flow-skips-disabled-flow [] {
     let platforms = {p1: {version_lines: ["v1"]}}
     let browsers_default = ["chrome"]
     let disabled_flow = {
-        flow_id: "code-flow",
+        flow_id: "contact-token",
         enabled: false,
         two_party: true,
         browsers: null,
@@ -410,7 +405,7 @@ def test-expand-flow-skips-disabled-flow [] {
         versions_receiver: {p1: ["v1"]},
     }
     let enabled_flow = {
-        flow_id: "code-flow",
+        flow_id: "contact-token",
         enabled: true,
         two_party: true,
         browsers: null,
@@ -449,8 +444,8 @@ def test-build-matrix-rules-json-emits-flows-and-platforms [] {
     let display_orders = ($out.flows | each {|f| $f.display_order})
     let sorted_orders = ($display_orders | sort)
     let result = [
-        (assert-eq ($out.flows | length) 5
-            "flows has one entry per flow file (5 total)")
+        (assert-eq ($out.flows | length) 4
+            "flows has one entry per flow file (4 total)")
         (assert-eq $first_flow_cols $required_flow_keys
             "first flow has required keys")
         (assert-eq $display_orders $sorted_orders
@@ -475,7 +470,7 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
 
     let login_flow = ($flows | where flow_id == "login" | first)
     let share_flow = ($flows | where flow_id == "share-with" | first)
-    let code_flow  = ($flows | where flow_id == "code-flow" | first)
+    let contact_wayf = ($flows | where flow_id == "contact-wayf" | first)
 
     let result = [
         (assert-truthy ($flows | all {|f|
@@ -500,8 +495,8 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
         (assert-eq $share_flow.label "Share With Flow" "share-with carries correct label")
         (assert-eq $share_flow.display_order 20 "share-with display_order is 20")
         (assert-eq $share_flow.enabled true "share-with enabled is true")
-        (assert-eq $code_flow.enabled false "code-flow enabled is false")
-        (assert-eq $code_flow.display_order 30 "code-flow display_order is 30")
+        (assert-eq $contact_wayf.enabled false "contact-wayf enabled is false")
+        (assert-eq $contact_wayf.display_order 50 "contact-wayf display_order is 50")
     ]
     rm --recursive --force $tmp
     $result

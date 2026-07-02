@@ -3,14 +3,6 @@
   "adapters": {
     "cernbox/v11": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
-        },
-        "flow.code-flow.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
-        },
         "flow.contact-token.receiver": {
           "status": "test-implementation-pending",
           "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
@@ -73,14 +65,6 @@
     },
     "nextcloud/v32": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "vendor-unsupported",
-          "tracking_note": "Nextcloud does not implement code-flow in this version."
-        },
-        "flow.code-flow.sender": {
-          "status": "vendor-unsupported",
-          "tracking_note": "Nextcloud does not implement code-flow in this version."
-        },
         "flow.contact-token.receiver": {
           "status": "vendor-unsupported",
           "tracking_note": "Nextcloud adds contact-token in v34."
@@ -139,14 +123,6 @@
     },
     "nextcloud/v33": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "vendor-unsupported",
-          "tracking_note": "Nextcloud does not implement code-flow in this version."
-        },
-        "flow.code-flow.sender": {
-          "status": "vendor-unsupported",
-          "tracking_note": "Nextcloud does not implement code-flow in this version."
-        },
         "flow.contact-token.receiver": {
           "status": "vendor-unsupported",
           "tracking_note": "Nextcloud adds contact-token in v34."
@@ -205,14 +181,6 @@
     },
     "nextcloud/v34": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
-        "flow.code-flow.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
         "flow.contact-token.receiver": {
           "status": "supported"
         },
@@ -262,14 +230,6 @@
     },
     "ocis/v8": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
-        "flow.code-flow.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
         "flow.contact-token.receiver": {
           "status": "supported"
         },
@@ -325,14 +285,6 @@
     },
     "ocmgo/v1": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "ocmgo implements code-flow; OCMTS test not yet implemented."
-        },
-        "flow.code-flow.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "ocmgo implements code-flow; OCMTS test not yet implemented."
-        },
         "flow.contact-token.receiver": {
           "status": "test-implementation-pending",
           "tracking_note": "ocmgo implements contact-token; OCMTS test not yet implemented."
@@ -391,14 +343,6 @@
     },
     "opencloud/v6": {
       "capabilities": {
-        "flow.code-flow.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
-        "flow.code-flow.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Vendor implements code-flow; OCMTS test not yet implemented."
-        },
         "flow.contact-token.receiver": {
           "status": "supported"
         },

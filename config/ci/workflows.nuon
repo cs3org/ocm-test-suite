@@ -19,8 +19,7 @@
             "login",
             "share-with",
             "contact-token",
-            "contact-wayf",
-            "code-flow"
+            "contact-wayf"
         ]
     }
 }

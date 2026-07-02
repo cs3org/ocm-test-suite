@@ -301,7 +301,7 @@ def test-sort-cells-by-flow-order [] {
         {cell_id: "login__nextcloud-v34", flow_id: "login"}
         {cell_id: "share-with__nextcloud-v34__nextcloud-v34", flow_id: "share-with"}
     ]
-    let job_order = ["login", "share-with", "contact-token", "contact-wayf", "code-flow"]
+    let job_order = ["login", "share-with", "contact-token", "contact-wayf"]
     let sorted = (sort-cells-by-flow-order $cells $job_order)
     let ids = ($sorted | each {|c| $c.cell_id})
     [
@@ -325,7 +325,7 @@ def test-suite-sort-then-max-respects-flow-order [] {
         {cell_id: "contact-token__nextcloud-v34__nextcloud-v34", flow_id: "contact-token"}
         {cell_id: "login__nextcloud-v34", flow_id: "login"}
     ]
-    let job_order = ["login", "share-with", "contact-token", "contact-wayf", "code-flow"]
+    let job_order = ["login", "share-with", "contact-token", "contact-wayf"]
     let sorted = (sort-cells-by-flow-order $cells $job_order)
 
     let max1 = ($sorted | first 1)

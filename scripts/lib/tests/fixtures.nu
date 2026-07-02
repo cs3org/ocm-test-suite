@@ -35,7 +35,7 @@ export def with-tmp-dir [closure: closure]: nothing -> any {
     }
 }
 
-# Write the 9 canonical source stub files under tmp_root for provenance tests.
+# Write the 8 canonical source stub files under tmp_root for provenance tests.
 export def materialize-provenance-stubs [tmp_root: string]: nothing -> nothing {
     mkdir ($tmp_root | path join "config/matrix/flows")
     mkdir ($tmp_root | path join "config/adapters")
@@ -57,7 +57,6 @@ export def materialize-provenance-stubs [tmp_root: string]: nothing -> nothing {
     "{}" | save --force ($tmp_root | path join "config/matrix/capabilities.v1.nuon")
 
     let flows = [
-        {stem: "code-flow",     label: "Code Flow",         subtitle: "Code flow",       order: 50, two_party: true,  mitm: true}
         {stem: "contact-token", label: "Contact via Token", subtitle: "Token discovery", order: 30, two_party: true,  mitm: true}
         {stem: "contact-wayf",  label: "Contact via WAYF",  subtitle: "WAYF discovery",  order: 40, two_party: true,  mitm: true}
         {stem: "login",         label: "Login Flow",        subtitle: "Login flow",      order: 10, two_party: false, mitm: false}

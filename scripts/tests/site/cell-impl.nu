@@ -577,7 +577,7 @@ def test-build-implemented-cells-placeholder-for-disabled [] {
     ]
 }
 
-# build-implemented-cells-json stamps a uniform provenance block with 10 sources.
+# build-implemented-cells-json stamps a uniform provenance block with 8 sources.
 def test-build-implemented-cells-json-provenance-shape [] {
     test-log "\n[test-build-implemented-cells-json-provenance-shape]"
     mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
@@ -595,8 +595,8 @@ def test-build-implemented-cells-json-provenance-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 9
-            "sources has 9 entries")
+        (assert-eq ($out.sources | length) 8
+            "sources has 8 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})

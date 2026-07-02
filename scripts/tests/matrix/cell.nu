@@ -4,6 +4,7 @@
 const SUITE_PATH = path self
 
 use ../../lib/matrix/cell.nu [assert-matrix-entry-enabled validate-cell-rules]
+use ../../lib/matrix/rules-gen.nu [expand-flow]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -454,6 +455,29 @@ def test-assert-enabled-rejects-path-traversal-flow-id [] {
     }
 }
 
+def test-public-flow-id-allowlist-rejects-unknown-flow [] {
+    test-log "\n[test-public-flow-id-allowlist-rejects-unknown-flow]"
+    let result = (
+        try {
+            expand-flow {
+                flow_id: "not-a-public-flow"
+                enabled: true
+                two_party: true
+                browsers: ["chrome"]
+                required_capabilities: {sender: [], receiver: []}
+                include: [{sender: ["nextcloud"], receiver: ["ocmgo"]}]
+                versions_sender: {nextcloud: ["v32"]}
+                versions_receiver: {ocmgo: ["v1"]}
+            } {nextcloud: {version_lines: ["v32"]}, ocmgo: {version_lines: ["v1"]}} ["chrome"]
+            "ok"
+        } catch {|e| $"error: ($e.msg)"}
+    )
+    [
+        (assert-truthy ($result | str starts-with "error:")
+            "not-a-public-flow is outside the public flow id allowlist")
+    ]
+}
+
 def test-validate-cell-rules-rejects-path-traversal-flow-id [] {
     test-log "\n[test-validate-cell-rules-rejects-path-traversal-flow-id]"
     with-tmp-dir {|tmp|
@@ -494,6 +518,7 @@ def main [] {
         | append (test-validate-cell-rules-rejects-absent-entry)
         | append (test-validate-cell-rules-rejects-disabled-entry)
         | append (test-validate-cell-rules-rejects-malformed-tuple)
+        | append (test-public-flow-id-allowlist-rejects-unknown-flow)
         | append (test-assert-enabled-rejects-path-traversal-flow-id)
         | append (test-validate-cell-rules-rejects-path-traversal-flow-id)
     ) | flatten

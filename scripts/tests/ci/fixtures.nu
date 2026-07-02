@@ -37,7 +37,7 @@ export def fixture-prereqs [] {
         capability_rules: [
             {
                 capability_flow: "login",
-                required_for_flows: ["share-with" "contact-token" "contact-wayf" "code-flow"],
+                required_for_flows: ["share-with" "contact-token" "contact-wayf"],
                 required_roles: ["sender" "receiver"],
             }
         ]

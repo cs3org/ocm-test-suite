@@ -47,7 +47,7 @@ scripts/
     matrix/                # cell, cells, expand, rules-gen, cypress-gen,
                            # topology (canonical two_party SSOT)
     mitm/                  # summary, ocm-summary, peers, report-utils,
-                           # validator-dispatcher, code-flow-validator
+                           # validator-dispatcher
     ocm/                   # endpoints
     publish/               # envelope, evidence (per-cell sidecar emitters)
     run/                   # execution-id, finalize, flow-ids, metadata,

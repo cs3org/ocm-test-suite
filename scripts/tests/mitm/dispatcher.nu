@@ -11,61 +11,32 @@ use ../../lib/tests/fixtures.nu [with-tmp-dir]
 
 # ---- dispatch-validators tests ----
 
-# after-down with flow_id="code-flow" (stub) returns noop merged report.
-def test-dispatch-after-down-code-flow-stub [] {
-    test-log "\n[test-dispatch-after-down-code-flow-stub]"
+# after-down stage returns noop report (no validators).
+def test-dispatch-after-down-noop [] {
+    test-log "\n[test-dispatch-after-down-noop]"
     with-tmp-dir {|tmp|
-        mkdir ($tmp | path join "meta")
-        {flow_id: "code-flow"} | save ($tmp | path join "meta/cell.json")
         let report = (dispatch-validators $tmp "after-down" "passed")
         [
-            (assert-eq $report.validators [] "validators is empty (stub)")
-            (assert-null $report.override_outcome "override_outcome is null (stub)")
-            (assert-null $report.override_exit_code "override_exit_code is null (stub)")
-            (assert-eq $report.notes [] "notes is empty (stub)")
+            (assert-eq $report.validators [] "after-down: validators empty")
+            (assert-null $report.override_outcome "after-down: override_outcome null")
+            (assert-null $report.override_exit_code "after-down: override_exit_code null")
+            (assert-eq $report.notes [] "after-down: notes empty")
         ]
     }
 }
 
-# after-down with unknown flow_id returns noop report (no validators).
-def test-dispatch-after-down-unknown-flow [] {
-    test-log "\n[test-dispatch-after-down-unknown-flow]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    {flow_id: "unknown-flow"} | save ($tmp | path join "meta/cell.json")
-    let report = (dispatch-validators $tmp "after-down" "passed")
-    ^rm -rf $tmp
-    [
-        (assert-eq $report.validators [] "validators is empty for unknown flow")
-        (assert-null $report.override_outcome "override_outcome is null for unknown flow")
-    ]
-}
-
-# after-down with no cell.json returns noop report.
-def test-dispatch-after-down-no-cell-json [] {
-    test-log "\n[test-dispatch-after-down-no-cell-json]"
-    with-tmp-dir {|tmp|
-        mkdir ($tmp | path join "meta")
-        let report = (dispatch-validators $tmp "after-down" "passed")
-        [
-            (assert-eq $report.validators [] "validators is empty when no cell.json")
-            (assert-null $report.override_outcome "override_outcome is null when no cell.json")
-        ]
-    }
-}
-
-# after-cypress always returns noop report regardless of flow.
+# after-cypress stage returns noop report (no validators).
 def test-dispatch-after-cypress-noop [] {
     test-log "\n[test-dispatch-after-cypress-noop]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    {flow_id: "code-flow"} | save ($tmp | path join "meta/cell.json")
-    let report = (dispatch-validators $tmp "after-cypress" "passed")
-    ^rm -rf $tmp
-    [
-        (assert-eq $report.validators [] "after-cypress: validators always empty")
-        (assert-null $report.override_outcome "after-cypress: override always null")
-    ]
+    with-tmp-dir {|tmp|
+        let report = (dispatch-validators $tmp "after-cypress" "passed")
+        [
+            (assert-eq $report.validators [] "after-cypress: validators empty")
+            (assert-null $report.override_outcome "after-cypress: override_outcome null")
+            (assert-null $report.override_exit_code "after-cypress: override_exit_code null")
+            (assert-eq $report.notes [] "after-cypress: notes empty")
+        ]
+    }
 }
 
 # Unknown stage returns noop report.
@@ -162,20 +133,20 @@ def test-merge-failed-override-explicit-exit-code [] {
     ]
 }
 
-# dispatch-validators: malformed cell.json degrades gracefully to noop report.
-def test-dispatch-malformed-cell-json [] {
-    test-log "\n[test-dispatch-malformed-cell-json]"
-    let tmp = (^mktemp -d | str trim)
-    mkdir ($tmp | path join "meta")
-    "{ not valid json" | save ($tmp | path join "meta/cell.json")
-    let report = (dispatch-validators $tmp "after-down" "passed")
-    ^rm -rf $tmp
-    [
-        (assert-eq $report.validators [] "malformed cell.json: validators is empty")
-        (assert-null $report.override_outcome "malformed cell.json: override_outcome is null")
-        (assert-null $report.override_exit_code "malformed cell.json: override_exit_code is null")
-        (assert-eq $report.notes [] "malformed cell.json: notes is empty")
-    ]
+# dispatch-validators ignores artifacts_base; stage-only noop.
+def test-dispatch-ignores-artifacts-base-noop [] {
+    test-log "\n[test-dispatch-ignores-artifacts-base-noop]"
+    with-tmp-dir {|tmp|
+        mkdir ($tmp | path join "meta")
+        {cell: "value"} | to json | save ($tmp | path join "meta/cell.json")
+        let report = (dispatch-validators $tmp "after-down" "failed")
+        [
+            (assert-eq $report.validators [] "artifacts_base ignored: validators empty")
+            (assert-null $report.override_outcome "artifacts_base ignored: override_outcome null")
+            (assert-null $report.override_exit_code "artifacts_base ignored: override_exit_code null")
+            (assert-eq $report.notes [] "artifacts_base ignored: notes empty")
+        ]
+    }
 }
 
 # Mixed failed overrides (null first, explicit second): explicit code wins.
@@ -241,12 +212,10 @@ def test-merge-passed-explicit-wins-explicit-first [] {
 def main [] {
     test-log "=== Validator Dispatcher + Merge Tests ==="
     let results = (
-        (test-dispatch-after-down-code-flow-stub)
-        | append (test-dispatch-after-down-unknown-flow)
-        | append (test-dispatch-after-down-no-cell-json)
+        (test-dispatch-after-down-noop)
         | append (test-dispatch-after-cypress-noop)
         | append (test-dispatch-unknown-stage-noop)
-        | append (test-dispatch-malformed-cell-json)
+        | append (test-dispatch-ignores-artifacts-base-noop)
         | append (test-merge-failed-wins-over-pass)
         | append (test-merge-pass-override-flips-failed-base)
         | append (test-merge-pass-override-no-flip-on-passed-base)

@@ -3,8 +3,8 @@
     # This is a CI-level gate separate from the per-flow required_capabilities in config/matrix/flows/.
     "capability_rules": [
         {
-            # op.login is the shared login operation required by all multi-step flows.
-            # code-flow has no required_capabilities so it is excluded.
+            # op.login is the shared login operation required by multi-step flows
+            # listed in required_for_flows below.
             "capability_flow": "login",
             "required_for_flows": [
                 "share-with",

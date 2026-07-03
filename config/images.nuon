@@ -44,34 +44,40 @@
     },
     "nextcloud": {
       "v32": {
-        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.9",
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12",
         "override_env": "OCMTS_NEXTCLOUD_V32_IMAGE",
         "sender_override_env": "OCMTS_NEXTCLOUD_V32_SENDER_IMAGE",
         "receiver_override_env": "OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE"
       },
       "v33": {
-        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v33.0.3",
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v33.0.6",
         "override_env": "OCMTS_NEXTCLOUD_V33_IMAGE",
         "sender_override_env": "OCMTS_NEXTCLOUD_V33_SENDER_IMAGE",
         "receiver_override_env": "OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE"
       },
       "v34": {
-        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:master",
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.1",
         "override_env": "OCMTS_NEXTCLOUD_V34_IMAGE",
         "sender_override_env": "OCMTS_NEXTCLOUD_V34_SENDER_IMAGE",
-        "receiver_override_env": "OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE",
+        "receiver_override_env": "OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE"
+      },
+      "v35": {
+        "default": "ghcr.io/mahdibaghbani/containers/nextcloud:master",
+        "override_env": "OCMTS_NEXTCLOUD_V35_IMAGE",
+        "sender_override_env": "OCMTS_NEXTCLOUD_V35_SENDER_IMAGE",
+        "receiver_override_env": "OCMTS_NEXTCLOUD_V35_RECEIVER_IMAGE",
         "by_flow": {
           "contact-token": {
-            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6",
-            "override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE",
-            "sender_override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE",
-            "receiver_override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE"
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-contacts-app",
+            "override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_IMAGE",
+            "sender_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_SENDER_IMAGE",
+            "receiver_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_RECEIVER_IMAGE"
           },
           "contact-wayf": {
-            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6",
-            "override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE",
-            "sender_override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE",
-            "receiver_override_env": "OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE"
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-contacts-app",
+            "override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE",
+            "sender_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE",
+            "receiver_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE"
           }
         }
       }

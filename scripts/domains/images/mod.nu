@@ -11,7 +11,7 @@ def main [] {
     print ""
     print "Verbs:"
     print "  list              List all configured platforms and versions"
-    print "  show              Show raw/base image config for one platform/version"
+    print "  show              Show raw version-scoped config for one platform/version"
     print "  resolve           Resolve effective image refs with matrix/flow overrides"
 }
 
@@ -33,26 +33,30 @@ def "main show" [
     let imgs = open ($root | path join "config/images.nuon")
     let plat_spec = ($imgs.platforms | get $platform)
     let spec = ($plat_spec | get $version)
-    let platform_env = ($plat_spec.override_env? | default "")
-    let version_env = ($spec.override_env? | default "")
-    let effective_env = if not ($version_env | is-empty) { $version_env } else { $platform_env }
-    let env_val = if ($effective_env | is-empty) {
-        ""
-    } else {
-        ($env | get --optional $effective_env | default "")
+    let has_role_env = ("sender_override_env" in ($spec | columns)) or ("receiver_override_env" in ($spec | columns))
+
+    print $"platform:      ($platform)"
+    print $"version:       ($version)"
+    print $"default:       ($spec.default)"
+    print $"override_env:  ($spec.override_env? | default "")"
+
+    if $has_role_env {
+        print $"sender_override_env:   ($spec.sender_override_env? | default "")"
+        print $"receiver_override_env: ($spec.receiver_override_env? | default "")"
     }
-    let base_image = if ($env_val | is-empty) { $spec.default } else { $env_val }
-    print $"platform:               ($platform)"
-    print $"version:                ($version)"
-    print $"default:                ($spec.default)"
-    print $"platform_override_env:  ($platform_env)"
-    print $"version_override_env:   ($version_env)"
-    print $"effective_override_env: ($effective_env)"
-    print $"base_image:             ($base_image)"
-    if not ($env_val | is-empty) {
-        print $"note: ($effective_env) is set; using env override"
+
+    let bundle = ($spec.bundle? | default {})
+    if not ($bundle | is-empty) {
+        print "bundle:"
+        for slot in ($bundle | columns) {
+            let slot_spec = ($bundle | get $slot)
+            print $"  ($slot): default=($slot_spec.default) override_env=($slot_spec.override_env? | default "")"
+        }
     }
-    print "note: by_matrix_key/by_flow overrides not applied; use 'images resolve --flow' for full resolution"
+
+    print ""
+    print "note: this is the raw version-scoped config; by_matrix_key/by_flow overrides are not applied here"
+    print "note: use 'images resolve --flow ...' for full effective resolution"
 }
 
 def "main resolve" [

@@ -34,7 +34,7 @@ def cleared-image-env-mask [keys: list<string>] {
 
 def cernbox-image-env-mask [] {
     cleared-image-env-mask [
-        OCMTS_CERNBOX_WEB_IMAGE
+        OCMTS_CERNBOX_WEB_V11_IMAGE
         OCMTS_CERNBOX_REVAD_IMAGE
         OCMTS_CERNBOX_IDP_IMAGE
         OCMTS_CYPRESS_CI_IMAGE
@@ -45,9 +45,9 @@ def cernbox-image-env-mask [] {
 
 def nextcloud-image-env-mask [] {
     cleared-image-env-mask [
-        OCMTS_NEXTCLOUD_IMAGE
-        OCMTS_NEXTCLOUD_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V32_IMAGE
+        OCMTS_NEXTCLOUD_V32_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE
         OCMTS_CYPRESS_CI_IMAGE
         OCMTS_MARIADB_IMAGE
         OCMTS_VALKEY_IMAGE
@@ -105,7 +105,7 @@ def test-list-cell-images-cernbox-bundle-refs [] {
     let mask = (cernbox-image-env-mask)
     let state = (
         with-env (seeded-image-env [
-            OCMTS_CERNBOX_WEB_IMAGE
+            OCMTS_CERNBOX_WEB_V11_IMAGE
             OCMTS_CERNBOX_REVAD_IMAGE
         ]) {
             let out = (
@@ -169,7 +169,7 @@ def test-list-cell-images-nextcloud-non-bundle [] {
     let mask = (nextcloud-image-env-mask)
     let state = (
         with-env (seeded-image-env [
-            OCMTS_NEXTCLOUD_IMAGE
+            OCMTS_NEXTCLOUD_V32_IMAGE
             OCMTS_CYPRESS_CI_IMAGE
         ]) {
             let out = (

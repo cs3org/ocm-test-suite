@@ -281,20 +281,93 @@ def test-images-resolve-one-party-happy [] {
 const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master"
 const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
+const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.9"
+const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6"
+
+def test-images-show-nextcloud-v32-role-aware [] {
+    test-log "\n[test-images-show-nextcloud-v32-role-aware]"
+    let out = (^nu (ocmts-script) images show
+        --platform nextcloud
+        --version v32
+        | complete)
+    let stdout = $out.stdout
+    [
+        (assert-eq $out.exit_code 0
+            "images show nextcloud/v32 exits 0")
+        (assert-truthy ($stdout | str contains "platform:      nextcloud")
+            "images show nextcloud/v32 prints platform")
+        (assert-truthy ($stdout | str contains "version:       v32")
+            "images show nextcloud/v32 prints version")
+        (assert-truthy ($stdout | str contains $"default:       ($NEXTCLOUD_V32_DEFAULT)")
+            "images show nextcloud/v32 prints default ref")
+        (assert-truthy ($stdout | str contains "override_env:  OCMTS_NEXTCLOUD_V32_IMAGE")
+            "images show nextcloud/v32 prints override_env")
+        (assert-truthy ($stdout | str contains "sender_override_env:   OCMTS_NEXTCLOUD_V32_SENDER_IMAGE")
+            "images show nextcloud/v32 prints sender_override_env")
+        (assert-truthy ($stdout | str contains "receiver_override_env: OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE")
+            "images show nextcloud/v32 prints receiver_override_env")
+        (assert-truthy ($stdout | str contains "note: this is the raw version-scoped config")
+            "images show nextcloud/v32 prints raw-config note")
+        (assert-truthy ($stdout | str contains "note: use 'images resolve --flow ...' for full effective resolution")
+            "images show nextcloud/v32 prints resolve note")
+        (assert-truthy (not ($stdout | str contains "bundle:"))
+            "images show nextcloud/v32 omits bundle section")
+    ]
+}
+
+def test-images-show-cernbox-v11-bundle [] {
+    test-log "\n[test-images-show-cernbox-v11-bundle]"
+    let out = (^nu (ocmts-script) images show
+        --platform cernbox
+        --version v11
+        | complete)
+    let stdout = $out.stdout
+    [
+        (assert-eq $out.exit_code 0
+            "images show cernbox/v11 exits 0")
+        (assert-truthy ($stdout | str contains "platform:      cernbox")
+            "images show cernbox/v11 prints platform")
+        (assert-truthy ($stdout | str contains "version:       v11")
+            "images show cernbox/v11 prints version")
+        (assert-truthy ($stdout | str contains $"default:       ($CERNBOX_WEB_DEFAULT)")
+            "images show cernbox/v11 prints default ref")
+        (assert-truthy ($stdout | str contains "override_env:  OCMTS_CERNBOX_WEB_V11_IMAGE")
+            "images show cernbox/v11 prints override_env")
+        (assert-truthy ($stdout | str contains "bundle:")
+            "images show cernbox/v11 prints bundle header")
+        (assert-truthy ($stdout | str contains $"  revad: default=($CERNBOX_REVAD_DEFAULT) override_env=OCMTS_CERNBOX_REVAD_IMAGE")
+            "images show cernbox/v11 prints revad bundle slot")
+        (assert-truthy ($stdout | str contains $"  idp: default=($CERNBOX_IDP_DEFAULT) override_env=OCMTS_CERNBOX_IDP_IMAGE")
+            "images show cernbox/v11 prints idp bundle slot")
+        (assert-truthy ($stdout | str contains "note: this is the raw version-scoped config")
+            "images show cernbox/v11 prints raw-config note")
+        (assert-truthy ($stdout | str contains "note: use 'images resolve --flow ...' for full effective resolution")
+            "images show cernbox/v11 prints resolve note")
+    ]
+}
 
 def role-image-env-mask [] {
     [
-        OCMTS_NEXTCLOUD_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_RECEIVER_IMAGE
-        OCMTS_OCMGO_SENDER_IMAGE
-        OCMTS_OCMGO_RECEIVER_IMAGE
-        OCMTS_OPENCLOUD_SENDER_IMAGE
-        OCMTS_OPENCLOUD_RECEIVER_IMAGE
-        OCMTS_OCIS_SENDER_IMAGE
-        OCMTS_OCIS_RECEIVER_IMAGE
-        OCMTS_CERNBOX_WEB_IMAGE
+        OCMTS_NEXTCLOUD_V32_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE
+        OCMTS_OCMGO_V1_SENDER_IMAGE
+        OCMTS_OCMGO_V1_RECEIVER_IMAGE
+        OCMTS_OPENCLOUD_V6_SENDER_IMAGE
+        OCMTS_OPENCLOUD_V6_RECEIVER_IMAGE
+        OCMTS_OCIS_V8_SENDER_IMAGE
+        OCMTS_OCIS_V8_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V34_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE
+        OCMTS_CERNBOX_WEB_V11_IMAGE
         OCMTS_CERNBOX_REVAD_IMAGE
         OCMTS_CERNBOX_IDP_IMAGE
+        OCMTS_NEXTCLOUD_V34_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE
+        OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE
     ]
     | reduce --fold {} {|k, acc|
         if $k in $env { $acc | upsert $k null } else { $acc }
@@ -341,7 +414,7 @@ def test-images-resolve-cernbox-bundle-env-override [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_CERNBOX_WEB_IMAGE: $custom_web
+                OCMTS_CERNBOX_WEB_V11_IMAGE: $custom_web
                 OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad
                 OCMTS_CERNBOX_IDP_IMAGE: $custom_idp
             }
@@ -360,7 +433,7 @@ def test-images-resolve-cernbox-bundle-env-override [] {
         (assert-eq $out.exit_code 0
             "images resolve cernbox bundle env override exits 0")
         (assert-eq ($data.platform? | default "") $custom_web
-            "OCMTS_CERNBOX_WEB_IMAGE honored on public CLI")
+            "OCMTS_CERNBOX_WEB_V11_IMAGE honored on public CLI")
         (assert-eq ($bundle | get --optional revad | default "") $custom_revad
             "OCMTS_CERNBOX_REVAD_IMAGE honored on public CLI")
         (assert-eq ($bundle | get --optional idp | default "") $custom_idp
@@ -385,10 +458,10 @@ def test-images-resolve-role-env-beats-generic [] {
     ]
     let out = (
         with-env {
-            OCMTS_NEXTCLOUD_IMAGE: $sender_generic
-            OCMTS_NEXTCLOUD_SENDER_IMAGE: $sender_role
-            OCMTS_OCMGO_IMAGE: $receiver_generic
-            OCMTS_OCMGO_RECEIVER_IMAGE: $receiver_role
+            OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
+            OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: $sender_role
+            OCMTS_OCMGO_V1_IMAGE: $receiver_generic
+            OCMTS_OCMGO_V1_RECEIVER_IMAGE: $receiver_role
         } {
             (^nu (ocmts-script) ...$cmd | complete)
         }
@@ -398,9 +471,9 @@ def test-images-resolve-role-env-beats-generic [] {
         (assert-eq $out.exit_code 0
             "images resolve role-env precedence exits 0")
         (assert-eq ($data.platform? | default "") $sender_role
-            "sender OCMTS_NEXTCLOUD_SENDER_IMAGE beats OCMTS_NEXTCLOUD_IMAGE")
+            "sender OCMTS_NEXTCLOUD_V32_SENDER_IMAGE beats OCMTS_NEXTCLOUD_V32_IMAGE")
         (assert-eq ($data.receiver_platform? | default "") $receiver_role
-            "receiver OCMTS_OCMGO_RECEIVER_IMAGE beats OCMTS_OCMGO_IMAGE")
+            "receiver OCMTS_OCMGO_V1_RECEIVER_IMAGE beats OCMTS_OCMGO_V1_IMAGE")
     ]
 }
 
@@ -421,8 +494,8 @@ def test-images-resolve-generic-fallback-when-role-env-unset [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_IMAGE: $sender_generic
-                OCMTS_OCMGO_IMAGE: $receiver_generic
+                OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
+                OCMTS_OCMGO_V1_IMAGE: $receiver_generic
             }
         ) {
             (^nu (ocmts-script) ...$cmd | complete)
@@ -433,9 +506,9 @@ def test-images-resolve-generic-fallback-when-role-env-unset [] {
         (assert-eq $out.exit_code 0
             "images resolve generic fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "OCMTS_NEXTCLOUD_IMAGE applies when sender role env is unset")
+            "OCMTS_NEXTCLOUD_V32_IMAGE applies when sender role env is unset")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
-            "OCMTS_OCMGO_IMAGE applies when receiver role env is unset")
+            "OCMTS_OCMGO_V1_IMAGE applies when receiver role env is unset")
     ]
 }
 
@@ -456,10 +529,10 @@ def test-images-resolve-empty-role-env-falls-back-to-generic [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_IMAGE: $sender_generic
-                OCMTS_NEXTCLOUD_SENDER_IMAGE: ""
-                OCMTS_OCMGO_IMAGE: $receiver_generic
-                OCMTS_OCMGO_RECEIVER_IMAGE: ""
+                OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
+                OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: ""
+                OCMTS_OCMGO_V1_IMAGE: $receiver_generic
+                OCMTS_OCMGO_V1_RECEIVER_IMAGE: ""
             }
         ) {
             (^nu (ocmts-script) ...$cmd | complete)
@@ -470,9 +543,9 @@ def test-images-resolve-empty-role-env-falls-back-to-generic [] {
         (assert-eq $out.exit_code 0
             "images resolve empty role env fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "empty sender role env falls back to OCMTS_NEXTCLOUD_IMAGE on CLI")
+            "empty sender role env falls back to OCMTS_NEXTCLOUD_V32_IMAGE on CLI")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
-            "empty receiver role env falls back to OCMTS_OCMGO_IMAGE on CLI")
+            "empty receiver role env falls back to OCMTS_OCMGO_V1_IMAGE on CLI")
     ]
 }
 
@@ -495,10 +568,10 @@ def test-images-resolve-opposite-role-isolation [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_SENDER_IMAGE: $sender_role
-                OCMTS_OCMGO_RECEIVER_IMAGE: $receiver_role
-                OCMTS_OCMGO_SENDER_IMAGE: $bogus_receiver
-                OCMTS_NEXTCLOUD_RECEIVER_IMAGE: $bogus_sender
+                OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: $sender_role
+                OCMTS_OCMGO_V1_RECEIVER_IMAGE: $receiver_role
+                OCMTS_OCMGO_V1_SENDER_IMAGE: $bogus_receiver
+                OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE: $bogus_sender
             }
         ) {
             (^nu (ocmts-script) ...$cmd | complete)
@@ -537,10 +610,10 @@ def test-images-resolve-opencloud-ocis-role-env [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_OPENCLOUD_IMAGE: $sender_generic
-                OCMTS_OPENCLOUD_SENDER_IMAGE: $sender_role
-                OCMTS_OCIS_IMAGE: $receiver_generic
-                OCMTS_OCIS_RECEIVER_IMAGE: $receiver_role
+                OCMTS_OPENCLOUD_V6_IMAGE: $sender_generic
+                OCMTS_OPENCLOUD_V6_SENDER_IMAGE: $sender_role
+                OCMTS_OCIS_V8_IMAGE: $receiver_generic
+                OCMTS_OCIS_V8_RECEIVER_IMAGE: $receiver_role
             }
         ) {
             (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
@@ -551,9 +624,9 @@ def test-images-resolve-opencloud-ocis-role-env [] {
         (assert-eq $out.exit_code 0
             "images resolve opencloud/ocis role env exits 0")
         (assert-eq ($data.platform? | default "") $sender_role
-            "OCMTS_OPENCLOUD_SENDER_IMAGE beats OCMTS_OPENCLOUD_IMAGE on public CLI")
+            "OCMTS_OPENCLOUD_V6_SENDER_IMAGE beats OCMTS_OPENCLOUD_V6_IMAGE on public CLI")
         (assert-eq ($data.receiver_platform? | default "") $receiver_role
-            "OCMTS_OCIS_RECEIVER_IMAGE beats OCMTS_OCIS_IMAGE on public CLI")
+            "OCMTS_OCIS_V8_RECEIVER_IMAGE beats OCMTS_OCIS_V8_IMAGE on public CLI")
     ]
 }
 
@@ -565,8 +638,8 @@ def test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_OPENCLOUD_IMAGE: $sender_generic
-                OCMTS_OCIS_IMAGE: $receiver_generic
+                OCMTS_OPENCLOUD_V6_IMAGE: $sender_generic
+                OCMTS_OCIS_V8_IMAGE: $receiver_generic
             }
         ) {
             (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
@@ -577,9 +650,9 @@ def test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset [] {
         (assert-eq $out.exit_code 0
             "images resolve opencloud/ocis generic fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "OCMTS_OPENCLOUD_IMAGE applies when sender role env is unset on CLI")
+            "OCMTS_OPENCLOUD_V6_IMAGE applies when sender role env is unset on CLI")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
-            "OCMTS_OCIS_IMAGE applies when receiver role env is unset on CLI")
+            "OCMTS_OCIS_V8_IMAGE applies when receiver role env is unset on CLI")
     ]
 }
 
@@ -591,10 +664,10 @@ def test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_OPENCLOUD_IMAGE: $sender_generic
-                OCMTS_OPENCLOUD_SENDER_IMAGE: ""
-                OCMTS_OCIS_IMAGE: $receiver_generic
-                OCMTS_OCIS_RECEIVER_IMAGE: ""
+                OCMTS_OPENCLOUD_V6_IMAGE: $sender_generic
+                OCMTS_OPENCLOUD_V6_SENDER_IMAGE: ""
+                OCMTS_OCIS_V8_IMAGE: $receiver_generic
+                OCMTS_OCIS_V8_RECEIVER_IMAGE: ""
             }
         ) {
             (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
@@ -605,9 +678,201 @@ def test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic [] {
         (assert-eq $out.exit_code 0
             "images resolve opencloud/ocis empty role env fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "empty opencloud sender role env falls back to OCMTS_OPENCLOUD_IMAGE on CLI")
+            "empty opencloud sender role env falls back to OCMTS_OPENCLOUD_V6_IMAGE on CLI")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
-            "empty ocis receiver role env falls back to OCMTS_OCIS_IMAGE on CLI")
+            "empty ocis receiver role env falls back to OCMTS_OCIS_V8_IMAGE on CLI")
+    ]
+}
+
+def nextcloud-v34-contact-token-images-resolve-cmd [] {
+    [
+        images resolve
+        --flow contact-token
+        --sender-platform nextcloud
+        --sender-version v34
+        --receiver-platform nextcloud
+        --receiver-version v34
+        --json
+    ]
+}
+
+def nextcloud-v34-contact-wayf-images-resolve-cmd [] {
+    [
+        images resolve
+        --flow contact-wayf
+        --sender-platform nextcloud
+        --sender-version v34
+        --receiver-platform nextcloud
+        --receiver-version v34
+        --json
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-token-flow-default-beats-version-default [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-token-flow-default-beats-version-default]"
+    let out = (
+        with-env (role-image-env-mask) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-token-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-token default exits 0")
+        (assert-eq ($data.platform? | default "") $NEXTCLOUD_CONTACTS_DEFAULT
+            "contact-token by_flow default wins over nextcloud/v34 version default on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-wayf-flow-default-beats-version-default [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-wayf-flow-default-beats-version-default]"
+    let out = (
+        with-env (role-image-env-mask) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-wayf-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-wayf default exits 0")
+        (assert-eq ($data.platform? | default "") $NEXTCLOUD_CONTACTS_DEFAULT
+            "contact-wayf by_flow default wins over nextcloud/v34 version default on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env]"
+    let flow_role = "ghcr.io/example/nextcloud-contacts:flow-sender-role-cli"
+    let version_role = "ghcr.io/example/nextcloud:version-sender-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
+                OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE: $flow_role
+            }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-token-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-token flow role env exits 0")
+        (assert-eq ($data.platform? | default "") $flow_role
+            "contact-token flow-scoped sender_override_env beats version-scoped sender_override_env on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env]"
+    let flow_generic = "ghcr.io/example/nextcloud-contacts:flow-generic-cli"
+    let version_role = "ghcr.io/example/nextcloud:version-sender-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
+                OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE: $flow_generic
+            }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-token-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-token flow generic env exits 0")
+        (assert-eq ($data.platform? | default "") $flow_generic
+            "contact-token flow-scoped generic override_env beats version-scoped role env on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-token-receiver-flow-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-token-receiver-flow-role-env]"
+    let receiver_role = "ghcr.io/example/nextcloud-contacts:flow-receiver-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge { OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE: $receiver_role }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-token-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-token receiver flow role env exits 0")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "contact-token by_flow receiver_override_env applies to receiver resolution on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env]"
+    let flow_role = "ghcr.io/example/nextcloud-contacts:wayf-flow-sender-role-cli"
+    let version_role = "ghcr.io/example/nextcloud:version-sender-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
+                OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE: $flow_role
+            }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-wayf-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-wayf flow role env exits 0")
+        (assert-eq ($data.platform? | default "") $flow_role
+            "contact-wayf flow-scoped sender_override_env beats version-scoped sender_override_env on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env]"
+    let flow_generic = "ghcr.io/example/nextcloud-contacts:wayf-flow-generic-cli"
+    let version_role = "ghcr.io/example/nextcloud:version-sender-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge {
+                OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
+                OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE: $flow_generic
+            }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-wayf-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-wayf flow generic env exits 0")
+        (assert-eq ($data.platform? | default "") $flow_generic
+            "contact-wayf flow-scoped generic override_env beats version-scoped role env on CLI")
+    ]
+}
+
+def test-images-resolve-nextcloud-v34-contact-wayf-receiver-flow-role-env [] {
+    test-log "\n[test-images-resolve-nextcloud-v34-contact-wayf-receiver-flow-role-env]"
+    let receiver_role = "ghcr.io/example/nextcloud-contacts:wayf-receiver-role-cli"
+    let out = (
+        with-env (
+            role-image-env-mask
+            | merge { OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE: $receiver_role }
+        ) {
+            (^nu (ocmts-script) ...(nextcloud-v34-contact-wayf-images-resolve-cmd) | complete)
+        }
+    )
+    let data = (try { $out.stdout | from json } catch { {} })
+    [
+        (assert-eq $out.exit_code 0
+            "images resolve nextcloud/v34 contact-wayf receiver flow role env exits 0")
+        (assert-eq ($data.receiver_platform? | default "") $receiver_role
+            "contact-wayf by_flow receiver_override_env applies to receiver resolution on CLI")
     ]
 }
 
@@ -621,10 +886,10 @@ def test-images-resolve-opencloud-ocis-opposite-role-isolation [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_OPENCLOUD_SENDER_IMAGE: $sender_role
-                OCMTS_OCIS_RECEIVER_IMAGE: $receiver_role
-                OCMTS_OCIS_SENDER_IMAGE: $bogus_receiver
-                OCMTS_OPENCLOUD_RECEIVER_IMAGE: $bogus_sender
+                OCMTS_OPENCLOUD_V6_SENDER_IMAGE: $sender_role
+                OCMTS_OCIS_V8_RECEIVER_IMAGE: $receiver_role
+                OCMTS_OCIS_V8_SENDER_IMAGE: $bogus_receiver
+                OCMTS_OPENCLOUD_V6_RECEIVER_IMAGE: $bogus_sender
             }
         ) {
             (^nu (ocmts-script) ...(opencloud-ocis-images-resolve-cmd) | complete)
@@ -725,6 +990,8 @@ def main [] {
         | append (test-matrix-cell-one-party-happy)
         | append (test-matrix-cell-two-party-happy)
         | append (test-images-resolve-one-party-happy)
+        | append (test-images-show-nextcloud-v32-role-aware)
+        | append (test-images-show-cernbox-v11-bundle)
         | append (test-images-resolve-cernbox-bundle)
         | append (test-images-resolve-cernbox-bundle-env-override)
         | append (test-images-resolve-role-env-beats-generic)
@@ -735,6 +1002,14 @@ def main [] {
         | append (test-images-resolve-opencloud-ocis-generic-fallback-when-role-env-unset)
         | append (test-images-resolve-opencloud-ocis-empty-role-env-falls-back-to-generic)
         | append (test-images-resolve-opencloud-ocis-opposite-role-isolation)
+        | append (test-images-resolve-nextcloud-v34-contact-token-flow-default-beats-version-default)
+        | append (test-images-resolve-nextcloud-v34-contact-wayf-flow-default-beats-version-default)
+        | append (test-images-resolve-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env)
+        | append (test-images-resolve-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env)
+        | append (test-images-resolve-nextcloud-v34-contact-token-receiver-flow-role-env)
+        | append (test-images-resolve-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env)
+        | append (test-images-resolve-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env)
+        | append (test-images-resolve-nextcloud-v34-contact-wayf-receiver-flow-role-env)
         | append (test-images-resolve-two-party-happy)
     ) | flatten
     run-suite "cli/tuple-flags" $SUITE_PATH $results

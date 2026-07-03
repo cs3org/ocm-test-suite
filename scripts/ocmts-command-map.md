@@ -51,11 +51,11 @@ Run from the repo root.
 
 ## images
 
-| Command                                    | Purpose                              |
-| ------------------------------------------ | ------------------------------------ |
-| `nu scripts/ocmts.nu images list [--json]` | List configured images.              |
-| `nu scripts/ocmts.nu images show <id>`     | Show one image's resolved config.    |
-| `nu scripts/ocmts.nu images resolve ...`   | Resolve image precedence for a cell. |
+| Command                                                                    | Purpose                                              |
+| -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `nu scripts/ocmts.nu images list [--json]`                                 | List configured images.                              |
+| `nu scripts/ocmts.nu images show --platform <platform> --version <version>` | Print raw version-scoped config (not resolved).      |
+| `nu scripts/ocmts.nu images resolve ...`                                   | Resolve image precedence for a cell.                 |
 
 ## matrix
 
@@ -69,12 +69,13 @@ Run from the repo root.
 
 ## services
 
-| Command                                    | Purpose                                |
-| ------------------------------------------ | -------------------------------------- |
-| `nu scripts/ocmts.nu services up ...`      | Bring up the compose stack for a cell. |
-| `nu scripts/ocmts.nu services up run ...`  | Up + run Cypress headless.             |
-| `nu scripts/ocmts.nu services up open ...` | Up + open Cypress UI.                  |
-| `nu scripts/ocmts.nu services down ...`    | Tear down the compose stack.           |
+| Command                                              | Purpose                                              |
+| ----------------------------------------------------- | ------------------------------------------------------ |
+| `nu scripts/ocmts.nu services up ...`                | Bring up the compose stack for a cell.               |
+| `nu scripts/ocmts.nu services up run ...`            | Up + run Cypress headless.                           |
+| `nu scripts/ocmts.nu services up open ...`           | Up + open Cypress UI.                                |
+| `nu scripts/ocmts.nu services down ...`              | Tear down the compose stack.                         |
+| `nu scripts/ocmts.nu services list-cell-images ...`  | Print runtime image refs for a cell (one per line).  |
 
 ## site
 

@@ -41,7 +41,7 @@ scripts/
                            # template-renderer, flow-order, suite-stop-on-fail
     compose/               # render, validate, logs, yaml, topology-common
                            # (shared helpers), topology-{one,two}-party
-    images/                # precedence (env-override + 6/11-level resolvers),
+    images/                # precedence (scope-first 6/9-level resolvers),
                            # config (load + list + validate), resolve (the
                            # public sender/receiver/mitmproxy resolvers)
     matrix/                # cell, cells, expand, rules-gen, cypress-gen,

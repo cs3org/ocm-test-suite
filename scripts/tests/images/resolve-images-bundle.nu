@@ -1,4 +1,5 @@
 # resolve-images bundle reduction tests for cernbox/v11 and non-bundle platforms.
+# Proves bundle slots resolve independently from the main platform image.
 # Run: nu scripts/tests/images/resolve-images-bundle.nu
 
 const SUITE_PATH = path self
@@ -13,7 +14,7 @@ const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
 
 def leaked-cernbox-image-env-mask [] {
     [
-        OCMTS_CERNBOX_WEB_IMAGE
+        OCMTS_CERNBOX_WEB_V11_IMAGE
         OCMTS_CERNBOX_REVAD_IMAGE
         OCMTS_CERNBOX_IDP_IMAGE
     ]
@@ -82,7 +83,7 @@ def test-cernbox-v11-web-and-bundle-env-override-independence [] {
         with-env (
             leaked-cernbox-image-env-mask
             | merge {
-                OCMTS_CERNBOX_WEB_IMAGE: $custom_web
+                OCMTS_CERNBOX_WEB_V11_IMAGE: $custom_web
                 OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad
             }
         ) {
@@ -91,7 +92,7 @@ def test-cernbox-v11-web-and-bundle-env-override-independence [] {
     )
     [
         (assert-eq $imgs.platform $custom_web
-            "OCMTS_CERNBOX_WEB_IMAGE overrides platform web ref independently of bundle")
+            "OCMTS_CERNBOX_WEB_V11_IMAGE overrides platform web ref independently of bundle")
         (assert-eq ($imgs.bundle | get revad) $custom_revad
             "OCMTS_CERNBOX_REVAD_IMAGE overrides revad slot independently of platform web")
         (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT

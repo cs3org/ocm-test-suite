@@ -39,7 +39,7 @@ export def resolve-images [
         }
     }
     {
-        platform: (resolve-platform-image $plat_spec $ver_spec "sender" $matrix_key $flow_id),
+        platform: (resolve-platform-image $ver_spec "sender" $matrix_key $flow_id),
         bundle: $bundle,
         bundle_services: $bundle_services,
         cypress_ci: (resolve-image $imgs.cypress.ci $matrix_key $flow_id),
@@ -61,7 +61,7 @@ export def resolve-receiver-image [
     let imgs = load-images-cfg
     let plat_spec = ($imgs.platforms | get $platform)
     let ver_spec = ($plat_spec | get $version)
-    resolve-platform-image $plat_spec $ver_spec "receiver" $matrix_key $flow_id
+    resolve-platform-image $ver_spec "receiver" $matrix_key $flow_id
 }
 
 export def resolve-mitmproxy-image [

@@ -5,82 +5,137 @@ CI runs.
 
 ## Images
 
-`config/images.nuon` (schema v2) defines default image references, plus
-optional environment-based overrides. Defaults may be scoped by `by_flow` and
-`by_matrix_key`. Effective resolution uses the full tuple (`--flow`, platforms,
-versions), which derives `matrix_key` and `flow_id`.
+`config/images.nuon` (schema v3) defines default image references, plus
+optional environment-based overrides. Defaults may be scoped by `by_flow`
+and `by_matrix_key`. Effective resolution uses the full tuple (`--flow`,
+platforms, versions), which derives `matrix_key` and `flow_id`.
+
+A platform is only a namespace of versions; there is no platform-root
+override tier and no platform-root `default`/`override_env` fields.
 
 Preview effective image refs for a real run:
 
 - `nu scripts/ocmts.nu images resolve --flow ... --sender-platform ...`
   `--sender-version ...`
 
-Note: `images show` is a raw platform/version view. It does not apply `by_flow`
-or `by_matrix_key` overrides; use `images resolve` with the full tuple for
-effective refs.
+`images show --platform <platform> --version <version>` prints the raw
+version-scoped config only (`default`, `override_env`, role env keys
+when present, and any bundle slots). It does not apply `by_matrix_key`
+or `by_flow` overrides; use `images resolve` with the full tuple for
+the effective, override-applied refs.
 
-### Image overrides
+### Precedence model
 
-Platform image refs can be overridden through `config/images.nuon` env keys.
-Each platform may declare up to three platform-level keys:
+Precedence is scope-first: a narrower scope wins entirely before a
+broader scope is even considered. Within the scope that wins, a
+role-specific env override beats a shared env override, which beats
+the configured default.
 
-- `override_env` -- generic override for either sender or receiver role
-- `sender_override_env` -- narrower override when the platform is the sender
-- `receiver_override_env` -- narrower override when the platform is the receiver
+#### Two-party platform images
 
-Role-specific keys win over the generic key for that role. When a role-specific
-key is unset or empty in the shell, resolution falls back through the generic
-`override_env` chain and then to configured defaults.
+Applies to `nextcloud`, `ocis`, `opencloud`, and `ocmgo`. For a resolved
+role (`sender` or `receiver`) and selected version, highest first:
 
-Precedence for a platform version and role (sender or receiver), highest
-first:
+1. `by_matrix_key[matrix_key].<role>_override_env`
+2. `by_matrix_key[matrix_key].override_env`
+3. `by_matrix_key[matrix_key].default`
+4. `by_flow[flow_id].<role>_override_env`
+5. `by_flow[flow_id].override_env`
+6. `by_flow[flow_id].default`
+7. `version.<role>_override_env`
+8. `version.override_env`
+9. `version.default`
 
-1. `by_matrix_key[matrix_key].<role>_override_env` (env lookup)
-2. `by_flow[flow_id].<role>_override_env` (env lookup)
-3. version `<role>_override_env` (env lookup)
-4. platform `<role>_override_env` (env lookup)
-5. `by_matrix_key[matrix_key].override_env` (env lookup)
-6. `by_flow[flow_id].override_env` (env lookup)
-7. version `override_env` (env lookup)
-8. platform `override_env` (env lookup)
-9. `by_matrix_key[matrix_key].default`
-10. `by_flow[flow_id].default`
-11. version `default`
+#### Single-image platform main image (`cernbox` web)
 
-`images resolve` applies this chain with the full run tuple (`--flow`,
-platforms, versions). `images show` prints generic `override_env` keys for a
-platform/version pair only; it does not list role-specific env names and does
-not apply `by_flow`, `by_matrix_key`, or role context. Use this doc and
-`config/images.nuon` for the full override surface.
+`cernbox` has one main image and no sender/receiver role keys. For a
+selected version, highest first:
 
-#### Generic and role-specific env names
+1. `by_matrix_key[matrix_key].override_env`
+2. `by_matrix_key[matrix_key].default`
+3. `by_flow[flow_id].override_env`
+4. `by_flow[flow_id].default`
+5. `version.override_env`
+6. `version.default`
 
-For a two-party platform (example: `ocmgo`):
+#### Bundle slots (for example `cernbox/v11` `revad`, `idp`)
+
+Bundle slots are not sender/receiver-role-based. For a selected slot,
+highest first:
+
+1. `by_matrix_key[matrix_key].override_env`
+2. `by_matrix_key[matrix_key].default`
+3. `by_flow[flow_id].override_env`
+4. `by_flow[flow_id].default`
+5. `slot.override_env`
+6. `slot.default`
+
+#### Generic leaves
+
+Applies to `cypress.ci`, `cypress.dev`, `helpers.mariadb`,
+`helpers.valkey`, `helpers.media_optimizer`, and `mitmproxy`. These
+leaves are not platform-scoped and are not sender/receiver-role-based.
+For a selected leaf, highest first:
+
+1. `by_matrix_key[matrix_key].override_env`
+2. `by_matrix_key[matrix_key].default`
+3. `by_flow[flow_id].override_env`
+4. `by_flow[flow_id].default`
+5. `leaf.override_env`
+6. `leaf.default`
+
+### Env names
+
+Two-party platform versions declare `override_env`,
+`sender_override_env`, and `receiver_override_env` per version. Example
+(`ocmgo/v1`):
 
 | Scope | Env var |
 | --- | --- |
-| Generic (sender or receiver) | `OCMTS_OCMGO_IMAGE` |
-| Sender only | `OCMTS_OCMGO_SENDER_IMAGE` |
-| Receiver only | `OCMTS_OCMGO_RECEIVER_IMAGE` |
+| Generic (sender or receiver) | `OCMTS_OCMGO_V1_IMAGE` |
+| Sender only | `OCMTS_OCMGO_V1_SENDER_IMAGE` |
+| Receiver only | `OCMTS_OCMGO_V1_RECEIVER_IMAGE` |
 
-The same pattern applies to other two-party platforms:
+The same pattern applies to other two-party platform versions:
 
-- `nextcloud`: `OCMTS_NEXTCLOUD_IMAGE`, `OCMTS_NEXTCLOUD_SENDER_IMAGE`,
-  `OCMTS_NEXTCLOUD_RECEIVER_IMAGE`
-- `opencloud`: `OCMTS_OPENCLOUD_IMAGE`, `OCMTS_OPENCLOUD_SENDER_IMAGE`,
-  `OCMTS_OPENCLOUD_RECEIVER_IMAGE`
-- `ocis`: `OCMTS_OCIS_IMAGE`, `OCMTS_OCIS_SENDER_IMAGE`,
-  `OCMTS_OCIS_RECEIVER_IMAGE`
+- `nextcloud/v34`: `OCMTS_NEXTCLOUD_V34_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_SENDER_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE`
+- `opencloud/v6`: `OCMTS_OPENCLOUD_V6_IMAGE`,
+  `OCMTS_OPENCLOUD_V6_SENDER_IMAGE`,
+  `OCMTS_OPENCLOUD_V6_RECEIVER_IMAGE`
+- `ocis/v8`: `OCMTS_OCIS_V8_IMAGE`, `OCMTS_OCIS_V8_SENDER_IMAGE`,
+  `OCMTS_OCIS_V8_RECEIVER_IMAGE`
 
-`cernbox` keeps a single platform web image override
-(`OCMTS_CERNBOX_WEB_IMAGE`) plus per-slot bundle overrides (see below). It
-does not declare platform-level sender/receiver env names because the web
-image name already encodes the primary container role.
+`nextcloud/v34` also declares `by_flow` overrides for two flows, each
+with the same generic/sender/receiver shape:
+
+- `contact-token`: `OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE`
+- `contact-wayf`: `OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE`,
+  `OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE`
+
+`cernbox/v11` declares one main image env
+(`OCMTS_CERNBOX_WEB_V11_IMAGE`) with no role keys, plus bundle-slot envs
+(see below).
+
+Generic leaf env names:
+
+| Leaf | Env var |
+| --- | --- |
+| `cypress.ci` | `OCMTS_CYPRESS_CI_IMAGE` |
+| `cypress.dev` | `OCMTS_CYPRESS_DEV_IMAGE` |
+| `helpers.mariadb` | `OCMTS_MARIADB_IMAGE` |
+| `helpers.valkey` | `OCMTS_VALKEY_IMAGE` |
+| `helpers.media_optimizer` | `OCMTS_MEDIA_OPTIMIZER_IMAGE` |
+| `mitmproxy` | `OCMTS_MITMPROXY_IMAGE` |
 
 Example local `ocmgo` image flow (generic override):
 
 ```bash
-export OCMTS_OCMGO_IMAGE=opencloudmesh-go:local
+export OCMTS_OCMGO_V1_IMAGE=opencloudmesh-go:local
 nu scripts/ocmts.nu images show --platform ocmgo --version v1
 nu scripts/ocmts.nu images resolve \
   --flow share-with \
@@ -91,8 +146,8 @@ nu scripts/ocmts.nu images resolve \
 Example sender-only override in a two-party run:
 
 ```bash
-export OCMTS_OCMGO_SENDER_IMAGE=opencloudmesh-go:local-sender
-export OCMTS_NEXTCLOUD_RECEIVER_IMAGE=nextcloud:local-receiver
+export OCMTS_OCMGO_V1_SENDER_IMAGE=opencloudmesh-go:local-sender
+export OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE=nextcloud:local-receiver
 nu scripts/ocmts.nu images resolve \
   --flow share-with \
   --sender-platform ocmgo --sender-version v1 \
@@ -104,42 +159,28 @@ Overrides are temporary and shell-scoped. They are the preferred way to point
 OCMTS at locally built images without changing published defaults in
 `config/images.nuon`.
 
-#### Bundle slot overrides
+### Bundle slots for `cernbox/v11`
 
-Some platform versions declare a `bundle` map (today: `cernbox/v11`). For
-those runs, `images resolve --json` returns a top-level `platform` ref plus
-`bundle` and `bundle_services` maps. The `platform` value is the sender
-platform image (for cernbox, the web container). It follows the 11-step
-role-aware precedence above. Receiver resolution uses only the receiver
-platform image ref; bundle slots are not recomputed for the receiver role.
-
-Bundle service slots (`revad`, `idp`, ...) are non-platform leaves. Each slot
-uses this six-step precedence (highest first):
-
-1. `by_matrix_key[matrix_key].override_env` (env lookup)
-2. `by_flow[flow_id].override_env` (env lookup)
-3. slot `override_env` (env lookup)
-4. `by_matrix_key[matrix_key].default`
-5. `by_flow[flow_id].default`
-6. slot `default`
-
-Bundle slot precedence is separate from role precedence: slots do not use
-sender/receiver env names. Setting `OCMTS_CERNBOX_REVAD_IMAGE` overrides only
-the revad slot; other bundle slots and the sender platform image keep their
-own resolution paths.
-
-For `cernbox/v11`, the sender platform image is separate from bundle slots:
+`images resolve --json` for a `cernbox` cell returns a top-level
+`platform` ref (the main web image, following the six-step precedence
+above) plus `bundle` and `bundle_services` maps. Bundle slots are
+resolved independently of the main image and are never recomputed for
+a receiver role, since `cernbox` is single-image and has no receiver
+role keys.
 
 | Image | Env var | `images resolve --json` field |
 | --- | --- | --- |
-| Sender platform (web) | `OCMTS_CERNBOX_WEB_IMAGE` | `platform` |
+| Main (web) | `OCMTS_CERNBOX_WEB_V11_IMAGE` | `platform` |
 
-Bundle slots for `cernbox/v11`:
+Bundle slots:
 
 | Slot | Env var | Default compose service (`bundle_services`) |
 | --- | --- | --- |
 | `revad` | `OCMTS_CERNBOX_REVAD_IMAGE` | `sender-revad-gateway` |
 | `idp` | `OCMTS_CERNBOX_IDP_IMAGE` | `sender-idp` |
+
+Setting `OCMTS_CERNBOX_REVAD_IMAGE` overrides only the revad slot; other
+bundle slots and the main image keep their own resolution paths.
 
 Example cernbox bundle preview:
 

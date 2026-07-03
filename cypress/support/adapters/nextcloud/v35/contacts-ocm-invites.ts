@@ -43,13 +43,43 @@ export function ensureContactsAppActive(): void {
   cy.location("pathname", { timeout: 20000 }).should("include", "/apps/contacts");
 }
 
+function matchesCreateInvitationLabel(text: string, aria: string): boolean {
+  const normalizedText = text.replace(/\s+/g, " ").trim().toLowerCase();
+  const normalizedAria = aria.replace(/\s+/g, " ").trim().toLowerCase();
+  if (
+    normalizedText.includes("create invit") ||
+    normalizedAria.includes("create invit") ||
+    normalizedText.includes("invite contact") ||
+    normalizedAria.includes("invite contact")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function matchesAcceptInvitationLabel(text: string, aria: string): boolean {
+  const normalizedText = text.replace(/\s+/g, " ").trim().toLowerCase();
+  const normalizedAria = aria.replace(/\s+/g, " ").trim().toLowerCase();
+  if (
+    normalizedText.includes("accept invit") ||
+    normalizedAria.includes("accept invit") ||
+    normalizedText.includes("accept invite") ||
+    normalizedAria.includes("accept invite")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function getInviteContactButton(): Cypress.Chainable<JQuery<HTMLElement>> {
   return cy
     .get("button, a, [role=\"button\"]", { timeout: 20000 })
     .filter((_, el) => {
       const text = (el.textContent ?? "").trim();
       const aria = (el.getAttribute("aria-label") ?? "").trim();
-      return text === "Invite contact" || aria === "Invite contact" || aria.includes("Invite contact");
+      return matchesCreateInvitationLabel(text, aria);
     })
     .first();
 }
@@ -60,51 +90,91 @@ export function getAcceptInviteButton(): Cypress.Chainable<JQuery<HTMLElement>> 
     .filter((_, el) => {
       const text = (el.textContent ?? "").trim();
       const aria = (el.getAttribute("aria-label") ?? "").trim();
-      return text === "Accept invite" || aria === "Accept invite" || aria.includes("Accept invite");
+      return matchesAcceptInvitationLabel(text, aria);
     })
     .first();
+}
+
+function openOcmInviteActionsMenu(): void {
+  cy.get(".ocm-invites-actions button", { timeout: 20000 })
+    .first()
+    .should("be.visible")
+    .click({ force: true });
+}
+
+function clickVisibleInvitationAction(
+  matcher: (text: string, aria: string) => boolean,
+): void {
+  cy.get('button, a, [role="menuitem"], li button, .action-button', { timeout: 20000 })
+    .filter((_, el) => {
+      const text = (el.textContent ?? "").trim();
+      const aria = (el.getAttribute("aria-label") ?? "").trim();
+      return matcher(text, aria);
+    })
+    .first()
+    .should("be.visible")
+    .click({ force: true });
+}
+
+export function clickCreateInvitation(): void {
+  cy.get("body").then(($body) => {
+    const visibleEmptyStateCreateButton = $body
+      .find(".empty-content button, .empty-content a, .empty-content [role=\"button\"]")
+      .filter((_, el) => {
+        const text = (el.textContent ?? "").trim();
+        const aria = (el.getAttribute("aria-label") ?? "").trim();
+        return matchesCreateInvitationLabel(text, aria);
+      })
+      .filter(":visible");
+
+    if (visibleEmptyStateCreateButton.length > 0) {
+      cy.wrap(visibleEmptyStateCreateButton.first()).scrollIntoView().click({ force: true });
+      return;
+    }
+
+    if ($body.find(".ocm-invites-actions").length > 0) {
+      openOcmInviteActionsMenu();
+      clickVisibleInvitationAction(matchesCreateInvitationLabel);
+      return;
+    }
+
+    cy.get(".header, .import-and-new-contact-buttons", { timeout: 20000 })
+      .first()
+      .scrollIntoView();
+    getInviteContactButton().scrollIntoView().should("be.visible").click({ force: true });
+  });
+}
+
+export function clickAcceptInvitation(): void {
+  cy.get("body").then(($body) => {
+    if ($body.find(".ocm-invites-actions").length > 0) {
+      openOcmInviteActionsMenu();
+      clickVisibleInvitationAction(matchesAcceptInvitationLabel);
+      return;
+    }
+
+    getAcceptInviteButton().should("be.visible").click({ force: true });
+  });
 }
 
 export function ensureOcmInvitesViewActive(): void {
   cy.viewport(1280, 720);
   ensureContactsAppActive();
 
+  cy.intercept("GET", "**/apps/contacts/ocm/invitations").as("ocmInvitesList");
+
   cy.visit("/apps/contacts/ocm-invites");
   cy.location("pathname", { timeout: 20000 }).should("include", "/apps/contacts");
 
-  cy.get("body").then(($body) => {
-    const inviteMounted =
-      $body
-        .find("button, a, [role=\"button\"]")
-        .filter((_, el) => {
-          const text = (el.textContent ?? "").trim();
-          const aria = (el.getAttribute("aria-label") ?? "").trim();
-          return text === "Invite contact" || aria === "Invite contact" || aria.includes("Invite contact");
-        });
-    const inviteVisible = inviteMounted.filter(":visible").length > 0;
-    if (inviteVisible) {
-      return;
-    }
+  cy.wait("@ocmInvitesList", { timeout: 60000 });
+  cy.contains(/Loading invit/i, { timeout: 60000 }).should("not.exist");
 
-    const toggleCandidates = [
-      "button.app-navigation-toggle",
-      "button#app-navigation-toggle",
-      'button[aria-label*="Toggle navigation"]',
-      'button[aria-label*="toggle navigation"]',
-      'button[aria-label*="Navigation"]',
-      'button[aria-label*="navigation"]',
-    ];
-
-    const toggleSel = toggleCandidates.find((sel) => {
-      return $body.find(sel).filter(":visible").length > 0;
-    });
-
-    if (toggleSel) {
-      cy.get(toggleSel).filter(":visible").first().click({ force: true });
-    }
-  });
-
-  getInviteContactButton().should("exist");
+  cy.get(".app-navigation, nav.app-navigation", { timeout: 20000 })
+    .first()
+    .scrollIntoView();
+  cy.get(".header, .import-and-new-contact-buttons", { timeout: 20000 })
+    .first()
+    .scrollIntoView();
 }
 
 function ensureSendEmailUnchecked(): void {
@@ -189,25 +259,24 @@ function readCopiedTextFromClipboardStub(): Cypress.Chainable<string> {
     });
 }
 
-function createOcmInvite(params: {
-  note: string;
-}): void {
-  ensureOcmInvitesViewActive();
-
-  getInviteContactButton().click({ force: true });
-
-  cy.get('[data-testid="ocm-invite-note-input"]', { timeout: 20000 })
-    .should("be.visible")
-    .clear()
-    .type(params.note);
-
-  ensureSendEmailUnchecked();
-
+function submitNewInviteForm(): void {
   cy.intercept("POST", "**/apps/contacts/ocm/invitations").as("ocmInviteCreate");
 
-  cy.get('[data-testid="ocm-invite-new-submit-btn"]', { timeout: 20000 })
-    .should("be.visible")
-    .click();
+  cy.get("body").then(($body) => {
+    const submitWithTestId = $body.find('[data-testid="ocm-invite-new-submit-btn"]').filter(":visible");
+    if (submitWithTestId.length > 0) {
+      cy.wrap(submitWithTestId.first()).click({ force: true });
+      return;
+    }
+
+    cy.contains(
+      ".new-invite-form__buttons-row button, .ocm-invite-form button",
+      /Send invitation|Generate invitation/i,
+      { timeout: 20000 },
+    )
+      .should("be.visible")
+      .click({ force: true });
+  });
 
   cy.wait("@ocmInviteCreate", { timeout: 20000 }).then((interception) => {
     const statusCode = interception.response?.statusCode;
@@ -215,12 +284,32 @@ function createOcmInvite(params: {
   });
 }
 
-export function createInviteAndCopyInviteLink(params: {
-  note: string;
-}): Cypress.Chainable<string> {
-  createOcmInvite({ note: params.note });
-  openMostRecentInviteFromList();
+function revealInviteShareActionsIfNeeded(): void {
+  cy.get("body").then(($body) => {
+    const shareToggle = $body.find('[data-testid="ocm-invite-share-toggle"]');
+    const hasVisibleCopyButton =
+      $body
+        .find('[data-testid="ocm-invite-code-copy-btn"], [data-testid="ocm-invite-link-copy-btn"]')
+        .filter(":visible").length > 0;
 
+    if (shareToggle.length > 0 && !hasVisibleCopyButton) {
+      cy.get('[data-testid="ocm-invite-share-toggle"]').click({ force: true });
+    }
+  });
+}
+
+function copyInviteCodeFromDetailPage(): Cypress.Chainable<string> {
+  revealInviteShareActionsIfNeeded();
+  stubClipboardWriteText();
+  cy.get('[data-testid="ocm-invite-code-copy-btn"]', { timeout: 20000 })
+    .should("be.visible")
+    .click({ force: true });
+
+  return readCopiedTextFromClipboardStub();
+}
+
+function copyInviteLinkFromDetailPage(): Cypress.Chainable<string> {
+  revealInviteShareActionsIfNeeded();
   stubClipboardWriteText();
   cy.get('[data-testid="ocm-invite-link-copy-btn"]', { timeout: 20000 })
     .should("be.visible")
@@ -229,16 +318,59 @@ export function createInviteAndCopyInviteLink(params: {
   return readCopiedTextFromClipboardStub();
 }
 
+function fillNewInviteForm(params: { note: string }): void {
+  ensureSendEmailUnchecked();
+
+  cy.get("body").then(($body) => {
+    const checkboxSel = '[data-testid="ocm-invite-send-email-checkbox"]';
+    const emailInputSel = '[data-testid="ocm-invite-email-input"]';
+    const messageInputSel = '[data-testid="ocm-invite-message-input"]';
+    const hasSendEmailCheckbox = $body.find(checkboxSel).length > 0;
+
+    if (!hasSendEmailCheckbox && $body.find(emailInputSel).filter(":visible").length > 0) {
+      cy.get(emailInputSel, { timeout: 20000 })
+        .should("be.visible")
+        .clear()
+        .type(`cypress-${Date.now()}@example.test`);
+    }
+
+    if (params.note.trim() !== "" && $body.find(messageInputSel).filter(":visible").length > 0) {
+      cy.get(messageInputSel, { timeout: 20000 })
+        .should("be.visible")
+        .clear()
+        .type(params.note);
+    }
+  });
+}
+
+function createInviteViaUi(params: { note: string }): void {
+  clickCreateInvitation();
+  fillNewInviteForm({ note: params.note });
+  submitNewInviteForm();
+}
+
+function createInviteViaUiAndCopyCode(params: { note: string }): Cypress.Chainable<string> {
+  createInviteViaUi({ note: params.note });
+  openMostRecentInviteFromList();
+  return copyInviteCodeFromDetailPage();
+}
+
+function createInviteViaUiAndCopyLink(params: { note: string }): Cypress.Chainable<string> {
+  createInviteViaUi({ note: params.note });
+  openMostRecentInviteFromList();
+  return copyInviteLinkFromDetailPage();
+}
+
+export function createInviteAndCopyInviteLink(params: {
+  note: string;
+}): Cypress.Chainable<string> {
+  ensureOcmInvitesViewActive();
+  return createInviteViaUiAndCopyLink({ note: params.note });
+}
+
 export function createInviteAndCopyInviteCode(params: {
   note: string;
 }): Cypress.Chainable<string> {
-  createOcmInvite({ note: params.note });
-  openMostRecentInviteFromList();
-
-  stubClipboardWriteText();
-  cy.get('[data-testid="ocm-invite-token-copy-btn"]', { timeout: 20000 })
-    .should("be.visible")
-    .click({ force: true });
-
-  return readCopiedTextFromClipboardStub();
+  ensureOcmInvitesViewActive();
+  return createInviteViaUiAndCopyCode({ note: params.note });
 }

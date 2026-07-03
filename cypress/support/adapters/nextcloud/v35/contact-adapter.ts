@@ -8,59 +8,16 @@ import type {
   ProviderIdentityAdapter,
 } from "../../../contracts/contact";
 import {
+  clickAcceptInvitation,
   createInviteAndCopyInviteCode,
   createInviteAndCopyInviteLink,
   ensureContactsAppActive,
-  getAcceptInviteButton,
   resolveReceiverBaseUrl,
 } from "./contacts-ocm-invites";
 
 function assertNonEmptyCopiedValue(value: string, label: string): Cypress.Chainable<string> {
   expect(value, label).to.be.a("string").and.not.be.empty;
   return cy.wrap(value, { log: false });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function getNonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmedValue = value.trim();
-  if (trimmedValue === "") {
-    return null;
-  }
-
-  return trimmedValue;
-}
-
-function getAcceptedContactUrlFromResponseBody(body: unknown): string | null {
-  if (!isRecord(body)) {
-    return null;
-  }
-
-  const contact = getNonEmptyString(body.contact);
-  if (contact !== null) {
-    return contact;
-  }
-
-  if (!isRecord(body.data)) {
-    return null;
-  }
-
-  return getNonEmptyString(body.data.contact);
-}
-
-function requireAcceptedContactUrlFromResponseBody(body: unknown): string {
-  const acceptedContactUrl = getAcceptedContactUrlFromResponseBody(body);
-  if (acceptedContactUrl === null) {
-    throw new Error("OCM invite accept response did not include contact");
-  }
-
-  return acceptedContactUrl;
 }
 
 function normalizeAcceptedContactUrl(value: unknown, label: string): string {
@@ -91,8 +48,12 @@ function assertContactSpecificUrl(acceptedContactUrl: string): void {
   const normalizedPath = url.pathname.replace(/\/+$/, "");
   const hasContactRoutePath = normalizedPath !== "/apps/contacts";
   const hasContactRouteHash = url.hash.trim() !== "";
+  const isInviteRoute =
+    normalizedPath.includes("/ocm-invites") ||
+    normalizedPath.includes("/ocm/invite-accept-dialog");
 
   expect(url.pathname, "accepted contact URL path").to.include("/apps/contacts");
+  expect(isInviteRoute, "accepted contact URL is not an invite route").to.eq(false);
   expect(
     hasContactRoutePath || hasContactRouteHash,
     "accepted contact URL targets a contact-specific route",
@@ -116,6 +77,20 @@ function assertCurrentLocationMatchesAcceptedContactUrl(acceptedContactUrl: stri
       expect(currentUrl.hash, "current accepted contact hash").to.eq(expectedUrl.hash);
     }
   });
+}
+
+function readAcceptedContactUrlFromLocation(label: string): Cypress.Chainable<string> {
+  return cy
+    .location("href", { timeout: 60000 })
+    .should((href) => {
+      const acceptedContactUrl = normalizeAcceptedContactUrl(href, label);
+      assertContactSpecificUrl(acceptedContactUrl);
+    })
+    .then((href) => {
+      const acceptedContactUrl = normalizeAcceptedContactUrl(href, label);
+      assertContactSpecificUrl(acceptedContactUrl);
+      return cy.wrap(acceptedContactUrl, { log: false });
+    });
 }
 
 function resolveWayfInviteAcceptUrl(redirectUrl: string): URL {
@@ -192,9 +167,7 @@ function openManualInviteAccept(): void {
   ensureContactsAppActive();
   cy.visit("/apps/contacts/ocm-invites");
 
-  getAcceptInviteButton()
-    .should("be.visible")
-    .click({ force: true });
+  clickAcceptInvitation();
 
   cy.get(".ocm_manual_form", { timeout: 20000 }).should("be.visible");
 }
@@ -224,16 +197,9 @@ function submitManualInviteToken(inviteToken: string): Cypress.Chainable<string>
     .then((interception) => {
       const statusCode = interception.response?.statusCode;
       expect(statusCode, "accept contact invite status code").to.be.oneOf([200, 201]);
-      return requireAcceptedContactUrlFromResponseBody(interception.response?.body);
     })
-    .then((acceptedContactUrlFromResponse) => {
-      cy.location("pathname", { timeout: 20000 }).should("include", "/apps/contacts");
-      const acceptedContactUrl = normalizeAcceptedContactUrl(
-        acceptedContactUrlFromResponse,
-        "accepted contact URL",
-      );
-      assertContactSpecificUrl(acceptedContactUrl);
-      return cy.wrap(acceptedContactUrl, { log: false });
+    .then(() => {
+      return readAcceptedContactUrlFromLocation("accepted contact URL");
     });
 }
 
@@ -262,7 +228,7 @@ function assertAcceptedContactExists(params: {
 }
 
 function assertWayfProviderEntryVisible(): void {
-  cy.contains("h2", /^Providers$/, { timeout: 20000 }).should("be.visible");
+  cy.contains("h2", /^Select your server$/, { timeout: 20000 }).should("be.visible");
   cy.get("#wayf-manual", { timeout: 20000 }).should("be.visible");
 }
 
@@ -305,13 +271,13 @@ function getReceiverProviderUrl(inviteLink?: string): string {
 }
 
 function clickInviteDialogAccept(): void {
-  cy.get(".contact-header__infos", { timeout: 20000 })
+  cy.get(".invite-accept-form__buttons-row", { timeout: 20000 })
     .should("be.visible")
     .within(() => {
-      cy.get(".invite-accept-form__buttons-row", { timeout: 20000 })
+      cy.contains("button, [role=\"button\"], a", /Accept/i, {
+        timeout: 20000,
+      })
         .should("be.visible")
-        .find("button")
-        .first()
         .scrollIntoView()
         .click({ force: true });
     });
@@ -363,18 +329,9 @@ function acceptWayfRedirectInvite(redirectUrl: string): Cypress.Chainable<string
     .then((interception) => {
       const statusCode = interception.response?.statusCode;
       expect(statusCode, "WAYF accept contact invite status code").to.be.oneOf([200, 201]);
-      const acceptedContactUrl = normalizeAcceptedContactUrl(
-        requireAcceptedContactUrlFromResponseBody(interception.response?.body),
-        "accepted contact URL",
-      );
-      assertContactSpecificUrl(acceptedContactUrl);
-      return acceptedContactUrl;
     })
-    .then((acceptedContactUrl) => {
-      cy.visit(resolveAcceptedContactUrl(acceptedContactUrl).toString());
-      cy.location("pathname", { timeout: 20000 }).should("include", "/apps/contacts");
-      assertCurrentLocationMatchesAcceptedContactUrl(acceptedContactUrl);
-      return cy.wrap(acceptedContactUrl, { log: false });
+    .then(() => {
+      return readAcceptedContactUrlFromLocation("accepted contact URL");
     });
 }
 

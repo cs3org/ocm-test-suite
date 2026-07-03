@@ -9,7 +9,7 @@ import {
   submitNextcloudLoginForm,
 } from "./login";
 
-export type NextcloudLoginVersion = "v32" | "v33" | "v34";
+export type NextcloudLoginVersion = "v32" | "v33" | "v34" | "v35";
 
 export function createNextcloudLoginAdapter(
   version: NextcloudLoginVersion,

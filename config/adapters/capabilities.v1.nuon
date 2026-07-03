@@ -228,6 +228,55 @@
         }
       }
     },
+    "nextcloud/v35": {
+      "capabilities": {
+        "flow.contact-token.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-token.sender": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.receiver": {
+          "status": "supported"
+        },
+        "flow.contact-wayf.sender": {
+          "status": "supported"
+        },
+        "flow.login": {
+          "status": "supported"
+        },
+        "flow.share-with.receiver": {
+          "status": "supported"
+        },
+        "flow.share-with.sender": {
+          "status": "supported"
+        },
+        "op.contact-token.receiver": {
+          "status": "supported"
+        },
+        "op.contact-token.sender": {
+          "status": "supported"
+        },
+        "op.contact-wayf.receiver": {
+          "status": "supported"
+        },
+        "op.contact-wayf.sender": {
+          "status": "supported"
+        },
+        "op.login": {
+          "status": "supported"
+        },
+        "op.provider-identity": {
+          "status": "supported"
+        },
+        "op.share-file.receiver": {
+          "status": "supported"
+        },
+        "op.share-file.sender": {
+          "status": "supported"
+        }
+      }
+    },
     "ocis/v8": {
       "capabilities": {
         "flow.contact-token.receiver": {

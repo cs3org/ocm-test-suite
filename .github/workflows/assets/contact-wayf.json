@@ -2,13 +2,13 @@
   {
     "flow": "contact-wayf",
     "sender_platform": "nextcloud",
-    "sender_version": "v34",
+    "sender_version": "v35",
     "receiver_platform": "nextcloud",
-    "receiver_version": "v34",
-    "display_name": "nextcloud v34 to nextcloud v34",
-    "artifact_name": "cell-contact-wayf-nextcloud-v34-nextcloud-v34",
-    "cell_id": "contact-wayf__nextcloud-v34__nextcloud-v34",
-    "cell_depends_on": "cell-login-nextcloud-v34",
+    "receiver_version": "v35",
+    "display_name": "nextcloud v35 to nextcloud v35",
+    "artifact_name": "cell-contact-wayf-nextcloud-v35-nextcloud-v35",
+    "cell_id": "contact-wayf__nextcloud-v35__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v35",
     "wave_index": 1
   }
 ]

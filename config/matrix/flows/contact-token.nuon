@@ -39,7 +39,7 @@
   ],
   "versions_sender": {
     "nextcloud": [
-      "v34"
+      "v35"
     ],
     "ocis": [
       "v8"
@@ -50,7 +50,7 @@
   },
   "versions_receiver": {
     "nextcloud": [
-      "v34"
+      "v35"
     ],
     "ocis": [
       "v8"

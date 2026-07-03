@@ -2,7 +2,7 @@
 # Proves version-scoped and flow-scoped sender/receiver override_env keys beat
 # generic override_env through the live resolver path against real
 # config/images.nuon (not just precedence.nu unit fixtures). by_flow scope
-# wins over version scope for nextcloud/v34 contact-token and contact-wayf.
+# wins over version scope for nextcloud/v35 contact-token and contact-wayf.
 # Run: nu scripts/tests/images/resolve-role-overrides.nu
 
 const SUITE_PATH = path self
@@ -12,11 +12,11 @@ use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
 const OCMGO_V1_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.0.0"
-const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.9"
+const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12"
 const OPENCLOUD_V6_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
 const OCIS_V8_DEFAULT = "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
-const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:master"
-const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:sta-ocm-m6"
+const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.1"
+const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-contacts-app"
 
 def leaked-role-image-env-mask [] {
     [
@@ -30,10 +30,12 @@ def leaked-role-image-env-mask [] {
         OCMTS_OCIS_V8_RECEIVER_IMAGE
         OCMTS_NEXTCLOUD_V34_SENDER_IMAGE
         OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE
-        OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE
-        OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V35_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V35_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE
     ]
     | reduce --fold {} {|k, acc|
         if $k in $env { $acc | upsert $k null } else { $acc }
@@ -50,8 +52,9 @@ def leaked-platform-image-env-mask [] {
                 OCMTS_OPENCLOUD_V6_IMAGE
                 OCMTS_OCIS_V8_IMAGE
                 OCMTS_NEXTCLOUD_V34_IMAGE
-                OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE
-                OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE
+                OCMTS_NEXTCLOUD_V35_IMAGE
+                OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_IMAGE
+                OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE
             ]
             | reduce --fold {} {|k, acc|
                 if $k in $env { $acc | upsert $k null } else { $acc }
@@ -266,46 +269,46 @@ def test-defaults-when-no-env-set [] {
     ]
 }
 
-# ---- real-config integration: nextcloud/v34 by_flow contact flows ----
+# ---- real-config integration: nextcloud/v35 by_flow contact flows ----
 # by_flow scope must win over version scope, and win regardless of kind
 # (a flow-scoped generic override_env beats a version-scoped role env).
 
-def test-nextcloud-v34-contact-token-flow-default-beats-version-default [] {
-    test-log "\n[test-nextcloud-v34-contact-token-flow-default-beats-version-default]"
+def test-nextcloud-v35-contact-token-flow-default-beats-version-default [] {
+    test-log "\n[test-nextcloud-v35-contact-token-flow-default-beats-version-default]"
     let got = (
         with-env (leaked-platform-image-env-mask) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-token").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-token").platform
         }
     )
     [
         (assert-eq $got $NEXTCLOUD_CONTACTS_DEFAULT
-            "contact-token by_flow default wins over nextcloud/v34 version default")
+            "contact-token by_flow default wins over nextcloud/v35 version default")
     ]
 }
 
-def test-nextcloud-v34-contact-wayf-flow-default-beats-version-default [] {
-    test-log "\n[test-nextcloud-v34-contact-wayf-flow-default-beats-version-default]"
+def test-nextcloud-v35-contact-wayf-flow-default-beats-version-default [] {
+    test-log "\n[test-nextcloud-v35-contact-wayf-flow-default-beats-version-default]"
     let got = (
         with-env (leaked-platform-image-env-mask) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-wayf").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-wayf").platform
         }
     )
     [
         (assert-eq $got $NEXTCLOUD_CONTACTS_DEFAULT
-            "contact-wayf by_flow default wins over nextcloud/v34 version default")
+            "contact-wayf by_flow default wins over nextcloud/v35 version default")
     ]
 }
 
-def test-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env]"
+def test-nextcloud-v35-contact-token-flow-role-env-beats-version-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-token-flow-role-env-beats-version-role-env]"
     let flow_role = "ghcr.io/example/nextcloud-contacts:flow-sender-role"
     let version_role = "ghcr.io/example/nextcloud:version-sender-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
-            OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_SENDER_IMAGE: $flow_role
+            OCMTS_NEXTCLOUD_V35_SENDER_IMAGE: $version_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_SENDER_IMAGE: $flow_role
         }) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-token").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-token").platform
         }
     )
     [
@@ -314,16 +317,16 @@ def test-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env [] {
     ]
 }
 
-def test-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env]"
+def test-nextcloud-v35-contact-token-flow-generic-env-beats-version-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-token-flow-generic-env-beats-version-role-env]"
     let flow_generic = "ghcr.io/example/nextcloud-contacts:flow-generic"
     let version_role = "ghcr.io/example/nextcloud:version-sender-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
-            OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE: $flow_generic
+            OCMTS_NEXTCLOUD_V35_SENDER_IMAGE: $version_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_IMAGE: $flow_generic
         }) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-token").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-token").platform
         }
     )
     [
@@ -332,14 +335,14 @@ def test-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env [] 
     ]
 }
 
-def test-nextcloud-v34-contact-token-receiver-flow-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-token-receiver-flow-role-env]"
+def test-nextcloud-v35-contact-token-receiver-flow-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-token-receiver-flow-role-env]"
     let receiver_role = "ghcr.io/example/nextcloud-contacts:flow-receiver-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_RECEIVER_IMAGE: $receiver_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_RECEIVER_IMAGE: $receiver_role
         }) {
-            resolve-receiver-image "nextcloud" "v34" --flow-id "contact-token"
+            resolve-receiver-image "nextcloud" "v35" --flow-id "contact-token"
         }
     )
     [
@@ -348,16 +351,16 @@ def test-nextcloud-v34-contact-token-receiver-flow-role-env [] {
     ]
 }
 
-def test-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env]"
+def test-nextcloud-v35-contact-wayf-flow-role-env-beats-version-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-wayf-flow-role-env-beats-version-role-env]"
     let flow_role = "ghcr.io/example/nextcloud-contacts:wayf-flow-sender-role"
     let version_role = "ghcr.io/example/nextcloud:version-sender-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
-            OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_SENDER_IMAGE: $flow_role
+            OCMTS_NEXTCLOUD_V35_SENDER_IMAGE: $version_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE: $flow_role
         }) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-wayf").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-wayf").platform
         }
     )
     [
@@ -366,16 +369,16 @@ def test-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env [] {
     ]
 }
 
-def test-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env]"
+def test-nextcloud-v35-contact-wayf-flow-generic-env-beats-version-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-wayf-flow-generic-env-beats-version-role-env]"
     let flow_generic = "ghcr.io/example/nextcloud-contacts:wayf-flow-generic"
     let version_role = "ghcr.io/example/nextcloud:version-sender-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_SENDER_IMAGE: $version_role
-            OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE: $flow_generic
+            OCMTS_NEXTCLOUD_V35_SENDER_IMAGE: $version_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE: $flow_generic
         }) {
-            (resolve-images "nextcloud" "v34" --flow-id "contact-wayf").platform
+            (resolve-images "nextcloud" "v35" --flow-id "contact-wayf").platform
         }
     )
     [
@@ -384,14 +387,14 @@ def test-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env [] {
     ]
 }
 
-def test-nextcloud-v34-contact-wayf-receiver-flow-role-env [] {
-    test-log "\n[test-nextcloud-v34-contact-wayf-receiver-flow-role-env]"
+def test-nextcloud-v35-contact-wayf-receiver-flow-role-env [] {
+    test-log "\n[test-nextcloud-v35-contact-wayf-receiver-flow-role-env]"
     let receiver_role = "ghcr.io/example/nextcloud-contacts:wayf-receiver-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_RECEIVER_IMAGE: $receiver_role
+            OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE: $receiver_role
         }) {
-            resolve-receiver-image "nextcloud" "v34" --flow-id "contact-wayf"
+            resolve-receiver-image "nextcloud" "v35" --flow-id "contact-wayf"
         }
     )
     [
@@ -404,8 +407,8 @@ def test-nextcloud-v34-non-contact-flow-ignores-contact-overrides [] {
     test-log "\n[test-nextcloud-v34-non-contact-flow-ignores-contact-overrides]"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V34_CONTACT_TOKEN_IMAGE: "ghcr.io/example/nextcloud-contacts:should-not-apply"
-            OCMTS_NEXTCLOUD_V34_CONTACT_WAYF_IMAGE: "ghcr.io/example/nextcloud-contacts:should-not-apply"
+            OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_IMAGE: "ghcr.io/example/nextcloud-contacts:should-not-apply"
+            OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE: "ghcr.io/example/nextcloud-contacts:should-not-apply"
         }) {
             (resolve-images "nextcloud" "v34" --flow-id "login").platform
         }
@@ -430,14 +433,14 @@ def main [] {
         | append (test-opencloud-sender-role-env-beats-generic-platform-env)
         | append (test-ocis-receiver-role-env-beats-generic-platform-env)
         | append (test-defaults-when-no-env-set)
-        | append (test-nextcloud-v34-contact-token-flow-default-beats-version-default)
-        | append (test-nextcloud-v34-contact-wayf-flow-default-beats-version-default)
-        | append (test-nextcloud-v34-contact-token-flow-role-env-beats-version-role-env)
-        | append (test-nextcloud-v34-contact-token-flow-generic-env-beats-version-role-env)
-        | append (test-nextcloud-v34-contact-token-receiver-flow-role-env)
-        | append (test-nextcloud-v34-contact-wayf-flow-role-env-beats-version-role-env)
-        | append (test-nextcloud-v34-contact-wayf-flow-generic-env-beats-version-role-env)
-        | append (test-nextcloud-v34-contact-wayf-receiver-flow-role-env)
+        | append (test-nextcloud-v35-contact-token-flow-default-beats-version-default)
+        | append (test-nextcloud-v35-contact-wayf-flow-default-beats-version-default)
+        | append (test-nextcloud-v35-contact-token-flow-role-env-beats-version-role-env)
+        | append (test-nextcloud-v35-contact-token-flow-generic-env-beats-version-role-env)
+        | append (test-nextcloud-v35-contact-token-receiver-flow-role-env)
+        | append (test-nextcloud-v35-contact-wayf-flow-role-env-beats-version-role-env)
+        | append (test-nextcloud-v35-contact-wayf-flow-generic-env-beats-version-role-env)
+        | append (test-nextcloud-v35-contact-wayf-receiver-flow-role-env)
         | append (test-nextcloud-v34-non-contact-flow-ignores-contact-overrides)
     ) | flatten
     run-suite "images/resolve-role-overrides" $SUITE_PATH $results

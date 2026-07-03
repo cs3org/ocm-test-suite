@@ -5,6 +5,7 @@ export const matrixCellIds = [
   "login__nextcloud-v32",
   "login__nextcloud-v33",
   "login__nextcloud-v34",
+  "login__nextcloud-v35",
   "login__ocis-v8",
   "login__ocmgo-v1",
   "login__opencloud-v6",

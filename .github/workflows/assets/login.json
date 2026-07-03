@@ -49,6 +49,18 @@
   },
   {
     "flow": "login",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "",
+    "receiver_version": "",
+    "display_name": "nextcloud v35",
+    "artifact_name": "cell-login-nextcloud-v35",
+    "cell_id": "login__nextcloud-v35",
+    "cell_depends_on": "",
+    "wave_index": 5
+  },
+  {
+    "flow": "login",
     "sender_platform": "ocis",
     "sender_version": "v8",
     "receiver_platform": "",
@@ -57,7 +69,7 @@
     "artifact_name": "cell-login-ocis-v8",
     "cell_id": "login__ocis-v8",
     "cell_depends_on": "",
-    "wave_index": 5
+    "wave_index": 6
   },
   {
     "flow": "login",
@@ -69,7 +81,7 @@
     "artifact_name": "cell-login-ocmgo-v1",
     "cell_id": "login__ocmgo-v1",
     "cell_depends_on": "",
-    "wave_index": 6
+    "wave_index": 7
   },
   {
     "flow": "login",
@@ -81,6 +93,6 @@
     "artifact_name": "cell-login-opencloud-v6",
     "cell_id": "login__opencloud-v6",
     "cell_depends_on": "",
-    "wave_index": 7
+    "wave_index": 8
   }
 ]

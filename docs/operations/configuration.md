@@ -138,7 +138,7 @@ Generic leaf env names:
 Example local `ocmgo` image flow (generic override):
 
 ```bash
-export OCMTS_OCMGO_V1_IMAGE=opencloudmesh-go:local
+export OCMTS_OCMGO_V1_IMAGE=opencloudmesh-go:v1.1.0
 nu scripts/ocmts.nu images show --platform ocmgo --version v1
 nu scripts/ocmts.nu images resolve \
   --flow share-with \
@@ -149,7 +149,7 @@ nu scripts/ocmts.nu images resolve \
 Example sender-only override in a two-party run:
 
 ```bash
-export OCMTS_OCMGO_V1_SENDER_IMAGE=opencloudmesh-go:local-sender
+export OCMTS_OCMGO_V1_SENDER_IMAGE=opencloudmesh-go:v1.1.0-sender
 export OCMTS_NEXTCLOUD_V34_RECEIVER_IMAGE=nextcloud:local-receiver
 nu scripts/ocmts.nu images resolve \
   --flow share-with \

@@ -5,12 +5,14 @@
 const SUITE_PATH = path self
 
 use ../../lib/publish/envelope.nu [
+    emit-publish-envelope
     path-to-evidence-id
     parse-screenshot-stem
     parse-video-stem
     enrich-ev-row
     sort-evidence-rows
 ]
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ../../lib/site/copy.nu [copy-allowlisted-artifacts]
 use ../../lib/services/postrun-artifacts.nu [normalize-cypress-video]
 use ../../lib/tests/assert.nu *
@@ -402,10 +404,143 @@ def test-sort-evidence-rows [] {
     ]
 }
 
+def write-sparse-publish-fixture [
+    tmp: string,
+    cell: record,
+    execution_id: string = "20260101t120000-abcdef01",
+    --run-extra: record = {},
+    --result-extra: record = {},
+] {
+    mkdir ($tmp | path join "meta")
+    ($cell | to json) | save --force ($tmp | path join "meta/cell.json")
+    ({
+        execution_id: $execution_id
+        started_at: "2026-01-01T12:00:00Z"
+        finished_at: "2026-01-01T12:05:00Z"
+    } | merge $run_extra | to json) | save --force ($tmp | path join "meta/run.json")
+    ({
+        execution_id: $execution_id
+        status: "passed"
+        exit_code: 0
+        finished_at: "2026-01-01T12:05:00Z"
+    } | merge $result_extra | to json) | save --force ($tmp | path join "meta/result.v1.json")
+}
+
+def test-emit-publish-envelope-carries-matrix-key-on-run-and-result [] {
+    test-log "\n[test-emit-publish-envelope-carries-matrix-key-on-run-and-result]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            flow_id: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        let run_entry = ($manifest.runs | values | first)
+        let result_entry = ($manifest.results | values | first)
+        [
+            (assert-eq $cell_entry.flow_id "login"
+                "cell_entry carries canonical flow_id from cell.json")
+            (assert-eq ($cell_entry.matrix_key? | default "") "login__nextcloud"
+                "cell_entry carries matrix_key from run.json")
+            (assert-eq ($run_entry.matrix_key? | default "") "login__nextcloud"
+                "run_entry carries matrix_key from run.json")
+            (assert-eq ($result_entry.matrix_key? | default "") "login__nextcloud"
+                "result_entry carries matrix_key from run.json")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-backfills-matrix-key-from-run-json [] {
+    test-log "\n[test-emit-publish-envelope-backfills-matrix-key-from-run-json]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            flow_id: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+        let run_entry = ($manifest.runs | values | first)
+        let result_entry = ($manifest.results | values | first)
+        [
+            (assert-eq ($cell_entry.matrix_key? | default "") "login__nextcloud"
+                "cell_entry backfills matrix_key from run.json when cell omits it")
+            (assert-eq ($run_entry.matrix_key? | default "") "login__nextcloud"
+                "run_entry backfills matrix_key from run.json when cell omits it")
+            (assert-eq ($result_entry.matrix_key? | default "") "login__nextcloud"
+                "result_entry backfills matrix_key from run.json when cell omits it")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-errors-without-flow-id [] {
+    test-log "\n[test-emit-publish-envelope-errors-without-flow-id]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            scenario: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        let result = (try { emit-publish-envelope $tmp; "no-error" } catch {|e| "error"})
+        [
+            (assert-eq $result "error"
+                "emit-publish-envelope errors when cell.json lacks flow_id")
+        ]
+    }
+}
+
+def test-emit-publish-envelope-omits-scenario-module-on-cell-entry [] {
+    test-log "\n[test-emit-publish-envelope-omits-scenario-module-on-cell-entry]"
+    with-tmp-dir {|tmp|
+        write-sparse-publish-fixture $tmp {
+            cell_id: "contact-wayf__nextcloud-v34"
+            artifact_name: "cell-contact-wayf-nextcloud-v34"
+            flow_id: "contact-wayf"
+            scenario_module: "contact-wayf"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "contact-wayf__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_entry = ($manifest.cells | values | first)
+
+        write-sparse-publish-fixture $tmp {
+            cell_id: "login__nextcloud-v34"
+            artifact_name: "cell-login-nextcloud-v34"
+            flow_id: "login"
+            sender_platform: "nextcloud"
+            sender_version: "v34"
+        } --run-extra {matrix_key: "login__nextcloud"}
+        emit-publish-envelope $tmp
+        let manifest2 = (open ($tmp | path join "meta/suite-manifest.v1.json"))
+        let cell_without = ($manifest2.cells | values | first)
+
+        [
+            (assert-truthy (not ("scenario_module" in ($cell_entry | columns)))
+                "cell_entry omits scenario_module even when stale cell.json had it")
+            (assert-truthy (not ("scenario_module" in ($cell_without | columns)))
+                "cell_entry omits scenario_module when absent from cell.json")
+        ]
+    }
+}
+
 def main [] {
     test-log "=== Publish Envelope Evidence Tests ==="
     let results = (
-        (test-path-to-evidence-id)
+        (test-emit-publish-envelope-carries-matrix-key-on-run-and-result)
+        | append (test-emit-publish-envelope-backfills-matrix-key-from-run-json)
+        | append (test-emit-publish-envelope-errors-without-flow-id)
+        | append (test-emit-publish-envelope-omits-scenario-module-on-cell-entry)
+        | append (test-path-to-evidence-id)
         | append (test-parse-screenshot-stem)
         | append (test-parse-video-stem)
         | append (test-enrich-ev-row)

@@ -17,7 +17,7 @@
 #     notes:              list<string>  - diagnostic strings
 #   }
 
-use ./metadata.nu [write-terminal-run]
+use ./metadata.nu [write-terminal-run resolve-matrix-key]
 use ./result-envelope.nu [build-result-v1]
 use ../mitm/validator-dispatcher.nu [dispatch-validators]
 use ../publish/envelope.nu [detect-execution-context collect-evidence]
@@ -49,8 +49,10 @@ export def finalize-run [
     images: any = null,
     --suite-id: string = "",
     --suite-kind: string = "",
+    --matrix-key: string = "",
     --validator-report: any = null,
 ] {
+    let eff_matrix_key = (resolve-matrix-key $artifacts_base --explicit $matrix_key)
     let base_status = if $cypress_exit == 0 { "passed" } else { "failed" }
     let base = {status: $base_status, exit_code: $cypress_exit}
 
@@ -84,7 +86,7 @@ export def finalize-run [
 
     (write-terminal-run $artifacts_base $execution_id $cell_id $artifact_name
         $started_at $finished_at $final_status $final_exit $stack_id $images
-        --suite-id $suite_id --suite-kind $suite_kind)
+        --suite-id $suite_id --suite-kind $suite_kind --matrix-key $eff_matrix_key)
 
     let ctx = (detect-execution-context)
     let ev = (collect-evidence $artifacts_base)
@@ -118,6 +120,7 @@ export def finalize-run [
         warnings: [],
         suite_id: $suite_id,
         suite_kind: $suite_kind,
+        matrix_key: $eff_matrix_key,
     })
     $r | to json --indent 2 | save --force ($artifacts_base | path join "meta/result.v1.json")
 

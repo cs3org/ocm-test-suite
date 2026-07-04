@@ -188,7 +188,7 @@ def run-collect-main-entry [
         PATH: (path-prepend $bin_dir),
         OCMTS_ROOT: $ocmts_root,
     }) {
-        (^$nu_bin $script --scenario login --sender-platform nextcloud --sender-version v34 --execution-id $COLLECT_MAIN_EXEC_ID --include-logs | complete)
+        (^$nu_bin $script --flow login --sender-platform nextcloud --sender-version v34 --execution-id $COLLECT_MAIN_EXEC_ID --include-logs | complete)
     }
 }
 

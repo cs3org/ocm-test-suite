@@ -29,7 +29,7 @@ def test-pending-with-tracking-note-ok [] {
     test-log "\n[test-pending-with-tracking-note-ok]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "flow.code-flow.sender": {status: "test-implementation-pending", tracking_note: "tracked"},
+            "flow.share-with.sender": {status: "test-implementation-pending", tracking_note: "tracked"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -44,7 +44,7 @@ def test-pending-with-tracking-url-ok [] {
     test-log "\n[test-pending-with-tracking-url-ok]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "flow.code-flow.sender": {status: "test-implementation-pending", tracking_url: "https://example.com/123"},
+            "flow.share-with.sender": {status: "test-implementation-pending", tracking_url: "https://example.com/123"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -59,7 +59,7 @@ def test-pending-no-tracking-warns [] {
     test-log "\n[test-pending-no-tracking-warns]"
     let adapters = {
         "nextcloud/v32": {capabilities: {
-            "flow.code-flow.sender": {status: "test-implementation-pending"},
+            "flow.share-with.sender": {status: "test-implementation-pending"},
         }},
     }
     let warnings = (collect-status-warnings $adapters)
@@ -68,7 +68,7 @@ def test-pending-no-tracking-warns [] {
             "exactly one warning")
         (assert-truthy ($warnings | any {|w| $w.message | str contains "nextcloud/v32"})
             "warning message names the adapter")
-        (assert-truthy ($warnings | any {|w| $w.message | str contains "flow.code-flow.sender"})
+        (assert-truthy ($warnings | any {|w| $w.message | str contains "flow.share-with.sender"})
             "warning message names the capability")
     ]
 }

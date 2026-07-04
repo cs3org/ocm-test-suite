@@ -7,7 +7,6 @@ use ../suite/index.nu [load-suite-entry]
 use ../ci/aggregate.nu [aggregate-status]
 use ../run/result-envelope.nu [build-result-v1]
 use ./copy.nu [copy-allowlisted-artifacts]
-use ./cell-impl.nu [build-implemented-cells-json]
 use ./flow-caps.nu [load-flow-caps]
 use ./manifest.nu [build-aggregated-manifest build-matrix-rules-json compute-latest-index]
 use ./internal.nu [compute-matrix-cells]
@@ -94,7 +93,7 @@ export def ingest-site [
                         flow_id: $flow_id,
                         pair: ($run.pair? | default ""),
                         artifact_name: ($run.artifact_name? | default ""),
-                        scenario: ($run.scenario? | default ""),
+                        matrix_key: ($run.matrix_key? | default ""),
                         sender_platform: ($run.sender_platform? | default ""),
                         sender_version: ($run.sender_version? | default ""),
                         receiver_platform: ($run.receiver_platform? | default ""),
@@ -207,7 +206,7 @@ export def ingest-site [
                                     flow_id: ($c.flow_id? | default ""),
                                     pair: ($c.pair? | default ""),
                                     artifact_name: ($c.artifact_name? | default ""),
-                                    scenario: ($c.scenario? | default ""),
+                                    matrix_key: ($c.matrix_key? | default ""),
                                     sender_platform: ($c.sender_platform? | default ""),
                                     sender_version: ($c.sender_version? | default ""),
                                     receiver_platform: ($c.receiver_platform? | default ""),
@@ -275,9 +274,9 @@ export def ingest-site [
     let matrix_json = (build-matrix-rules-json $rules "config/matrix" $adapters $flow_caps $root)
     ($matrix_json | to json --indent 2
         | save --force ($public_dir | path join "matrix-rules.v1.json"))
-    print --stderr $"Wrote matrix-rules.v1.json \(($matrix_json.scenarios | length) scenarios\)"
+    print --stderr $"Wrote matrix-rules.v1.json \(($matrix_json.matrix | length) matrix entries\)"
 
-    # build-matrix-rules-json returns only the scenarios list; recompute
+    # build-matrix-rules-json returns matrix cell list; recompute
     # apply-display-rule here to access the not_in_scope output without
     # widening that API.
     let display_cells = (compute-matrix-cells $rules)
@@ -287,15 +286,6 @@ export def ingest-site [
         | save --force ($public_dir | path join "matrix-not-in-scope.v1.json"))
     let nis_total = ($display_result.not_in_scope | length)
     print --stderr $"Wrote matrix-not-in-scope.v1.json \(($nis_total) entries\)"
-
-    if ($cap_map_abs | path exists) {
-        let impl_cells_json = (build-implemented-cells-json $rules $adapters $flow_caps $root)
-        ($impl_cells_json | to json --indent 2
-            | save --force ($public_dir | path join "implemented-cells.v1.json"))
-        print --stderr $"Wrote implemented-cells.v1.json \(($impl_cells_json.cells | columns | length) cells\)"
-    } else {
-        print --stderr $"WARNING: capability map not found at ($cap_map_abs), skipping implemented-cells.v1.json"
-    }
 
     mut total_files = 0
     for entry in $entries {

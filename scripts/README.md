@@ -32,28 +32,29 @@ scripts/
   lib/                     # implementation modules (no top-level `main`)
     domain/core/           # CLI primitives (forward-to, root resolution)
     common/                # generic helpers (complete-record, stderr-match)
-    actors/                # credentials, resolve, load (4 scenario loaders,
-                           # list scenarios via list-matrix-scenarios or
-                           # list-override-files), validate
+    actors/                # credentials, resolve, load (tuple loaders for
+                           # actor/sender/receiver; list keys via
+                           # list-matrix-keys or list-override-files),
+                           # validate
     artifacts/             # init, prune
     ci/                    # planner, blocker, aggregator, workflow-gen,
                            # template-renderer, flow-order, suite-stop-on-fail
     compose/               # render, validate, logs, yaml, topology-common
                            # (shared helpers), topology-{one,two}-party
-    images/                # precedence (env-override + 6/11-level resolvers),
+    images/                # precedence (scope-first 6/9-level resolvers),
                            # config (load + list + validate), resolve (the
                            # public sender/receiver/mitmproxy resolvers)
     matrix/                # cell, cells, expand, rules-gen, cypress-gen,
                            # topology (canonical two_party SSOT)
     mitm/                  # summary, ocm-summary, peers, report-utils,
-                           # validator-dispatcher, code-flow-validator
+                           # validator-dispatcher
     ocm/                   # endpoints
     publish/               # envelope, evidence (per-cell sidecar emitters)
     run/                   # execution-id, finalize, flow-ids, metadata,
                            # result-envelope, status
     services/              # compose-files, context, cypress-run,
                            # lifecycle, postrun-artifacts
-    site/                  # blocker-logic, build, cell-impl, clone,
+    site/                  # blocker-logic, build, clone,
                            # config, copy, flow-caps, ingest, internal
                            # (shared private helpers), manifest, preview,
                            # project-media, provenance, publish

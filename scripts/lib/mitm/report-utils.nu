@@ -91,33 +91,8 @@ export def infer-to-role [req_host: string, server_ip: string, roles: record] {
     if ($ip_matches | is-empty) { "unknown" } else { $ip_matches | first }
 }
 
-# Load identity fallbacks from meta/cell.json and meta/run.json.
-# Used when flow records omit identity fields.
-# Dedicated fields take precedence over scenario as a fallback:
-#   flow_id:         cell.flow_id       -> cell.scenario (fallback)
-#   scenario_module: cell.scenario_module -> cell.scenario (fallback)
-#   cell_id:         cell.cell_id
-#   run_id:          run.execution_id
-# Callers that only use flow_id/cell_id/run_id ignore the scenario_module field.
-export def load-meta-identity [artifacts_base: string] {
-    let cell_path = ($artifacts_base | path join "meta" "cell.json")
-    let run_path = ($artifacts_base | path join "meta" "run.json")
-    let cell = if ($cell_path | path exists) {
-        try { open $cell_path } catch { {} }
-    } else { {} }
-    let run = if ($run_path | path exists) {
-        try { open $run_path } catch { {} }
-    } else { {} }
-    let cell_flow_id        = ($cell.flow_id?         | default "" | into string | str trim)
-    let cell_scenario       = ($cell.scenario?        | default "" | into string | str trim)
-    let cell_scenario_mod   = ($cell.scenario_module? | default "" | into string | str trim)
-    {
-        flow_id:         (if ($cell_flow_id      | is-empty) { $cell_scenario } else { $cell_flow_id }),
-        scenario_module: (if ($cell_scenario_mod | is-empty) { $cell_scenario } else { $cell_scenario_mod }),
-        cell_id:         ($cell.cell_id? | default ""),
-        run_id:          ($run.execution_id? | default ""),
-    }
-}
+# Re-export for MITM report callers. SSOT: scripts/lib/run/tuple-identity.nu.
+export use ../run/tuple-identity.nu [load-meta-identity]
 
 # Detect which id columns are invariant (exactly one distinct non-empty value
 # across all rows). Returns {preface: string, skip_cols: list<string>}.

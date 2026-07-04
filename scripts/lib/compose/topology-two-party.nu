@@ -1,4 +1,4 @@
-# Two-party compose overlay writer (e.g. share-with scenario with MITM).
+# Two-party compose overlay writer (e.g. share-with flow with MITM).
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
@@ -10,7 +10,7 @@ use ./topology-common.nu [
     copy-overlays-to-artifacts
     ocmgo-env-lines
 ]
-use ../actors/load.nu [load-sender-for-scenario load-receiver-for-scenario]
+use ../actors/load.nu [load-sender-for-tuple load-receiver-for-tuple]
 use ../matrix/cell.nu [validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
@@ -110,10 +110,10 @@ def write-two-party-env [
     $env_path
 }
 
-# Write overlays for a two-party scenario (e.g. share-with) with MITM.
+# Write overlays for a two-party flow (e.g. share-with) with MITM.
 # Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party, env_file}.
 export def write-two-party-overlays [
-    scenario: string,
+    flow_id: string,
     sender_platform: string,
     receiver_platform: string,
     artifact_name: string,
@@ -130,15 +130,13 @@ export def write-two-party-overlays [
     record_video: bool,
     root: string,
     artifacts_base: string,
-    flow_id: string = "",
     sender_version: string = "",
     receiver_version: string = "",
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
-    let effective_flow_id = if ($flow_id | is-empty) { $scenario } else { $flow_id }
-    let sender_actor = (load-sender-for-scenario $scenario $root $sender_platform)
-    let receiver_actor = (load-receiver-for-scenario $scenario $root $receiver_platform)
+    let sender_actor = (load-sender-for-tuple $flow_id $sender_platform $receiver_platform $root $sender_platform)
+    let receiver_actor = (load-receiver-for-tuple $flow_id $sender_platform $receiver_platform $root $receiver_platform)
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
@@ -177,7 +175,7 @@ export def write-two-party-overlays [
         "      - OCMTS_MITM_SESSION_PATH=/mitm/flows/session.json"
         "      - OCMTS_MITM_REDACTION_REPORT_PATH=/mitm/redaction-report.json"
         $"      - OCMTS_CELL_ID=($cell_id)"
-        $"      - OCMTS_FLOW_ID=($effective_flow_id)"
+        $"      - OCMTS_FLOW_ID=($flow_id)"
         $"      - OCMTS_RUN_ID=($execution_id)"
         $"      - OCMTS_EXECUTION_ID=($execution_id)"
         "      - OCMTS_MITM_STARTUP_PATH=/mitm/startup.v1.json"

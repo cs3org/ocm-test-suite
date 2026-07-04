@@ -1,17 +1,11 @@
-# derive-cell-impl-info gating tests for site-ingest.nu.
-# Run: nu scripts/tests/site/cell-impl.nu
+# Shared blocker-logic tests (derive-cell-impl-info, worst-status-of-blockers).
+# Run: nu scripts/tests/site/blocker-logic.nu
 # Returns exit 0 on all pass, exit 1 with details on failure.
 
 const SUITE_PATH = path self
 
-use ../../lib/site/cell-impl.nu [
-    derive-cell-impl-info
-    worst-status-of-blockers
-    build-implemented-cells-record
-    build-implemented-cells-json
-]
+use ../../lib/site/blocker-logic.nu [derive-cell-impl-info worst-status-of-blockers]
 use ../../lib/tests/assert.nu *
-use ../../lib/tests/fixtures.nu [materialize-provenance-stubs]
 use ../../lib/tests/runner.nu [run-suite]
 
 # Adapter map covering all capability names used in tests.
@@ -381,53 +375,6 @@ def test-missing-capability-entry [] {
     ]
 }
 
-# Make a synthetic full cell record (with all fields compute-matrix-cells
-# would produce). Use sensible defaults for unused fields.
-def make-full-cell [
-    --flow_id: string = "share-with",
-    --scenario: string = "share-with",
-    --sender_platform: string = "nextcloud",
-    --sender_version: string = "v34",
-    --receiver_platform: string = "nextcloud",
-    --receiver_version: string = "v34",
-    --is_two_party = true,
-    --enabled = true,
-    --browser: string = "chrome",
-    --mitm = false,
-] {
-    let cell_id = if $is_two_party {
-        $"($flow_id)__($sender_platform)-($sender_version)__($receiver_platform)-($receiver_version)"
-    } else {
-        $"($flow_id)__($sender_platform)-($sender_version)"
-    }
-    let pair = if $is_two_party {
-        $"($sender_platform)-($sender_version)-($receiver_platform)-($receiver_version)"
-    } else {
-        $"($sender_platform)-($sender_version)"
-    }
-    let artifact_name = if $is_two_party {
-        $"cell-($flow_id)-($sender_platform)-($sender_version)-($receiver_platform)-($receiver_version)"
-    } else {
-        $"cell-($flow_id)-($sender_platform)-($sender_version)"
-    }
-    {
-        flow_id: $flow_id,
-        scenario: $scenario,
-        scenario_module: $flow_id,
-        cell_id: $cell_id,
-        artifact_name: $artifact_name,
-        pair: $pair,
-        sender_platform: $sender_platform,
-        sender_version: $sender_version,
-        receiver_platform: (if $is_two_party { $receiver_platform } else { "" }),
-        receiver_version: (if $is_two_party { $receiver_version } else { "" }),
-        browser: $browser,
-        is_two_party: $is_two_party,
-        enabled: $enabled,
-        mitm: $mitm,
-    }
-}
-
 # Tracking fields propagate from adapter capability entries onto blockers.
 def test-derive-cell-impl-info-includes-tracking-fields [] {
     test-log "\n[test-derive-cell-impl-info-includes-tracking-fields]"
@@ -505,118 +452,8 @@ def test-worst-status-of-blockers [] {
     ]
 }
 
-# build-implemented-cells-record emits display_status, blocked_by, implemented.
-def test-build-implemented-cells-emits-display-fields [] {
-    test-log "\n[test-build-implemented-cells-emits-display-fields]"
-    let adapters = {
-        "opencloud/v6": {
-            capabilities: {
-                "op.login": {status: "supported"},
-                "flow.contact-token.sender": {status: "supported"},
-                "op.share-file.sender": {status: "supported"},
-                "op.contact-token.sender": {
-                    status: "test-implementation-pending",
-                    tracking_url: "https://github.com/x/y/issues/1",
-                    rationale: "pending implementation",
-                },
-            }
-        },
-        "nextcloud/v34": (fixture-adapters | get "nextcloud/v34"),
-    }
-    let cell = (make-full-cell
-        --flow_id "contact-token"
-        --scenario "contact-token-opencloud-nextcloud"
-        --sender_platform "opencloud"
-        --sender_version "v6"
-        --receiver_platform "nextcloud"
-        --receiver_version "v34"
-        --is_two_party true
-        --enabled true)
-    let record = (build-implemented-cells-record [$cell] $adapters (fixture-flow-caps))
-    let entry = ($record | get $cell.cell_id)
-    let by_caps = ($entry.blocked_by | each {|b| $b.capability})
-    let pending = ($entry.blocked_by | where {|b| $b.capability == "op.contact-token.sender"} | first)
-    [
-        (assert-eq $entry.display_status "test-pending"
-            "display_status reflects worst blocker status (test-implementation-pending capability_status -> test-pending display_status)")
-        (assert-truthy ($entry.implemented == false)
-            "implemented = false when display_status != supported")
-        (assert-truthy (not ($entry.blocked_by | is-empty))
-            "blocked_by non-empty")
-        (assert-truthy ("op.contact-token.sender" in $by_caps)
-            "blocked_by includes op.contact-token.sender")
-        (assert-eq ($pending.tracking_url? | default "")
-            "https://github.com/x/y/issues/1"
-            "blocked_by entry carries tracking_url when present")
-        (assert-truthy ("blockers" in ($entry | columns))
-            "legacy blockers field still present")
-        (assert-truthy ("requirements" in ($entry | columns))
-            "legacy requirements field still present")
-    ]
-}
-
-# enabled === false cells render as placeholder regardless of cap status.
-def test-build-implemented-cells-placeholder-for-disabled [] {
-    test-log "\n[test-build-implemented-cells-placeholder-for-disabled]"
-    let adapters = fixture-adapters
-    let cell = (make-full-cell
-        --flow_id "share-with"
-        --scenario "share-with"
-        --sender_platform "nextcloud"
-        --sender_version "v34"
-        --receiver_platform "nextcloud"
-        --receiver_version "v34"
-        --is_two_party true
-        --enabled false)
-    let record = (build-implemented-cells-record [$cell] $adapters (fixture-flow-caps))
-    let entry = ($record | get $cell.cell_id)
-    [
-        (assert-eq $entry.display_status "placeholder"
-            "enabled=false => display_status placeholder")
-        (assert-truthy ($entry.implemented == false)
-            "enabled=false => implemented false")
-    ]
-}
-
-# build-implemented-cells-json stamps a uniform provenance block with 10 sources.
-def test-build-implemented-cells-json-provenance-shape [] {
-    test-log "\n[test-build-implemented-cells-json-provenance-shape]"
-    mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
-    mkdir $tmp
-    materialize-provenance-stubs $tmp
-    let rules = {scenarios: {}}
-    let out = (build-implemented-cells-json $rules {} {} $tmp)
-    let rfc_re = '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$'
-    let hex_re = '^[0-9a-f]{64}$'
-    let result = [
-        (assert-eq $out.schema_version 1
-            "schema_version is 1")
-        (assert-eq $out.generator
-            "scripts/lib/site/cell-impl.nu#build-implemented-cells-json"
-            "generator points at this writer")
-        (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
-            "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 10
-            "sources has 10 entries")
-        (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
-            "each source entry has path and sha256 keys")
-        (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
-            "no source path is absolute")
-        (assert-truthy ($out.sources | all {|s| ($s.sha256 | parse --regex $hex_re | length) == 1})
-            "every sha256 matches 64-hex pattern")
-        (assert-truthy (($out.generated_at | parse --regex $rfc_re | length) == 1)
-            "generated_at matches RFC3339 nanosecond format")
-        (assert-truthy ("cells" in ($out | columns))
-            "cells field present in output")
-        (assert-truthy (not ("matrix_rules_path" in ($out | columns)))
-            "legacy matrix_rules_path key absent from top-level output")
-    ]
-    rm --recursive --force $tmp
-    $result
-}
-
 def main [] {
-    test-log "=== site-ingest derive-cell-impl-info Tests ==="
+    test-log "=== site/blocker-logic Tests ==="
     let results = (
         (test-login-implemented)
         | append (test-share-with-implemented)
@@ -634,9 +471,6 @@ def main [] {
         | append (test-missing-capability-entry)
         | append (test-derive-cell-impl-info-includes-tracking-fields)
         | append (test-worst-status-of-blockers)
-        | append (test-build-implemented-cells-emits-display-fields)
-        | append (test-build-implemented-cells-placeholder-for-disabled)
-        | append (test-build-implemented-cells-json-provenance-shape)
     ) | flatten
-    run-suite "site/cell-impl" $SUITE_PATH $results
+    run-suite "site/blocker-logic" $SUITE_PATH $results
 }

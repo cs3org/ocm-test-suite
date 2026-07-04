@@ -8,7 +8,9 @@ use ../../lib/matrix/rules-gen.nu [
     build-matrix-not-in-scope-json
     classify-version-status
     expand-flow
+    load-matrix-rules
 ]
+use ../../lib/run/execution-id.nu [validate-matrix-key]
 use ../../lib/matrix/gated-cells.nu [gate-cells-by-capabilities]
 use ../../lib/site/manifest.nu [build-matrix-rules-json]
 use ../../lib/tests/assert.nu *
@@ -20,14 +22,13 @@ use ../../lib/tests/runner.nu [run-suite]
 # validate and read them without error.
 def fill-flow-stubs [tmp_root: string] {
     let flows = [
-        {stem: "code-flow",     label: "Code Flow",       subtitle: "Code flow",      order: 30, enabled: false, two_party: true,  mitm: false}
         {stem: "contact-token", label: "Contact Token",   subtitle: "Token flow",     order: 40, enabled: false, two_party: true,  mitm: false}
         {stem: "contact-wayf",  label: "Contact WAYF",    subtitle: "WAYF flow",      order: 50, enabled: false, two_party: true,  mitm: false}
         {stem: "login",         label: "Login Flow",      subtitle: "Login flow",     order: 10, enabled: true,  two_party: false, mitm: false}
         {stem: "share-with",    label: "Share With Flow", subtitle: "Share-with flow", order: 20, enabled: true,  two_party: true,  mitm: true}
     ]
     for s in $flows {
-        let flow = {
+        mut flow = {
             flow_id: $s.stem,
             label: $s.label,
             subtitle: $s.subtitle,
@@ -35,7 +36,18 @@ def fill-flow-stubs [tmp_root: string] {
             enabled: $s.enabled,
             two_party: $s.two_party,
             mitm: $s.mitm,
+            browsers: null,
             required_capabilities: {sender: [], receiver: []}
+        }
+        if not $s.two_party {
+            $flow = ($flow
+                | insert include {senders: ["nextcloud"]}
+                | insert versions_sender {nextcloud: ["v34"]})
+        } else {
+            $flow = ($flow
+                | insert include [{sender: ["nextcloud"], receiver: ["ocmgo"]}]
+                | insert versions_sender {nextcloud: ["v34"]}
+                | insert versions_receiver {ocmgo: ["v1"]})
         }
         $flow | to nuon | save --force ($tmp_root | path join "config/matrix/flows" $"($s.stem).nuon")
     }
@@ -44,7 +56,7 @@ def fill-flow-stubs [tmp_root: string] {
 # Make a synthetic cell. Mirrors what compute-matrix-cells would emit.
 def make-cell [
     --flow_id: string = "share-with",
-    --scenario: string = "share-with",
+    --matrix_key: string = "share-with__nextcloud__nextcloud",
     --sender_platform: string = "nextcloud",
     --sender_version: string = "v34",
     --receiver_platform: string = "",
@@ -71,8 +83,7 @@ def make-cell [
     }
     {
         flow_id: $flow_id,
-        scenario: $scenario,
-        scenario_module: $flow_id,
+        matrix_key: $matrix_key,
         cell_id: $cell_id,
         artifact_name: $artifact_name,
         pair: $pair,
@@ -92,10 +103,6 @@ def fixture-share-with-flow-caps [] {
         "share-with": {
             sender: ["flow.share-with.sender", "op.login", "op.share-file.sender"],
             receiver: ["flow.share-with.receiver", "op.login", "op.share-file.receiver"],
-        },
-        "code-flow": {
-            sender: ["op.login", "flow.code-flow.sender"],
-            receiver: ["op.login", "flow.code-flow.receiver"],
         },
         "contact-wayf": {
             sender: ["flow.contact-wayf.sender", "op.login", "op.contact-wayf.sender", "op.share-file.sender"],
@@ -196,46 +203,46 @@ def test-apply-display-rule-emits-not-in-scope [] {
         "seafile/v1": {
             capabilities: {
                 "op.login": {status: "supported"},
-                "flow.code-flow.sender": {
+                "flow.contact-wayf.sender": {
                     status: "vendor-out-of-scope",
-                    rationale: "seafile does not implement OCM code-flow",
+                    rationale: "seafile does not implement OCM contact-wayf",
                 },
-                "flow.code-flow.receiver": {
+                "flow.contact-wayf.receiver": {
                     status: "vendor-out-of-scope",
-                    rationale: "seafile does not implement OCM code-flow",
+                    rationale: "seafile does not implement OCM contact-wayf",
                 },
             }
         },
         "nextcloud/v34": {
             capabilities: {
                 "op.login": {status: "supported"},
-                "flow.code-flow.sender": {status: "supported"},
-                "flow.code-flow.receiver": {status: "supported"},
+                "flow.contact-wayf.sender": {status: "supported"},
+                "flow.contact-wayf.receiver": {status: "supported"},
             }
         },
     }
     let cells = [
-        (make-cell --flow_id "code-flow" --scenario "code-flow-seafile" --sender_platform "seafile" --sender_version "v1" --receiver_platform "nextcloud" --receiver_version "v34")
+        (make-cell --flow_id "contact-wayf" --matrix_key "contact-wayf__seafile__nextcloud" --sender_platform "seafile" --sender_version "v1" --receiver_platform "nextcloud" --receiver_version "v34")
     ]
     let result = (apply-display-rule $cells $adapters (fixture-share-with-flow-caps))
     let seafile_kept = ($result.kept_cells | where {|c| $c.sender_platform == "seafile"})
     let seafile_oos = ($result.not_in_scope
-        | where {|e| ($e.flow_id == "code-flow") and ($e.platform == "seafile") and ($e.version == "v1")})
+        | where {|e| ($e.flow_id == "contact-wayf") and ($e.platform == "seafile") and ($e.version == "v1")})
     let roles = ($seafile_oos | each {|e| $e.role} | uniq | sort)
     [
         (assert-truthy ($seafile_kept | is-empty)
             "seafile cells dropped from kept_cells")
         (assert-truthy (not ($seafile_oos | is-empty))
-            "seafile/v1 lands in not_in_scope for code-flow")
+            "seafile/v1 lands in not_in_scope for contact-wayf")
         (assert-truthy ("sender" in $roles)
             "not_in_scope entry covers sender role")
         (assert-eq ($seafile_oos | first | get rationale)
-            "seafile does not implement OCM code-flow"
+            "seafile does not implement OCM contact-wayf"
             "rationale propagated from worst blocker")
     ]
 }
 
-# build-matrix-rules-json emits display_status on every scenario; never out-of-scope.
+# build-matrix-rules-json emits display_status on every kept cell; never out-of-scope.
 def test-build-matrix-rules-json-includes-display-status [] {
     test-log "\n[test-build-matrix-rules-json-includes-display-status]"
     # build-matrix-rules-json calls compute-matrix-cells internally, which
@@ -305,8 +312,8 @@ def test-build-matrix-rules-json-includes-display-status [] {
 def test-build-matrix-not-in-scope-json-shape [] {
     test-log "\n[test-build-matrix-not-in-scope-json-shape]"
     let not_in_scope = [
-        {flow_id: "code-flow", platform: "seafile", version: "v1", role: "sender", rationale: "r1"}
-        {flow_id: "code-flow", platform: "seafile", version: "v1", role: "receiver", rationale: "r1"}
+        {flow_id: "contact-wayf", platform: "seafile", version: "v1", role: "sender", rationale: "r1"}
+        {flow_id: "contact-wayf", platform: "seafile", version: "v1", role: "receiver", rationale: "r1"}
         {flow_id: "share-with", platform: "ocis", version: "v8", role: "sender", rationale: "r2"}
     ]
     mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
@@ -314,9 +321,9 @@ def test-build-matrix-not-in-scope-json-shape [] {
     materialize-provenance-stubs $tmp
     let out = (build-matrix-not-in-scope-json $not_in_scope $tmp)
     let cols = ($out | columns | sort)
-    let code_flow_entries = ($out.flows | get "code-flow")
+    let contact_wayf_entries = ($out.flows | get "contact-wayf")
     let share_with_entries = ($out.flows | get "share-with")
-    let code_flow_roles = ($code_flow_entries | each {|e| $e.role} | sort)
+    let contact_wayf_roles = ($contact_wayf_entries | each {|e| $e.role} | sort)
     let hex_re = '^[0-9a-f]{64}$'
     let result = [
         (assert-eq $out.schema_version 1
@@ -328,18 +335,18 @@ def test-build-matrix-not-in-scope-json-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 10
-            "sources has 10 entries")
+        (assert-eq ($out.sources | length) 8
+            "sources has 8 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
             "no source path is absolute")
         (assert-truthy ($out.sources | all {|s| ($s.sha256 | parse --regex $hex_re | length) == 1})
             "every sha256 matches 64-hex pattern")
-        (assert-eq ($code_flow_entries | length) 2
-            "code-flow flow has two entries (sender + receiver)")
-        (assert-eq $code_flow_roles ["receiver", "sender"]
-            "code-flow entries cover both roles")
+        (assert-eq ($contact_wayf_entries | length) 2
+            "contact-wayf flow has two entries (sender + receiver)")
+        (assert-eq $contact_wayf_roles ["receiver", "sender"]
+            "contact-wayf entries cover both roles")
         (assert-eq ($share_with_entries | length) 1
             "share-with flow has one entry")
     ]
@@ -353,7 +360,7 @@ def test-build-matrix-rules-json-provenance-shape [] {
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp
-    let rules = {scenarios: {}}
+    let rules = {matrix: {}}
     let out = (build-matrix-rules-json $rules "config/matrix" {} {} $tmp)
     let rfc_re = '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$'
     let hex_re = '^[0-9a-f]{64}$'
@@ -365,8 +372,8 @@ def test-build-matrix-rules-json-provenance-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 10
-            "sources has 10 entries")
+        (assert-eq ($out.sources | length) 8
+            "sources has 8 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
@@ -384,12 +391,10 @@ def test-build-matrix-rules-json-provenance-shape [] {
 
 def test-expand-flow-skips-disabled-flow [] {
     test-log "\n[test-expand-flow-skips-disabled-flow]"
-    let platforms = {p1: {slug: "p1", version_lines: ["v1"]}}
-    let baseline_by_flow = {"code-flow": {sender: "p1", receiver: "p1"}}
-    let overrides = {}
+    let platforms = {p1: {version_lines: ["v1"]}}
     let browsers_default = ["chrome"]
     let disabled_flow = {
-        flow_id: "code-flow",
+        flow_id: "contact-token",
         enabled: false,
         two_party: true,
         browsers: null,
@@ -399,7 +404,7 @@ def test-expand-flow-skips-disabled-flow [] {
         versions_receiver: {p1: ["v1"]},
     }
     let enabled_flow = {
-        flow_id: "code-flow",
+        flow_id: "contact-token",
         enabled: true,
         two_party: true,
         browsers: null,
@@ -408,8 +413,8 @@ def test-expand-flow-skips-disabled-flow [] {
         versions_sender: {p1: ["v1"]},
         versions_receiver: {p1: ["v1"]},
     }
-    let disabled_result = (expand-flow $disabled_flow $platforms $browsers_default $baseline_by_flow $overrides)
-    let enabled_result = (expand-flow $enabled_flow $platforms $browsers_default $baseline_by_flow $overrides)
+    let disabled_result = (expand-flow $disabled_flow $platforms $browsers_default)
+    let enabled_result = (expand-flow $enabled_flow $platforms $browsers_default)
     [
         (assert-eq $disabled_result [] "disabled flow returns empty list")
         (assert-truthy (not ($enabled_result | is-empty)) "enabled flow returns non-empty list")
@@ -426,20 +431,20 @@ def test-build-matrix-rules-json-emits-flows-and-platforms [] {
     ({
         schema_version: 1,
         platforms: {
-            alpha: {slug: "alp", display_name: "Alpha Platform", version_lines: ["v1"]},
-            beta:  {slug: "bet", display_name: "Beta Platform",  version_lines: ["v2"]},
+            alpha: {display_name: "Alpha Platform", version_lines: ["v1"]},
+            beta:  {display_name: "Beta Platform",  version_lines: ["v2"]},
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
-    let out = (build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp)
+    let out = (build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp)
     let required_flow_keys = (["flow_id" "label" "subtitle" "display_order" "enabled" "two_party" "mitm"] | sort)
-    let required_plat_keys = (["id" "display_name" "slug" "version_lines"] | sort)
+    let required_plat_keys = (["id" "display_name" "version_lines"] | sort)
     let first_flow_cols = ($out.flows | first | columns | sort)
     let first_plat_cols = ($out.platforms | first | columns | sort)
     let display_orders = ($out.flows | each {|f| $f.display_order})
     let sorted_orders = ($display_orders | sort)
     let result = [
-        (assert-eq ($out.flows | length) 5
-            "flows has one entry per flow file (5 total)")
+        (assert-eq ($out.flows | length) 4
+            "flows has one entry per flow file (4 total)")
         (assert-eq $first_flow_cols $required_flow_keys
             "first flow has required keys")
         (assert-eq $display_orders $sorted_orders
@@ -459,12 +464,12 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp
-    let out = (build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp)
+    let out = (build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp)
     let flows = $out.flows
 
     let login_flow = ($flows | where flow_id == "login" | first)
     let share_flow = ($flows | where flow_id == "share-with" | first)
-    let code_flow  = ($flows | where flow_id == "code-flow" | first)
+    let contact_wayf = ($flows | where flow_id == "contact-wayf" | first)
 
     let result = [
         (assert-truthy ($flows | all {|f|
@@ -489,8 +494,8 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
         (assert-eq $share_flow.label "Share With Flow" "share-with carries correct label")
         (assert-eq $share_flow.display_order 20 "share-with display_order is 20")
         (assert-eq $share_flow.enabled true "share-with enabled is true")
-        (assert-eq $code_flow.enabled false "code-flow enabled is false")
-        (assert-eq $code_flow.display_order 30 "code-flow display_order is 30")
+        (assert-eq $contact_wayf.enabled false "contact-wayf enabled is false")
+        (assert-eq $contact_wayf.display_order 50 "contact-wayf display_order is 50")
     ]
     rm --recursive --force $tmp
     $result
@@ -501,7 +506,7 @@ def test-build-matrix-rules-json-rejects-empty-flows-dir [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-emptyflows-(random uuid)")
     mkdir ($tmp | path join "config/matrix/flows")
     let err = (try {
-        build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     let result = [
         (assert-string-contains $err "no flow files found under" "error mentions no flow files")
@@ -519,7 +524,7 @@ def test-build-matrix-rules-json-rejects-missing-platforms [] {
     # Overwrite with a file that has no platforms key at all.
     ({schema_version: 1} | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
-        build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     let result = [
         (assert-string-contains $err "has no 'platforms' record or it is empty" "error mentions missing platforms")
@@ -534,19 +539,18 @@ def test-build-matrix-rules-json-rejects-platform-missing-keys [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-missingkeys-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
-    # Platform with display_name and version_lines but no slug.
     ({
         schema_version: 1,
         platforms: {
-            myplat: {display_name: "My Platform", version_lines: ["v1"]}
+            myplat: {version_lines: ["v1"]}
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
-        build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     let result = [
         (assert-string-contains $err "platform 'myplat' is missing required keys" "error names platform and problem")
-        (assert-string-contains $err "slug" "error lists missing field slug")
+        (assert-string-contains $err "display_name" "error lists missing field display_name")
         (assert-string-contains $err "config/matrix" "error includes rules_path")
     ]
     rm --recursive --force $tmp
@@ -562,21 +566,21 @@ def test-build-matrix-rules-json-rejects-empty-version-lines [] {
     ({
         schema_version: 1,
         platforms: {
-            myplat: {slug: "mp", display_name: "My Platform", version_lines: []}
+            myplat: {display_name: "My Platform", version_lines: []}
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
-        build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     # Same validation must reject scalar values too.
     ({
         schema_version: 1,
         platforms: {
-            myplat: {slug: "mp", display_name: "My Platform", version_lines: "v1"}
+            myplat: {display_name: "My Platform", version_lines: "v1"}
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let scalar_err = (try {
-        build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     let result = [
         (assert-string-contains $err "platform 'myplat' version_lines must be a non-empty list" "error names platform and requirement")
@@ -598,12 +602,12 @@ def test-build-matrix-rules-json-stable-platform-sort [] {
     ({
         schema_version: 1,
         platforms: {
-            zzz_plat: {slug: "z", display_name: "Tied Name", version_lines: ["v1"]},
-            aaa_plat: {slug: "a", display_name: "Tied Name", version_lines: ["v1"]},
-            beta:     {slug: "b", display_name: "Alpha",     version_lines: ["v2"]},
+            zzz_plat: {display_name: "Tied Name", version_lines: ["v1"]},
+            aaa_plat: {display_name: "Tied Name", version_lines: ["v1"]},
+            beta:     {display_name: "Alpha",     version_lines: ["v2"]},
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
-    let out = (build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp)
+    let out = (build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp)
     let plat_ids = ($out.platforms | each {|p| $p.id})
     let result = [
         (assert-eq $plat_ids ["beta" "aaa_plat" "zzz_plat"]
@@ -613,10 +617,41 @@ def test-build-matrix-rules-json-stable-platform-sort [] {
     $result
 }
 
+def test-build-matrix-rules-json-matrix-keys-use-tuple-shape [] {
+    test-log "\n[test-build-matrix-rules-json-matrix-keys-use-tuple-shape]"
+    mut tmp = ($nu.temp-dir | path join $"ocmts-tuplekeys-(random uuid)")
+    mkdir $tmp
+    materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
+    let rules = (load-matrix-rules $tmp)
+    let out = (build-matrix-rules-json $rules "config/matrix" {} {} $tmp)
+    let ssot_keys = ($rules.matrix | columns)
+    let emitted_keys = ($out.matrix | each {|c| $c.matrix_key})
+    let all_keys = ($ssot_keys | append $emitted_keys | uniq | sort)
+    let all_valid = ($all_keys | all {|k|
+        (try { validate-matrix-key $k; true } catch { false })
+    })
+    let two_party_ok = ($out.matrix | all {|c|
+        let parts = ($c.matrix_key | split row "__" | length)
+        let expects_three = (not (($c.receiver_platform? | default "") | is-empty))
+        if $expects_three { $parts == 3 } else { $parts == 2 }
+    })
+    let result = [
+        (assert-truthy (not ($all_keys | is-empty))
+            "matrix keys list is non-empty")
+        (assert-truthy $all_valid
+            "every SSOT and emitted matrix_key passes validate-matrix-key")
+        (assert-truthy $two_party_ok
+            "emitted matrix_key segment count matches flow topology")
+    ]
+    rm --recursive --force $tmp
+    $result
+}
+
 def test-gate-cells-by-capabilities-locked-mapping [] {
     test-log "\n[test-gate-cells-by-capabilities-locked-mapping]"
     # Verify the locked status->action/display_visible/display_status mapping via
-    # gate-cells-by-capabilities. One cell per status scenario.
+    # gate-cells-by-capabilities. One cell per capability status.
     let flow_caps = {
         "f": {sender: ["cap.f.sender"], receiver: []},
     }
@@ -624,7 +659,7 @@ def test-gate-cells-by-capabilities-locked-mapping [] {
         {
             cell_id: $"f__($platform)-v1",
             flow_id: "f",
-            scenario: "f",
+            matrix_key: "f",
             sender_platform: $platform,
             sender_version: "v1",
             receiver_platform: "",
@@ -788,6 +823,7 @@ def main [] {
         | append (test-build-matrix-rules-json-rejects-platform-missing-keys)
         | append (test-build-matrix-rules-json-rejects-empty-version-lines)
         | append (test-build-matrix-rules-json-stable-platform-sort)
+        | append (test-build-matrix-rules-json-matrix-keys-use-tuple-shape)
         | append (test-gate-cells-by-capabilities-locked-mapping)
         | append (test-apply-display-rule-placeholder-coexists-with-supported)
         | append (test-apply-display-rule-vendor-unsupported-remains-alongside-placeholder)

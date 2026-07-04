@@ -108,6 +108,7 @@ describe("extract-registry-keys", () => {
       "nextcloud/v32",
       "nextcloud/v33",
       "nextcloud/v34",
+      "nextcloud/v35",
       "ocis/v8",
       "ocmgo/v1",
       "opencloud/v6",

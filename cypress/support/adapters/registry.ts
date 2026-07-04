@@ -61,6 +61,7 @@ import {
 } from "./nextcloud/v33/share-with-adapter";
 import { cernboxV11LoginAdapter } from "./cernbox/v11/login-adapter";
 import { nextcloudV34LoginAdapter } from "./nextcloud/v34/login-adapter";
+import { nextcloudV35LoginAdapter } from "./nextcloud/v35/login-adapter";
 import {
   nextcloudV34ContactTokenReceiverAdapter,
   nextcloudV34ContactTokenSenderAdapter,
@@ -74,6 +75,19 @@ import {
   nextcloudV34ShareWithFlowReceiverAdapter,
   nextcloudV34ShareWithFlowSenderAdapter,
 } from "./nextcloud/v34/share-with-adapter";
+import {
+  nextcloudV35ContactTokenReceiverAdapter,
+  nextcloudV35ContactTokenSenderAdapter,
+  nextcloudV35ContactWayfReceiverAdapter,
+  nextcloudV35ContactWayfSenderAdapter,
+  nextcloudV35ProviderIdentityAdapter,
+} from "./nextcloud/v35/contact-adapter";
+import {
+  nextcloudV35ShareFileReceiverAdapter,
+  nextcloudV35ShareFileSenderAdapter,
+  nextcloudV35ShareWithFlowReceiverAdapter,
+  nextcloudV35ShareWithFlowSenderAdapter,
+} from "./nextcloud/v35/share-with-adapter";
 
 export type AdapterRef = {
   platform: string;
@@ -85,6 +99,7 @@ const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
     v32: nextcloudV32LoginAdapter,
     v33: nextcloudV33LoginAdapter,
     v34: nextcloudV34LoginAdapter,
+    v35: nextcloudV35LoginAdapter,
   },
   ocmgo: {
     v1: ocmgoV1LoginAdapter,
@@ -105,6 +120,7 @@ const shareWithFlowSenderAdapters: Record<string, Record<string, ShareWithFlowSe
     v32: nextcloudV32ShareWithFlowSenderAdapter,
     v33: nextcloudV33ShareWithFlowSenderAdapter,
     v34: nextcloudV34ShareWithFlowSenderAdapter,
+    v35: nextcloudV35ShareWithFlowSenderAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareWithFlowSenderAdapter,
@@ -116,6 +132,7 @@ const shareWithFlowReceiverAdapters: Record<string, Record<string, ShareWithFlow
     v32: nextcloudV32ShareWithFlowReceiverAdapter,
     v33: nextcloudV33ShareWithFlowReceiverAdapter,
     v34: nextcloudV34ShareWithFlowReceiverAdapter,
+    v35: nextcloudV35ShareWithFlowReceiverAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareWithFlowReceiverAdapter,
@@ -127,6 +144,7 @@ const shareFileSenderAdapters: Record<string, Record<string, ShareFileSenderAdap
     v32: nextcloudV32ShareFileSenderAdapter,
     v33: nextcloudV33ShareFileSenderAdapter,
     v34: nextcloudV34ShareFileSenderAdapter,
+    v35: nextcloudV35ShareFileSenderAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareFileSenderAdapter,
@@ -144,6 +162,7 @@ const shareFileReceiverAdapters: Record<string, Record<string, ShareFileReceiver
     v32: nextcloudV32ShareFileReceiverAdapter,
     v33: nextcloudV33ShareFileReceiverAdapter,
     v34: nextcloudV34ShareFileReceiverAdapter,
+    v35: nextcloudV35ShareFileReceiverAdapter,
   },
   ocmgo: {
     v1: ocmgoV1ShareFileReceiverAdapter,
@@ -159,6 +178,7 @@ const shareFileReceiverAdapters: Record<string, Record<string, ShareFileReceiver
 const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSenderAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactTokenSenderAdapter,
+    v35: nextcloudV35ContactTokenSenderAdapter,
   },
   ocis: {
     v8: ocisV8ContactTokenSenderAdapter,
@@ -171,6 +191,7 @@ const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSend
 const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenReceiverAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactTokenReceiverAdapter,
+    v35: nextcloudV35ContactTokenReceiverAdapter,
   },
   ocis: {
     v8: ocisV8ContactTokenReceiverAdapter,
@@ -183,18 +204,21 @@ const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenRe
 const contactWayfSenderAdapters: Record<string, Record<string, ContactWayfSenderAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactWayfSenderAdapter,
+    v35: nextcloudV35ContactWayfSenderAdapter,
   },
 };
 
 const contactWayfReceiverAdapters: Record<string, Record<string, ContactWayfReceiverAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ContactWayfReceiverAdapter,
+    v35: nextcloudV35ContactWayfReceiverAdapter,
   },
 };
 
 const providerIdentityAdapters: Record<string, Record<string, ProviderIdentityAdapter>> = {
   nextcloud: {
     v34: nextcloudV34ProviderIdentityAdapter,
+    v35: nextcloudV35ProviderIdentityAdapter,
   },
   ocis: {
     v8: ocisV8ProviderIdentityAdapter,

@@ -57,9 +57,9 @@ def adapters-vendor-oos [] {
         "seafile/v1": {
             capabilities: {
                 "op.login": {status: "supported"},
-                "flow.code-flow.sender": {
+                "flow.contact-wayf.sender": {
                     status: "vendor-out-of-scope",
-                    rationale: "seafile does not implement code-flow",
+                    rationale: "seafile does not implement contact-wayf",
                 },
             }
         }
@@ -75,10 +75,10 @@ def flow-caps-share-with [] {
     }
 }
 
-def flow-caps-code-flow [] {
+def flow-caps-contact-wayf [] {
     {
-        "code-flow": {
-            sender: ["flow.code-flow.sender"],
+        "contact-wayf": {
+            sender: ["flow.contact-wayf.sender"],
             receiver: [],
         }
     }
@@ -88,7 +88,7 @@ def make-cell [flow_id: string, platform: string, version: string, --enabled = t
     {
         cell_id: $"($flow_id)__($platform)-($version)",
         flow_id: $flow_id,
-        scenario: $flow_id,
+        matrix_key: $flow_id,
         sender_platform: $platform,
         sender_version: $version,
         receiver_platform: "",
@@ -158,8 +158,8 @@ def test-vendor-unsupported-cell [] {
 
 def test-vendor-out-of-scope-cell [] {
     test-log "\n[test-vendor-out-of-scope-cell]"
-    let cell = (make-cell "code-flow" "seafile" "v1")
-    let g = (gate-one-cell $cell (adapters-vendor-oos) (flow-caps-code-flow))
+    let cell = (make-cell "contact-wayf" "seafile" "v1")
+    let g = (gate-one-cell $cell (adapters-vendor-oos) (flow-caps-contact-wayf))
     [
         (assert-eq $g.capability_status "vendor-out-of-scope"
             "out-of-scope: capability_status")
@@ -195,8 +195,8 @@ def test-disabled-supported-becomes-placeholder [] {
 
 def test-disabled-oos-stays-oos [] {
     test-log "\n[test-disabled-oos-stays-oos]"
-    let cell = (make-cell "code-flow" "seafile" "v1" --enabled false)
-    let g = (gate-one-cell $cell (adapters-vendor-oos) (flow-caps-code-flow))
+    let cell = (make-cell "contact-wayf" "seafile" "v1" --enabled false)
+    let g = (gate-one-cell $cell (adapters-vendor-oos) (flow-caps-contact-wayf))
     [
         (assert-eq $g.capability_status "vendor-out-of-scope"
             "disabled+OOS: capability_status stays vendor-out-of-scope")
@@ -211,7 +211,7 @@ def test-worst-role-wins [] {
     let cell = {
         cell_id: "share-with__nextcloud-v34__opencloud-v6",
         flow_id: "share-with",
-        scenario: "share-with",
+        matrix_key: "share-with__nextcloud__opencloud",
         sender_platform: "nextcloud",
         sender_version: "v34",
         receiver_platform: "opencloud",
@@ -274,13 +274,13 @@ def test-capability-skipped-cells-helper [] {
 def test-gate-cells-by-capabilities-batch [] {
     test-log "\n[test-gate-cells-by-capabilities-batch]"
     let cells = [
-        (make-cell "code-flow" "seafile" "v1")
+        (make-cell "contact-wayf" "seafile" "v1")
         (make-cell "share-with" "nextcloud" "v34")
     ]
     let adapters = {
         "seafile/v1": {
             capabilities: {
-                "flow.code-flow.sender": {status: "vendor-out-of-scope"},
+                "flow.contact-wayf.sender": {status: "vendor-out-of-scope"},
             }
         },
         "nextcloud/v34": {
@@ -291,7 +291,7 @@ def test-gate-cells-by-capabilities-batch [] {
         },
     }
     let flow_caps = {
-        "code-flow": {sender: ["flow.code-flow.sender"], receiver: []},
+        "contact-wayf": {sender: ["flow.contact-wayf.sender"], receiver: []},
         "share-with": {sender: ["flow.share-with.sender"], receiver: []},
     }
     let gated = (gate-cells-by-capabilities $cells $adapters $flow_caps)

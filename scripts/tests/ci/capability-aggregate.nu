@@ -71,7 +71,7 @@ def test-plan-aware-aggregate-synthesizes-cap-skipped [] {
         flow_id: "login",
         pair: "opencloud-v6",
         artifact_name: "cell-login-opencloud-v6",
-        scenario: "login",
+        matrix_key: "login__opencloud",
         sender_platform: "opencloud",
         sender_version: "v6",
         receiver_platform: "",
@@ -115,8 +115,8 @@ def test-plan-aware-aggregate-synthesizes-cap-skipped [] {
             "plan-aware: synthesized cell carries pair from plan")
         (assert-eq ($b_cell.artifact_name? | default "") "cell-login-opencloud-v6"
             "plan-aware: synthesized cell carries artifact_name from plan")
-        (assert-eq ($b_cell.scenario? | default "") "login"
-            "plan-aware: synthesized cell carries scenario from plan")
+        (assert-eq ($b_cell.matrix_key? | default "") "login__opencloud"
+            "plan-aware: synthesized cell carries matrix_key from plan")
         (assert-eq ($b_cell.is_two_party? | default true) false
             "plan-aware: synthesized cell carries is_two_party from plan")
         (assert-truthy ("login" in ($manifest.flows | columns))
@@ -126,6 +126,10 @@ def test-plan-aware-aggregate-synthesizes-cap-skipped [] {
             "plan-aware: synthesized run cell_id matches cell key")
         (assert-eq ($b_run.status? | default "") "capability-skipped"
             "plan-aware: synthesized run status is capability-skipped")
+        (assert-eq ($b_run.matrix_key? | default "") "login__opencloud"
+            "plan-aware: synthesized run carries matrix_key from plan")
+        (assert-eq ($b_result.matrix_key? | default "") "login__opencloud"
+            "plan-aware: synthesized result carries matrix_key from plan")
     ]
 }
 
@@ -217,7 +221,7 @@ def test-synthesized-result-no-lifecycle-status [] {
         flow_id: "login",
         pair: "opencloud-v6",
         artifact_name: "cell-login-opencloud-v6",
-        scenario: "login",
+        matrix_key: "login__opencloud",
         sender_platform: "opencloud",
         sender_version: "v6",
         receiver_platform: "",
@@ -252,7 +256,7 @@ def test-synthesized-run-lifecycle-status-completed [] {
         flow_id: "login",
         pair: "opencloud-v6",
         artifact_name: "cell-login-opencloud-v6",
-        scenario: "login",
+        matrix_key: "login__opencloud",
         sender_platform: "opencloud",
         sender_version: "v6",
         receiver_platform: "",
@@ -284,7 +288,7 @@ def test-aggregate-result-shape-via-build-result-v1 [] {
         flow_id: "login",
         pair: "opencloud-v6",
         artifact_name: "cell-login-opencloud-v6",
-        scenario: "login",
+        matrix_key: "login__opencloud",
         sender_platform: "opencloud",
         sender_version: "v6",
         receiver_platform: "",
@@ -329,7 +333,7 @@ def test-site-ingest-cap-skipped-fallback-non-empty-exec-id [] {
     let public_dir = ($tmp | path join "public")
     let ts = "2026-01-01T00:00:00Z"
     let suite_id = "20260101t000000-aabbccff"
-    let rules = {scenarios: {}}
+    let rules = {matrix: {}}
 
     # Write suite index with a cap-skipped run that has a non-empty execution_id
     # but NO manifest file on disk - this is the I3 scenario.

@@ -50,7 +50,7 @@ def test-cernbox-emits-idp-env [] {
             "mariadb:11" "valkey:7"
             "cypress/e2e/login/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "" "" "" "login" "v11" "" $bundle
+            "" "" "" "v11" "" $bundle
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))
@@ -90,7 +90,7 @@ def test-nextcloud-omits-idp-env [] {
             "mariadb:11" "valkey:7"
             "cypress/e2e/login/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "" "" "" "login" "v32" "" {}
+            "" "" "" "v32" "" {}
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))

@@ -1,12 +1,18 @@
 # Optimized Media Lane
 
-The OCM Test Suite publishes its public site with derived media (AVIF, WebP,
-AV1 WebM, VP9 WebM) instead of the raw PNG and MP4 captured during tests.
-The optimized-media lane runs in parallel with raw test execution; raw
-artifacts and raw manifests are never rewritten. See
-`docs/architecture/media-projection.md` for the design rationale.
+The OCM Test Suite can publish its public site with derived media (AVIF,
+WebP, AV1 WebM, VP9 WebM) instead of the raw PNG and MP4 captured during
+tests. **Raw media is the default publish lane** (`media_lane_mode: "raw"`
+in `config/site.nuon`); the optimized-media lane is explicit opt-in. When
+enabled, it runs in parallel with raw test execution; raw artifacts and raw
+manifests are never rewritten. See `docs/architecture/media-projection.md`
+for the design rationale.
 
 ## Two-lane architecture
+
+With the default `"raw"` lane mode, generated workflows skip per-cell
+optimization and site-side media projection; the site publishes raw MP4 and
+PNG. The diagram below describes the explicit `"optimized"` lane.
 
 ```text
                                     optimized-media-cell-<key>
@@ -36,10 +42,11 @@ Optimized lane: `optimized-media-<artifact-name>` per cell (no extra `cell-`
 prefix; the artifact name already starts with `cell-`). Merged into
 `optimized-media-summary` by `ci-site.yml`.
 
-Site lane: `ci-site.yml` downloads both aggregates, projects media rows in
-the public manifest, copies derived media into the public artifact tree,
-removes raw `.png` and `.mp4` from public, builds the Astro site, deploys
-to GitHub Pages.
+Site lane (`"optimized"` mode): `ci-site.yml` downloads both aggregates,
+projects media rows in the public manifest, copies derived media into the
+public artifact tree, removes raw `.png` and `.mp4` from public, builds the
+Astro site, and deploys to GitHub Pages. In `"raw"` mode (default), the site
+build consumes the raw aggregate only.
 
 ## Media lane mode
 
@@ -48,7 +55,7 @@ publish lanes:
 
 | Value | Behavior |
 | --- | --- |
-| `"raw"` | Skip all ffmpeg/optimizer work. Per-cell optimizer steps and the site aggregate/projection steps are gated off via `if: false`. The site publishes raw MP4 and PNG. Default. |
+| `"raw"` | Skip ffmpeg/optimizer work. Per-cell optimizer steps and optimized-media steps inside `ci-site.yml` (`aggregate-media` probe/download/aggregate/upload; build optimized summary download) are gated off via `if: false`. The `aggregate-media` job and `build -> aggregate-media` dependency remain; checkout and Nushell install still run. Site publishes raw MP4 and PNG. Default. |
 | `"optimized"` | Full optimizer pipeline runs. Per-cell steps pre-pull the image, run `optimize-media`, and upload the optimized artifact. `ci-site.yml` downloads, aggregates, and projects optimized media into the published site. |
 
 After changing `media_lane_mode`, regenerate the workflows:
@@ -58,9 +65,11 @@ nu scripts/ocmts.nu ci workflows generate github
 ```
 
 The generated `ci-run-cell.yml` and `ci-site.yml` bake the lane as literal
-`true` or `false` in each relevant `if:` condition. The `--optimized-media-dir`
-argument to `site publish` renders as `'artifacts/optimized-summary/'` in
-optimized mode and `''` (empty string) in raw mode.
+`true` or `false` in each relevant `if:` condition. In the `ci-site.yml`
+Publish site step, the bash `ARGS` array entry for `--optimized-media-dir`
+renders as `--optimized-media-dir 'artifacts/optimized-summary/'` in
+optimized mode and `# raw mode` (a comment placeholder) in raw mode, so the
+array stays valid and the generated YAML does not contain a dangling flag.
 
 ## Configuration
 
@@ -71,7 +80,7 @@ Site publish settings: `config/site.nuon`.
 | `media_lane_mode` | Lane selector: `"raw"` (default) or `"optimized"` |
 | `repo_slug` | Source site repo `<owner>/<name>` used for clone |
 | `ref` | Default git ref for site checkout |
-| `publish_branch_gate` | Branch on which optimized-media work runs |
+| `publish_branch_gate` | Git branch gating site publish and cell media CI |
 | `site_build_output_path` | Output dir relative to site repo (`dist`) |
 | `raw_aggregate_artifact_name` | Raw aggregate artifact name |
 | `optimized_artifact_pattern` | Glob for per-cell optimized artifacts |
@@ -269,6 +278,10 @@ array; renderers iterate and pick the first the browser supports.
 
 ## Failure semantics
 
+Test execution failures are independent of media lane mode.
+
+### Optimized lane (`media_lane_mode: "optimized"`)
+
 Hard fail (publish aborts; no Pages deploy):
 
 - Optimizer probe fails (missing encoder or muxer in the image).
@@ -280,20 +293,25 @@ Hard fail (publish aborts; no Pages deploy):
   validate, aggregate, or projection time.
 - A destination path computed during projection escapes the public root.
 
-Soft (logged, lane continues):
+Soft (logged; optimized lane continues):
 
 - A cell with no publishable media: `status: no-source-media`, empty
   `items`. Aggregate counts the cell in `cell_counts_by_status.no_source_media`.
+
+When `media_lane_mode` is `"optimized"`, the CI optimize lane still runs
+after the test step because the workflow step uses
+`if: always() && github.ref == 'refs/heads/...'`. Optimization failures
+inside that lane are hard errors: the per-cell optimize command exits
+nonzero on failed conversions, optimized artifact upload requires files, and
+the site aggregate lane rejects empty or failed optimized summaries.
+
+### Raw lane (default)
+
+Soft (logged; publish continues with raw media):
+
 - Public manifest contains media rows but no optimized aggregate is
   provided to `site publish`: publish proceeds with raw media; a warning
   is printed to stderr.
-
-Test execution failures are independent. On the publish branch, the CI
-optimize lane still runs after the test step because the workflow step uses
-`if: always() && github.ref == 'refs/heads/...'`. But optimization failures
-inside that lane are now hard errors: the per-cell optimize command exits
-nonzero on failed conversions, optimized artifact upload requires files, and
-the site aggregate lane rejects empty or failed optimized summaries.
 
 ## Local development workflow
 
@@ -339,6 +357,11 @@ cd ../ocm-web-site && bun run build
 
 ## CI workflow surface
 
+The steps below apply when `media_lane_mode` is `"optimized"`. In the
+default `"raw"` mode, per-cell optimizer steps and optimized-media steps
+inside `ci-site.yml` are gated off via `if: false`; the `aggregate-media`
+job and `build -> aggregate-media` dependency remain.
+
 `ci-run-cell.yml` per cell, gated on `publish_branch_gate`:
 
 1. `Pre-pull optimizer image` warms the docker layer cache.
@@ -372,9 +395,22 @@ cd ../ocm-web-site && bun run build
 
 `workflow_dispatch` on `ci-site.yml` rebuilds the site from a previous
 matrix run without rerunning tests. The dispatch resolves the latest
-successful `ci-matrix.yml` run on the configured publish branch and
-downloads its raw and optimized artifacts. Useful when the renderer or the
-projection logic changes but the test evidence does not.
+successful `ci-matrix.yml` run on the configured publish branch. Useful
+when the renderer or the projection logic changes but the test evidence does
+not.
+
+In the default `"raw"` mode, the dispatch downloads only the raw
+`aggregate-summary` artifact. Per-cell optimizer steps and optimized-media
+steps inside the `aggregate-media` job (probe, download, aggregate, upload)
+and the build job's optimized summary download are gated off via `if: false`,
+so optimized cell artifacts and `optimized-media-summary` are not downloaded
+or consumed. The `aggregate-media` job itself still runs for checkout and
+Nushell install.
+
+In `"optimized"` mode, the `aggregate-media` job's optimizer steps run
+(download optimized cell artifacts, aggregate, upload summary) and the build
+job downloads both `aggregate-summary` and `optimized-media-summary` before
+`site publish`.
 
 ## See also
 

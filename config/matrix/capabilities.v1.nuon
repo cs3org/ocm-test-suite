@@ -32,8 +32,6 @@
     "flow.contact-wayf.sender",
     "flow.contact-wayf.receiver",
     "op.contact-wayf.sender",
-    "op.contact-wayf.receiver",
-    "flow.code-flow.sender",
-    "flow.code-flow.receiver"
+    "op.contact-wayf.receiver"
   ]
 }

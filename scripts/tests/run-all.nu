@@ -13,6 +13,9 @@ def main [] {
     let suites = (
         glob $"($tests_dir)/**/*.nu"
         | where {|p| ($p | path basename) != "run-all.nu"}
+        # Only treat files that define a `main` entrypoint as suites. Shared
+        # helper modules (e.g. ci/fixtures.nu) export fixtures but have no main.
+        | where {|p| (open --raw $p | decode utf-8) =~ '(?m)^\s*(export )?def main\b'}
         # Exclude opt-in manual tests (e.g. heavy Docker/ffmpeg suites).
         | where {|p| not ($p | str contains "/manual/")}
         | sort

@@ -271,6 +271,44 @@ def test-wave-gen-yaml-properties [] {
     ]
 }
 
+# Prove generator fallback: unset media_lane_mode defaults to raw lane policy.
+def test-media-lane-raw-default-fallback [] {
+    test-log "\n[test-media-lane-raw-default-fallback]"
+    let unset_lane = {media_lane_mode: null}
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides $unset_lane)
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides $unset_lane)
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let upload_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
+    let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_pos)
+    [
+        (assert-truthy ($optimize_section | str contains "&& false")
+            "unset media_lane_mode: run-cell optimizer steps gated with && false (raw default)")
+        (assert-truthy ($ci_site_yml | str contains "# raw mode")
+            "unset media_lane_mode: ci-site publish step uses raw-mode comment placeholder")
+        (assert-truthy (not ($ci_site_yml | str contains "--optimized-media-dir"))
+            "unset media_lane_mode: ci-site does not pass --optimized-media-dir flag")
+    ]
+}
+
+# Prove explicit optimized opt-in enables optimized lane placeholders.
+def test-media-lane-optimized-opt-in [] {
+    test-log "\n[test-media-lane-optimized-opt-in]"
+    let optimized_lane = {media_lane_mode: "optimized"}
+    let run_cell_yml = (build-run-cell-yml --site-cfg-overrides $optimized_lane)
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides $optimized_lane)
+    let optimize_pos = ($run_cell_yml | str index-of "Optimize cell media")
+    let upload_pos = ($run_cell_yml | str index-of "Upload optimized media artifact")
+    let optimize_section = ($run_cell_yml | str substring $optimize_pos..$upload_pos)
+    [
+        (assert-truthy ($optimize_section | str contains "&& true")
+            "optimized opt-in: run-cell optimizer steps gated with && true")
+        (assert-truthy ($ci_site_yml | str contains "--optimized-media-dir 'artifacts/optimized-summary/'")
+            "optimized opt-in: ci-site publish step passes --optimized-media-dir flag")
+        (assert-truthy (not ($ci_site_yml | str contains "# raw mode"))
+            "optimized opt-in: ci-site publish step does not use raw-mode comment")
+    ]
+}
+
 # Prove the raw.aggregate.artifact.name seam: overriding
 # raw_aggregate_artifact_name in config/site.nuon must flow through to the
 # rendered ci-matrix.yml aggregate upload step.
@@ -314,6 +352,8 @@ def main [] {
         | append (test-workflow-deterministic)
         | append (test-flow-based-no-wave-jobs)
         | append (test-wave-gen-yaml-properties)
+        | append (test-media-lane-raw-default-fallback)
+        | append (test-media-lane-optimized-opt-in)
         | append (test-ci-matrix-raw-agg-artifact-seam)
     ) | flatten
     run-suite "ci/workflow-gen" $SUITE_PATH $results

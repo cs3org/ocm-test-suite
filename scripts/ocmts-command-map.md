@@ -12,11 +12,11 @@ Run from the repo root.
 
 | Command                                              | Purpose                                                           |
 | ---------------------------------------------------- | ----------------------------------------------------------------- |
-| `nu scripts/ocmts.nu actors list`                    | List scenarios enabled in the matrix SSOT.                        |
-| `nu scripts/ocmts.nu actors list overrides`          | List scenarios with override files in `config/actors/scenarios/`. |
-| `nu scripts/ocmts.nu actors show <scenario>`         | Show resolved actor record for a one-party scenario.              |
-| `nu scripts/ocmts.nu actors validate <args>`         | Validate one scenario's resolution.                               |
-| `nu scripts/ocmts.nu actors validate-all`            | Validate every matrix-enabled scenario.                           |
+| `nu scripts/ocmts.nu actors list`                    | List matrix keys enabled in the matrix SSOT.                      |
+| `nu scripts/ocmts.nu actors list overrides`          | List matrix keys with override files in `config/actors/overrides/`. |
+| `nu scripts/ocmts.nu actors show --flow ...`         | Show resolved actor record for a tuple.                           |
+| `nu scripts/ocmts.nu actors validate --flow ...`   | Validate one tuple's resolution.                                  |
+| `nu scripts/ocmts.nu actors validate-all`            | Validate every matrix-enabled tuple.                              |
 
 ## artifacts
 
@@ -51,29 +51,31 @@ Run from the repo root.
 
 ## images
 
-| Command                                    | Purpose                              |
-| ------------------------------------------ | ------------------------------------ |
-| `nu scripts/ocmts.nu images list [--json]` | List configured images.              |
-| `nu scripts/ocmts.nu images show <id>`     | Show one image's resolved config.    |
-| `nu scripts/ocmts.nu images resolve ...`   | Resolve image precedence for a cell. |
+| Command                                                                    | Purpose                                              |
+| -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `nu scripts/ocmts.nu images list [--json]`                                 | List configured images.                              |
+| `nu scripts/ocmts.nu images show --platform <platform> --version <version>` | Print raw version-scoped config (not resolved).      |
+| `nu scripts/ocmts.nu images resolve ...`                                   | Resolve image precedence for a cell.                 |
 
 ## matrix
 
-| Command                                         | Purpose                                                                                         |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `nu scripts/ocmts.nu matrix gen cypress`        | Regenerate `cypress/e2e/<flow>/matrix.ts` files.                                                |
-| `nu scripts/ocmts.nu matrix list [--json]`      | List enabled cells.                                                                             |
-| `nu scripts/ocmts.nu matrix cell ...`           | Show one cell record.                                                                           |
-| `nu scripts/ocmts.nu matrix check capabilities` | Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.   |
+| Command                                                    | Purpose                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `nu scripts/ocmts.nu matrix gen cypress`                   | Regenerate `cypress/e2e/<flow>/matrix.ts` files.                                                  |
+| `nu scripts/ocmts.nu matrix list [--json]`                 | List expanded matrix cells (version pairs x browsers).                                            |
+| `nu scripts/ocmts.nu matrix list entries [--json] [--md]`  | List matrix rules entries (one row per `matrix_key`); `--json` and `--md` are mutually exclusive. |
+| `nu scripts/ocmts.nu matrix cell ...`                      | Show one cell record.                                                                             |
+| `nu scripts/ocmts.nu matrix check capabilities`            | Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files.     |
 
 ## services
 
-| Command                                    | Purpose                                |
-| ------------------------------------------ | -------------------------------------- |
-| `nu scripts/ocmts.nu services up ...`      | Bring up the compose stack for a cell. |
-| `nu scripts/ocmts.nu services up run ...`  | Up + run Cypress headless.             |
-| `nu scripts/ocmts.nu services up open ...` | Up + open Cypress UI.                  |
-| `nu scripts/ocmts.nu services down ...`    | Tear down the compose stack.           |
+| Command                                              | Purpose                                              |
+| ----------------------------------------------------- | ------------------------------------------------------ |
+| `nu scripts/ocmts.nu services up ...`                | Bring up the compose stack for a cell.               |
+| `nu scripts/ocmts.nu services up run ...`            | Up + run Cypress headless.                           |
+| `nu scripts/ocmts.nu services up open ...`           | Up + open Cypress UI.                                |
+| `nu scripts/ocmts.nu services down ...`              | Tear down the compose stack.                         |
+| `nu scripts/ocmts.nu services list-cell-images ...`  | Print runtime image refs for a cell (one per line).  |
 
 ## site
 

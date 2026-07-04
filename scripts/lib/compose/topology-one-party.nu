@@ -1,4 +1,4 @@
-# One-party compose overlay writer (e.g. login scenario).
+# One-party compose overlay writer (e.g. login flow).
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
@@ -11,7 +11,7 @@ use ./topology-common.nu [
     ocmgo-env-lines
     party-idp-origin
 ]
-use ../actors/load.nu [load-actor-for-scenario]
+use ../actors/load.nu [load-actor-for-tuple]
 use ../matrix/cell.nu [validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines platform-login-realm]
 
@@ -96,10 +96,10 @@ def write-one-party-env [
     $env_path
 }
 
-# Write overlays for a one-party scenario (e.g. login).
+# Write overlays for a one-party flow (e.g. login).
 # Returns {stack_id, compose_d, art_inputs, base_yml, base_overlay_fnames, is_two_party, env_file}.
 export def write-one-party-overlays [
-    scenario: string,
+    flow_id: string,
     platform: string,
     artifact_name: string,
     execution_id: string,
@@ -119,7 +119,7 @@ export def write-one-party-overlays [
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
-    let actor = (load-actor-for-scenario $scenario $root $platform)
+    let actor = (load-actor-for-tuple $flow_id $platform $root $platform)
 
     # External-IdP env (host/origin/realm) derived once from the platforms SSOT.
     let idp_origin = (party-idp-origin $root $platform 1)

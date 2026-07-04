@@ -5,21 +5,20 @@ use ./cell.nu [compute-cell]
 use ./expand.nu [expand-version-pairs]
 
 # Build a flat cell list from a matrix-rules record.
-# Merges enabled and mitm from the scenario config onto each cell.
-# Fails hard if any compute-cell call raises an error.
+# Merges enabled and mitm from the matrix config onto each cell.
 export def expand-matrix-cells [rules: record] {
-    $rules.scenarios | items {|scenario, sc|
-        let recv_platform = ($sc.receiver?.platform? | default "")
-        let flow_id_arg = ($sc.flow_id? | default $scenario)
-        let version_pairs = (expand-version-pairs $sc)
+    $rules.matrix | items {|matrix_key, entry|
+        let recv_platform = ($entry.receiver?.platform? | default "")
+        let flow_id_arg = ($entry.flow_id? | default "")
+        let version_pairs = (expand-version-pairs $entry)
         $version_pairs | each {|vp|
-            $sc.browsers | each {|browser|
+            $entry.browsers | each {|browser|
                 let cell = (compute-cell
-                    $scenario $sc.sender.platform $vp.sender_version $browser
-                    $recv_platform $vp.receiver_version $flow_id_arg)
+                    $flow_id_arg $entry.sender.platform $vp.sender_version $browser
+                    $recv_platform $vp.receiver_version)
                 $cell | merge {
-                    enabled: ($sc.enabled? | default false),
-                    mitm: ($sc.mitm? | default false),
+                    enabled: ($entry.enabled? | default false),
+                    mitm: ($entry.mitm? | default false),
                 }
             }
         } | flatten

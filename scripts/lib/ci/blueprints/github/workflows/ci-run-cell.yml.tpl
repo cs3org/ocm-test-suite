@@ -10,7 +10,7 @@ on:
       display-name:
         required: true
         type: string
-      scenario:
+      flow:
         required: true
         type: string
       sender-platform:
@@ -92,7 +92,7 @@ jobs:
             REASON="${{ steps.prereq_check.outputs['prereq-failure-reason'] }}"
           fi
           ARGS=(
-            --scenario "${{ inputs.scenario }}"
+            --flow "${{ inputs.flow }}"
             --sender-platform "${{ inputs['sender-platform'] }}"
             --sender-version "${{ inputs['sender-version'] }}"
             --execution-id "${{ steps.cell.outputs['execution-id'] }}"
@@ -112,7 +112,7 @@ jobs:
         if: inputs['failure-reason'] == '' && steps.prereq_check.outputs['prereq-failure-reason'] == ''
         run: |
           ARGS=(
-            --scenario "${{ inputs.scenario }}"
+            --flow "${{ inputs.flow }}"
             --sender-platform "${{ inputs['sender-platform'] }}"
             --sender-version "${{ inputs['sender-version'] }}"
           )
@@ -134,7 +134,7 @@ jobs:
           EXECUTION_ID: ${{ steps.cell.outputs['execution-id'] }}
         run: |
           ARGS=(
-            --scenario "${{ inputs.scenario }}"
+            --flow "${{ inputs.flow }}"
             --sender-platform "${{ inputs['sender-platform'] }}"
             --sender-version "${{ inputs['sender-version'] }}"
             --suite-id "${{ inputs['suite-id'] }}"

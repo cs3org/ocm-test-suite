@@ -1,4 +1,5 @@
 # resolve-images bundle reduction tests for cernbox/v11 and non-bundle platforms.
+# Proves bundle slots resolve independently from the main platform image.
 # Run: nu scripts/tests/images/resolve-images-bundle.nu
 
 const SUITE_PATH = path self
@@ -11,9 +12,24 @@ const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master
 const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
 
+def leaked-cernbox-image-env-mask [] {
+    [
+        OCMTS_CERNBOX_WEB_V11_IMAGE
+        OCMTS_CERNBOX_REVAD_IMAGE
+        OCMTS_CERNBOX_IDP_IMAGE
+    ]
+    | reduce --fold {} {|k, acc|
+        if $k in $env { $acc | upsert $k null } else { $acc }
+    }
+}
+
 def test-cernbox-v11-bundle-keys-and-defaults [] {
     test-log "\n[test-cernbox-v11-bundle-keys-and-defaults]"
-    let imgs = (resolve-images "cernbox" "v11")
+    let imgs = (
+        with-env (leaked-cernbox-image-env-mask) {
+            resolve-images "cernbox" "v11"
+        }
+    )
     let bundle_cols = ($imgs.bundle | columns)
     [
         (assert-eq $imgs.platform $CERNBOX_WEB_DEFAULT "cernbox/v11 platform default")
@@ -31,7 +47,7 @@ def test-cernbox-v11-bundle-env-override-precedence [] {
     test-log "\n[test-cernbox-v11-bundle-env-override-precedence]"
     let custom_revad = "ghcr.io/example/cernbox-revad:override"
     let imgs = (
-        with-env { OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad } {
+        with-env (leaked-cernbox-image-env-mask | merge { OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad }) {
             resolve-images "cernbox" "v11"
         }
     )
@@ -47,7 +63,7 @@ def test-cernbox-v11-bundle-idp-env-override-precedence [] {
     test-log "\n[test-cernbox-v11-bundle-idp-env-override-precedence]"
     let custom_idp = "ghcr.io/example/idp:override"
     let imgs = (
-        with-env { OCMTS_CERNBOX_IDP_IMAGE: $custom_idp } {
+        with-env (leaked-cernbox-image-env-mask | merge { OCMTS_CERNBOX_IDP_IMAGE: $custom_idp }) {
             resolve-images "cernbox" "v11"
         }
     )
@@ -56,6 +72,31 @@ def test-cernbox-v11-bundle-idp-env-override-precedence [] {
             "OCMTS_CERNBOX_IDP_IMAGE overrides idp bundle slot")
         (assert-eq ($imgs.bundle | get revad) $CERNBOX_REVAD_DEFAULT
             "revad bundle slot unchanged when only idp env is set")
+    ]
+}
+
+def test-cernbox-v11-web-and-bundle-env-override-independence [] {
+    test-log "\n[test-cernbox-v11-web-and-bundle-env-override-independence]"
+    let custom_web = "ghcr.io/example/cernbox-web:override"
+    let custom_revad = "ghcr.io/example/cernbox-revad:override"
+    let imgs = (
+        with-env (
+            leaked-cernbox-image-env-mask
+            | merge {
+                OCMTS_CERNBOX_WEB_V11_IMAGE: $custom_web
+                OCMTS_CERNBOX_REVAD_IMAGE: $custom_revad
+            }
+        ) {
+            resolve-images "cernbox" "v11"
+        }
+    )
+    [
+        (assert-eq $imgs.platform $custom_web
+            "OCMTS_CERNBOX_WEB_V11_IMAGE overrides platform web ref independently of bundle")
+        (assert-eq ($imgs.bundle | get revad) $custom_revad
+            "OCMTS_CERNBOX_REVAD_IMAGE overrides revad slot independently of platform web")
+        (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT
+            "idp bundle slot unchanged when only web and revad envs are set")
     ]
 }
 
@@ -76,6 +117,7 @@ def main [] {
         (test-cernbox-v11-bundle-keys-and-defaults)
         | append (test-cernbox-v11-bundle-env-override-precedence)
         | append (test-cernbox-v11-bundle-idp-env-override-precedence)
+        | append (test-cernbox-v11-web-and-bundle-env-override-independence)
         | append (test-nextcloud-v32-bundle-empty)
     ) | flatten
     run-suite "images/resolve-images-bundle" $SUITE_PATH $results

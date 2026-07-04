@@ -1,6 +1,6 @@
 [
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -12,7 +12,7 @@
     "wave_index": 1
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -24,7 +24,7 @@
     "wave_index": 2
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "nextcloud",
@@ -36,7 +36,19 @@
     "wave_index": 3
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v32",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "nextcloud v32 to nextcloud v35",
+    "artifact_name": "cell-share-with-nextcloud-v32-nextcloud-v35",
+    "cell_id": "share-with__nextcloud-v32__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v32,cell-login-nextcloud-v35",
+    "wave_index": 4
+  },
+  {
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v32",
     "receiver_platform": "ocmgo",
@@ -45,10 +57,10 @@
     "artifact_name": "cell-share-with-nextcloud-v32-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v32__ocmgo-v1",
     "cell_depends_on": "cell-login-nextcloud-v32,cell-login-ocmgo-v1",
-    "wave_index": 4
+    "wave_index": 5
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -57,10 +69,10 @@
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v32",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v32",
     "cell_depends_on": "cell-login-nextcloud-v33,cell-login-nextcloud-v32",
-    "wave_index": 5
+    "wave_index": 6
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -69,10 +81,10 @@
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v33",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v33",
     "cell_depends_on": "cell-login-nextcloud-v33",
-    "wave_index": 6
+    "wave_index": 7
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "nextcloud",
@@ -81,10 +93,22 @@
     "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v34",
     "cell_id": "share-with__nextcloud-v33__nextcloud-v34",
     "cell_depends_on": "cell-login-nextcloud-v33,cell-login-nextcloud-v34",
-    "wave_index": 7
+    "wave_index": 8
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v33",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "nextcloud v33 to nextcloud v35",
+    "artifact_name": "cell-share-with-nextcloud-v33-nextcloud-v35",
+    "cell_id": "share-with__nextcloud-v33__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v33,cell-login-nextcloud-v35",
+    "wave_index": 9
+  },
+  {
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v33",
     "receiver_platform": "ocmgo",
@@ -93,10 +117,10 @@
     "artifact_name": "cell-share-with-nextcloud-v33-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v33__ocmgo-v1",
     "cell_depends_on": "cell-login-nextcloud-v33,cell-login-ocmgo-v1",
-    "wave_index": 8
+    "wave_index": 10
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -105,10 +129,10 @@
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v32",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v32",
     "cell_depends_on": "cell-login-nextcloud-v34,cell-login-nextcloud-v32",
-    "wave_index": 9
+    "wave_index": 11
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -117,10 +141,10 @@
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v33",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v33",
     "cell_depends_on": "cell-login-nextcloud-v34,cell-login-nextcloud-v33",
-    "wave_index": 10
+    "wave_index": 12
   },
   {
-    "scenario": "share-with",
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "nextcloud",
@@ -129,10 +153,22 @@
     "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v34",
     "cell_id": "share-with__nextcloud-v34__nextcloud-v34",
     "cell_depends_on": "cell-login-nextcloud-v34",
-    "wave_index": 11
+    "wave_index": 13
   },
   {
-    "scenario": "share-with-nc-ocmgo",
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v34",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "nextcloud v34 to nextcloud v35",
+    "artifact_name": "cell-share-with-nextcloud-v34-nextcloud-v35",
+    "cell_id": "share-with__nextcloud-v34__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v34,cell-login-nextcloud-v35",
+    "wave_index": 14
+  },
+  {
+    "flow": "share-with",
     "sender_platform": "nextcloud",
     "sender_version": "v34",
     "receiver_platform": "ocmgo",
@@ -141,10 +177,70 @@
     "artifact_name": "cell-share-with-nextcloud-v34-ocmgo-v1",
     "cell_id": "share-with__nextcloud-v34__ocmgo-v1",
     "cell_depends_on": "cell-login-nextcloud-v34,cell-login-ocmgo-v1",
-    "wave_index": 12
+    "wave_index": 15
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v32",
+    "display_name": "nextcloud v35 to nextcloud v32",
+    "artifact_name": "cell-share-with-nextcloud-v35-nextcloud-v32",
+    "cell_id": "share-with__nextcloud-v35__nextcloud-v32",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-nextcloud-v32",
+    "wave_index": 16
+  },
+  {
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v33",
+    "display_name": "nextcloud v35 to nextcloud v33",
+    "artifact_name": "cell-share-with-nextcloud-v35-nextcloud-v33",
+    "cell_id": "share-with__nextcloud-v35__nextcloud-v33",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-nextcloud-v33",
+    "wave_index": 17
+  },
+  {
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v34",
+    "display_name": "nextcloud v35 to nextcloud v34",
+    "artifact_name": "cell-share-with-nextcloud-v35-nextcloud-v34",
+    "cell_id": "share-with__nextcloud-v35__nextcloud-v34",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-nextcloud-v34",
+    "wave_index": 18
+  },
+  {
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "nextcloud v35 to nextcloud v35",
+    "artifact_name": "cell-share-with-nextcloud-v35-nextcloud-v35",
+    "cell_id": "share-with__nextcloud-v35__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v35",
+    "wave_index": 19
+  },
+  {
+    "flow": "share-with",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "ocmgo",
+    "receiver_version": "v1",
+    "display_name": "nextcloud v35 to ocmgo v1",
+    "artifact_name": "cell-share-with-nextcloud-v35-ocmgo-v1",
+    "cell_id": "share-with__nextcloud-v35__ocmgo-v1",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-ocmgo-v1",
+    "wave_index": 20
+  },
+  {
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -153,10 +249,10 @@
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v32",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v32",
     "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v32",
-    "wave_index": 13
+    "wave_index": 21
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -165,10 +261,10 @@
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v33",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v33",
     "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v33",
-    "wave_index": 14
+    "wave_index": 22
   },
   {
-    "scenario": "share-with-ocmgo-nc",
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "nextcloud",
@@ -177,10 +273,22 @@
     "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v34",
     "cell_id": "share-with__ocmgo-v1__nextcloud-v34",
     "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v34",
-    "wave_index": 15
+    "wave_index": 23
   },
   {
-    "scenario": "share-with-ocmgo-ocmgo",
+    "flow": "share-with",
+    "sender_platform": "ocmgo",
+    "sender_version": "v1",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "ocmgo v1 to nextcloud v35",
+    "artifact_name": "cell-share-with-ocmgo-v1-nextcloud-v35",
+    "cell_id": "share-with__ocmgo-v1__nextcloud-v35",
+    "cell_depends_on": "cell-login-ocmgo-v1,cell-login-nextcloud-v35",
+    "wave_index": 24
+  },
+  {
+    "flow": "share-with",
     "sender_platform": "ocmgo",
     "sender_version": "v1",
     "receiver_platform": "ocmgo",
@@ -189,6 +297,6 @@
     "artifact_name": "cell-share-with-ocmgo-v1-ocmgo-v1",
     "cell_id": "share-with__ocmgo-v1__ocmgo-v1",
     "cell_depends_on": "cell-login-ocmgo-v1",
-    "wave_index": 16
+    "wave_index": 25
   }
 ]

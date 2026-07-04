@@ -1,68 +1,99 @@
 # Actor config validator.
 # Derives topology from the matrix SSOT rather than override file shape.
-# Validates all actor credentials for enabled scenarios.
 
-use ../matrix/topology.nu [flow-is-two-party]
+use ../matrix/topology.nu [require-receiver-platform-for-two-party]
+use ../matrix/cell.nu [matrix-entry-state tuple-matrix-key]
 use ../matrix/rules-gen.nu [load-matrix-rules]
-use ./load.nu [load-actor-for-scenario load-sender-for-scenario load-receiver-for-scenario]
+use ../run/execution-id.nu [validate-path-segment]
+use ./load.nu [
+    load-actor-for-tuple
+    load-sender-for-tuple
+    load-receiver-for-tuple
+    assert-file-has-real-overrides
+    role-block-has-real-values
+]
 
-# Validate actor config for a scenario; errors readably when anything is wrong.
-# Topology (one-party vs two-party) is derived from the matrix SSOT, not the
-# override file's shape. When sender_platform is non-empty, passes it into the
-# loader for inference and mismatch checks. When receiver_platform is non-empty
-# (two-party only), passes it into the loader similarly.
+export def require-sender-platform [sender_platform: any] {
+    let sp = ($sender_platform | default "")
+    if ($sp | is-empty) {
+        error make {
+            msg: "--sender-platform is required for tuple-based actor lookup"
+        }
+    }
+    $sp
+}
+
 export def validate-actor-config [
-    scenario: string,
+    flow_id: string,
     root: string,
     sender_platform: string = "",
     receiver_platform: string = "",
-    --flow-id: string = "",
 ] {
-    # Determine canonical topology from matrix flow_id (matrix is SSOT for
-    # topology, not the override file's shape).
-    let topology = if not ($flow_id | is-empty) {
-        {fid: $flow_id, two_party: (flow-is-two-party $flow_id)}
-    } else {
-        let rules = (load-matrix-rules $root)
-        let entry = ($rules.scenarios | get --optional $scenario)
-        if $entry == null {
-            error make {msg: $"Scenario '($scenario)' not found in matrix SSOT and no --flow-id provided; cannot determine topology"}
+    let sender_platform = (require-sender-platform $sender_platform)
+    let fid = (validate-path-segment $flow_id "flow_id")
+    let canonical_two_party = (
+        require-receiver-platform-for-two-party $fid $receiver_platform
+    )
+    let tuple = (tuple-matrix-key $fid $sender_platform $receiver_platform)
+    let mk = $tuple.matrix_key
+    let state = (matrix-entry-state $root $tuple.flow_id $mk)
+    match $state.state {
+        "enabled" => {}
+        "disabled" => {
+            error make {
+                msg: ([
+                    $"Matrix entry '($mk)' is disabled "
+                    "(enabled: false). Placeholder cells cannot be run."
+                ] | str join "")
+            }
         }
-        let fid = ($entry.flow_id? | default "")
-        if $fid == "" {
-            error make {msg: $"Matrix entry for '($scenario)' has no flow_id"}
+        _ => {
+            error make {
+                msg: $"Matrix entry '($mk)' not in config/matrix/. Known: ($state.known | str join ', ')"
+            }
         }
-        {fid: $fid, two_party: (flow-is-two-party $fid)}
     }
-    let canonical_two_party = $topology.two_party
-    let fid_used = $topology.fid
+    let rules = (load-matrix-rules $root)
+    let entry = ($rules.matrix | get $mk)
+    let eff_fid = ($entry.flow_id? | default $tuple.flow_id)
+    if $eff_fid == "" {
+        error make {msg: $"Matrix entry '($mk)' has no flow_id"}
+    }
 
-    # When override file is present and has real content, check that its
-    # shape agrees with the canonical topology from the matrix.
-    let cfg_path = ($root | path join $"config/actors/scenarios/($scenario).nuon")
+    let cfg_path = ($root | path join $"config/actors/overrides/($mk).nuon")
+    let cfg_rel_path = $"config/actors/overrides/($mk).nuon"
     if ($cfg_path | path exists) {
         let cfg = (open $cfg_path)
+        assert-file-has-real-overrides $cfg $cfg_rel_path
         let file_two_party = (
-            (($cfg.sender? | default {} | is-empty) == false)
-            or (($cfg.receiver? | default {} | is-empty) == false)
+            (
+                if ($cfg.sender? | default null) == null { false }
+                else { role-block-has-real-values ($cfg.sender) }
+            )
+            or (
+                if ($cfg.receiver? | default null) == null { false }
+                else { role-block-has-real-values ($cfg.receiver) }
+            )
         )
-        let file_one_party = (($cfg.actor? | default {} | is-empty) == false)
-        let file_has_real = ($file_two_party or $file_one_party)
-        if $file_has_real and ($file_two_party != $canonical_two_party) {
-            error make {msg: $"Override file shape for scenario '($scenario)' \(flow '($fid_used)'\) implies two_party=($file_two_party) but matrix says two_party=($canonical_two_party). Fix the override file or matrix."}
+        let file_one_party = (
+            if ($cfg.actor? | default null) == null { false }
+            else { role-block-has-real-values ($cfg.actor) }
+        )
+        if ($file_two_party or $file_one_party) and ($file_two_party != $canonical_two_party) {
+            error make {msg: $"Override file shape for matrix entry '($mk)' \(flow '($eff_fid)'\) implies two_party=($file_two_party) but matrix says two_party=($canonical_two_party). Fix the override file or matrix."}
         }
     }
 
     if $canonical_two_party {
-        let sender = (load-sender-for-scenario $scenario $root $sender_platform)
+        let sender = (load-sender-for-tuple $tuple.flow_id $tuple.sender_platform $tuple.receiver_platform $root $tuple.sender_platform)
         if $sender == null {
-            error make {msg: $"Sender actor config not found for scenario '($scenario)'"}
+            error make {msg: $"Sender actor config not found for matrix entry '($mk)'"}
         }
-        let receiver = (load-receiver-for-scenario $scenario $root $receiver_platform)
+        let receiver = (load-receiver-for-tuple $tuple.flow_id $tuple.sender_platform $tuple.receiver_platform $root $tuple.receiver_platform)
         if $receiver == null {
-            error make {msg: $"Receiver actor config not found for scenario '($scenario)'"}
+            error make {msg: $"Receiver actor config not found for matrix entry '($mk)'"}
         }
     } else {
-        load-actor-for-scenario $scenario $root $sender_platform
+        load-actor-for-tuple $tuple.flow_id $tuple.sender_platform $root $tuple.sender_platform
     }
 }

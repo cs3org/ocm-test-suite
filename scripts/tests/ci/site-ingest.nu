@@ -19,8 +19,8 @@ def test-ingest-missing-injection [] {
     let ts = "2026-01-01T00:00:00Z"
     let suite_id = "20260101t000000-aabbccdd"
 
-    # Inline matrix rules record with no scenarios (ingest from suite only).
-    let rules = {scenarios: {}}
+    # Inline matrix rules record with no matrix entries (ingest from suite only).
+    let rules = {matrix: {}}
 
     # Write a fake per-run manifest for cell-a (passed).
     let run_dir = ($artifacts_root | path join "login" "nextcloud-v34" "exec-aaa")
@@ -43,6 +43,15 @@ def test-ingest-missing-injection [] {
         indexes: {latest_terminal_result_by_cell: {}},
     }
     $run_manifest | to json --indent 2 | save --force ($run_dir | path join "meta/suite-manifest.v1.json")
+    mkdir ($run_dir | path join "compose")
+    {
+        images: {sender: "ghcr.io/example/sender:tag"},
+    } | to json --indent 2 | save --force ($run_dir | path join "meta/run.json")
+    {
+        schema_version: 1,
+        stack_def_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        stack_env_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    } | to json --indent 2 | save --force ($run_dir | path join "compose/manifest.v1.json")
 
     # Write suite index so --latest-suite mode resolves correctly.
     let suites_dir = ($artifacts_root | path join "suites")
@@ -101,6 +110,13 @@ def test-ingest-missing-injection [] {
 
     let site_cell_ids = ($site_manifest.cells? | default {} | columns)
     let site_flow_ids = ($site_manifest.flows? | default {} | columns)
+    let site_run_cols = (
+        $site_manifest.runs? | default {}
+        | transpose _ run | get run? | default {}
+        | columns | sort
+    )
+    let removed_run_fields = ["images" "images_provenance" "stack_def_sha256" "stack_env_sha256"]
+    let present_removed = ($removed_run_fields | where {|k| $k in $site_run_cols})
 
     ^rm -rf $tmp
     [
@@ -116,6 +132,8 @@ def test-ingest-missing-injection [] {
             "site manifest cells has entry for missing cell-b (stub from ci_agg)")
         (assert-truthy ("login" in $site_flow_ids)
             "site manifest flows retains login flow after missing injection")
+        (assert-eq ($present_removed | length) 0
+            "public manifest run entries omit images, images_provenance, stack_def_sha256, stack_env_sha256")
     ]
 }
 
@@ -130,7 +148,7 @@ def test-ingest-missing-injection-cell-list-fallback [] {
     let suite_id = "20260101t000000-aabbccee"
 
     # Matrix rules record with one cell: login__nextcloud-v34 (flow_id=login, pair=nextcloud-v34).
-    let rules = {scenarios: {login: {
+    let rules = {matrix: {login__nextcloud: {
         enabled: true,
         flow_id: "login",
         browsers: ["chrome"],

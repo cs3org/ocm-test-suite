@@ -1,45 +1,37 @@
 # Emit a blocked artifact for a single planned cell.
-# Called in CI when a prerequisite cell fails and we need to record blocked
-# status for dependent cells without running them.
-#
-# flow_id, pair, artifact_name, and cell_id are derived from scenario +
-# participant inputs when not provided explicitly. This allows the workflow
-# to call emit-blocked with only the inputs it already has.
+# flow_id, pair, artifact_name, and cell_id are derived from tuple inputs
+# when not provided explicitly.
 
 use ../../lib/ci/blocker.nu [emit-blocked-cell-artifact]
-use ../../lib/matrix/cell.nu [compute-cell]
+use ../../lib/matrix/cell.nu [
+    assert-matrix-entry-enabled
+    compute-cell
+    validate-cell-rules
+]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
 
 def main [
-    --cell-id: string = "",         # cell_id; derived from scenario+participants if omitted
-    --execution-id: string,         # execution_id for this blocked run
-    --flow-id: string = "",         # flow_id; derived from scenario via matrix-rules if omitted
-    --scenario: string,             # scenario key (required; used to derive missing fields)
-    --pair: string = "",            # pair slug; derived from sender+receiver if omitted
-    --artifact-name: string = "",   # artifact_name; derived from sender+receiver if omitted
+    --cell-id: string = "",
+    --execution-id: string,
+    --flow: string,
+    --pair: string = "",
+    --artifact-name: string = "",
     --sender-platform: string,
     --sender-version: string,
     --receiver-platform: string = "",
     --receiver-version: string = "",
-    --failure-reason: string,       # concrete reason naming the failed prerequisite
+    --failure-reason: string,
     --suite-id: string = "",
     --suite-kind: string = "suite",
 ] {
     let root = get-ocmts-root
 
-    # Look up flow_id from the matrix rules SSOT when not explicitly provided.
-    let eff_flow_id = if not ($flow_id | is-empty) {
-        $flow_id
-    } else {
-        let rules = (load-matrix-rules $root)
-        let sc_rules = ($rules.scenarios? | default {} | get --optional $scenario | default {})
-        $sc_rules.flow_id? | default $scenario
-    }
+    assert-matrix-entry-enabled $flow $sender_platform $receiver_platform
+    (validate-cell-rules $flow $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version)
 
-    # Derive pair, artifact_name, cell_id from scenario+participants when omitted.
-    let derived = (compute-cell $scenario $sender_platform $sender_version "chrome"
-        $receiver_platform $receiver_version $eff_flow_id)
+    let derived = (compute-cell $flow $sender_platform $sender_version "chrome"
+        $receiver_platform $receiver_version)
     let eff_cell_id = if ($cell_id | is-empty) { $derived.cell_id } else { $cell_id }
     let eff_pair = if ($pair | is-empty) { $derived.pair } else { $pair }
     let eff_artifact_name = if ($artifact_name | is-empty) { $derived.artifact_name } else { $artifact_name }
@@ -48,9 +40,8 @@ def main [
     let planned_cell = {
         cell_id: $eff_cell_id,
         execution_id: $execution_id,
-        flow_id: $eff_flow_id,
-        scenario: $scenario,
-        scenario_module: $eff_flow_id,
+        flow_id: $flow,
+        matrix_key: $derived.matrix_key,
         pair: $eff_pair,
         artifact_name: $eff_artifact_name,
         sender_platform: $sender_platform,

@@ -1,6 +1,6 @@
-# Shared blocker evaluation helpers, imported by both cell-impl.nu and
-# matrix/rules-gen.nu. Must not import from internal.nu or any module that
-# transitively imports matrix/rules-gen.nu (to avoid circular imports).
+# Shared blocker evaluation helpers used by gated-cells.nu and matrix tooling.
+# Must not import from internal.nu or any module that transitively imports
+# matrix/rules-gen.nu (to avoid circular imports).
 
 use ../matrix/status-rank.nu [STATUS_RANK worst-status]
 

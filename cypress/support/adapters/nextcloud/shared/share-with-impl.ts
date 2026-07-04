@@ -18,7 +18,7 @@ import {
 } from "./files";
 import { addExternalShare, handleShareAcceptance, openSharingPanel } from "./sharing";
 
-export type NextcloudShareWithVersion = "v32" | "v33" | "v34";
+export type NextcloudShareWithVersion = "v32" | "v33" | "v34" | "v35";
 
 export type NextcloudShareWithAdapters = {
   shareWithFlowSender: ShareWithFlowSenderAdapter;

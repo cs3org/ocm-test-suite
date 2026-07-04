@@ -62,6 +62,7 @@ export def build-result-v1 [fields: record] {
     let capability_skip = ($fields.capability_skip? | default null)
     let suite_id = ($fields.suite_id? | default null)
     let suite_kind = ($fields.suite_kind? | default null)
+    let matrix_key = ($fields.matrix_key? | default null)
 
     if $artifact_name != null { $r = ($r | upsert artifact_name $artifact_name) }
     if $started_at != null { $r = ($r | upsert started_at $started_at) }
@@ -79,6 +80,9 @@ export def build-result-v1 [fields: record] {
     }
     if $suite_kind != null and (not ($suite_kind | is-empty)) {
         $r = ($r | upsert suite_kind $suite_kind)
+    }
+    if $matrix_key != null and (not ($matrix_key | is-empty)) {
+        $r = ($r | upsert matrix_key $matrix_key)
     }
 
     $r

@@ -1,7 +1,7 @@
-# Version-pair expansion helpers for matrix scenario cells.
+# Version-pair expansion helpers for matrix cells.
 # Reused by matrix list, site-ingest, and test suite expansion.
 
-# Expand (sender_version, receiver_version) pairs for a scenario record
+# Expand (sender_version, receiver_version) pairs for a matrix entry record
 # from the in-memory matrix rules, honoring version_pairing policy.
 #
 # For cross_product (default): cartesian product of sender.version_lines x

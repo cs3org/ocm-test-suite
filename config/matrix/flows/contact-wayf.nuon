@@ -35,12 +35,12 @@
   ],
   "versions_sender": {
     "nextcloud": [
-      "v34"
+      "v35"
     ]
   },
   "versions_receiver": {
     "nextcloud": [
-      "v34"
+      "v35"
     ]
   }
 }

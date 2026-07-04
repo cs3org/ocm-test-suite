@@ -97,7 +97,7 @@ export def aggregate-suite-manifests [
 # expected_cell_ids: list of cell_ids that were planned; cells with no manifest
 # get a synthetic "missing" result injected into the manifest.
 # capability_skipped_cells: subset of planned cells that are capability-skipped
-# (each record has at least cell_id, flow_id, pair, artifact_name, scenario,
+# (each record has at least cell_id, flow_id, pair, artifact_name, matrix_key,
 # sender_platform, sender_version, receiver_platform, receiver_version,
 # is_two_party, execution_id, and capability_skip.rationale).
 # Those cells get a "capability-skipped" result instead of "missing", and their
@@ -136,7 +136,7 @@ export def aggregate-suite-manifests-plan-aware [
             flow_id: ($r.flow_id? | default ""),
             pair: ($r.pair? | default ""),
             artifact_name: ($r.artifact_name? | default ""),
-            scenario: ($r.scenario? | default ""),
+            matrix_key: ($r.matrix_key? | default ""),
             sender_platform: ($r.sender_platform? | default ""),
             sender_version: ($r.sender_version? | default ""),
             receiver_platform: ($r.receiver_platform? | default ""),
@@ -161,6 +161,7 @@ export def aggregate-suite-manifests-plan-aware [
                 execution_id: $exec_id,
                 cell_id: $id,
                 artifact_name: ($r.artifact_name? | default ""),
+                matrix_key: ($r.matrix_key? | default ""),
                 attempt_number: 1,
                 retry_of_run_id: null,
                 superseded_by_run_id: null,
@@ -203,6 +204,7 @@ export def aggregate-suite-manifests-plan-aware [
         # stable synthetic run_id/execution_id so build-result-v1 validates.
         let eff_run_id = if ($exec_id | is-empty) { $result_id } else { $exec_id }
         let cap_skip = if $is_cap_skipped { ($cap_rec.capability_skip? | default null) } else { null }
+        let cap_mk = if $is_cap_skipped { ($cap_rec.matrix_key? | default "") } else { "" }
         let result_rec = (build-result-v1 {
             id: $result_id,
             run_id: $eff_run_id,
@@ -215,6 +217,7 @@ export def aggregate-suite-manifests-plan-aware [
             warnings: [],
             failure_reason: (if ($failure_reason | is-empty) { null } else { $failure_reason }),
             capability_skip: $cap_skip,
+            matrix_key: (if ($cap_mk | is-empty) { null } else { $cap_mk }),
         })
         $acc | insert $result_id $result_rec
     })

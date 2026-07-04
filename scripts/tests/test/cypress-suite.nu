@@ -74,6 +74,41 @@ def test-help-does-not-mention-skip-optimize [] {
     ]
 }
 
+# --help does not mention the removed --continue-on-fail alias.
+def test-help-does-not-mention-continue-on-fail [] {
+    test-log "\n[test-help-does-not-mention-continue-on-fail]"
+    let result = (
+        ^nu "scripts/domains/test/mod.nu" "cypress" "suite" "--help"
+        | complete
+    )
+    [
+        (assert-truthy ($result.exit_code == 0)
+            "--help exits 0")
+        (assert-truthy (not ($result.stdout | str contains "continue-on-fail"))
+            "--help output does not mention removed --continue-on-fail flag")
+        (assert-truthy ($result.stdout | str contains "--stop-on-fail")
+            "--help output mentions --stop-on-fail flag")
+    ]
+}
+
+# --continue-on-fail is rejected at parse time.
+def test-continue-on-fail-flag-rejected [] {
+    test-log "\n[test-continue-on-fail-flag-rejected]"
+    let result = (
+        ^nu "scripts/domains/test/mod.nu" "cypress" "suite"
+            "--continue-on-fail"
+        | complete
+    )
+    [
+        (assert-eq $result.exit_code 1 "--continue-on-fail exits 1")
+        (assert-truthy (
+            ($result.stderr | str contains "unknown_flag")
+            or ($result.stderr | str contains "doesn't have flag `continue-on-fail`")
+            or ($result.stderr | str contains "doesn't have flag 'continue-on-fail'")
+        ) "stderr reports unknown --continue-on-fail flag")
+    ]
+}
+
 def main [] {
     test-log "=== test/cypress-suite tests ==="
     let results = (
@@ -81,6 +116,8 @@ def main [] {
         | append (test-optimize-site-dir-requires-publish-site)
         | append (test-optimize-help-mentions-flag)
         | append (test-help-does-not-mention-skip-optimize)
+        | append (test-help-does-not-mention-continue-on-fail)
+        | append (test-continue-on-fail-flag-rejected)
     ) | flatten
     run-suite "test/cypress-suite" $SUITE_PATH $results
 }

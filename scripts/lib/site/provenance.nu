@@ -6,9 +6,7 @@ use ../time/utc.nu [utc-now]
 export const SITE_PROVENANCE_SOURCES = [
     "config/matrix/defaults.nuon",
     "config/matrix/platforms.nuon",
-    "config/matrix/naming.nuon",
     "config/matrix/capabilities.v1.nuon",
-    "config/matrix/flows/code-flow.nuon",
     "config/matrix/flows/contact-token.nuon",
     "config/matrix/flows/contact-wayf.nuon",
     "config/matrix/flows/login.nuon",

@@ -76,7 +76,7 @@ def test-emit-capability-skipped-cell-artifact [] {
         cell_id: "login__opencloud-v6",
         artifact_name: "cell-login-opencloud-v6",
         flow_id: "login",
-        scenario: "login",
+        matrix_key: "login__opencloud",
         pair: "opencloud-v6",
         sender_platform: "opencloud",
         sender_version: "v6",
@@ -123,10 +123,14 @@ def test-emit-capability-skipped-cell-artifact [] {
             "meta/result.v1.json written")
         (assert-eq ($run_data.status? | default "") "capability-skipped"
             "run.json status is capability-skipped")
+        (assert-eq ($run_data.matrix_key? | default "") "login__opencloud"
+            "run.json has matrix_key from planned cell")
         (assert-eq ($run_data.exit_code? | default (-1)) 0
             "run.json exit_code is 0")
         (assert-eq ($result_data.status? | default "") "capability-skipped"
             "result.v1.json status is capability-skipped")
+        (assert-eq ($result_data.matrix_key? | default "") "login__opencloud"
+            "result.v1.json has matrix_key from planned cell")
         (assert-eq ($result_data.exit_code? | default (-1)) 0
             "result.v1.json exit_code is 0")
         (assert-truthy ($result_data.capability_skip? != null)

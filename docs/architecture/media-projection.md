@@ -17,32 +17,38 @@ rewritten by the publish lane. This keeps raw artifacts honest as a
 debugging surface; an operator triaging a failure can trust that the
 manifest paths point at the bytes the test wrote.
 
-Derived evidence is everything the public site serves. The public manifest
-is a projection of the raw manifest with media rows rewritten to point at
-optimized variants. Raw bytes are not a public fallback; the public tree
-contains derived bytes only.
+Derived evidence is what the public site serves when the optimized publish
+lane is active. The public manifest is a projection of the raw manifest with
+media rows rewritten to point at optimized variants. In that CI lane, raw
+bytes are not a public fallback; the public tree contains derived bytes only.
+
+Local or manual `site publish` without `--optimized-media-dir` may still
+publish raw media as a fallback; see `docs/operations/site-publish.md`.
 
 Mixing the two would corrupt provenance. If the raw manifest mentioned
 optimized variants, future debuggers could not tell whether a path
 described a captured byte or a derived byte. If raw bytes leaked into the
-public tree as fallbacks, the site would silently regress to old formats
-on partial pipeline failures and operators would not notice.
+optimized public tree as fallbacks, the site would silently regress to old
+formats on partial pipeline failures and operators would not notice.
 
 The contract therefore enforces the boundary in both directions:
 
 - the optimize and aggregate steps never touch raw artifacts;
-- the projection step never touches the raw manifest;
-- the publish hard-fails when required derived variants are missing
-  rather than serving raw fallbacks.
+- the derived-media projection step never touches the raw manifest;
+- when the optimized lane is active, publish hard-fails when required
+  derived variants are missing rather than serving raw fallbacks.
 
 ## Two-lane parallel design
+
+Raw media is the default generated publish lane; the optimized-media lane
+is explicit opt-in via `media_lane_mode: "optimized"` in `config/site.nuon`.
 
 A serial post-aggregate optimizer would let one ffmpeg job decide the
 publish latency for the whole suite. The OCM matrix already runs cells
 in parallel; serializing media work would convert that parallel shape
 into a single late bottleneck.
 
-The optimized-media lane lives beside each cell. `ci-run-cell.yml`
+When enabled, the optimized-media lane lives beside each cell. `ci-run-cell.yml`
 optimizes one cell's media right after that cell's tests finish, in the
 same runner that already has the raw output on disk. The cell uploads its
 optimized output as `optimized-media-<artifact-name>`, parallel with the
@@ -103,8 +109,8 @@ path because there is no derived variant.
 
 ## Failure stance
 
-The contract treats missing required optimized variants as a hard failure
-of the publish lane. The reasoning:
+When the optimized lane is active, the contract treats missing required
+optimized variants as a hard failure of the publish lane. The reasoning:
 
 - A successful build with a missing AV1 video would silently degrade the
   site, hiding the underlying ffmpeg or pipeline failure.

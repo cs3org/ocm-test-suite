@@ -4,7 +4,7 @@ Python lives here when Nushell can't (or shouldn't) do the job. The current
 inhabitants are addons and helpers that run inside containers, not on the
 host. Mirror this folder's tree against the role of each file:
 
-```
+```text
 scripts/python/
   lib/
     mitm/

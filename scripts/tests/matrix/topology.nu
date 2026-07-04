@@ -56,19 +56,28 @@ def test-compute-cell-login-one-party-ok [] {
     let cell = (compute-cell "login" "nextcloud" "v33" "chrome")
     [
         (assert-eq $cell.is_two_party false "login one-party cell has is_two_party=false")
+        (assert-eq $cell.matrix_key "login__nextcloud"
+            "login one-party cell has matrix_key login__nextcloud")
+        (assert-eq $cell.cell_id "login__nextcloud-v33"
+            "login one-party cell_id shape")
+        (assert-eq $cell.artifact_name "cell-login-nextcloud-v33"
+            "login one-party artifact_name shape")
     ]
 }
 
 def test-compute-cell-login-with-receiver-errors [] {
     test-log "\n[test-compute-cell-login-with-receiver-errors]"
-    let got_mismatch_msg = try {
+    let got_msg = try {
         compute-cell "login" "nextcloud" "v33" "chrome" "nextcloud" "v33"
-        false
+        ""
     } catch {|e|
-        ($e.msg | str contains "Topology mismatch")
+        $e.msg
     }
     [
-        (assert-truthy $got_mismatch_msg "compute-cell errors with 'Topology mismatch' when receiver given to one-party flow")
+        (assert-string-contains $got_msg "one-party"
+            "compute-cell errors when receiver given to one-party flow")
+        (assert-string-contains $got_msg "--receiver-platform"
+            "compute-cell spurious receiver error names --receiver-platform")
     ]
 }
 
@@ -77,19 +86,26 @@ def test-compute-cell-share-with-two-party-ok [] {
     let cell = (compute-cell "share-with" "nextcloud" "v33" "chrome" "nextcloud" "v33")
     [
         (assert-eq $cell.is_two_party true "share-with two-party cell has is_two_party=true")
+        (assert-eq $cell.matrix_key "share-with__nextcloud__nextcloud"
+            "share-with two-party matrix_key shape")
+        (assert-eq $cell.cell_id "share-with__nextcloud-v33__nextcloud-v33"
+            "share-with two-party cell_id shape")
+        (assert-eq $cell.artifact_name "cell-share-with-nextcloud-v33-nextcloud-v33"
+            "share-with two-party artifact_name shape")
     ]
 }
 
 def test-compute-cell-share-with-no-receiver-errors [] {
     test-log "\n[test-compute-cell-share-with-no-receiver-errors]"
-    let got_mismatch_msg = try {
+    let got_msg = try {
         compute-cell "share-with" "nextcloud" "v33" "chrome"
-        false
+        ""
     } catch {|e|
-        ($e.msg | str contains "Topology mismatch")
+        $e.msg
     }
     [
-        (assert-truthy $got_mismatch_msg "compute-cell errors with 'Topology mismatch' when no receiver given for two-party flow")
+        (assert-string-contains $got_msg "requires --receiver-platform"
+            "compute-cell errors when no receiver given for two-party flow")
     ]
 }
 

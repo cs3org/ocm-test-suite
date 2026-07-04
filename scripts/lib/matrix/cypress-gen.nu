@@ -5,8 +5,8 @@ use ./cells.nu [expand-matrix-cells]
 
 # Allowlist of flow IDs that have a cypress/e2e/<flow>/ spec folder.
 # Only flows listed here get a generated matrix.ts file.
-# To add a new flow (e.g. "code-flow"), first create the
-# cypress/e2e/code-flow/ directory with at least one spec, then add
+# To add a new flow (e.g. "example-flow"), first create the
+# cypress/e2e/example-flow/ directory with at least one spec, then add
 # the flow_id here.
 const CYPRESS_MATRIX_FLOWS = ["login" "share-with" "contact-token" "contact-wayf"]
 

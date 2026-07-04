@@ -31,7 +31,7 @@ nothing to do with the Cypress specs in this directory.
 ## Layout
 
 - `e2e/<flow>/` per-flow Cypress specs (login, share-with,
-  contact-token, contact-wayf, code-flow).
+  contact-token, contact-wayf).
 - `support/` shared helpers (commands, evidence, env access).
 - `cypress.config.js` Cypress configuration with the strict policies
   documented in the repo root `README.md` (no `cy.origin`,

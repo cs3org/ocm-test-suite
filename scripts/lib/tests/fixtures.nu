@@ -1,17 +1,10 @@
-# Reusable test fixtures. Most suites need a temp directory with
-# guaranteed cleanup; `with-tmp-dir` runs the closure with the temp
-# path and removes it afterwards even on error.
-#
-# Also provides make-cell for building planner cell records with defaults.
+# Reusable test fixtures.
 
-# Build a minimal planner cell record with sensible defaults.
-# Pass overrides to change specific fields; all other fields keep their defaults.
-# Default shape covers all fields required for eval-blocked-cells and plan-suite.
 export def make-cell [overrides?: record]: nothing -> record {
     let defaults = {
         cell_id: "login__nextcloud-v34",
         artifact_name: "cell-login-nextcloud-v34",
-        scenario: "login",
+        matrix_key: "login__nextcloud",
         flow_id: "login",
         sender_platform: "nextcloud",
         sender_version: "v34",
@@ -42,9 +35,7 @@ export def with-tmp-dir [closure: closure]: nothing -> any {
     }
 }
 
-# Write the 10 canonical source stub files under tmp_root so provenance tests
-# can hash real files without needing the actual repo config tree.
-# All stubs satisfy the shape contract required by build-matrix-rules-json.
+# Write the 8 canonical source stub files under tmp_root for provenance tests.
 export def materialize-provenance-stubs [tmp_root: string]: nothing -> nothing {
     mkdir ($tmp_root | path join "config/matrix/flows")
     mkdir ($tmp_root | path join "config/adapters")
@@ -55,30 +46,17 @@ export def materialize-provenance-stubs [tmp_root: string]: nothing -> nothing {
     ({
         schema_version: 1
         platforms: {
-            nextcloud:  {slug: "nc",        display_name: "Nextcloud",             version_lines: ["v34"]}
-            ocmgo:      {slug: "ocmgo",     display_name: "Open Cloud Mesh Golang", version_lines: ["v1"]}
-            ocis:       {slug: "ocis",      display_name: "oCIS",                  version_lines: ["v8"]}
-            opencloud:  {slug: "opencloud", display_name: "OpenCloud",             version_lines: ["v6"]}
+            nextcloud:  {display_name: "Nextcloud",             version_lines: ["v34"]}
+            ocmgo:      {display_name: "Open Cloud Mesh Golang", version_lines: ["v1"]}
+            ocis:       {display_name: "oCIS",                  version_lines: ["v8"]}
+            opencloud:  {display_name: "OpenCloud",             version_lines: ["v6"]}
         }
     } | to nuon)
     | save --force ($tmp_root | path join "config/matrix/platforms.nuon")
 
-    ({
-        baseline_by_flow: {
-            login:            {sender: "nextcloud", receiver: null}
-            "share-with":     {sender: "nextcloud", receiver: "nextcloud"}
-            "contact-token":  {sender: "nextcloud", receiver: "nextcloud"}
-            "contact-wayf":   {sender: "nextcloud", receiver: "nextcloud"}
-            "code-flow":      {sender: "nextcloud", receiver: "nextcloud"}
-        }
-        overrides: {}
-    } | to nuon)
-    | save --force ($tmp_root | path join "config/matrix/naming.nuon")
-
     "{}" | save --force ($tmp_root | path join "config/matrix/capabilities.v1.nuon")
 
     let flows = [
-        {stem: "code-flow",     label: "Code Flow",         subtitle: "Code flow",       order: 50, two_party: true,  mitm: true}
         {stem: "contact-token", label: "Contact via Token", subtitle: "Token discovery", order: 30, two_party: true,  mitm: true}
         {stem: "contact-wayf",  label: "Contact via WAYF",  subtitle: "WAYF discovery",  order: 40, two_party: true,  mitm: true}
         {stem: "login",         label: "Login Flow",        subtitle: "Login flow",      order: 10, two_party: false, mitm: false}

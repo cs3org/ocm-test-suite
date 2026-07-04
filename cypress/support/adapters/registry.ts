@@ -59,6 +59,7 @@ import {
   nextcloudV33ShareWithFlowReceiverAdapter,
   nextcloudV33ShareWithFlowSenderAdapter,
 } from "./nextcloud/v33/share-with-adapter";
+import { cernboxV11LoginAdapter } from "./cernbox/v11/login-adapter";
 import { nextcloudV34LoginAdapter } from "./nextcloud/v34/login-adapter";
 import {
   nextcloudV34ContactTokenReceiverAdapter,
@@ -93,6 +94,9 @@ const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
   },
   opencloud: {
     v6: opencloudV6LoginAdapter,
+  },
+  cernbox: {
+    v11: cernboxV11LoginAdapter,
   },
 };
 

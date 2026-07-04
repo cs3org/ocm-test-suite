@@ -309,7 +309,7 @@ def test-build-matrix-not-in-scope-json-shape [] {
         {flow_id: "code-flow", platform: "seafile", version: "v1", role: "receiver", rationale: "r1"}
         {flow_id: "share-with", platform: "ocis", version: "v8", role: "sender", rationale: "r2"}
     ]
-    mut tmp = ($nu.temp-path | path join $"ocmts-prov-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     let out = (build-matrix-not-in-scope-json $not_in_scope $tmp)
@@ -349,7 +349,7 @@ def test-build-matrix-not-in-scope-json-shape [] {
 
 def test-build-matrix-rules-json-provenance-shape [] {
     test-log "\n[test-build-matrix-rules-json-provenance-shape]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-prov-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp
@@ -418,7 +418,7 @@ def test-expand-flow-skips-disabled-flow [] {
 
 def test-build-matrix-rules-json-emits-flows-and-platforms [] {
     test-log "\n[test-build-matrix-rules-json-emits-flows-and-platforms]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-flows-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-flows-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp
@@ -455,7 +455,7 @@ def test-build-matrix-rules-json-emits-flows-and-platforms [] {
 
 def test-build-matrix-rules-json-flows-metadata-values [] {
     test-log "\n[test-build-matrix-rules-json-flows-metadata-values]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-flowsmeta-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-flowsmeta-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp
@@ -498,7 +498,7 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
 
 def test-build-matrix-rules-json-rejects-empty-flows-dir [] {
     test-log "\n[test-build-matrix-rules-json-rejects-empty-flows-dir]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-emptyflows-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-emptyflows-(random uuid)")
     mkdir ($tmp | path join "config/matrix/flows")
     let err = (try {
         build-matrix-rules-json {scenarios: {}} "config/matrix" {} {} $tmp
@@ -513,7 +513,7 @@ def test-build-matrix-rules-json-rejects-empty-flows-dir [] {
 
 def test-build-matrix-rules-json-rejects-missing-platforms [] {
     test-log "\n[test-build-matrix-rules-json-rejects-missing-platforms]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-noplat-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-noplat-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     # Overwrite with a file that has no platforms key at all.
@@ -531,7 +531,7 @@ def test-build-matrix-rules-json-rejects-missing-platforms [] {
 
 def test-build-matrix-rules-json-rejects-platform-missing-keys [] {
     test-log "\n[test-build-matrix-rules-json-rejects-platform-missing-keys]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-missingkeys-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-missingkeys-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     # Platform with display_name and version_lines but no slug.
@@ -555,7 +555,7 @@ def test-build-matrix-rules-json-rejects-platform-missing-keys [] {
 
 def test-build-matrix-rules-json-rejects-empty-version-lines [] {
     test-log "\n[test-build-matrix-rules-json-rejects-empty-version-lines]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-emptylines-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-emptylines-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     # Platform with all keys present but version_lines is an empty list.
@@ -590,7 +590,7 @@ def test-build-matrix-rules-json-rejects-empty-version-lines [] {
 
 def test-build-matrix-rules-json-stable-platform-sort [] {
     test-log "\n[test-build-matrix-rules-json-stable-platform-sort]"
-    mut tmp = ($nu.temp-path | path join $"ocmts-platsort-(random uuid)")
+    mut tmp = ($nu.temp-dir | path join $"ocmts-platsort-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
     fill-flow-stubs $tmp

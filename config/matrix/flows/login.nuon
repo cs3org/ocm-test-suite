@@ -20,7 +20,8 @@
       "nextcloud",
       "ocmgo",
       "ocis",
-      "opencloud"
+      "opencloud",
+      "cernbox"
     ]
   },
   "versions_sender": {
@@ -37,6 +38,9 @@
     ],
     "opencloud": [
       "v6"
+    ],
+    "cernbox": [
+      "v11"
     ]
   }
 }

@@ -269,7 +269,7 @@ def main [
     if $publish_site {
         let optimized_media_dir = if $optimize {
             print "\n=== Optimizing cell media ==="
-            let work_dir = ($nu.temp-path | path join $"ocmts-cypress-suite-optimize-($eff_suite_id)")
+            let work_dir = ($nu.temp-dir | path join $"ocmts-cypress-suite-optimize-($eff_suite_id)")
             let result = (try {
                 run-suite-optimize-aggregate $cells_to_run $root $work_dir
             } catch {|e|

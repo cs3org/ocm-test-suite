@@ -1,0 +1,10 @@
+{
+  "accounts": {
+    "einstein": {
+      "username": "einstein",
+      "password": "relativity",
+      "display_name": "Albert Einstein",
+      "email": "einstein@cern.ch"
+    }
+  }
+}

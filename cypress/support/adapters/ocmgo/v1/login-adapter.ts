@@ -1,14 +1,20 @@
 /// <reference types="cypress" />
 
 import type { LoginAdapter } from "../../../contracts/login";
+import { captureSameOriginLoginPageReadyEvidence } from "../../../shared/evidence";
 
 export const ocmgoV1LoginAdapter: LoginAdapter = {
+  mechanism: "same-origin",
   key: "ocmgo/v1",
 
   openLoginPage() {
     cy.visit("/ui/login");
     cy.get("#username", { timeout: 20000 }).should("be.visible");
     cy.get("#password", { timeout: 20000 }).should("be.visible");
+  },
+
+  captureLoginPageReadyEvidence(scenarioId) {
+    captureSameOriginLoginPageReadyEvidence(scenarioId);
   },
 
   submitLogin(credentials) {

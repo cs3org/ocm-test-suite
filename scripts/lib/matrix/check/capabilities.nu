@@ -3,7 +3,7 @@
 # The CLI wrapper in scripts/domains/matrix/mod.nu handles printing
 # and exit codes.
 
-use ./platforms.nu [check-platform-completeness]
+use ./platforms.nu [check-platform-completeness check-platform-login]
 use ./completeness.nu [check-capability-completeness]
 use ./flow-drift.nu [check-capability-name-drift]
 use ./registry-cross.nu [extract-registry-tables build-expected-supported diff-registry-vs-supported registry-bound-capabilities check-registry-table-coverage]
@@ -117,6 +117,7 @@ export def check-adapter-capabilities [ocmts_root: string] {
 
     let adapter_keys = ($ssot.adapters | columns | sort)
     let platforms = (check-platform-completeness $ocmts_root $adapter_keys)
+    let platform_login = (check-platform-login $ocmts_root)
     let completeness = (check-capability-completeness $ocmts_root $ssot.adapters)
     let flow_drift = (check-capability-name-drift $ocmts_root $completeness.canonical $ssot.adapter_cap_keys)
     let provenance = (check-provenance-blocks $ocmts_root)
@@ -125,6 +126,7 @@ export def check-adapter-capabilities [ocmts_root: string] {
     let has_errors = (
         (($platforms.missing_from_json | length) > 0)
         or (($platforms.extra_in_json | length) > 0)
+        or (($platform_login.violations | length) > 0)
         or (($completeness.missing | length) > 0)
         or (($flow_drift.unknown_names | length) > 0)
         or (($flow_drift.shape_violations? | default [] | length) > 0)
@@ -137,6 +139,7 @@ export def check-adapter-capabilities [ocmts_root: string] {
     {
         ok: (not $has_errors),
         platforms: $platforms,
+        platform_login: $platform_login,
         completeness: $completeness,
         flow_drift: $flow_drift,
         registry_cross: $registry_cross,

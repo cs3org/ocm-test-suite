@@ -8,6 +8,10 @@ use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 def discover-suites [tests_dir: string, include_manual: bool]: nothing -> list<string> {
     glob $"($tests_dir)/**/*.nu"
     | where {|p| ($p | path basename) != "run-all.nu"}
+    # Only treat files that define a `main` entrypoint as suites. Shared helper
+    # modules (e.g. ci/fixtures.nu) export fixtures but have no main and must
+    # not be run as suites.
+    | where {|p| (open --raw $p | decode utf-8) =~ '(?m)^\s*(export )?def main\b'}
     | where {|p|
         if $include_manual {
             true

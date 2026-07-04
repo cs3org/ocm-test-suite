@@ -5,7 +5,7 @@ use ./inspect.nu [inspect-one-image]
 use ../time/utc.nu [utc-now]
 
 # Build and write images.v1.json for the given stack.
-# Two-party stacks emit 7 service entries; one-party emit 3.
+# Two-party stacks emit 7 service entries; one-party emit 3 (or sender + bundle slots).
 # Entries whose role tag is absent or empty are skipped.
 # inspect-one-image failures yield null fields without aborting.
 export def emit-cell-images [
@@ -14,6 +14,8 @@ export def emit-cell-images [
     images: record,
     is_two_party: bool,
 ] {
+    let bundle = ($images.bundle? | default {})
+    let bundle_services = ($images.bundle_services? | default {})
     let pairs = if $is_two_party {
         [
             {service: "sender",         role: "platform"},
@@ -24,6 +26,15 @@ export def emit-cell-images [
             {service: "receiver-cache", role: "valkey"},
             {service: "mitm",           role: "mitmproxy"},
         ]
+    } else if not ($bundle | is-empty) {
+        mut bundle_pairs = [{service: "sender", role: "platform"}]
+        for slot in ($bundle | columns) {
+            $bundle_pairs = ($bundle_pairs | append {
+                service: ($bundle_services | get --optional $slot | default $"sender-($slot)"),
+                role: $slot,
+            })
+        }
+        $bundle_pairs
     } else {
         [
             {service: "sender",       role: "platform"},
@@ -34,7 +45,13 @@ export def emit-cell-images [
 
     # Keep only entries with a non-empty tag.
     let surviving = ($pairs | each {|p|
-        let tag = ($images | get --optional $p.role | default "")
+        let tag = (
+            if ($p.role in ($bundle | columns)) {
+                $bundle | get $p.role
+            } else {
+                $images | get --optional $p.role | default ""
+            }
+        )
         if ($tag | is-empty) { null } else { $p | insert tag $tag }
     } | where {|x| $x != null})
 

@@ -11,6 +11,73 @@ use ../../lib/services/compose-files.nu [
     read-compose-files-from-manifest
 ]
 
+# Resolve sorted compose project service names for the active file set.
+# Returns null when docker compose config --services fails.
+def compose-project-services [
+    artifacts_base: string,
+    stack_id: string,
+    compose_files: list<string>,
+] {
+    let f_args = ($compose_files | each {|f| ["-f" $f]} | flatten)
+    let env_file = ($artifacts_base | path join "compose" "inputs" "stack.env")
+    let env_file_args = if ($env_file | path exists) { ["--env-file" $env_file] } else { [] }
+    let cfg = (^docker compose ...$env_file_args ...$f_args -p $stack_id config --services | complete)
+    if $cfg.exit_code != 0 {
+        return null
+    }
+    ($cfg.stdout | lines | where {|l| not ($l | is-empty)} | sort)
+}
+
+# True when logs_dir already has a non-empty .log file for every expected service.
+def cached-logs-cover-services [logs_dir: string, services: list<string>] {
+    if ($services | is-empty) {
+        return false
+    }
+    $services | all {|svc|
+        let log_path = ($logs_dir | path join $"($svc).log")
+        if not ($log_path | path exists) {
+            false
+        } else {
+            (ls $log_path | get 0 | get size) != 0b
+        }
+    }
+}
+
+# Exported for regression tests: paths for expected services with absent or
+# zero-byte log files under logs_dir.
+export def missing-or-empty-expected-service-logs [
+    logs_dir: string,
+    expected_services: list<string>,
+] {
+    $expected_services | each {|svc|
+        let log_path = ($logs_dir | path join $"($svc).log")
+        if not ($log_path | path exists) {
+            $log_path
+        } else if (ls $log_path | get 0 | get size) == 0b {
+            $log_path
+        } else {
+            null
+        }
+    } | where {|p| $p != null}
+}
+
+# Exported for regression tests: partial cache must not satisfy this check.
+export def logs-cache-covers-compose-project [
+    artifacts_base: string,
+    stack_id: string,
+    compose_files: list<string>,
+] {
+    let logs_dir = ($artifacts_base | path join "docker" "logs")
+    if not ($logs_dir | path exists) {
+        return false
+    }
+    let expected = (compose-project-services $artifacts_base $stack_id $compose_files)
+    if $expected == null {
+        return false
+    }
+    cached-logs-cover-services $logs_dir $expected
+}
+
 def main [
     --scenario: string,
     --sender-platform: string,
@@ -43,27 +110,18 @@ def main [
         return
     }
 
-    # Determine expected services for this topology.
-    let log_services = if $cell.is_two_party {
-        ["sender" "sender-db" "sender-cache" "receiver" "receiver-db" "receiver-cache"]
-    } else {
-        ["sender" "sender-db" "sender-cache"]
-    }
+    # All-services discovery: empty list resolves targets via compose config --services.
+    let log_services = []
 
-    # If all expected logs already exist (e.g., collected during `services up run`),
-    # report them and skip live docker collection.
     let logs_dir = ($base | path join "docker" "logs")
-    let expected_paths = ($log_services | each {|svc|
-        {service: $svc, path: ($logs_dir | path join $"($svc).log")}
-    })
-    let all_cached = ($expected_paths | all {|e| $e.path | path exists})
-    if $all_cached {
-        $expected_paths | each {|e| print $"Collected: ($e.path)"}
+    let compose_files = (read-compose-files-from-manifest $base $root)
+
+    if (logs-cache-covers-compose-project $base $stack_id $compose_files) {
+        ls $logs_dir | where name =~ '\.log$' | each {|f| print $"Collected: ($f.name)"}
         return
     }
 
     # Some or all logs are missing; attempt live collection.
-    let compose_files = (read-compose-files-from-manifest $base $root)
 
     # Optional: validate compose file set before collecting logs.
     let logs_resolved_path = ($base | path join "compose" "compose.resolved.logs.yml")
@@ -93,9 +151,28 @@ def main [
                 and (($s.error? | default "") | str contains "no containers"))
         })
         if $stack_gone {
-            let missing = ($expected_paths | where {|e| not ($e.path | path exists)})
-            let missing_list = ($missing | each {|e| $"  ($e.path)"} | str join "\n")
-            error make {msg: $"Log collection failed: stack is already torn down. Missing logs:\n($missing_list)"}
+            let expected = (compose-project-services $base $stack_id $compose_files)
+            if $expected != null {
+                let missing_paths = (missing-or-empty-expected-service-logs $logs_dir $expected)
+                let missing_list = ($missing_paths | each {|p| $"  ($p)"} | str join "\n")
+                error make {msg: $"Log collection failed: stack is already torn down. Missing or empty logs:\n($missing_list)"}
+            } else {
+                let empty_logs = if ($logs_dir | path exists) {
+                    ls $logs_dir
+                        | where name =~ '\.log$'
+                        | where {|f| $f.size == 0b}
+                        | get name
+                } else {
+                    []
+                }
+                let detail = if ($empty_logs | is-empty) {
+                    "compose project service list is unavailable; no zero-byte cached logs to report."
+                } else {
+                    let empty_list = ($empty_logs | each {|p| $"  ($p)"} | str join "\n")
+                    $"compose project service list is unavailable. Zero-byte cached logs:\n($empty_list)"
+                }
+                error make {msg: $"Log collection failed: stack is already torn down. ($detail)"}
+            }
         } else {
             error make {msg: "Log collection failed for one or more services. See output above."}
         }

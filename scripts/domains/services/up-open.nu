@@ -17,6 +17,15 @@ use ../../lib/services/lifecycle.nu [
 ]
 use ../../lib/publish/envelope.nu [publish-envelope-safe]
 use ../../lib/images/cell-images.nu [emit-cell-images]
+use ../../lib/compose/logs.nu [collect-service-logs]
+
+def collect-open-failure-logs [ctx: record, compose_files: list<string>, phase: string] {
+    try {
+        collect-service-logs $ctx.artifacts_base $ctx.stack_id $compose_files []
+    } catch {|log_err|
+        print $"WARNING: log collection failed after ($phase) failure: ($log_err.msg)"
+    }
+}
 
 def main [
     --scenario: string,
@@ -56,9 +65,9 @@ def main [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { [] }
     try {
-        # Direct compose up (operator-facing): streams output and throws on failure. On failure the local catch block writes the terminal outcome, tears down via cleanup-down, and re-raises. CI flow uses do-compose-up in services/up-run.nu.
+        # Direct compose up (operator-facing): streams output and throws on failure. On failure the local catch block writes the terminal outcome, collects logs, tears down via cleanup-down, and re-raises. CI flow uses do-compose-up in services/up-run.nu. Empty wait_services splats to full project.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
@@ -68,6 +77,7 @@ def main [
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
             $ctx.images --phase "platform-up" --fail-error $e.msg
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $base_files "platform-up"
         let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"platform-up failed: ($e.msg)"
@@ -94,6 +104,7 @@ def main [
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
             $ctx.images --phase "compose-validate-dev" --fail-error $e.msg
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $base_files "compose-validate-dev"
         let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"dev validation failed: ($e.msg)"
@@ -116,6 +127,7 @@ def main [
             $ctx.started_at $finished_at "infra-failed" $up_exit $ctx.stack_id
             $ctx.images --phase "cypress-dev-up" --fail-error $e.msg
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $dev_files "cypress-dev-up"
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"cypress_dev up failed: ($e.msg)"
@@ -142,6 +154,7 @@ def main [
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
             $ctx.images --phase "cypress-dev-up" --fail-error $port_err
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $dev_files "cypress-dev-port-exit"
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"
@@ -160,6 +173,7 @@ def main [
             $ctx.started_at $finished_at "infra-failed" 1 $ctx.stack_id
             $ctx.images --phase "cypress-dev-up" --fail-error $port_err
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $dev_files "cypress-dev-port-invalid"
         let down_fail = (try { cleanup-down $dev_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
         if $down_fail != null {
             overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"port lookup failed: ($port_err)"

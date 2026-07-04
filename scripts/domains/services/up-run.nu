@@ -69,7 +69,7 @@ def main [
     } --preserve-temp=$preserve_temp --suite-record $suite_hook_base)
 
     # Bring up platform services; quiet by default, verbose with --verbose.
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { ["sender"] }
+    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { [] }
     if not $verbose { print "Starting services..." }
     let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose $env_file)
     if $up_err != null {
@@ -82,7 +82,7 @@ def main [
             --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
         # Best-effort: collect container logs before teardown so infra failures are diagnosable.
         try {
-            collect-service-logs $ctx.artifacts_base $ctx.stack_id $base_files $wait_services
+            collect-service-logs $ctx.artifacts_base $ctx.stack_id $base_files []
         } catch {|log_err|
             print $"WARNING: log collection failed after compose up failure: ($log_err.msg)"
         }

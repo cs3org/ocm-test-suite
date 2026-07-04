@@ -29,7 +29,7 @@ export type EvidenceScreenshot = {
   checkpoint: EvidenceCheckpoint;
 };
 
-export function takeEvidenceScreenshot({
+function validateEvidenceScreenshot({
   scenarioId,
   sequence,
   actor,
@@ -59,7 +59,27 @@ export function takeEvidenceScreenshot({
   if (!evidenceCheckpoints.has(checkpoint)) {
     throw new Error(`Unsupported evidence checkpoint: ${checkpoint}`);
   }
+}
 
-  const paddedSequence = String(sequence).padStart(3, "0");
-  cy.screenshot(`${scenarioId}--${paddedSequence}--${actor}--${checkpoint}`);
+export function buildEvidenceScreenshotName(
+  params: EvidenceScreenshot,
+): string {
+  validateEvidenceScreenshot(params);
+  const paddedSequence = String(params.sequence).padStart(3, "0");
+  return `${params.scenarioId}--${paddedSequence}--${params.actor}--${params.checkpoint}`;
+}
+
+export function takeEvidenceScreenshot(params: EvidenceScreenshot): void {
+  cy.screenshot(buildEvidenceScreenshotName(params));
+}
+
+export function captureSameOriginLoginPageReadyEvidence(
+  scenarioId: string,
+): void {
+  takeEvidenceScreenshot({
+    scenarioId,
+    sequence: 1,
+    actor: "single",
+    checkpoint: "login-page-ready",
+  });
 }

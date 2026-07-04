@@ -9,7 +9,7 @@ use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
 def make-tmp [] {
-    let t = ($nu.temp-path | path join $"images-emit-test-(random uuid)")
+    let t = ($nu.temp-dir | path join $"images-emit-test-(random uuid)")
     mkdir $t
     $t
 }
@@ -62,6 +62,71 @@ def test-two-party-services-shape [] {
     ]
     rm -rf $tmp
     $results | append $col_results | append $entry_results
+}
+
+# One-party bundle shape: sender + real compose service names, no db/cache.
+# bundle_services maps each slot to its actual compose service name; the evidence
+# service field must use that, not a synthetic sender-<slot> label.
+def test-one-party-bundle-services-shape [] {
+    test-log "\n[test-one-party-bundle-services-shape]"
+    let tmp = (make-tmp)
+    let imgs = {
+        platform: "ghcr.io/example/cernbox-web:master",
+        bundle: {
+            revad: "ghcr.io/example/cernbox-revad:master",
+            idp: "ghcr.io/example/idp:v1",
+        },
+        bundle_services: {
+            revad: "sender-revad-gateway",
+            idp: "sender-idp",
+        },
+    }
+    emit-cell-images $tmp "stack-bundle-1p" $imgs false
+    let m = (open ($tmp | path join "meta" "images.v1.json"))
+    let svcs = $m.services
+    let svc_names = ($svcs | get service)
+    let results = [
+        (assert-eq ($svcs | length) 3 "bundle one-party services length is 3")
+        (assert-list-contains $svc_names "sender" "sender present")
+        (assert-list-contains $svc_names "sender-revad-gateway" "real revad service present")
+        (assert-list-contains $svc_names "sender-idp" "real idp service present")
+        (assert-list-not-contains $svc_names "sender-revad" "synthetic sender-revad absent")
+        (assert-list-not-contains $svc_names "idp" "bare idp service name absent")
+        (assert-list-not-contains $svc_names "sender-db" "sender-db absent for bundle")
+        (assert-list-not-contains $svc_names "sender-cache" "sender-cache absent for bundle")
+    ]
+    let revad_entry = ($svcs | where service == "sender-revad-gateway" | first)
+    let idp_entry = ($svcs | where service == "sender-idp" | first)
+    let entry_results = [
+        (assert-eq $revad_entry.role "revad" "revad service role is revad")
+        (assert-eq $revad_entry.tag "ghcr.io/example/cernbox-revad:master"
+            "revad service tag from bundle")
+        (assert-eq $idp_entry.role "idp" "idp service role is idp")
+        (assert-eq $idp_entry.tag "ghcr.io/example/idp:v1" "idp service tag from bundle")
+    ]
+    rm -rf $tmp
+    $results | append $entry_results
+}
+
+# Bundle slots without bundle_services fall back to the sender-<slot> label.
+def test-one-party-bundle-services-fallback [] {
+    test-log "\n[test-one-party-bundle-services-fallback]"
+    let tmp = (make-tmp)
+    let imgs = {
+        platform: "ghcr.io/example/cernbox-web:master",
+        bundle: {
+            revad: "ghcr.io/example/cernbox-revad:master",
+        },
+    }
+    emit-cell-images $tmp "stack-bundle-fallback" $imgs false
+    let m = (open ($tmp | path join "meta" "images.v1.json"))
+    let svc_names = ($m.services | get service)
+    let results = [
+        (assert-list-contains $svc_names "sender-revad"
+            "fallback uses sender-<slot> when bundle_services absent")
+    ]
+    rm -rf $tmp
+    $results
 }
 
 # One-party shape: 3 entries, correct service names.
@@ -142,6 +207,8 @@ def main [] {
     test-log "=== images/emit-cell-images Tests ==="
     let results = (
         (test-two-party-services-shape)
+        | append (test-one-party-bundle-services-shape)
+        | append (test-one-party-bundle-services-fallback)
         | append (test-one-party-services-shape)
         | append (test-ocmgo-platform-only)
         | append (test-empty-tag-skipped)

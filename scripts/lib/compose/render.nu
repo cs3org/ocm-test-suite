@@ -31,6 +31,8 @@ export def write-compose-overlays [
     flow_id: string = "",
     sender_version: string = "",
     receiver_version: string = "",
+    # Optional per-slot image refs for one-party bundle platforms (e.g. revad, idp).
+    bundle: record = {},
     --cell-id: string = "",
 ] {
     let is_two_party = (not ($receiver_platform | is-empty))
@@ -53,7 +55,7 @@ export def write-compose-overlays [
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
-            $sender_version
+            $sender_version $bundle
             --cell-id $cell_id)
     }
 }

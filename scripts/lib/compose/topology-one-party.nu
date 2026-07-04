@@ -2,17 +2,18 @@
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
-use ./yaml.nu [platform-party-host yaml-env-entry]
+use ./yaml.nu [platform-party-host idp-party-host yaml-env-entry]
 use ./topology-common.nu [
     make-stack-context
     write-exec-yml
     copy-platform-cookbook
     copy-overlays-to-artifacts
     ocmgo-env-lines
+    party-idp-origin
 ]
 use ../actors/load.nu [load-actor-for-scenario]
 use ../matrix/cell.nu [validate-browser]
-use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
+use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines platform-login-realm]
 
 # Write stack.env for a one-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -26,6 +27,11 @@ def write-one-party-env [
     record_video: bool,
     root: string,
     actor: any,
+    # External-IdP env for the party, or {} for same-origin platforms.
+    # Shape when set: {host, origin, realm}.
+    idp_env: record = {},
+    # Optional per-slot image refs written as SENDER_<SLOT>_IMAGE lines in stack.env.
+    bundle: record = {},
 ]: nothing -> string {
     let party_host = (platform-party-host $platform 1)
     let record_str = if $record_video { "true" } else { "false" }
@@ -70,6 +76,21 @@ def write-one-party-env [
     }
     $lines = ($lines | append $ocm_provider_lines | append $ocm_blank_1_lines)
 
+    if not ($idp_env | is-empty) {
+        $lines = ($lines | append [
+            $"SENDER_IDP_HOST=($idp_env.host)"
+            $"SENDER_IDP_ORIGIN=($idp_env.origin)"
+            $"CYPRESS_idp_origin=($idp_env.origin)"
+            $"CYPRESS_idp_realm=($idp_env.realm)"
+        ])
+    }
+
+    for slot in ($bundle | columns) {
+        let slot_up = ($slot | str upcase)
+        let slot_ref = ($bundle | get $slot)
+        $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($slot_ref)")
+    }
+
     let env_path = ($art_inputs | path join "stack.env")
     $lines | str join "\n" | save --force $env_path
     $env_path
@@ -93,10 +114,18 @@ export def write-one-party-overlays [
     root: string,
     artifacts_base: string,
     sender_version: string = "",
+    # Optional per-slot image refs for bundle platforms; forwarded to stack.env.
+    bundle: record = {},
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
     let actor = (load-actor-for-scenario $scenario $root $platform)
+
+    # External-IdP env (host/origin/realm) derived once from the platforms SSOT.
+    let idp_origin = (party-idp-origin $root $platform 1)
+    let idp_env = if ($idp_origin | is-empty) { {} } else {
+        {host: (idp-party-host 1), origin: $idp_origin, realm: (platform-login-realm $root $platform)}
+    }
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
@@ -114,7 +143,7 @@ export def write-one-party-overlays [
     # Write stack.env with all substitution variables
     let env_file = (write-one-party-env
         $art_inputs $platform $sender_version $image_ref $mariadb_image $valkey_image
-        $record_video $root $actor)
+        $record_video $root $actor $idp_env $bundle)
 
     let party_host = (platform-party-host $platform 1)
     let record_str = if $record_video { "true" } else { "false" }
@@ -136,6 +165,12 @@ export def write-one-party-overlays [
         "      - CYPRESS_videosFolder=/artifacts/cypress/videos"
         "      - CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
+    if not ($idp_env | is-empty) {
+        $runner_ci_lines = ($runner_ci_lines | append [
+            $"      - CYPRESS_idp_origin=($idp_env.origin)"
+            $"      - CYPRESS_idp_realm=($idp_env.realm)"
+        ])
+    }
     if $actor != null {
         $runner_ci_lines = ($runner_ci_lines | append [
             (yaml-env-entry $"CYPRESS_($actor.platform)_username" $actor.username)
@@ -179,6 +214,12 @@ export def write-one-party-overlays [
         "    environment:"
         $"      - CYPRESS_baseUrl=https://($party_host)"
     ]
+    if not ($idp_env | is-empty) {
+        $runner_dev_lines = ($runner_dev_lines | append [
+            $"      - CYPRESS_idp_origin=($idp_env.origin)"
+            $"      - CYPRESS_idp_realm=($idp_env.realm)"
+        ])
+    }
     if $actor != null {
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry $"CYPRESS_($actor.platform)_username" $actor.username)

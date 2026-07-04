@@ -3,7 +3,7 @@
   "platforms": {
     "ocmgo": {
       "v1": {
-        "default": "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.0.0",
+        "default": "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.1.0",
         "override_env": "OCMTS_OCMGO_V1_IMAGE",
         "sender_override_env": "OCMTS_OCMGO_V1_SENDER_IMAGE",
         "receiver_override_env": "OCMTS_OCMGO_V1_RECEIVER_IMAGE"

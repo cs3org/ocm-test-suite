@@ -11,7 +11,7 @@ use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
-const OCMGO_V1_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.0.0"
+const OCMGO_V1_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.1.0"
 const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12"
 const OPENCLOUD_V6_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
 const OCIS_V8_DEFAULT = "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"

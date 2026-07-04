@@ -173,7 +173,7 @@ def copy-cell-media-to-out [
             mkdir ($dest_abs | path dirname)
             ^cp $f.src_abs $dest_abs
         } else {
-            error make {msg: $"copy-cell-media-to-out: optimized file missing on disk (should have been caught by pre-copy validation): ($f.src_abs)"}
+            error make {msg: $"copy-cell-media-to-out: optimized file missing on disk \(should have been caught by pre-copy validation\): ($f.src_abs)"}
         }
     }
 }

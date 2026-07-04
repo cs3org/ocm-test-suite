@@ -6,10 +6,12 @@ use ../images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmprox
 use ../run/execution-id.nu [new-execution-id validate-execution-id]
 use ../actors/validate.nu [validate-actor-config]
 use ../compose/render.nu [write-compose-overlays]
+use ../compose/topology-common.nu [execution-cidr]
 use ../run/metadata.nu [write-prepared-run]
 use ../time/utc.nu [utc-now]
 use ../artifacts/init.nu [init-artifact-dirs write-last-execution-id]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ./subnet-preflight.nu [check-subnet-preflight]
 
 # Compute IDs, create dirs, generate overlays, write initial metadata.
 # Returns the run context record used by services domain commands.
@@ -51,6 +53,7 @@ export def setup-run-context [
     } else {
         new-execution-id
     }
+    check-subnet-preflight (execution-cidr $execution_id)
     # Default suite_id to execution_id for uniform metadata on single runs.
     let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
     let artifacts_base = (init-artifact-dirs $cell.flow_id $cell.pair $execution_id)

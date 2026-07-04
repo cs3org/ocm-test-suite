@@ -100,12 +100,13 @@ export def write-one-party-overlays [
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
+    let exec_cidr = $ctx.exec_cidr
     let compose_d = $ctx.compose_d
     let art_inputs = $ctx.art_inputs
     let base_yml = $ctx.base_yml
 
-    # exec.yml: binds the docker-global network name to the stack_id
-    write-exec-yml $compose_d $stack_id
+    # exec.yml: network name binding with deterministic IPAM subnet
+    write-exec-yml $compose_d $stack_id $exec_cidr
 
     # Copy sender cookbook YAML from config/compose/cookbooks/
     copy-platform-cookbook $root $platform "sender" $compose_d

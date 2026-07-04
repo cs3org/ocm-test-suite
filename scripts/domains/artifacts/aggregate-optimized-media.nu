@@ -70,6 +70,6 @@ def main [
     if $result.failed_item_count > 0 {
         let n = $result.failed_item_count
         print $"  FAILED: ($n) items failed to optimize"
-        error make {msg: $"aggregate-optimized-media: ($n) item(s) failed to optimize"}
+        error make {msg: $"aggregate-optimized-media: ($n) item\(s\) failed to optimize"}
     }
 }

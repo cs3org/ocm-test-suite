@@ -46,6 +46,6 @@ def main [
         let fail_count = ($failed | length)
         let paths = ($failed | each {|r| $r.source_path} | str join ", ")
         print $"  FAILED: ($fail_count) failed conversions: ($paths)"
-        error make {msg: $"optimize-media: ($fail_count) item(s) failed conversion"}
+        error make {msg: $"optimize-media: ($fail_count) item\(s\) failed conversion"}
     }
 }

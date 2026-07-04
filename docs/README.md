@@ -17,8 +17,9 @@ architecture and authoring rules that should remain stable across flows.
 - `operations/optimized-media.md` documents the AVIF/WebP/WebM optimized
   media lane, configuration, CLI commands, and CI workflow surface.
 - `operations/cli.md` documents the CLI entry point and common local run flows.
-- `operations/configuration.md` documents image overrides, actors, and Cypress
-  env conventions.
+- `operations/configuration.md` documents image overrides, actors,
+  execution subnet and `ocmgo` route env contracts, and Cypress env
+  conventions.
 
 ## Architecture
 

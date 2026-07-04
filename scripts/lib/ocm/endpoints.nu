@@ -51,7 +51,7 @@ def load-platforms-manifest [root: string] {
     }
     let raw = (open $path)
     if ($raw.schema_version? | default 0) != 1 {
-        error make {msg: $"platforms manifest: unsupported schema_version (expected 1): ($path)"}
+        error make {msg: $"platforms manifest: unsupported schema_version \(expected 1\): ($path)"}
     }
     if ($raw.platforms? | default null) == null {
         error make {msg: $"platforms manifest missing required 'platforms' key: ($path)"}

@@ -10,6 +10,7 @@ use ../../lib/actors/load.nu [
     list-override-files
     list-matrix-keys
 ]
+use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -254,6 +255,40 @@ def test-absent-matrix-entry-hard-error [] {
     }
 }
 
+def test-contact-token-cernbox-sender-real-repo [] {
+    test-log "\n[test-contact-token-cernbox-sender-real-repo]"
+    let root = get-ocmts-root
+    let result = (load-sender-for-tuple "contact-token" "cernbox" "cernbox" $root)
+    [
+        (assert-eq $result.platform "cernbox"
+            "contact-token cernbox sender platform resolves from matrix")
+        (assert-eq $result.account "einstein"
+            "contact-token cernbox sender account resolves to einstein")
+    ]
+}
+
+def test-contact-token-cernbox-receiver-real-repo [] {
+    test-log "\n[test-contact-token-cernbox-receiver-real-repo]"
+    let root = get-ocmts-root
+    let result = (load-receiver-for-tuple "contact-token" "cernbox" "cernbox" $root)
+    [
+        (assert-eq $result.platform "cernbox"
+            "contact-token cernbox receiver platform resolves from matrix")
+        (assert-eq $result.account "marie"
+            "contact-token cernbox receiver account resolves to marie")
+    ]
+}
+
+def test-list-matrix-keys-includes-contact-token-cernbox [] {
+    test-log "\n[test-list-matrix-keys-includes-contact-token-cernbox]"
+    let root = get-ocmts-root
+    let result = (list-matrix-keys $root)
+    [
+        (assert-list-contains $result "contact-token__cernbox__cernbox"
+            "contact-token__cernbox__cernbox is in real matrix keys")
+    ]
+}
+
 def test-disabled-matrix-entry-hard-error [] {
     test-log "\n[test-disabled-matrix-entry-hard-error]"
     with-tmp-dir {|tmp|
@@ -292,6 +327,9 @@ def main [] {
         | append (test-disabled-matrix-entry-hard-error)
         | append (test-list-matrix-keys)
         | append (test-list-override-files)
+        | append (test-contact-token-cernbox-sender-real-repo)
+        | append (test-contact-token-cernbox-receiver-real-repo)
+        | append (test-list-matrix-keys-includes-contact-token-cernbox)
     ) | flatten
     run-suite "actors/load" $SUITE_PATH $results
 }

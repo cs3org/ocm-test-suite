@@ -3,6 +3,34 @@
 use ./config.nu [load-images-cfg validate-platform-version]
 use ./precedence.nu [resolve-image resolve-platform-image]
 
+# Resolve bundle slot refs and role-prefixed compose service labels.
+def resolve-bundle-slots [
+    bundle_spec: record,
+    role: string,
+    matrix_key: string,
+    flow_id: string,
+] {
+    if ($bundle_spec | is-empty) {
+        return {bundle: {}, bundle_services: {}}
+    }
+    let bundle = (
+        $bundle_spec
+        | transpose key val
+        | reduce --fold {} {|row, acc|
+            $acc | upsert $row.key (resolve-image $row.val $matrix_key $flow_id)
+        }
+    )
+    let bundle_services = (
+        $bundle_spec
+        | transpose key val
+        | reduce --fold {} {|row, acc|
+            let svc = ($row.val.service? | default $row.key)
+            $acc | upsert $row.key $"($role)-($svc)"
+        }
+    )
+    {bundle: $bundle, bundle_services: $bundle_services}
+}
+
 # Resolve sender platform images plus shared helper images.
 # Returns {platform, bundle, bundle_services, cypress_ci, cypress_dev, mariadb, valkey}.
 # bundle maps slot names to resolved refs when ver_spec.bundle is present.
@@ -19,29 +47,13 @@ export def resolve-images [
     let imgs = load-images-cfg
     let plat_spec = ($imgs.platforms | get $platform)
     let ver_spec = ($plat_spec | get $version)
-    let bundle_spec = ($ver_spec.bundle? | default {})
-    let bundle = if ($bundle_spec | is-empty) {
-        {}
-    } else {
-        $bundle_spec
-        | transpose key val
-        | reduce --fold {} {|row, acc|
-            $acc | upsert $row.key (resolve-image $row.val $matrix_key $flow_id)
-        }
-    }
-    let bundle_services = if ($bundle_spec | is-empty) {
-        {}
-    } else {
-        $bundle_spec
-        | transpose key val
-        | reduce --fold {} {|row, acc|
-            $acc | upsert $row.key ($row.val.service? | default $"sender-($row.key)")
-        }
-    }
+    let bundle_result = (
+        resolve-bundle-slots ($ver_spec.bundle? | default {}) "sender" $matrix_key $flow_id
+    )
     {
         platform: (resolve-platform-image $ver_spec "sender" $matrix_key $flow_id),
-        bundle: $bundle,
-        bundle_services: $bundle_services,
+        bundle: $bundle_result.bundle,
+        bundle_services: $bundle_result.bundle_services,
         cypress_ci: (resolve-image $imgs.cypress.ci $matrix_key $flow_id),
         cypress_dev: (resolve-image $imgs.cypress.dev $matrix_key $flow_id),
         mariadb: (resolve-image $imgs.helpers.mariadb $matrix_key $flow_id),
@@ -49,9 +61,8 @@ export def resolve-images [
     }
 }
 
-# Resolve image ref for a receiver platform/version.
-# Pass --matrix-key and --flow-id to enable by_matrix_key/by_flow precedence.
-export def resolve-receiver-image [
+# Resolve receiver platform image and optional bundle slots for two-party runs.
+export def resolve-receiver-images [
     platform: string,
     version: string,
     --matrix-key: string = "",
@@ -61,7 +72,25 @@ export def resolve-receiver-image [
     let imgs = load-images-cfg
     let plat_spec = ($imgs.platforms | get $platform)
     let ver_spec = ($plat_spec | get $version)
-    resolve-platform-image $ver_spec "receiver" $matrix_key $flow_id
+    let bundle_result = (
+        resolve-bundle-slots ($ver_spec.bundle? | default {}) "receiver" $matrix_key $flow_id
+    )
+    {
+        platform: (resolve-platform-image $ver_spec "receiver" $matrix_key $flow_id),
+        bundle: $bundle_result.bundle,
+        bundle_services: $bundle_result.bundle_services,
+    }
+}
+
+# Resolve image ref for a receiver platform/version (platform image only).
+# Pass --matrix-key and --flow-id to enable by_matrix_key/by_flow precedence.
+export def resolve-receiver-image [
+    platform: string,
+    version: string,
+    --matrix-key: string = "",
+    --flow-id: string = "",
+] {
+    (resolve-receiver-images $platform $version --matrix-key $matrix_key --flow-id $flow_id).platform
 }
 
 export def resolve-mitmproxy-image [

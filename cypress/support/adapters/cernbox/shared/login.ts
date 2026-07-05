@@ -14,10 +14,10 @@ const loggedInUrlRe = /\/files\/spaces\//;
 const postLoginTimeoutMs = 30000;
 
 export function cernboxIdpOrigin(): string {
-  // idp_origin is a non-sensitive config value exposed via cypress.config.js
+  // sender_idp_origin is a non-sensitive config value exposed via cypress.config.js
   // (same channel as proof_cell / receiver_baseUrl). Falls back to idp1.docker
-  // for manual one-party runs where compose did not inject CYPRESS_idp_origin.
-  const configured = Cypress.expose("idp_origin");
+  // for manual one-party runs where compose did not inject CYPRESS_sender_idp_origin.
+  const configured = Cypress.expose("sender_idp_origin");
   return configured !== undefined &&
     configured !== null &&
     String(configured) !== ""
@@ -26,9 +26,10 @@ export function cernboxIdpOrigin(): string {
 }
 
 export function cernboxRealm(): string {
-  // idp_realm comes from the platforms.nuon login SSOT via CYPRESS_idp_realm.
-  // Falls back to "cernbox" for manual runs without compose injection.
-  const configured = Cypress.expose("idp_realm");
+  // sender_idp_realm comes from the platforms.nuon login SSOT via
+  // CYPRESS_sender_idp_realm. Falls back to "cernbox" for manual runs without
+  // compose injection.
+  const configured = Cypress.expose("sender_idp_realm");
   return configured !== undefined &&
     configured !== null &&
     String(configured) !== ""

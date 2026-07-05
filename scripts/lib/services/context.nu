@@ -2,7 +2,7 @@
 # write initial metadata.
 
 use ../matrix/cell.nu [compute-cell validate-cell-rules assert-matrix-entry-enabled]
-use ../images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
+use ../images/resolve.nu [resolve-images resolve-receiver-images resolve-mitmproxy-image]
 use ../run/execution-id.nu [new-execution-id validate-execution-id]
 use ../actors/validate.nu [validate-actor-config]
 use ../compose/render.nu [write-compose-overlays]
@@ -32,10 +32,13 @@ export def setup-run-context [
     let cell = (compute-cell $flow_id $sender_platform $sender_version $browser $receiver_platform $receiver_version)
     let images = (resolve-images $sender_platform $sender_version
         --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
-    let receiver_image = if $cell.is_two_party {
-        (resolve-receiver-image $receiver_platform $receiver_version
+    let receiver_resolved = if $cell.is_two_party {
+        (resolve-receiver-images $receiver_platform $receiver_version
             --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
-    } else { "" }
+    } else {
+        {platform: "", bundle: {}, bundle_services: {}}
+    }
+    let receiver_image = $receiver_resolved.platform
     let mitmproxy_image = if $cell.is_two_party {
         resolve-mitmproxy-image --matrix-key $cell.matrix_key --flow-id $cell.flow_id
     } else { "" }
@@ -59,14 +62,18 @@ export def setup-run-context [
         $root $artifacts_base
         $receiver_platform $receiver_image $mitmproxy_image
         $sender_version $receiver_version
-        $images.bundle
+        $images.bundle $receiver_resolved.bundle
         --cell-id $cell.cell_id
     )
 
     let started_at = (utc-now)
 
     let images_full = if $cell.is_two_party {
-        $images | insert receiver_platform $receiver_image | insert mitmproxy $mitmproxy_image
+        $images
+        | insert receiver_platform $receiver_image
+        | insert receiver_bundle $receiver_resolved.bundle
+        | insert receiver_bundle_services $receiver_resolved.bundle_services
+        | insert mitmproxy $mitmproxy_image
     } else {
         $images
     }

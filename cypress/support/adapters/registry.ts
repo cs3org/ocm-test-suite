@@ -59,7 +59,16 @@ import {
   nextcloudV33ShareWithFlowReceiverAdapter,
   nextcloudV33ShareWithFlowSenderAdapter,
 } from "./nextcloud/v33/share-with-adapter";
+import {
+  cernboxV11ContactTokenReceiverAdapter,
+  cernboxV11ContactTokenSenderAdapter,
+  cernboxV11ProviderIdentityAdapter,
+} from "./cernbox/v11/contact-adapter";
 import { cernboxV11LoginAdapter } from "./cernbox/v11/login-adapter";
+import {
+  cernboxV11ShareFileReceiverAdapter,
+  cernboxV11ShareFileSenderAdapter,
+} from "./cernbox/v11/share-file-adapter";
 import { nextcloudV34LoginAdapter } from "./nextcloud/v34/login-adapter";
 import { nextcloudV35LoginAdapter } from "./nextcloud/v35/login-adapter";
 import {
@@ -155,6 +164,9 @@ const shareFileSenderAdapters: Record<string, Record<string, ShareFileSenderAdap
   opencloud: {
     v6: opencloudV6ShareFileSenderAdapter,
   },
+  cernbox: {
+    v11: cernboxV11ShareFileSenderAdapter,
+  },
 };
 
 const shareFileReceiverAdapters: Record<string, Record<string, ShareFileReceiverAdapter>> = {
@@ -173,6 +185,9 @@ const shareFileReceiverAdapters: Record<string, Record<string, ShareFileReceiver
   opencloud: {
     v6: opencloudV6ShareFileReceiverAdapter,
   },
+  cernbox: {
+    v11: cernboxV11ShareFileReceiverAdapter,
+  },
 };
 
 const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSenderAdapter>> = {
@@ -186,6 +201,9 @@ const contactTokenSenderAdapters: Record<string, Record<string, ContactTokenSend
   opencloud: {
     v6: opencloudV6ContactTokenSenderAdapter,
   },
+  cernbox: {
+    v11: cernboxV11ContactTokenSenderAdapter,
+  },
 };
 
 const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenReceiverAdapter>> = {
@@ -198,6 +216,9 @@ const contactTokenReceiverAdapters: Record<string, Record<string, ContactTokenRe
   },
   opencloud: {
     v6: opencloudV6ContactTokenReceiverAdapter,
+  },
+  cernbox: {
+    v11: cernboxV11ContactTokenReceiverAdapter,
   },
 };
 
@@ -225,6 +246,9 @@ const providerIdentityAdapters: Record<string, Record<string, ProviderIdentityAd
   },
   opencloud: {
     v6: opencloudV6ProviderIdentityAdapter,
+  },
+  cernbox: {
+    v11: cernboxV11ProviderIdentityAdapter,
   },
 };
 

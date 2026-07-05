@@ -115,6 +115,17 @@ describe("extract-registry-keys", () => {
     ]);
   });
 
+  test("contact-token tables register cernbox/v11", async () => {
+    const { stdout, exitCode } = await runScript([REGISTRY_PATH]);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.contactTokenSenderAdapters).toContain("cernbox/v11");
+    expect(parsed.contactTokenReceiverAdapters).toContain("cernbox/v11");
+    expect(parsed.providerIdentityAdapters).toContain("cernbox/v11");
+    expect(parsed.shareFileSenderAdapters).toContain("cernbox/v11");
+    expect(parsed.shareFileReceiverAdapters).toContain("cernbox/v11");
+  });
+
   test("exits 2 with error message when no argument given", async () => {
     const { stderr, exitCode } = await runScript([]);
     expect(exitCode).toBe(2);

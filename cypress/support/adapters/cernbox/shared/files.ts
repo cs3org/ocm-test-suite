@@ -3,12 +3,10 @@
 // CERNBox files-app helpers.
 
 import { cssEscapeAttributeValue } from "../../../shared/selectors";
-import { resolveCypressDownloadPath } from "../../../shared/downloads";
 import type { CernboxProfile } from "./profile";
 
 const filesAppTimeoutMs = 20000;
 const editorTimeoutMs = 20000;
-const contextMenuTimeoutMs = 20000;
 const contentReadTimeoutMs = 30000;
 
 // Pure in-tab window.open redirect for unit tests and Cypress runtime.
@@ -93,32 +91,41 @@ export function makeCernboxFilesHelpers(
 
     stubWindowOpenForInTabNavigation();
 
-    cy.exec(`rm -f "${resolveCypressDownloadPath(fileName)}"`, {
-      failOnNonZeroExit: false,
-    });
-
     cy.get(sel.resourceByName(escapedName), { timeout: contentReadTimeoutMs })
       .first()
       .scrollIntoView()
       .should("be.visible")
-      .click({ force: true });
+      .then(($resource) => {
+        const $link = $resource.is("a") ? $resource : $resource.closest("a");
+        if ($link.length > 0) {
+          cy.wrap($link).invoke("removeAttr", "target").click({ force: true });
+        } else {
+          cy.wrap($resource).click({ force: true });
+        }
+      });
 
-    cy.get(sel.openFileContextMenuTrigger, { timeout: contextMenuTimeoutMs })
-      .should("be.visible")
-      .click({ force: true });
-
-    cy.get(sel.openFileContextDownloadAction, { timeout: contextMenuTimeoutMs })
-      .should("be.visible")
-      .click({ force: true });
-
-    cy.readFile(resolveCypressDownloadPath(fileName), { timeout: 30000 }).then(
-      (content: string) => {
-        expect(content.trim()).to.equal(expectedContent.trim());
-      },
+    cy.location("pathname", { timeout: editorTimeoutMs }).should(
+      "include",
+      sel.editorRouteFragment,
     );
+
+    cy.get(sel.editorContent, { timeout: editorTimeoutMs })
+      .should("be.visible")
+      .then(($editor) => {
+        const normalize = (v: string) =>
+          String(v ?? "").replace(/\r\n/g, "\n").replace(/\n+$/, "");
+        const lineNodes = $editor.find(".cm-line");
+        const actual =
+          lineNodes.length > 0
+            ? Array.from(lineNodes, (n) => n.textContent ?? "").join("\n")
+            : String($editor.text() ?? "");
+        expect(normalize(actual)).to.equal(normalize(expectedContent));
+      });
   }
 
   function createTextFile(fileName: string, content: string): void {
+    stubWindowOpenForInTabNavigation();
+
     cy.intercept("PUT", net.webdavSpacesGlob).as("cernboxPutFile");
     cy.intercept("PROPFIND", net.webdavSpacesGlob).as("cernboxPropfindSpace");
 

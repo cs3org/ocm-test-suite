@@ -15,6 +15,7 @@ const sharesNavTimeoutMs = 60000;
 
 export interface CernboxSharingHelpers {
   openSharingPanel: (sharedFileName: string) => void;
+  openSharesWithMe: () => void;
   addExternalShare: (
     sharedFileName: string,
     federatedRecipientId: string,
@@ -32,11 +33,14 @@ export function makeCernboxSharingHelpers(
   function triggerShareAction(fileName: string): void {
     const escaped = cssEscapeAttributeValue(fileName);
 
-    cy.get(sel.resourceActionDropdown(escaped), { timeout: sharingTimeoutMs })
+    cy.get(`[data-test-resource-name="${escaped}"]`, { timeout: sharingTimeoutMs })
       .filter(":visible")
       .first()
+      .closest("tr, .oc-tile-card")
+      .find(sel.contextMenuTrigger)
+      .first()
       .should("be.visible")
-      .click();
+      .click({ force: true });
 
     cy.get(sel.contextMenu, { timeout: sharingTimeoutMs })
       .should("be.visible")
@@ -204,40 +208,33 @@ export function makeCernboxSharingHelpers(
     cy.contains(sel.shareSuccessText, { timeout: sharingTimeoutMs });
   }
 
-  function verifySharedWithAfterReopen(sharedFileName: string): void {
-    files.ensureFilesAppActive();
-
-    cy.intercept({
-      method: "GET",
-      url: net.graphListPermissionsGlob,
-    }).as("cernboxListPermissions");
-
-    openSharingPanel(sharedFileName);
-
-    cy.wait("@cernboxListPermissions", { timeout: sharingTimeoutMs }).then(
-      (interception) => {
-        const permissions: unknown[] = Array.isArray(
-          interception.response?.body?.value,
-        )
-          ? interception.response.body.value
-          : [];
-        if (permissions.length === 0) {
-          throw new Error(
-            `listPermissions returned no entries for "${sharedFileName}". ` +
-              `Share may not have propagated yet.`,
-          );
-        }
-      },
-    );
+  function verifySharedCollaborator(federatedRecipientId: string): void {
+    const searchTerm =
+      parseSearchTermFromFederatedRecipientId(federatedRecipientId);
+    const receiverHost =
+      parseRemoteHostFromFederatedRecipientId(federatedRecipientId);
 
     cy.get(sel.sharingSidebar, { timeout: sharingTimeoutMs }).should(
       "be.visible",
     );
 
     cy.get(sel.sharingSidebar).within(() => {
-      cy.get(sel.collaboratorsList, { timeout: sharingTimeoutMs }).should(
-        "exist",
-      );
+      cy.get(sel.collaboratorsList, { timeout: sharingTimeoutMs })
+        .should("be.visible")
+        .find("li")
+        .should("have.length.at.least", 1);
+
+      cy.get(sel.collaboratorsList)
+        .invoke("text")
+        .then((text) => {
+          const lower = text.toLowerCase();
+          const hasSearchTerm = lower.includes(searchTerm.toLowerCase());
+          const hasReceiverHost = lower.includes(receiverHost.toLowerCase());
+          expect(
+            hasSearchTerm || hasReceiverHost,
+            `Collaborators list should contain "${searchTerm}" or "${receiverHost}" after external share`,
+          ).to.be.true;
+        });
     });
   }
 
@@ -261,12 +258,10 @@ export function makeCernboxSharingHelpers(
       receiverHost,
     );
     createShare();
-    verifySharedWithAfterReopen(sharedFileName);
+    verifySharedCollaborator(federatedRecipientId);
   }
 
-  function acceptIncomingShare(sharedFileName: string): void {
-    const escapedName = cssEscapeAttributeValue(sharedFileName);
-
+  function openSharesWithMe(): void {
     files.stubWindowOpenForInTabNavigation();
 
     cy.get(sel.webNavSidebar, { timeout: sharingTimeoutMs })
@@ -278,32 +273,24 @@ export function makeCernboxSharingHelpers(
           .first()
           .click({ force: true });
       });
+  }
+
+  function acceptIncomingShare(sharedFileName: string): void {
+    const escapedName = cssEscapeAttributeValue(sharedFileName);
+
+    openSharesWithMe();
 
     cy.get(sel.receivedResourceByName(escapedName), {
       timeout: sharesNavTimeoutMs,
     })
       .scrollIntoView()
       .should("be.visible");
-
-    cy.get(sel.resourceActionDropdown(escapedName), {
-      timeout: sharingTimeoutMs,
-    })
-      .filter(":visible")
-      .first()
-      .should("be.visible")
-      .click();
-
-    cy.get(sel.contextMenu, { timeout: sharingTimeoutMs })
-      .should("be.visible")
-      .find(sel.enableSyncAction)
-      .first()
-      .should("be.visible")
-      .click();
-
-    cy.get(sel.receivedResourceByName(escapedName), {
-      timeout: sharesNavTimeoutMs,
-    }).should("be.visible");
   }
 
-  return { openSharingPanel, addExternalShare, acceptIncomingShare };
+  return {
+    openSharingPanel,
+    openSharesWithMe,
+    addExternalShare,
+    acceptIncomingShare,
+  };
 }

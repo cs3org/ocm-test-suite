@@ -20,7 +20,7 @@ export interface CernboxFilesSelectors {
 }
 
 export interface CernboxSharingSelectors {
-  resourceActionDropdown: (escapedName: string) => string;
+  contextMenuTrigger: string;
   contextMenu: string;
   showSharesAction: string;
   enableSyncAction: string;

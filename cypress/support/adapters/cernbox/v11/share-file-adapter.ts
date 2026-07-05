@@ -37,7 +37,7 @@ export const cernboxV11ShareFileReceiverAdapter: ShareFileReceiverAdapter = {
   },
 
   assertSharedFileContent({ sharedFileName, expectedContent }) {
-    files.ensureFilesAppActive();
+    sharing.openSharesWithMe();
     files.assertFileContent(sharedFileName, expectedContent);
   },
 };

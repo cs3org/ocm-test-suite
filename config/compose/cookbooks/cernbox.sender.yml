@@ -3,6 +3,11 @@
 # Internal Reva hostnames are hardcoded compose service names (stable DNS).
 # OCM shares store: named volume at /var/tmp/reva on gateway, shareproviders,
 # and dataprovider-ocm (REVAD_OCMSHARES_JSON_FILE).
+# `sender` depends_on lists every Reva microservice the gateway needs at
+# runtime (authproviders, shareproviders, groupuserproviders). Two-party runs
+# start only `sender`/`receiver`/`mitm` plus their transitive depends_on
+# closure, so anything missing here never starts and the gateway's bearer
+# auth silently fails with a DNS lookup error for the missing peer.
 services:
   sender:
     image: ${SENDER_IMAGE}
@@ -23,6 +28,22 @@ services:
       sender-revad-dataprovider-ocm:
         condition: service_healthy
       sender-revad-dataprovider-sciencemesh:
+        condition: service_healthy
+      sender-revad-authprovider-oidc:
+        condition: service_healthy
+      sender-revad-authprovider-machine:
+        condition: service_healthy
+      sender-revad-authprovider-ocmshares:
+        condition: service_healthy
+      sender-revad-authprovider-ocmsharecode:
+        condition: service_healthy
+      sender-revad-authprovider-ocmexchangedtoken:
+        condition: service_healthy
+      sender-revad-authprovider-publicshares:
+        condition: service_healthy
+      sender-revad-shareproviders:
+        condition: service_healthy
+      sender-revad-groupuserproviders:
         condition: service_healthy
     environment:
       - CERNBOX_WEB_HOSTNAME=${SENDER_PARTY_HOST}

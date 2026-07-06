@@ -23,6 +23,7 @@ services:
     environment:
       - OC_URL=https://${SENDER_PARTY_HOST}
       - OC_INSECURE=true
+      - OC_LOG_LEVEL=debug
       - OPENCLOUD_INIT=true
       - OPENCLOUD_ADMIN_PASSWORD=admin
       - IDM_CREATE_DEMO_USERS=true

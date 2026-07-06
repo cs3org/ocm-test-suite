@@ -1,5 +1,6 @@
 /// <reference types="cypress" />
 
+import { createCernboxV11LoginAdapter } from "../../support/adapters/cernbox/v11/login-adapter";
 import {
   resolveContactTokenReceiverAdapter,
   resolveContactTokenSenderAdapter,
@@ -64,13 +65,54 @@ function parsePlatformVersionToken(token: string): AdapterRef {
   return { platform, versionLine };
 }
 
+export type ContactTokenLoginSlot = "sender" | "receiver";
+
+export type ContactTokenLoginBinding =
+  | { kind: "cernbox-v11"; slot: ContactTokenLoginSlot }
+  | { kind: "registry" };
+
+// Pure slot routing for unit tests; mirrors resolveContactTokenLogin decisions.
+export function resolveContactTokenLoginBinding(
+  ref: AdapterRef,
+  slot: ContactTokenLoginSlot,
+): ContactTokenLoginBinding {
+  if (ref.platform === "cernbox" && ref.versionLine === "v11") {
+    return { kind: "cernbox-v11", slot };
+  }
+  return { kind: "registry" };
+}
+
+export function resolveContactTokenCaseLoginBindings(
+  senderRef: AdapterRef,
+  receiverRef: AdapterRef,
+): {
+  sender: ContactTokenLoginBinding;
+  receiver: ContactTokenLoginBinding;
+} {
+  return {
+    sender: resolveContactTokenLoginBinding(senderRef, "sender"),
+    receiver: resolveContactTokenLoginBinding(receiverRef, "receiver"),
+  };
+}
+
+function resolveContactTokenLogin(
+  ref: AdapterRef,
+  slot: ContactTokenLoginSlot,
+): LoginAdapter {
+  const binding = resolveContactTokenLoginBinding(ref, slot);
+  if (binding.kind === "cernbox-v11") {
+    return createCernboxV11LoginAdapter(binding.slot);
+  }
+  return resolveLoginAdapter(ref);
+}
+
 function makeContactTokenCase(senderRef: AdapterRef, receiverRef: AdapterRef): ScenarioCase {
   return {
     id: `contact-token__${senderRef.platform}-${senderRef.versionLine}__${receiverRef.platform}-${receiverRef.versionLine}`,
     sender: senderActor,
     receiver: receiverActor,
-    senderLogin: resolveLoginAdapter(senderRef),
-    receiverLogin: resolveLoginAdapter(receiverRef),
+    senderLogin: resolveContactTokenLogin(senderRef, "sender"),
+    receiverLogin: resolveContactTokenLogin(receiverRef, "receiver"),
     senderShareFile: resolveShareFileSenderAdapter(senderRef),
     receiverShareFile: resolveShareFileReceiverAdapter(receiverRef),
     contactTokenSender: resolveContactTokenSenderAdapter(senderRef),

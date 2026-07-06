@@ -14,9 +14,28 @@ export def emit-cell-images [
     images: record,
     is_two_party: bool,
 ] {
-    let bundle = ($images.bundle? | default {})
-    let bundle_services = ($images.bundle_services? | default {})
-    let pairs = if $is_two_party {
+    let sender_bundle = ($images.bundle? | default {})
+    let receiver_bundle = ($images.receiver_bundle? | default {})
+    let sender_bundle_services = ($images.bundle_services? | default {})
+    let receiver_bundle_services = ($images.receiver_bundle_services? | default {})
+    let pairs = if $is_two_party and (not ($sender_bundle | is-empty) or not ($receiver_bundle | is-empty)) {
+        mut bundle_pairs = []
+        $bundle_pairs = ($bundle_pairs | append {service: "sender", role: "platform"})
+        for slot in ($sender_bundle | columns) {
+            $bundle_pairs = ($bundle_pairs | append {
+                service: ($sender_bundle_services | get --optional $slot | default $"sender-($slot)"),
+                role: $slot,
+            })
+        }
+        $bundle_pairs = ($bundle_pairs | append {service: "receiver", role: "receiver_platform"})
+        for slot in ($receiver_bundle | columns) {
+            $bundle_pairs = ($bundle_pairs | append {
+                service: ($receiver_bundle_services | get --optional $slot | default $"receiver-($slot)"),
+                role: $"recv_($slot)",
+            })
+        }
+        $bundle_pairs | append {service: "mitm", role: "mitmproxy"}
+    } else if $is_two_party {
         [
             {service: "sender",         role: "platform"},
             {service: "receiver",       role: "receiver_platform"},
@@ -26,11 +45,11 @@ export def emit-cell-images [
             {service: "receiver-cache", role: "valkey"},
             {service: "mitm",           role: "mitmproxy"},
         ]
-    } else if not ($bundle | is-empty) {
+    } else if not ($sender_bundle | is-empty) {
         mut bundle_pairs = [{service: "sender", role: "platform"}]
-        for slot in ($bundle | columns) {
+        for slot in ($sender_bundle | columns) {
             $bundle_pairs = ($bundle_pairs | append {
-                service: ($bundle_services | get --optional $slot | default $"sender-($slot)"),
+                service: ($sender_bundle_services | get --optional $slot | default $"sender-($slot)"),
                 role: $slot,
             })
         }
@@ -46,8 +65,11 @@ export def emit-cell-images [
     # Keep only entries with a non-empty tag.
     let surviving = ($pairs | each {|p|
         let tag = (
-            if ($p.role in ($bundle | columns)) {
-                $bundle | get $p.role
+            if ($p.role in ($sender_bundle | columns)) {
+                $sender_bundle | get $p.role
+            } else if ($p.role | str starts-with "recv_") {
+                let slot = ($p.role | str substring 5..)
+                $receiver_bundle | get --optional $slot | default ""
             } else {
                 $images | get --optional $p.role | default ""
             }

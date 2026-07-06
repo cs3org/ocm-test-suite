@@ -33,11 +33,12 @@
           "revad": {
             "default": "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development",
             "override_env": "OCMTS_CERNBOX_REVAD_IMAGE",
-            "service": "sender-revad-gateway"
+            "service": "revad-gateway"
           },
           "idp": {
             "default": "ghcr.io/mahdibaghbani/containers/idp:v26.4.2",
-            "override_env": "OCMTS_CERNBOX_IDP_IMAGE"
+            "override_env": "OCMTS_CERNBOX_IDP_IMAGE",
+            "service": "idp"
           }
         }
       }

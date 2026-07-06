@@ -2,18 +2,18 @@
 # Uses platform cookbooks from config/compose/cookbooks/ and writes a per-run
 # stack.env for docker compose variable substitution.
 
-use ./yaml.nu [platform-party-host idp-party-host yaml-env-entry]
+use ./yaml.nu [platform-party-host yaml-env-entry]
 use ./topology-common.nu [
     make-stack-context
     write-exec-yml
     copy-platform-cookbook
     copy-overlays-to-artifacts
     ocmgo-env-lines
-    party-idp-origin
+    party-idp-env
 ]
 use ../actors/load.nu [load-actor-for-tuple]
 use ../matrix/cell.nu [validate-browser]
-use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines platform-login-realm]
+use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines provider-env-blank-lines]
 
 # Write stack.env for a one-party run into art_inputs/.
 # Returns the absolute path to the written file.
@@ -80,8 +80,8 @@ def write-one-party-env [
         $lines = ($lines | append [
             $"SENDER_IDP_HOST=($idp_env.host)"
             $"SENDER_IDP_ORIGIN=($idp_env.origin)"
-            $"CYPRESS_idp_origin=($idp_env.origin)"
-            $"CYPRESS_idp_realm=($idp_env.realm)"
+            $"CYPRESS_sender_idp_origin=($idp_env.origin)"
+            $"CYPRESS_sender_idp_realm=($idp_env.realm)"
         ])
     }
 
@@ -121,11 +121,7 @@ export def write-one-party-overlays [
     let safe_browser = (validate-browser $browser)
     let actor = (load-actor-for-tuple $flow_id $platform $root $platform)
 
-    # External-IdP env (host/origin/realm) derived once from the platforms SSOT.
-    let idp_origin = (party-idp-origin $root $platform 1)
-    let idp_env = if ($idp_origin | is-empty) { {} } else {
-        {host: (idp-party-host 1), origin: $idp_origin, realm: (platform-login-realm $root $platform)}
-    }
+    let idp_env = (party-idp-env $root $platform 1)
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
@@ -167,8 +163,8 @@ export def write-one-party-overlays [
     ]
     if not ($idp_env | is-empty) {
         $runner_ci_lines = ($runner_ci_lines | append [
-            $"      - CYPRESS_idp_origin=($idp_env.origin)"
-            $"      - CYPRESS_idp_realm=($idp_env.realm)"
+            $"      - CYPRESS_sender_idp_origin=($idp_env.origin)"
+            $"      - CYPRESS_sender_idp_realm=($idp_env.realm)"
         ])
     }
     if $actor != null {
@@ -216,8 +212,8 @@ export def write-one-party-overlays [
     ]
     if not ($idp_env | is-empty) {
         $runner_dev_lines = ($runner_dev_lines | append [
-            $"      - CYPRESS_idp_origin=($idp_env.origin)"
-            $"      - CYPRESS_idp_realm=($idp_env.realm)"
+            $"      - CYPRESS_sender_idp_origin=($idp_env.origin)"
+            $"      - CYPRESS_sender_idp_realm=($idp_env.realm)"
         ])
     }
     if $actor != null {

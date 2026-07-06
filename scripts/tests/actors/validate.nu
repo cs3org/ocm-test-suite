@@ -4,6 +4,7 @@
 const SUITE_PATH = path self
 
 use ../../lib/actors/validate.nu [validate-actor-config]
+use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
@@ -256,6 +257,19 @@ def test-missing-sender-platform-errors-clearly [] {
     }
 }
 
+def test-contact-token-cernbox-cernbox-real-repo-ok [] {
+    test-log "\n[test-contact-token-cernbox-cernbox-real-repo-ok]"
+    let root = get-ocmts-root
+    let result = (
+        try { validate-actor-config "contact-token" $root "cernbox" "cernbox"; "ok" }
+        catch {|e| $"error: ($e.msg)"}
+    )
+    [
+        (assert-eq $result "ok"
+            "contact-token__cernbox__cernbox validates ok on real repo config")
+    ]
+}
+
 def test-validate-actor-config-rejects-path-traversal-flow-id [] {
     test-log "\n[test-validate-actor-config-rejects-path-traversal-flow-id]"
     with-tmp-dir {|tmp|
@@ -288,6 +302,7 @@ def main [] {
         | append (test-override-shape-mismatch)
         | append (test-empty-override-errors)
         | append (test-empty-string-override-errors)
+        | append (test-contact-token-cernbox-cernbox-real-repo-ok)
         | append (test-validate-actor-config-rejects-path-traversal-flow-id)
     ) | flatten
     run-suite "actors/validate" $SUITE_PATH $results

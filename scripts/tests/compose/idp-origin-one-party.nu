@@ -1,5 +1,5 @@
 # One-party IdP env emission: external-idp platforms (cernbox) get
-# SENDER_IDP_HOST/ORIGIN + CYPRESS_idp_origin/realm in stack.env from the
+# SENDER_IDP_HOST/ORIGIN + CYPRESS_sender_idp_origin/realm in stack.env from the
 # platforms.nuon login SSOT; same-origin platforms (nextcloud) get none.
 # Run: nu scripts/tests/compose/idp-origin-one-party.nu
 
@@ -60,18 +60,18 @@ def test-cernbox-emits-idp-env [] {
             "stack.env has SENDER_IDP_HOST=idp1.docker")
         (assert-list-contains $lines "SENDER_IDP_ORIGIN=https://idp1.docker"
             "stack.env has SENDER_IDP_ORIGIN=https://idp1.docker")
-        (assert-list-contains $lines "CYPRESS_idp_origin=https://idp1.docker"
-            "stack.env has CYPRESS_idp_origin")
-        (assert-list-contains $lines "CYPRESS_idp_realm=cernbox"
-            "stack.env has CYPRESS_idp_realm from SSOT")
-        (assert-string-contains $runner_ci "CYPRESS_idp_origin=https://idp1.docker"
-            "runner-ci.yml has CYPRESS_idp_origin")
-        (assert-string-contains $runner_ci "CYPRESS_idp_realm=cernbox"
-            "runner-ci.yml has CYPRESS_idp_realm")
-        (assert-string-contains $runner_dev "CYPRESS_idp_origin=https://idp1.docker"
-            "runner-dev.yml has CYPRESS_idp_origin")
-        (assert-string-contains $runner_dev "CYPRESS_idp_realm=cernbox"
-            "runner-dev.yml has CYPRESS_idp_realm")
+        (assert-list-contains $lines "CYPRESS_sender_idp_origin=https://idp1.docker"
+            "stack.env has CYPRESS_sender_idp_origin")
+        (assert-list-contains $lines "CYPRESS_sender_idp_realm=cernbox"
+            "stack.env has CYPRESS_sender_idp_realm from SSOT")
+        (assert-string-contains $runner_ci "CYPRESS_sender_idp_origin=https://idp1.docker"
+            "runner-ci.yml has CYPRESS_sender_idp_origin")
+        (assert-string-contains $runner_ci "CYPRESS_sender_idp_realm=cernbox"
+            "runner-ci.yml has CYPRESS_sender_idp_realm")
+        (assert-string-contains $runner_dev "CYPRESS_sender_idp_origin=https://idp1.docker"
+            "runner-dev.yml has CYPRESS_sender_idp_origin")
+        (assert-string-contains $runner_dev "CYPRESS_sender_idp_realm=cernbox"
+            "runner-dev.yml has CYPRESS_sender_idp_realm")
     ]
     cleanup $artifacts_base $FIXTURE_EXEC_ID
     $results
@@ -95,18 +95,22 @@ def test-nextcloud-omits-idp-env [] {
     let lines = (read-stack-env-lines $overlay.env_file)
     let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))
     let runner_dev = (read-text ($overlay.compose_d | path join "runner-dev.yml"))
-    let idp_lines = ($lines | where {|l| ($l | str starts-with "SENDER_IDP_") or ($l | str starts-with "CYPRESS_idp_")})
+    let idp_lines = ($lines | where {|l|
+        (($l | str starts-with "SENDER_IDP_")
+            or ($l | str starts-with "CYPRESS_sender_idp_")
+            or ($l | str starts-with "CYPRESS_receiver_idp_"))
+    })
     let results = [
         (assert-truthy ($idp_lines | is-empty)
-            "same-origin nextcloud emits no SENDER_IDP_* or CYPRESS_idp_* lines")
-        (assert-truthy (not ($runner_ci | str contains "CYPRESS_idp_origin="))
-            "same-origin nextcloud runner-ci.yml omits CYPRESS_idp_origin")
-        (assert-truthy (not ($runner_ci | str contains "CYPRESS_idp_realm="))
-            "same-origin nextcloud runner-ci.yml omits CYPRESS_idp_realm")
-        (assert-truthy (not ($runner_dev | str contains "CYPRESS_idp_origin="))
-            "same-origin nextcloud runner-dev.yml omits CYPRESS_idp_origin")
-        (assert-truthy (not ($runner_dev | str contains "CYPRESS_idp_realm="))
-            "same-origin nextcloud runner-dev.yml omits CYPRESS_idp_realm")
+            "same-origin nextcloud emits no SENDER_IDP_* or CYPRESS_*_idp_* lines")
+        (assert-truthy (not ($runner_ci | str contains "CYPRESS_sender_idp_origin="))
+            "same-origin nextcloud runner-ci.yml omits CYPRESS_sender_idp_origin")
+        (assert-truthy (not ($runner_ci | str contains "CYPRESS_sender_idp_realm="))
+            "same-origin nextcloud runner-ci.yml omits CYPRESS_sender_idp_realm")
+        (assert-truthy (not ($runner_dev | str contains "CYPRESS_sender_idp_origin="))
+            "same-origin nextcloud runner-dev.yml omits CYPRESS_sender_idp_origin")
+        (assert-truthy (not ($runner_dev | str contains "CYPRESS_sender_idp_realm="))
+            "same-origin nextcloud runner-dev.yml omits CYPRESS_sender_idp_realm")
     ]
     cleanup $artifacts_base $FIXTURE_EXEC_ID
     $results

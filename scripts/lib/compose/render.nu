@@ -5,6 +5,8 @@
 
 use ./topology-two-party.nu [write-two-party-overlays]
 use ./topology-one-party.nu [write-one-party-overlays]
+use ../images/resolve.nu [resolve-images]
+use ../matrix/cell.nu [tuple-matrix-key]
 
 export def write-compose-overlays [
     flow_id: string,
@@ -26,7 +28,8 @@ export def write-compose-overlays [
     mitmproxy_image: string = "",
     sender_version: string = "",
     receiver_version: string = "",
-    bundle: record = {},
+    sender_bundle: record = {},
+    receiver_bundle: record = {},
     --cell-id: string = "",
 ] {
     let is_two_party = (not ($receiver_platform | is-empty))
@@ -40,8 +43,16 @@ export def write-compose-overlays [
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
             $sender_version $receiver_version
+            $sender_bundle $receiver_bundle
             --cell-id $cell_id)
     } else {
+        let tuple = (tuple-matrix-key $flow_id $sender_platform "")
+        let eff_sender_bundle = if ($sender_bundle | is-empty) {
+            (resolve-images $sender_platform $sender_version
+                --matrix-key $tuple.matrix_key --flow-id $tuple.flow_id).bundle
+        } else {
+            $sender_bundle
+        }
         (write-one-party-overlays
             $flow_id $sender_platform
             $artifact_name $execution_id
@@ -49,7 +60,7 @@ export def write-compose-overlays [
             $mariadb_image $valkey_image
             $spec_entrypoint $browser $record_video
             $root $artifacts_base
-            $sender_version $bundle
+            $sender_version $eff_sender_bundle
             --cell-id $cell_id)
     }
 }

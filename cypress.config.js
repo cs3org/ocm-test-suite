@@ -45,8 +45,10 @@ module.exports = {
   expose: {
     receiver_baseUrl: process.env.CYPRESS_receiver_baseUrl,
     proof_cell: process.env.CYPRESS_proof_cell,
-    idp_origin: process.env.CYPRESS_idp_origin,
-    idp_realm: process.env.CYPRESS_idp_realm,
+    sender_idp_origin: process.env.CYPRESS_sender_idp_origin,
+    sender_idp_realm: process.env.CYPRESS_sender_idp_realm,
+    receiver_idp_origin: process.env.CYPRESS_receiver_idp_origin,
+    receiver_idp_realm: process.env.CYPRESS_receiver_idp_realm,
   },
   e2e: {
     specPattern: "cypress/e2e/**/*.cy.ts",

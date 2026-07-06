@@ -2,7 +2,7 @@
 
 use ../run/execution-id.nu [execution-temp-path validate-execution-id]
 use ./yaml.nu [idp-party-host]
-use ../ocm/endpoints.nu [platform-login-mechanism]
+use ../ocm/endpoints.nu [platform-login-mechanism platform-login-realm]
 
 # IdP origin for a party, driven by the platforms.nuon login SSOT.
 # Returns "" for same-origin platforms; https://idp<party>.docker for external-idp.
@@ -11,6 +11,18 @@ export def party-idp-origin [root: string, platform: string, party: int]: nothin
         $"https://(idp-party-host $party)"
     } else {
         ""
+    }
+}
+
+# External-IdP host/origin/realm for a party, or {} for same-origin platforms.
+export def party-idp-env [root: string, platform: string, party: int]: nothing -> record {
+    if (platform-login-mechanism $root $platform) != "external-idp" {
+        return {}
+    }
+    {
+        host: (idp-party-host $party),
+        origin: (party-idp-origin $root $platform $party),
+        realm: (platform-login-realm $root $platform),
     }
 }
 

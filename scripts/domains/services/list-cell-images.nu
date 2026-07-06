@@ -4,7 +4,7 @@
 use ../../lib/matrix/cell.nu [validate-cell-rules compute-cell]
 use ../../lib/images/resolve.nu [
     resolve-images
-    resolve-receiver-image
+    resolve-receiver-images
     resolve-mitmproxy-image
 ]
 
@@ -36,10 +36,14 @@ def main [
     }
 
     if $is_two_party {
-        let recv_img = (resolve-receiver-image $receiver_platform $receiver_version
+        let recv_imgs = (resolve-receiver-images $receiver_platform $receiver_version
             --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
         let mitm_img = (resolve-mitmproxy-image --matrix-key $cell.matrix_key --flow-id $cell.flow_id)
-        $refs = ($refs | append [$recv_img $mitm_img])
+        $refs = ($refs | append [$recv_imgs.platform $mitm_img])
+        let recv_bundle = ($recv_imgs.bundle? | default {})
+        if not ($recv_bundle | is-empty) {
+            $refs = ($refs | append ($recv_bundle | values))
+        }
     }
 
     for img in ($refs | uniq) {

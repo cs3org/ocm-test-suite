@@ -2,57 +2,42 @@
 
 import type { ActorCredentials } from "../../../contracts/login";
 import { establishIdpSession } from "../../../shared/idp-session";
+import {
+  resolveCernboxIdpConfig,
+  type CernboxIdpSlot,
+} from "./idp-config";
 
-// CERNBox web is an ownCloud-Web SPA that authenticates against an external
-// Keycloak realm. We log in at the IdP origin directly (first-class navigation,
-// no cy.origin), cache the SSO session, then let the app complete a silent OIDC
-// handshake on cy.visit("/"). Sender is party 1, so the IdP is idp1.docker by
-// the idpN.docker convention; the value is config-driven for two-party runs.
-const defaultIdpOrigin = "https://idp1.docker";
-const defaultRealm = "cernbox";
 const loggedInUrlRe = /\/files\/spaces\//;
 const postLoginTimeoutMs = 30000;
 
-export function cernboxIdpOrigin(): string {
-  // idp_origin is a non-sensitive config value exposed via cypress.config.js
-  // (same channel as proof_cell / receiver_baseUrl). Falls back to idp1.docker
-  // for manual one-party runs where compose did not inject CYPRESS_idp_origin.
-  const configured = Cypress.expose("idp_origin");
-  return configured !== undefined &&
-    configured !== null &&
-    String(configured) !== ""
-    ? String(configured)
-    : defaultIdpOrigin;
+export type { CernboxIdpSlot };
+
+export function cernboxIdpOrigin(slot: CernboxIdpSlot = "sender"): string {
+  return resolveCernboxIdpConfig(slot).idpOrigin;
 }
 
-export function cernboxRealm(): string {
-  // idp_realm comes from the platforms.nuon login SSOT via CYPRESS_idp_realm.
-  // Falls back to "cernbox" for manual runs without compose injection.
-  const configured = Cypress.expose("idp_realm");
-  return configured !== undefined &&
-    configured !== null &&
-    String(configured) !== ""
-    ? String(configured)
-    : defaultRealm;
+export function cernboxRealm(slot: CernboxIdpSlot = "sender"): string {
+  return resolveCernboxIdpConfig(slot).realm;
 }
 
 export function establishCernboxIdpSession(
   credentials: ActorCredentials,
-  scenarioId?: string,
+  options?: { slot?: CernboxIdpSlot; scenarioId?: string },
 ): void {
+  const slot = options?.slot ?? "sender";
+  const { idpOrigin, realm } = resolveCernboxIdpConfig(slot);
+
   establishIdpSession({
-    idpOrigin: cernboxIdpOrigin(),
-    realm: cernboxRealm(),
+    idpOrigin,
+    realm,
     credentials,
-    scenarioId,
+    scenarioId: options?.scenarioId,
   });
 }
 
 export function completeCernboxAppLogin(): void {
   cy.intercept("GET", "**/web-oidc-callback**").as("oidcCallback");
 
-  // The SSO session is already established; visiting the app triggers a silent
-  // OIDC redirect through Keycloak that resolves back to the app origin.
   cy.visit("/");
   cy.wait("@oidcCallback", { timeout: postLoginTimeoutMs }).then(
     (interception) => {

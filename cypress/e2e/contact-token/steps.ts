@@ -13,6 +13,7 @@ import {
   writeRuntime,
 } from "../../support/shared/procedural-flow";
 import { takeEvidenceScreenshot } from "../../support/shared/evidence";
+import { defineIdpLoginPrewarm } from "../../support/shared/idp-prewarm";
 
 type RuntimeState = {
   acceptedContactUrl?: string;
@@ -31,6 +32,21 @@ export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
     before(() => {
       return ensureRuntimeDir();
     });
+
+    defineIdpLoginPrewarm([
+      {
+        role: "sender",
+        login: scenarioCase.senderLogin,
+        actor: scenarioCase.sender,
+        scenarioId: scenarioCase.id,
+      },
+      {
+        role: "receiver",
+        login: scenarioCase.receiverLogin,
+        actor: scenarioCase.receiver,
+        scenarioId: scenarioCase.id,
+      },
+    ]);
 
     it("sender creates token and stores runtime", () => {
       const sharedFileName = `contact-token-${scenarioCase.id}.txt`;

@@ -42,14 +42,16 @@
         "by_platform": {
           "nextcloud": "michiel",
           "ocis": "einstein",
-          "opencloud": "alan"
+          "opencloud": "alan",
+          "cernbox": "einstein"
         }
       },
       "receiver": {
         "by_platform": {
           "nextcloud": "marie",
           "ocis": "marie",
-          "opencloud": "lynn"
+          "opencloud": "lynn",
+          "cernbox": "marie"
         }
       }
     }

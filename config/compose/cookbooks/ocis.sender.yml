@@ -23,6 +23,7 @@ services:
     environment:
       - OCIS_URL=https://${SENDER_PARTY_HOST}
       - OCIS_INSECURE=true
+      - OCIS_LOG_LEVEL=debug
       - OCIS_INIT=true
       - OCIS_ADMIN_PASSWORD=admin
       - IDM_CREATE_DEMO_USERS=true

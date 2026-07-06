@@ -31,12 +31,10 @@
           "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
         },
         "op.contact-token.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "op.contact-token.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "op.contact-wayf.receiver": {
           "status": "test-implementation-pending",
@@ -50,16 +48,13 @@
           "status": "supported"
         },
         "op.provider-identity": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "op.share-file.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "op.share-file.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         }
       }
     },

@@ -75,6 +75,8 @@ def test-actors-list [] {
             "actors list exits 0")
         (assert-string-contains $out.stdout "login__nextcloud"
             "actors list output contains login__nextcloud matrix key")
+        (assert-string-contains $out.stdout "contact-token__cernbox__cernbox"
+            "actors list output contains contact-token__cernbox__cernbox matrix key")
     ]
 }
 
@@ -134,6 +136,42 @@ def test-actors-show-two-party [] {
             "actors show two-party prints resolved matrix_key")
         (assert-string-contains $out.stdout "receiver:"
             "actors show two-party prints receiver block")
+    ]
+}
+
+def test-actors-show-contact-token-cernbox-cernbox [] {
+    test-log "\n[test-actors-show-contact-token-cernbox-cernbox]"
+    let out = (^nu (ocmts-script) actors show
+        --flow contact-token
+        --sender-platform cernbox
+        --receiver-platform cernbox
+        | complete)
+    let sender_block = ($out.stdout | split row "sender:" | last | split row "receiver:" | first)
+    let receiver_block = ($out.stdout | split row "receiver:" | last)
+    [
+        (assert-eq $out.exit_code 0
+            "actors show contact-token cernbox/cernbox exits 0")
+        (assert-string-contains $out.stdout "matrix_key: contact-token__cernbox__cernbox"
+            "actors show contact-token cernbox/cernbox prints resolved matrix_key")
+        (assert-string-contains $sender_block "account:    einstein"
+            "actors show contact-token cernbox/cernbox sender block prints einstein")
+        (assert-string-contains $receiver_block "account:    marie"
+            "actors show contact-token cernbox/cernbox receiver block prints marie")
+    ]
+}
+
+def test-actors-validate-contact-token-cernbox-cernbox [] {
+    test-log "\n[test-actors-validate-contact-token-cernbox-cernbox]"
+    let out = (^nu (ocmts-script) actors validate
+        --flow contact-token
+        --sender-platform cernbox
+        --receiver-platform cernbox
+        | complete)
+    [
+        (assert-eq $out.exit_code 0
+            "actors validate contact-token cernbox/cernbox exits 0")
+        (assert-string-contains $out.stdout "actor config for 'contact-token__cernbox__cernbox': ok"
+            "actors validate contact-token cernbox/cernbox prints ok line")
     ]
 }
 
@@ -286,6 +324,8 @@ def test-actors-validate-all [] {
             "actors validate-all includes login tuple")
         (assert-string-contains $out.stdout "share-with__nextcloud__ocmgo: ok"
             "actors validate-all includes migrated share-with tuple")
+        (assert-string-contains $out.stdout "contact-token__cernbox__cernbox: ok"
+            "actors validate-all includes contact-token cernbox/cernbox tuple")
     ]
 }
 
@@ -340,12 +380,14 @@ def main [] {
         | append (test-actors-show-one-party)
         | append (test-actors-show-two-party-requires-receiver)
         | append (test-actors-show-two-party)
+        | append (test-actors-show-contact-token-cernbox-cernbox)
         | append (test-actors-show-requires-sender-platform)
         | append (test-actors-show-disabled-tuple-errors)
         | append (test-actors-show-absent-tuple-errors)
         | append (test-actors-validate-disabled-tuple-errors)
         | append (test-actors-validate-absent-tuple-errors)
         | append (test-actors-validate-one-party)
+        | append (test-actors-validate-contact-token-cernbox-cernbox)
         | append (test-actors-validate-requires-sender-platform)
         | append (test-actors-validate-two-party-requires-receiver)
         | append (test-actors-validate-rejects-invalid-flow-id)

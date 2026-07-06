@@ -64,6 +64,82 @@ def test-two-party-services-shape [] {
     $results | append $col_results | append $entry_results
 }
 
+# Two-party bundle shape: sender/receiver bundle services use role-correct labels
+# and bundle tags come from bundle vs receiver_bundle rather than db/cache slots.
+def test-two-party-bundle-services-shape [] {
+    test-log "\n[test-two-party-bundle-services-shape]"
+    let tmp = (make-tmp)
+    let imgs = {
+        platform: "ghcr.io/example/cernbox-web:sender",
+        receiver_platform: "ghcr.io/example/cernbox-web:receiver",
+        mitmproxy: "ghcr.io/example/mitmproxy:v1",
+        bundle: {
+            revad: "ghcr.io/example/cernbox-revad:sender",
+            idp: "ghcr.io/example/idp:sender",
+        },
+        receiver_bundle: {
+            revad: "ghcr.io/example/cernbox-revad:receiver",
+            idp: "ghcr.io/example/idp:receiver",
+        },
+        bundle_services: {
+            revad: "sender-revad-gateway",
+            idp: "sender-idp",
+        },
+        receiver_bundle_services: {
+            revad: "receiver-revad-gateway",
+            idp: "receiver-idp",
+        },
+    }
+    emit-cell-images $tmp "stack-bundle-2p" $imgs true
+    let m = (open ($tmp | path join "meta" "images.v1.json"))
+    let svcs = $m.services
+    let svc_names = ($svcs | get service)
+    let results = [
+        (assert-eq ($svcs | length) 7 "bundle two-party services length is 7")
+        (assert-list-contains $svc_names "sender" "sender present")
+        (assert-list-contains $svc_names "receiver" "receiver present")
+        (assert-list-contains $svc_names "sender-revad-gateway"
+            "sender revad service label present")
+        (assert-list-contains $svc_names "sender-idp"
+            "sender idp service label present")
+        (assert-list-contains $svc_names "receiver-revad-gateway"
+            "receiver revad service label present")
+        (assert-list-contains $svc_names "receiver-idp"
+            "receiver idp service label present")
+        (assert-list-contains $svc_names "mitm" "mitm present")
+        (assert-list-not-contains $svc_names "sender-db"
+            "sender-db absent in two-party bundle branch")
+        (assert-list-not-contains $svc_names "receiver-db"
+            "receiver-db absent in two-party bundle branch")
+        (assert-list-not-contains $svc_names "sender-cache"
+            "sender-cache absent in two-party bundle branch")
+        (assert-list-not-contains $svc_names "receiver-cache"
+            "receiver-cache absent in two-party bundle branch")
+    ]
+    let sender_revad = ($svcs | where service == "sender-revad-gateway" | first)
+    let sender_idp = ($svcs | where service == "sender-idp" | first)
+    let receiver_revad = ($svcs | where service == "receiver-revad-gateway" | first)
+    let receiver_idp = ($svcs | where service == "receiver-idp" | first)
+    let entry_results = [
+        (assert-eq $sender_revad.role "revad" "sender revad role is revad")
+        (assert-eq $sender_revad.tag "ghcr.io/example/cernbox-revad:sender"
+            "sender revad tag comes from bundle")
+        (assert-eq $sender_idp.role "idp" "sender idp role is idp")
+        (assert-eq $sender_idp.tag "ghcr.io/example/idp:sender"
+            "sender idp tag comes from bundle")
+        (assert-eq $receiver_revad.role "recv_revad"
+            "receiver revad role uses receiver bundle branch marker")
+        (assert-eq $receiver_revad.tag "ghcr.io/example/cernbox-revad:receiver"
+            "receiver revad tag comes from receiver_bundle")
+        (assert-eq $receiver_idp.role "recv_idp"
+            "receiver idp role uses receiver bundle branch marker")
+        (assert-eq $receiver_idp.tag "ghcr.io/example/idp:receiver"
+            "receiver idp tag comes from receiver_bundle")
+    ]
+    rm -rf $tmp
+    $results | append $entry_results
+}
+
 # One-party bundle shape: sender + real compose service names, no db/cache.
 # bundle_services maps each slot to its actual compose service name; the evidence
 # service field must use that, not a synthetic sender-<slot> label.
@@ -207,6 +283,7 @@ def main [] {
     test-log "=== images/emit-cell-images Tests ==="
     let results = (
         (test-two-party-services-shape)
+        | append (test-two-party-bundle-services-shape)
         | append (test-one-party-bundle-services-shape)
         | append (test-one-party-bundle-services-fallback)
         | append (test-one-party-services-shape)

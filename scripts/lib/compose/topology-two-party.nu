@@ -9,14 +9,16 @@ use ./topology-common.nu [
     copy-platform-cookbook
     copy-overlays-to-artifacts
     ocmgo-env-lines
+    party-idp-env
 ]
 use ../actors/load.nu [load-sender-for-tuple load-receiver-for-tuple]
-use ../matrix/cell.nu [validate-browser]
+use ../images/resolve.nu [resolve-images resolve-receiver-images]
+use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
 # Write stack.env for a two-party run into art_inputs/.
 # Returns the absolute path to the written file.
-def write-two-party-env [
+export def write-two-party-env [
     art_inputs: string,
     sender_platform: string,
     receiver_platform: string,
@@ -31,6 +33,10 @@ def write-two-party-env [
     sender_actor: any,
     receiver_actor: any,
     exec_cidr: string,
+    sender_idp_env: record = {},
+    receiver_idp_env: record = {},
+    sender_bundle: record = {},
+    receiver_bundle: record = {},
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -39,20 +45,24 @@ def write-two-party-env [
     let receiver_short_host = ($receiver_party_host | str replace --regex '\.docker$' '')
     let artifacts_base = ($art_inputs | path dirname | path dirname)
 
-    let sender_no_proxy = (
-        [
-            "localhost" "127.0.0.1" "mitm"
-            "sender" "sender-db" "sender-cache"
-            $sender_party_host
-        ] | str join ","
-    )
-    let receiver_no_proxy = (
-        [
-            "localhost" "127.0.0.1" "mitm"
-            "receiver" "receiver-db" "receiver-cache"
-            $receiver_party_host
-        ] | str join ","
-    )
+    mut sender_no_proxy = [
+        "localhost" "127.0.0.1" "mitm"
+        "sender" "sender-db" "sender-cache"
+        $sender_party_host
+    ]
+    if not ($sender_idp_env | is-empty) {
+        $sender_no_proxy = ($sender_no_proxy | append $sender_idp_env.host)
+    }
+    mut receiver_no_proxy = [
+        "localhost" "127.0.0.1" "mitm"
+        "receiver" "receiver-db" "receiver-cache"
+        $receiver_party_host
+    ]
+    if not ($receiver_idp_env | is-empty) {
+        $receiver_no_proxy = ($receiver_no_proxy | append $receiver_idp_env.host)
+    }
+    let sender_no_proxy_str = ($sender_no_proxy | str join ",")
+    let receiver_no_proxy_str = ($receiver_no_proxy | str join ",")
 
     let sender_provider = (resolve-ocm-provider $root $sender_platform 1 $sender_version)
     let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
@@ -70,7 +80,7 @@ def write-two-party-env [
         "SENDER_REDIS_HOST=sender-cache"
         "SENDER_HTTP_PROXY=http://mitm:8080"
         "SENDER_HTTPS_PROXY=http://mitm:8080"
-        $"SENDER_NO_PROXY=($sender_no_proxy)"
+        $"SENDER_NO_PROXY=($sender_no_proxy_str)"
         $"SENDER_PLATFORM=($sender_platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($sender_party_host)"
         $"RECEIVER_PARTY_HOST=($receiver_party_host)"
@@ -78,7 +88,7 @@ def write-two-party-env [
         "RECEIVER_REDIS_HOST=receiver-cache"
         "RECEIVER_HTTP_PROXY=http://mitm:8080"
         "RECEIVER_HTTPS_PROXY=http://mitm:8080"
-        $"RECEIVER_NO_PROXY=($receiver_no_proxy)"
+        $"RECEIVER_NO_PROXY=($receiver_no_proxy_str)"
         $"RECEIVER_PLATFORM=($receiver_platform)"
         $"RECEIVER_PUBLIC_ORIGIN=https://($receiver_party_host)"
         $"CYPRESS_baseUrl=https://($sender_party_host)"
@@ -102,6 +112,30 @@ def write-two-party-env [
             $"CYPRESS_receiver_username=($receiver_actor.username)"
             $"CYPRESS_receiver_password=($receiver_actor.password)"
         ])
+    }
+    if not ($sender_idp_env | is-empty) {
+        $lines = ($lines | append [
+            $"SENDER_IDP_HOST=($sender_idp_env.host)"
+            $"SENDER_IDP_ORIGIN=($sender_idp_env.origin)"
+            $"CYPRESS_sender_idp_origin=($sender_idp_env.origin)"
+            $"CYPRESS_sender_idp_realm=($sender_idp_env.realm)"
+        ])
+    }
+    if not ($receiver_idp_env | is-empty) {
+        $lines = ($lines | append [
+            $"RECEIVER_IDP_HOST=($receiver_idp_env.host)"
+            $"RECEIVER_IDP_ORIGIN=($receiver_idp_env.origin)"
+            $"CYPRESS_receiver_idp_origin=($receiver_idp_env.origin)"
+            $"CYPRESS_receiver_idp_realm=($receiver_idp_env.realm)"
+        ])
+    }
+    for slot in ($sender_bundle | columns) {
+        let slot_up = ($slot | str upcase)
+        $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($sender_bundle | get $slot)")
+    }
+    for slot in ($receiver_bundle | columns) {
+        let slot_up = ($slot | str upcase)
+        $lines = ($lines | append $"RECEIVER_($slot_up)_IMAGE=($receiver_bundle | get $slot)")
     }
     $lines = ($lines | append $ocm_provider_lines)
 
@@ -132,11 +166,30 @@ export def write-two-party-overlays [
     artifacts_base: string,
     sender_version: string = "",
     receiver_version: string = "",
+    sender_bundle: record = {},
+    receiver_bundle: record = {},
     --cell-id: string = "",
 ] {
     let safe_browser = (validate-browser $browser)
     let sender_actor = (load-sender-for-tuple $flow_id $sender_platform $receiver_platform $root $sender_platform)
     let receiver_actor = (load-receiver-for-tuple $flow_id $sender_platform $receiver_platform $root $receiver_platform)
+
+    let sender_idp_env = (party-idp-env $root $sender_platform 1)
+    let receiver_idp_env = (party-idp-env $root $receiver_platform 2)
+
+    let tuple = (tuple-matrix-key $flow_id $sender_platform $receiver_platform)
+    let eff_sender_bundle = if ($sender_bundle | is-empty) {
+        (resolve-images $sender_platform $sender_version
+            --matrix-key $tuple.matrix_key --flow-id $tuple.flow_id).bundle
+    } else {
+        $sender_bundle
+    }
+    let eff_receiver_bundle = if ($receiver_bundle | is-empty) {
+        (resolve-receiver-images $receiver_platform $receiver_version
+            --matrix-key $tuple.matrix_key --flow-id $tuple.flow_id).bundle
+    } else {
+        $receiver_bundle
+    }
 
     let ctx = (make-stack-context $artifact_name $execution_id $root $artifacts_base)
     let stack_id = $ctx.stack_id
@@ -157,7 +210,8 @@ export def write-two-party-overlays [
         $art_inputs $sender_platform $receiver_platform
         $sender_version $receiver_version
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
-        $record_video $root $sender_actor $receiver_actor $exec_cidr)
+        $record_video $root $sender_actor $receiver_actor $exec_cidr
+        $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle)
 
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -231,6 +285,18 @@ export def write-two-party-overlays [
             (yaml-env-entry "CYPRESS_receiver_password" $receiver_actor.password)
         ])
     }
+    if not ($sender_idp_env | is-empty) {
+        $runner_ci_lines = ($runner_ci_lines | append [
+            (yaml-env-entry "CYPRESS_sender_idp_origin" $sender_idp_env.origin)
+            (yaml-env-entry "CYPRESS_sender_idp_realm" $sender_idp_env.realm)
+        ])
+    }
+    if not ($receiver_idp_env | is-empty) {
+        $runner_ci_lines = ($runner_ci_lines | append [
+            (yaml-env-entry "CYPRESS_receiver_idp_origin" $receiver_idp_env.origin)
+            (yaml-env-entry "CYPRESS_receiver_idp_realm" $receiver_idp_env.realm)
+        ])
+    }
     if not ($cell_id | is-empty) {
         $runner_ci_lines = ($runner_ci_lines | append [
             $"      - CYPRESS_proof_cell=($cell_id)"
@@ -282,6 +348,18 @@ export def write-two-party-overlays [
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry "CYPRESS_receiver_username" $receiver_actor.username)
             (yaml-env-entry "CYPRESS_receiver_password" $receiver_actor.password)
+        ])
+    }
+    if not ($sender_idp_env | is-empty) {
+        $runner_dev_lines = ($runner_dev_lines | append [
+            (yaml-env-entry "CYPRESS_sender_idp_origin" $sender_idp_env.origin)
+            (yaml-env-entry "CYPRESS_sender_idp_realm" $sender_idp_env.realm)
+        ])
+    }
+    if not ($receiver_idp_env | is-empty) {
+        $runner_dev_lines = ($runner_dev_lines | append [
+            (yaml-env-entry "CYPRESS_receiver_idp_origin" $receiver_idp_env.origin)
+            (yaml-env-entry "CYPRESS_receiver_idp_realm" $receiver_idp_env.realm)
         ])
     }
     if not ($cell_id | is-empty) {

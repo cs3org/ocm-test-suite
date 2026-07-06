@@ -17,6 +17,7 @@
 use ./template-renderer.nu [render-blueprint render-template]
 use ./flow-order.nu [sort-cells-by-flow-order]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../ocm/endpoints.nu [load-platforms-manifest]
 
 # Build the aggregate needs block (multi-line YAML fragment).
 # Returns the indented `needs:` block string.
@@ -26,21 +27,30 @@ export def build-aggregate-needs-block [job_names: list<string>]: any -> string 
     $"    needs:\n      [\n($items)\n      ]"
 }
 
+# Human-facing platform label from the platforms catalog; slug fallback when absent.
+def platform-label [platforms: record, slug: string]: any -> string {
+    if ($slug | is-empty) { return "" }
+    ($platforms | get --optional $slug | default {} | get display_name? | default $slug)
+}
+
 # Format the display_name string for one-party or two-party cells.
 # Used as the cell-layer job title; the wave layer uses a fixed "test" label,
 # so this returns only the pair part to avoid duplicated prefixes in the UI.
-# Format: <sender_platform> <sender_version> [to <recv_platform> <recv_version>]
+# Format: <sender_display_name> <sender_version> [to <recv_display_name> <recv_version>]
 def cell-display-name [
+    platforms: record,
     sender_platform: string,
     sender_version: string,
     is_two_party: bool,
     recv_platform: string,
     recv_version: string,
 ]: any -> string {
+    let sender_label = (platform-label $platforms $sender_platform)
     if $is_two_party {
-        $"($sender_platform) ($sender_version) to ($recv_platform) ($recv_version)"
+        let recv_label = (platform-label $platforms $recv_platform)
+        $"($sender_label) ($sender_version) to ($recv_label) ($recv_version)"
     } else {
-        $"($sender_platform) ($sender_version)"
+        $"($sender_label) ($sender_version)"
     }
 }
 
@@ -48,6 +58,7 @@ def cell-display-name [
 def build-cell-json-record [
     cell: record,
     cell_id_to_artifact: record,
+    platforms: record,
 ]: any -> record {
     let recv_platform = if $cell.is_two_party { $cell.receiver_platform } else { "" }
     let recv_version = if $cell.is_two_party { $cell.receiver_version } else { "" }
@@ -60,6 +71,7 @@ def build-cell-json-record [
         } | where {|a| not ($a | is-empty)} | str join ","
     }
     let display_name = (cell-display-name
+        $platforms
         $cell.sender_platform $cell.sender_version
         $cell.is_two_party $recv_platform $recv_version)
     {
@@ -91,6 +103,7 @@ export def build-flow-asset-content [cells: list]: any -> string {
 export def build-flow-assets [plan: record]: any -> list {
     let root = get-ocmts-root
     let cfg = (load-ci-config $root)
+    let platforms = (load-platforms-manifest $root).platforms
     let gh = $cfg.workflows.github
 
     let runnable_cells = ($plan.cells | where capability_action == "run")
@@ -105,7 +118,7 @@ export def build-flow-assets [plan: record]: any -> list {
         let flow_cells = ($cells_by_flow | get --optional $flow_id | default [])
         if ($flow_cells | is-empty) { return null }
         let cell_records = ($flow_cells | enumerate | each {|e|
-            (build-cell-json-record $e.item $cell_id_to_artifact)
+            (build-cell-json-record $e.item $cell_id_to_artifact $platforms)
             | insert wave_index ($e.index + 1)
         })
         {

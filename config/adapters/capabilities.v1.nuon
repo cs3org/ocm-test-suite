@@ -4,12 +4,10 @@
     "cernbox/v11": {
       "capabilities": {
         "flow.contact-token.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "flow.contact-token.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "flow.contact-wayf.receiver": {
           "status": "test-implementation-pending",

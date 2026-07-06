@@ -1,6 +1,66 @@
 [
   {
     "flow": "contact-token",
+    "sender_platform": "cernbox",
+    "sender_version": "v11",
+    "receiver_platform": "cernbox",
+    "receiver_version": "v11",
+    "display_name": "cernbox v11 to cernbox v11",
+    "artifact_name": "cell-contact-token-cernbox-v11-cernbox-v11",
+    "cell_id": "contact-token__cernbox-v11__cernbox-v11",
+    "cell_depends_on": "cell-login-cernbox-v11",
+    "wave_index": 1
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "cernbox",
+    "sender_version": "v11",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "cernbox v11 to nextcloud v35",
+    "artifact_name": "cell-contact-token-cernbox-v11-nextcloud-v35",
+    "cell_id": "contact-token__cernbox-v11__nextcloud-v35",
+    "cell_depends_on": "cell-login-cernbox-v11,cell-login-nextcloud-v35",
+    "wave_index": 2
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "cernbox",
+    "sender_version": "v11",
+    "receiver_platform": "ocis",
+    "receiver_version": "v8",
+    "display_name": "cernbox v11 to ocis v8",
+    "artifact_name": "cell-contact-token-cernbox-v11-ocis-v8",
+    "cell_id": "contact-token__cernbox-v11__ocis-v8",
+    "cell_depends_on": "cell-login-cernbox-v11,cell-login-ocis-v8",
+    "wave_index": 3
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "cernbox",
+    "sender_version": "v11",
+    "receiver_platform": "opencloud",
+    "receiver_version": "v6",
+    "display_name": "cernbox v11 to opencloud v6",
+    "artifact_name": "cell-contact-token-cernbox-v11-opencloud-v6",
+    "cell_id": "contact-token__cernbox-v11__opencloud-v6",
+    "cell_depends_on": "cell-login-cernbox-v11,cell-login-opencloud-v6",
+    "wave_index": 4
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "cernbox",
+    "receiver_version": "v11",
+    "display_name": "nextcloud v35 to cernbox v11",
+    "artifact_name": "cell-contact-token-nextcloud-v35-cernbox-v11",
+    "cell_id": "contact-token__nextcloud-v35__cernbox-v11",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-cernbox-v11",
+    "wave_index": 5
+  },
+  {
+    "flow": "contact-token",
     "sender_platform": "nextcloud",
     "sender_version": "v35",
     "receiver_platform": "nextcloud",
@@ -9,7 +69,7 @@
     "artifact_name": "cell-contact-token-nextcloud-v35-nextcloud-v35",
     "cell_id": "contact-token__nextcloud-v35__nextcloud-v35",
     "cell_depends_on": "cell-login-nextcloud-v35",
-    "wave_index": 1
+    "wave_index": 6
   },
   {
     "flow": "contact-token",
@@ -21,7 +81,7 @@
     "artifact_name": "cell-contact-token-nextcloud-v35-ocis-v8",
     "cell_id": "contact-token__nextcloud-v35__ocis-v8",
     "cell_depends_on": "cell-login-nextcloud-v35,cell-login-ocis-v8",
-    "wave_index": 2
+    "wave_index": 7
   },
   {
     "flow": "contact-token",
@@ -33,7 +93,19 @@
     "artifact_name": "cell-contact-token-nextcloud-v35-opencloud-v6",
     "cell_id": "contact-token__nextcloud-v35__opencloud-v6",
     "cell_depends_on": "cell-login-nextcloud-v35,cell-login-opencloud-v6",
-    "wave_index": 3
+    "wave_index": 8
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "ocis",
+    "sender_version": "v8",
+    "receiver_platform": "cernbox",
+    "receiver_version": "v11",
+    "display_name": "ocis v8 to cernbox v11",
+    "artifact_name": "cell-contact-token-ocis-v8-cernbox-v11",
+    "cell_id": "contact-token__ocis-v8__cernbox-v11",
+    "cell_depends_on": "cell-login-ocis-v8,cell-login-cernbox-v11",
+    "wave_index": 9
   },
   {
     "flow": "contact-token",
@@ -45,7 +117,7 @@
     "artifact_name": "cell-contact-token-ocis-v8-nextcloud-v35",
     "cell_id": "contact-token__ocis-v8__nextcloud-v35",
     "cell_depends_on": "cell-login-ocis-v8,cell-login-nextcloud-v35",
-    "wave_index": 4
+    "wave_index": 10
   },
   {
     "flow": "contact-token",
@@ -57,7 +129,7 @@
     "artifact_name": "cell-contact-token-ocis-v8-ocis-v8",
     "cell_id": "contact-token__ocis-v8__ocis-v8",
     "cell_depends_on": "cell-login-ocis-v8",
-    "wave_index": 5
+    "wave_index": 11
   },
   {
     "flow": "contact-token",
@@ -69,7 +141,19 @@
     "artifact_name": "cell-contact-token-ocis-v8-opencloud-v6",
     "cell_id": "contact-token__ocis-v8__opencloud-v6",
     "cell_depends_on": "cell-login-ocis-v8,cell-login-opencloud-v6",
-    "wave_index": 6
+    "wave_index": 12
+  },
+  {
+    "flow": "contact-token",
+    "sender_platform": "opencloud",
+    "sender_version": "v6",
+    "receiver_platform": "cernbox",
+    "receiver_version": "v11",
+    "display_name": "opencloud v6 to cernbox v11",
+    "artifact_name": "cell-contact-token-opencloud-v6-cernbox-v11",
+    "cell_id": "contact-token__opencloud-v6__cernbox-v11",
+    "cell_depends_on": "cell-login-opencloud-v6,cell-login-cernbox-v11",
+    "wave_index": 13
   },
   {
     "flow": "contact-token",
@@ -81,7 +165,7 @@
     "artifact_name": "cell-contact-token-opencloud-v6-nextcloud-v35",
     "cell_id": "contact-token__opencloud-v6__nextcloud-v35",
     "cell_depends_on": "cell-login-opencloud-v6,cell-login-nextcloud-v35",
-    "wave_index": 7
+    "wave_index": 14
   },
   {
     "flow": "contact-token",
@@ -93,7 +177,7 @@
     "artifact_name": "cell-contact-token-opencloud-v6-ocis-v8",
     "cell_id": "contact-token__opencloud-v6__ocis-v8",
     "cell_depends_on": "cell-login-opencloud-v6,cell-login-ocis-v8",
-    "wave_index": 8
+    "wave_index": 15
   },
   {
     "flow": "contact-token",
@@ -105,6 +189,6 @@
     "artifact_name": "cell-contact-token-opencloud-v6-opencloud-v6",
     "cell_id": "contact-token__opencloud-v6__opencloud-v6",
     "cell_depends_on": "cell-login-opencloud-v6",
-    "wave_index": 9
+    "wave_index": 16
   }
 ]

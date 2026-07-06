@@ -22,6 +22,43 @@ def read-text [path: string] {
     open -r $path
 }
 
+def is-compose-top-level-service-line [line: string] {
+    not (($line | parse --regex '^  [^\s].+:$' | is-empty))
+}
+
+def extract-compose-service-block [src: string, service: string] {
+    let marker = $"  ($service):"
+    let lines = ($src | lines)
+    let start = ($lines | enumerate | where {|e| $e.item == $marker} | first)
+    if ($start == null) {
+        return null
+    }
+    let tail = ($lines | skip ($start.index + 1))
+    let next = ($tail | enumerate | where {|e| (is-compose-top-level-service-line $e.item)} | first)
+    let end = if ($next == null) { ($tail | length) } else { $next.index }
+    $tail | take $end | str join (char newline)
+}
+
+def assert-revad-proxy-env [compose: string, service: string, party_prefix: string] {
+    let block = (extract-compose-service-block $compose $service)
+    let label = $"($service) proxy env"
+    [
+        (assert-not-null $block $"($label) block exists")
+        (assert-string-contains $block $"HTTP_PROXY=${($party_prefix)}_HTTP_PROXY}"
+            $"($label) has HTTP_PROXY")
+        (assert-string-contains $block $"HTTPS_PROXY=${($party_prefix)}_HTTPS_PROXY}"
+            $"($label) has HTTPS_PROXY")
+        (assert-string-contains $block $"NO_PROXY=${($party_prefix)}_NO_PROXY}"
+            $"($label) has NO_PROXY")
+    ]
+}
+
+const CERNBOX_SENDER_REVAD_PROXY_SERVICES = [
+    "sender-revad-gateway"
+    "sender-revad-dataprovider-ocm"
+    "sender-revad-dataprovider-sciencemesh"
+]
+
 def make-artifacts-base [] {
     let base = ($nu.temp-dir | path join $"idp-origin-1p-test-(random uuid)")
     mkdir ($base | path join "compose" "inputs")
@@ -55,6 +92,7 @@ def test-cernbox-emits-idp-env [] {
     let lines = (read-stack-env-lines $overlay.env_file)
     let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))
     let runner_dev = (read-text ($overlay.compose_d | path join "runner-dev.yml"))
+    let overlay_sender = (read-text ($overlay.compose_d | path join "sender.yml"))
     let results = [
         (assert-list-contains $lines "SENDER_IDP_HOST=idp1.docker"
             "stack.env has SENDER_IDP_HOST=idp1.docker")
@@ -73,8 +111,13 @@ def test-cernbox-emits-idp-env [] {
         (assert-string-contains $runner_dev "CYPRESS_sender_idp_realm=cernbox"
             "runner-dev.yml has CYPRESS_sender_idp_realm")
     ]
+    let proxy_results = (
+        $CERNBOX_SENDER_REVAD_PROXY_SERVICES
+        | each {|svc| assert-revad-proxy-env $overlay_sender $svc "SENDER"}
+        | flatten
+    )
     cleanup $artifacts_base $FIXTURE_EXEC_ID
-    $results
+    ($results | append $proxy_results)
 }
 
 # nextcloud (same-origin) emits no IdP env at all.

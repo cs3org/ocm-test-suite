@@ -21,6 +21,49 @@ def read-text [path: string] {
     open -r $path
 }
 
+def is-compose-top-level-service-line [line: string] {
+    not (($line | parse --regex '^  [^\s].+:$' | is-empty))
+}
+
+def extract-compose-service-block [src: string, service: string] {
+    let marker = $"  ($service):"
+    let lines = ($src | lines)
+    let start = ($lines | enumerate | where {|e| $e.item == $marker} | first)
+    if ($start == null) {
+        return null
+    }
+    let tail = ($lines | skip ($start.index + 1))
+    let next = ($tail | enumerate | where {|e| (is-compose-top-level-service-line $e.item)} | first)
+    let end = if ($next == null) { ($tail | length) } else { $next.index }
+    $tail | take $end | str join (char newline)
+}
+
+def assert-revad-proxy-env [compose: string, service: string, party_prefix: string] {
+    let block = (extract-compose-service-block $compose $service)
+    let label = $"($service) proxy env"
+    [
+        (assert-not-null $block $"($label) block exists")
+        (assert-string-contains $block ("HTTP_PROXY=${" + $party_prefix + "_HTTP_PROXY}")
+            $"($label) has HTTP_PROXY")
+        (assert-string-contains $block ("HTTPS_PROXY=${" + $party_prefix + "_HTTPS_PROXY}")
+            $"($label) has HTTPS_PROXY")
+        (assert-string-contains $block ("NO_PROXY=${" + $party_prefix + "_NO_PROXY}")
+            $"($label) has NO_PROXY")
+    ]
+}
+
+const CERNBOX_SENDER_REVAD_PROXY_SERVICES = [
+    "sender-revad-gateway"
+    "sender-revad-dataprovider-ocm"
+    "sender-revad-dataprovider-sciencemesh"
+]
+
+const CERNBOX_RECEIVER_REVAD_PROXY_SERVICES = [
+    "receiver-revad-gateway"
+    "receiver-revad-dataprovider-ocm"
+    "receiver-revad-dataprovider-sciencemesh"
+]
+
 def link-path [src: string, dest: string] {
     mkdir ($dest | path dirname)
     ^ln -sf $src $dest
@@ -137,6 +180,14 @@ def test-cernbox-two-party-emits-mirrored-idp-env [] {
             "SENDER_NO_PROXY bypasses sender IdP host")
         (assert-string-contains $receiver_no_proxy "idp2.docker"
             "RECEIVER_NO_PROXY bypasses receiver IdP host")
+        (assert-string-contains $sender_no_proxy "sender-revad-gateway"
+            "SENDER_NO_PROXY bypasses sender-revad-gateway")
+        (assert-string-contains $sender_no_proxy "sender-revad-dataprovider-ocm"
+            "SENDER_NO_PROXY bypasses sender-revad-dataprovider-ocm")
+        (assert-string-contains $receiver_no_proxy "receiver-revad-gateway"
+            "RECEIVER_NO_PROXY bypasses receiver-revad-gateway")
+        (assert-string-contains $receiver_no_proxy "receiver-revad-dataprovider-ocm"
+            "RECEIVER_NO_PROXY bypasses receiver-revad-dataprovider-ocm")
     ]
     rm -rf $dirs.base
     $results
@@ -167,6 +218,8 @@ def test-cernbox-two-party-overlays-idp-passthrough [] {
     let lines = (read-stack-env-lines $overlay.env_file)
     let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))
     let runner_dev = (read-text ($overlay.compose_d | path join "runner-dev.yml"))
+    let overlay_sender = (read-text ($overlay.compose_d | path join "sender.yml"))
+    let overlay_receiver = (read-text ($overlay.compose_d | path join "receiver.yml"))
     let results = [
         (assert-list-contains $lines "SENDER_IDP_ORIGIN=https://idp1.docker"
             "overlay stack.env has SENDER_IDP_ORIGIN")
@@ -193,8 +246,18 @@ def test-cernbox-two-party-overlays-idp-passthrough [] {
         (assert-string-contains $runner_dev "CYPRESS_receiver_idp_realm=cernbox"
             "runner-dev.yml passthrough CYPRESS_receiver_idp_realm")
     ]
+    let sender_proxy_results = (
+        $CERNBOX_SENDER_REVAD_PROXY_SERVICES
+        | each {|svc| assert-revad-proxy-env $overlay_sender $svc "SENDER"}
+        | flatten
+    )
+    let receiver_proxy_results = (
+        $CERNBOX_RECEIVER_REVAD_PROXY_SERVICES
+        | each {|svc| assert-revad-proxy-env $overlay_receiver $svc "RECEIVER"}
+        | flatten
+    )
     cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID $fixture_root
-    $results
+    ($results | append $sender_proxy_results | append $receiver_proxy_results)
 }
 
 def main [] {

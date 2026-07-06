@@ -144,6 +144,9 @@ services:
       - OCM_PROVIDER_0_WEBDAV_ENDPOINT=${OCM_PROVIDER_0_WEBDAV_ENDPOINT}
       - OCM_PROVIDER_0_WEBDAV_PATH=${OCM_PROVIDER_0_WEBDAV_PATH}
       - OCM_PROVIDER_0_WEBDAV_HOST=${OCM_PROVIDER_0_WEBDAV_HOST}
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-authprovider-oidc:
@@ -167,6 +170,9 @@ services:
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
       - IDP_URL=${SENDER_IDP_ORIGIN}
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-authprovider-machine:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -187,6 +193,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-authprovider-ocmshares:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -207,6 +216,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-authprovider-ocmsharecode:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -227,6 +239,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-authprovider-ocmexchangedtoken:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -247,6 +262,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-authprovider-publicshares:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -267,6 +285,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-shareproviders:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -290,6 +311,9 @@ services:
       - REVAD_OCMSHARES_JSON_FILE=/var/tmp/reva/shares.json
       - WEB_DOMAIN=${SENDER_PARTY_HOST}
       - WEB_PROTOCOL=https
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-groupuserproviders:
@@ -312,6 +336,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-dataprovider-localhome:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -334,6 +361,9 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
   sender-revad-dataprovider-ocm:
     image: ${SENDER_REVAD_IMAGE}
     networks: [ocm-net]
@@ -357,6 +387,9 @@ services:
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
       - REVAD_OCMSHARES_JSON_FILE=/var/tmp/reva/shares.json
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-dataprovider-sciencemesh:
@@ -382,6 +415,9 @@ services:
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
       - OCM_TIMEOUT=10
+      - HTTP_PROXY=${SENDER_HTTP_PROXY}
+      - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
+      - NO_PROXY=${SENDER_NO_PROXY}
 
 volumes:
   sender-reva-ocmshares:

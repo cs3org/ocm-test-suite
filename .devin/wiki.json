@@ -1,0 +1,20 @@
+{
+  "repo_notes": [
+    {
+      "author": "OCM Test Suite maintainers",
+      "content": "This repository is the Open Cloud Mesh (OCM) interoperability test harness. It runs real browser flows against real containerized platforms, captures structured evidence, aggregates results across a matrix, and publishes them to the public OCM Observatory. It is not the OCM specification (that is cs3org/OCM-API), it is not the Observatory website (that is MahdiBaghbani/ocm-web-site), and it does not build the platform images (those come from MahdiBaghbani/containers, published to ghcr.io/mahdibaghbani/containers)."
+    },
+    {
+      "author": "OCM Test Suite maintainers",
+      "content": "The system is driven by a Nushell CLI called ocmts over a config-first design. Core vocabulary: flow_id, matrix_key, and cell_id (see docs/architecture/tuple-identity.md). A run resolves a tuple, generates Docker Compose overlays, runs a Cypress flow (with MITM capture where relevant), and writes a structured evidence envelope (meta/suite-manifest.v1.json). CI is generated from config with drift checks, aggregates results, and deploys the Observatory. Enabled flows today: login, share-with, contact-token, contact-wayf. Platforms: Nextcloud, oCIS, OpenCloud, CERNBox, OpenCloudMesh Go. Around 50 CI cells, Chrome-first."
+    },
+    {
+      "author": "OCM Test Suite maintainers",
+      "content": "Keep scope honest. This suite proves reviewable, evidence-backed interoperability for the flows and platform pairs in the matrix. It is not an official conformance or certification authority, it does not cover every platform in every flow, and it is Chrome-first rather than multi-browser. Coverage is tracked explicitly in config/adapters/capabilities.v1.nuon with states like supported, test-implementation-pending, and vendor-unsupported. Treat docs/architecture/evidence-standard.md as the contract for what a run proves."
+    },
+    {
+      "author": "OCM Test Suite maintainers",
+      "content": "History and boundaries. The project started in 2023 as an earlier OCM and EFSS interoperability lab and was deliberately rebuilt in 2026 into the current ocmts harness. It was founded by Michiel de Jong, has major historical CERNBox and Reva contributions from Giuseppe Lo Presti, and is built into its current form primarily by Mahdi Baghbani. When summarizing, emphasize the CLI, config SSOT under config/, the matrix and capability model, the evidence envelope, generated CI, and the site publish pipeline into ocm-web-site. Do not describe generated CI or generated Cypress matrix files as hand-edited."
+    }
+  ]
+}

@@ -47,7 +47,7 @@ export def materialize-provenance-stubs [tmp_root: string]: nothing -> nothing {
         schema_version: 1
         platforms: {
             nextcloud:  {display_name: "Nextcloud",             version_lines: ["v34"]}
-            ocmgo:      {display_name: "Open Cloud Mesh Golang", version_lines: ["v1"]}
+            ocmgo:      {display_name: "OpenCloudMesh Go", version_lines: ["v1"]}
             ocis:       {display_name: "oCIS",                  version_lines: ["v8"]}
             opencloud:  {display_name: "OpenCloud",             version_lines: ["v6"]}
         }

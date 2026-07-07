@@ -40,7 +40,7 @@
       }
     },
     "ocmgo": {
-      "display_name": "Open Cloud Mesh Golang",
+      "display_name": "OpenCloudMesh Go",
       "version_lines": [
         "v1"
       ],

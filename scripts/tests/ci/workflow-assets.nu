@@ -214,8 +214,8 @@ def test-asset-display-name-one-party-format [] {
         (assert-truthy (not ($target_cell_list | is-empty))
             "login asset has a cell with cell_id login__nextcloud-v33")
         (assert-eq ($target_cell_list | first | get display_name)
-            "nextcloud v33"
-            "one-party display_name is <sender_platform> <sender_version>")
+            "Nextcloud v33"
+            "one-party display_name uses platform SSOT display_name plus sender_version")
         (assert-truthy (not (($target_cell_list | first | get display_name) | str contains " -> "))
             "one-party display_name has no -> arrow")
     ]
@@ -234,8 +234,8 @@ def test-asset-display-name-two-party-format [] {
         (assert-truthy (not ($two_party_cell_list | is-empty))
             "share-with asset has the two-party cell")
         (assert-eq ($two_party_cell_list | first | get display_name)
-            "nextcloud v34 to nextcloud v33"
-            "two-party display_name is <sender_platform> <sv> to <receiver_platform> <rv>")
+            "Nextcloud v34 to Nextcloud v33"
+            "two-party display_name uses platform SSOT display_name values plus versions")
     ]
 }
 
@@ -279,8 +279,8 @@ def test-prod-login-asset-includes-cernbox-v11 [] {
             "cernbox login cell flow is login")
         (assert-eq ($cernbox_cell_list | first | get artifact_name) "cell-login-cernbox-v11"
             "cernbox login cell artifact_name is cell-login-cernbox-v11")
-        (assert-eq ($cernbox_cell_list | first | get display_name) "cernbox v11"
-            "cernbox login cell display_name is cernbox v11")
+        (assert-eq ($cernbox_cell_list | first | get display_name) "CERNBox v11"
+            "cernbox login cell display_name uses platform SSOT display_name")
     ]
 }
 

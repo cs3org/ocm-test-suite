@@ -16,6 +16,23 @@ use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
+# Same-side compose service names from a platform cookbook (empty when missing).
+def cookbook-service-names [root: string, platform: string, role: string] {
+    let cookbook_path = ($root | path join "config/compose/cookbooks" $"($platform).($role).yml")
+    if not ($cookbook_path | path exists) {
+        return []
+    }
+    try {
+        let cooked = (open $cookbook_path)
+        if not ("services" in ($cooked | columns)) {
+            return []
+        }
+        $cooked | get services | columns
+    } catch {
+        []
+    }
+}
+
 # Write stack.env for a two-party run into art_inputs/.
 # Returns the absolute path to the written file.
 export def write-two-party-env [
@@ -53,6 +70,11 @@ export def write-two-party-env [
     if not ($sender_idp_env | is-empty) {
         $sender_no_proxy = ($sender_no_proxy | append $sender_idp_env.host)
     }
+    $sender_no_proxy = (
+        $sender_no_proxy
+        | append (cookbook-service-names $root $sender_platform "sender")
+        | uniq
+    )
     mut receiver_no_proxy = [
         "localhost" "127.0.0.1" "mitm"
         "receiver" "receiver-db" "receiver-cache"
@@ -61,6 +83,11 @@ export def write-two-party-env [
     if not ($receiver_idp_env | is-empty) {
         $receiver_no_proxy = ($receiver_no_proxy | append $receiver_idp_env.host)
     }
+    $receiver_no_proxy = (
+        $receiver_no_proxy
+        | append (cookbook-service-names $root $receiver_platform "receiver")
+        | uniq
+    )
     let sender_no_proxy_str = ($sender_no_proxy | str join ",")
     let receiver_no_proxy_str = ($receiver_no_proxy | str join ",")
 

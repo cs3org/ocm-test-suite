@@ -5,7 +5,7 @@
     "sender_version": "v35",
     "receiver_platform": "nextcloud",
     "receiver_version": "v35",
-    "display_name": "nextcloud v35 to nextcloud v35",
+    "display_name": "Nextcloud v35 to Nextcloud v35",
     "artifact_name": "cell-contact-wayf-nextcloud-v35-nextcloud-v35",
     "cell_id": "contact-wayf__nextcloud-v35__nextcloud-v35",
     "cell_depends_on": "cell-login-nextcloud-v35",

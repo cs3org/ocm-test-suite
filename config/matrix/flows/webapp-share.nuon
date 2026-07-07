@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "label": "Webapp Share",
+  "subtitle": "Share from sender webapp to receiver",
+  "display_order": 50,
+  "flow_id": "webapp-share",
+  "two_party": true,
+  "enabled": true,
+  "mitm": true,
+  "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "flow.webapp-share.sender",
+      "op.login",
+      "op.share-file.sender"
+    ],
+    "receiver": [
+      "flow.webapp-share.receiver",
+      "op.login",
+      "op.share-file.receiver"
+    ]
+  },
+  "include": [
+    {
+      "sender": [
+        "nextcloud"
+      ],
+      "receiver": [
+        "cernbox"
+      ]
+    }
+  ],
+  "versions_sender": {
+    "nextcloud": [
+      "v35"
+    ]
+  },
+  "versions_receiver": {
+    "cernbox": [
+      "v11"
+    ]
+  }
+}

@@ -28,6 +28,14 @@
           "status": "test-implementation-pending",
           "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
         },
+        "flow.webapp-share.receiver": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Declared for CERNBox v11 webapp-share receiver; OCMTS test not yet implemented."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "webapp-share pairs CERNBox v11 as receiver only in the current milestone."
+        },
         "op.contact-token.receiver": {
           "status": "supported"
         },
@@ -82,6 +90,14 @@
         },
         "flow.share-with.sender": {
           "status": "supported"
+        },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
         },
         "op.contact-token.receiver": {
           "status": "vendor-unsupported",
@@ -141,6 +157,14 @@
         "flow.share-with.sender": {
           "status": "supported"
         },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+        },
         "op.contact-token.receiver": {
           "status": "vendor-unsupported",
           "tracking_note": "Nextcloud adds contact-token in v34."
@@ -195,6 +219,14 @@
         "flow.share-with.sender": {
           "status": "supported"
         },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-unsupported",
+          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+        },
         "op.contact-token.receiver": {
           "status": "supported"
         },
@@ -243,6 +275,14 @@
         },
         "flow.share-with.sender": {
           "status": "supported"
+        },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "webapp-share pairs Nextcloud v35 as sender only in the current milestone."
+        },
+        "flow.webapp-share.sender": {
+          "status": "test-implementation-pending",
+          "tracking_note": "Declared for Nextcloud v35 webapp-share sender; OCMTS test not yet implemented."
         },
         "op.contact-token.receiver": {
           "status": "supported"
@@ -296,6 +336,14 @@
         "flow.share-with.sender": {
           "status": "vendor-out-of-scope",
           "rationale": "ocis requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
         },
         "op.contact-token.receiver": {
           "status": "supported"
@@ -351,6 +399,14 @@
         },
         "flow.share-with.sender": {
           "status": "supported"
+        },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
         },
         "op.contact-token.receiver": {
           "status": "test-implementation-pending",
@@ -409,6 +465,14 @@
         "flow.share-with.sender": {
           "status": "vendor-out-of-scope",
           "rationale": "OpenCloud requires prior contact-token; direct share-with is not a supported entry point."
+        },
+        "flow.webapp-share.receiver": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
+        },
+        "flow.webapp-share.sender": {
+          "status": "vendor-out-of-scope",
+          "rationale": "Not in current webapp-share matrix pairing."
         },
         "op.contact-token.receiver": {
           "status": "supported"

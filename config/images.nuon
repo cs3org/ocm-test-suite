@@ -79,6 +79,12 @@
             "override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE",
             "sender_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE",
             "receiver_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE"
+          },
+          "webapp-share": {
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-jupyterhub:webapp-share",
+            "override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_IMAGE",
+            "sender_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE",
+            "receiver_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE"
           }
         }
       }

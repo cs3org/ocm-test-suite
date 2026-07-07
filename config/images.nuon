@@ -29,6 +29,12 @@
       "v11": {
         "default": "ghcr.io/mahdibaghbani/containers/cernbox-web:master",
         "override_env": "OCMTS_CERNBOX_WEB_V11_IMAGE",
+        "by_flow": {
+          "webapp-share": {
+            "default": "ghcr.io/mahdibaghbani/containers/cernbox-web:ocm-webapp-share",
+            "override_env": "OCMTS_CERNBOX_WEB_V11_WEBAPP_SHARE_IMAGE"
+          }
+        },
         "bundle": {
           "revad": {
             "default": "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development",

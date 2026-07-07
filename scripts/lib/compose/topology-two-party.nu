@@ -16,6 +16,22 @@ use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
+# Sender-side JupyterHub host for webapp-share: network alias on sender, not in NO_PROXY.
+const WEBAPP_SHARE_SENDER_HUB_HOST = "hub1.docker"
+
+# Patch copied sender.yml for webapp-share hub alias, trusted domains, and JUPYTER_HOST.
+def apply-webapp-share-sender-overlay [compose_d: string] {
+    let sender_path = ($compose_d | path join "sender.yml")
+    let content = (open --raw $sender_path)
+    let patched = (
+        $content
+        | str replace "          - ${SENDER_PARTY_HOST}" $"          - ${SENDER_PARTY_HOST}\n          - ${SENDER_HUB_HOST}"
+        | str replace "      - NEXTCLOUD_TRUSTED_DOMAINS=${SENDER_PARTY_HOST}" "      - NEXTCLOUD_TRUSTED_DOMAINS=${SENDER_TRUSTED_DOMAINS}"
+        | str replace "      - OVERWRITEHOST=${SENDER_PARTY_HOST}" $"      - OVERWRITEHOST=${SENDER_PARTY_HOST}\n      - JUPYTER_HOST=${SENDER_HUB_HOST}"
+    )
+    $patched | save --force $sender_path
+}
+
 # Same-side compose service names from a platform cookbook (empty when missing).
 def cookbook-service-names [root: string, platform: string, role: string] {
     let cookbook_path = ($root | path join "config/compose/cookbooks" $"($platform).($role).yml")
@@ -54,6 +70,7 @@ export def write-two-party-env [
     receiver_idp_env: record = {},
     sender_bundle: record = {},
     receiver_bundle: record = {},
+    flow_id: string = "",
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -126,6 +143,13 @@ export def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
+    if $flow_id == "webapp-share" {
+        let hub_host = $WEBAPP_SHARE_SENDER_HUB_HOST
+        $lines = ($lines | append [
+            $"SENDER_HUB_HOST=($hub_host)"
+            $"SENDER_TRUSTED_DOMAINS=($sender_party_host) ($hub_host)"
+        ])
+    }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
     $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
     if $sender_actor != null {
@@ -231,6 +255,9 @@ export def write-two-party-overlays [
     # Copy sender and receiver cookbook YAMLs
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
     copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
+    if $flow_id == "webapp-share" {
+        apply-webapp-share-sender-overlay $compose_d
+    }
 
     # Write stack.env with all substitution variables
     let env_file = (write-two-party-env
@@ -238,7 +265,8 @@ export def write-two-party-overlays [
         $sender_version $receiver_version
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
         $record_video $root $sender_actor $receiver_actor $exec_cidr
-        $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle)
+        $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle
+        $flow_id)
 
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)

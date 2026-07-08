@@ -5,7 +5,11 @@
 const SUITE_PATH = path self
 const FIXTURE_EXEC_ID = "20260101t000000-aabbcc01"
 
-use ../../lib/compose/topology-two-party.nu [write-two-party-env write-two-party-overlays]
+use ../../lib/compose/topology-two-party.nu [
+    write-two-party-env
+    write-two-party-overlays
+    patch-webapp-share-sender-yml
+]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/images/resolve.nu [resolve-images resolve-receiver-images]
 use ../../lib/run/execution-id.nu [execution-temp-path]
@@ -169,6 +173,37 @@ def test-webapp-share-runner-depends-on-sender-hub [] {
     $results
 }
 
+def test-webapp-share-oauth-handoff-wiring [] {
+    test-log "\n[test-webapp-share-oauth-handoff-wiring]"
+    let root = (get-ocmts-root)
+    let artifacts_base = ($nu.temp-dir | path join $"webapp-share-oauth-(random uuid)")
+    mkdir ($artifacts_base | path join "compose" "inputs")
+    let overlay = (make-webapp-share-overlay $root $artifacts_base)
+    let sender_yml = (read-text ($overlay.compose_d | path join "sender.yml"))
+    let hub_yml = (read-text ($overlay.compose_d | path join "webapp-hub.yml"))
+    let sender_block = (extract-compose-service-block $sender_yml "sender")
+    let hub_block = (extract-compose-service-block $hub_yml "sender-hub")
+    let handoff_dir = ($artifacts_base | path join "oauth-handoff")
+    let results = [
+        (assert-string-contains $sender_block "INTEGRATION_JUPYTERHUB_OAUTH_ENV_FILE=/oauth-handoff/oauth.env"
+            "sender writes OAuth creds to the shared handoff file")
+        (assert-string-contains $sender_block "/oauth-handoff"
+            "sender mounts the shared oauth-handoff volume")
+        (assert-string-contains $hub_block "NEXTCLOUD_OAUTH_ENV_FILE=/oauth-handoff/oauth.env"
+            "sender-hub reads OAuth creds from the shared handoff file")
+        (assert-string-contains $hub_block "oauth-handoff:/oauth-handoff:ro"
+            "sender-hub mounts the shared oauth-handoff volume read-only")
+        (assert-string-contains $hub_block "/hub/health"
+            "sender-hub healthcheck probes the hub health endpoint")
+        (assert-truthy (not ($hub_block | str contains "curl "))
+            "sender-hub healthcheck does not depend on curl")
+        (assert-truthy ($handoff_dir | path exists)
+            "oauth-handoff shared dir is created under artifacts")
+    ]
+    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
+    $results
+}
+
 def test-webapp-share-actor-resolution-defaults [] {
     test-log "\n[test-webapp-share-actor-resolution-defaults]"
     let root = (get-ocmts-root)
@@ -227,6 +262,10 @@ def test-share-with-unchanged-no-sender-hub [] {
             "share-with sender overlay omits JUPYTER_HOST")
         (assert-truthy (not ($sender_block | str contains "SENDER_HUB_HOST"))
             "share-with sender overlay omits SENDER_HUB_HOST substitution")
+        (assert-truthy (not ($sender_block | str contains "oauth-handoff"))
+            "share-with sender overlay omits the oauth-handoff wiring")
+        (assert-truthy (not (($artifacts_base | path join "oauth-handoff") | path exists))
+            "share-with does not create the oauth-handoff shared dir")
         (assert-truthy (
             $lines | where {|l| $l | str starts-with "SENDER_HUB_HOST="} | is-empty
         ) "share-with stack.env omits SENDER_HUB_HOST")
@@ -242,6 +281,98 @@ def test-share-with-unchanged-no-sender-hub [] {
     $results
 }
 
+# --- patch-webapp-share-sender-yml direct unit coverage ---
+# These mirror the injected line contract in topology-two-party.nu so drift in
+# either place is caught. They exercise the fail-fast and idempotency paths that
+# the full-generation tests above cannot reach (the real cookbook always has the
+# markers and is never pre-patched).
+const PATCH_NO_PROXY_MARKER = '      - NO_PROXY=${SENDER_NO_PROXY}'
+const PATCH_ACTORS_VOL_MARKER = '      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro'
+const PATCH_JUPYTER_ENV_LINE = '      - JUPYTER_HOST=${SENDER_HUB_HOST}'
+const PATCH_OAUTH_ENV_LINE = '      - INTEGRATION_JUPYTERHUB_OAUTH_ENV_FILE=/oauth-handoff/oauth.env'
+const PATCH_OAUTH_VOL_LINE = '      - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff'
+
+def did-throw [cl: closure] {
+    try { do $cl; false } catch { true }
+}
+
+def write-sender-fixture [lines: list<string>] {
+    let dir = ($nu.temp-dir | path join $"patch-sender-fixture-(random uuid)")
+    mkdir $dir
+    ($lines | str join (char newline)) | save --force ($dir | path join "sender.yml")
+    $dir
+}
+
+def test-patch-sender-happy-and-idempotent [] {
+    test-log "\n[test-patch-sender-happy-and-idempotent]"
+    let dir = (write-sender-fixture [
+        "services:"
+        "  sender:"
+        "    environment:"
+        $PATCH_NO_PROXY_MARKER
+        "    volumes:"
+        $PATCH_ACTORS_VOL_MARKER
+    ])
+    let sender_path = ($dir | path join "sender.yml")
+    patch-webapp-share-sender-yml $dir
+    let once = (open -r $sender_path)
+    # A second call must be a no-op (fully patched), not an error or a re-inject.
+    patch-webapp-share-sender-yml $dir
+    let twice = (open -r $sender_path)
+    let results = [
+        (assert-string-contains $once $PATCH_JUPYTER_ENV_LINE
+            "patch injects JUPYTER_HOST env line")
+        (assert-string-contains $once $PATCH_OAUTH_ENV_LINE
+            "patch injects OAuth env-file line")
+        (assert-string-contains $once $PATCH_OAUTH_VOL_LINE
+            "patch injects OAuth handoff volume line")
+        (assert-eq $twice $once
+            "second patch is idempotent (no double-inject, no error)")
+    ]
+    rm -rf $dir
+    $results
+}
+
+def test-patch-sender-marker-miss-fails [] {
+    test-log "\n[test-patch-sender-marker-miss-fails]"
+    # sender.yml missing the NO_PROXY marker must fail fast, not silently no-op.
+    let dir = (write-sender-fixture [
+        "services:"
+        "  sender:"
+        "    environment:"
+        "      - SOME_OTHER=1"
+        "    volumes:"
+        $PATCH_ACTORS_VOL_MARKER
+    ])
+    let threw = (did-throw {|| patch-webapp-share-sender-yml $dir })
+    rm -rf $dir
+    [
+        (assert-truthy $threw
+            "patch fails fast when the NO_PROXY marker is absent (no silent no-op)")
+    ]
+}
+
+def test-patch-sender-partial-fails [] {
+    test-log "\n[test-patch-sender-partial-fails]"
+    # Already carries JUPYTER_HOST but not the OAuth lines -> drifted/partial;
+    # patch must refuse rather than corrupt the overlay.
+    let dir = (write-sender-fixture [
+        "services:"
+        "  sender:"
+        "    environment:"
+        $PATCH_NO_PROXY_MARKER
+        $PATCH_JUPYTER_ENV_LINE
+        "    volumes:"
+        $PATCH_ACTORS_VOL_MARKER
+    ])
+    let threw = (did-throw {|| patch-webapp-share-sender-yml $dir })
+    rm -rf $dir
+    [
+        (assert-truthy $threw
+            "patch refuses to re-patch a partially-patched (drifted) overlay")
+    ]
+}
+
 def main [] {
     test-log "=== compose/webapp-share-two-party Tests ==="
     let results = (
@@ -249,8 +380,12 @@ def main [] {
         | append (test-webapp-share-hub-host-alias-on-sender-hub)
         | append (test-webapp-share-stack-env-hub-contract)
         | append (test-webapp-share-runner-depends-on-sender-hub)
+        | append (test-webapp-share-oauth-handoff-wiring)
         | append (test-webapp-share-actor-resolution-defaults)
         | append (test-share-with-unchanged-no-sender-hub)
+        | append (test-patch-sender-happy-and-idempotent)
+        | append (test-patch-sender-marker-miss-fails)
+        | append (test-patch-sender-partial-fails)
     ) | flatten
     run-suite "compose/webapp-share-two-party" $SUITE_PATH $results
 }

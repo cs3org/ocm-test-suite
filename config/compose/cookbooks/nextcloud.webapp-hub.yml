@@ -10,16 +10,21 @@ services:
       ocm-net:
         aliases:
           - ${SENDER_HUB_HOST}
+    depends_on:
+      sender:
+        condition: service_healthy
     healthcheck:
+      # k8s-hub has no curl; python3 is always present. Probe the hub health
+      # endpoint over the in-container TLS listener (self-signed at boot).
       test:
-        [
-          "CMD-SHELL",
-          "curl -skf https://127.0.0.1/ >/dev/null",
-        ]
+        - CMD
+        - python3
+        - -c
+        - "import ssl,urllib.request; urllib.request.urlopen('https://127.0.0.1/hub/health', context=ssl._create_unverified_context(), timeout=5)"
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 30
+      start_period: 60s
     environment:
       - NEXTCLOUD_HOST=${SENDER_PARTY_HOST}
       - JUPYTER_HOST=${SENDER_HUB_HOST}
@@ -28,3 +33,8 @@ services:
       - JUPYTERHUB_OCM_API_KEY=${SENDER_HUB_OCM_API_KEY}
       - OCM_TRUSTED_BACK_CHANNEL_DOMAINS=${SENDER_PARTY_HOST}
       - OCM_TRUSTED_ISSUER_DOMAINS=${SENDER_PARTY_HOST}
+      # OAuth client id/secret are provisioned by the sender NC post-install hook
+      # and handed off via this shared file; entrypoint-init.nu waits for it.
+      - NEXTCLOUD_OAUTH_ENV_FILE=/oauth-handoff/oauth.env
+    volumes:
+      - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff:ro

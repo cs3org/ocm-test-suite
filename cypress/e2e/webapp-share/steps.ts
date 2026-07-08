@@ -41,9 +41,12 @@ const WEBAPP_SHARE_LAUNCH_EXPECTATIONS: MitmExpectation[] = [
       (record.request.path ?? "").includes("/services/ocm/open"),
   },
   {
-    label: "GET /hub/ocm-login",
+    // The OCM service launcher submits a cross-origin form POST to the hub's
+    // OCMLoginHandler (hub/.../handlers.py: OCMLoginHandler implements post()
+    // only); asserting GET here never matches real launch traffic.
+    label: "POST /hub/ocm-login",
     predicate: (record) =>
-      record.request.method === "GET" &&
+      record.request.method === "POST" &&
       (record.request.path ?? "").includes("/hub/ocm-login"),
   },
   {

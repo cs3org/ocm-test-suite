@@ -24,19 +24,64 @@ const WEBAPP_SHARE_HUB_CRYPT_KEY = "0123456789abcdef0123456789abcdef0123456789ab
 const WEBAPP_SHARE_HUB_API_KEY = "ocmts-webapp-share-hub-api-key"
 const WEBAPP_SHARE_HUB_OCM_API_KEY = "ocmts-webapp-share-hub-ocm-api-key"
 
-# webapp-share-only sender env injected after copying the shared sender cookbook.
+# webapp-share-only sender env/volume injected after copying the shared sender cookbook.
 const WEBAPP_SHARE_SENDER_NO_PROXY_MARKER = '      - NO_PROXY=${SENDER_NO_PROXY}'
 const WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE = '      - JUPYTER_HOST=${SENDER_HUB_HOST}'
+# Sender NC writes the provisioned OAuth client into the shared handoff file so
+# the sender-hub can read NEXTCLOUD_CLIENT_ID/SECRET at boot.
+const WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE = '      - INTEGRATION_JUPYTERHUB_OAUTH_ENV_FILE=/oauth-handoff/oauth.env'
+const WEBAPP_SHARE_SENDER_VOLUMES_MARKER = '      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro'
+const WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE = '      - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff'
 
-# Inject JUPYTER_HOST into sender.yml for webapp-share (not in shared sender cookbook).
-def patch-webapp-share-sender-yml [compose_d: string] {
+# Inject JUPYTER_HOST + OAuth handoff wiring into sender.yml for webapp-share
+# (kept out of the shared sender cookbook so other flows never pick it up).
+#
+# Robustness: this is a text patch over the copied cookbook, so it fails fast
+# rather than silently no-op if the cookbook drifts. It only skips when the
+# overlay is already FULLY patched (all three lines present), and refuses to
+# proceed on a partial patch (some lines present) since that signals drift or a
+# prior interrupted run that structural replace would corrupt.
+export def patch-webapp-share-sender-yml [compose_d: string] {
     let sender_path = ($compose_d | path join "sender.yml")
     let src = (open --raw $sender_path)
-    if ($src | str contains "JUPYTER_HOST=") {
+
+    let has_env = ($src | str contains $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE)
+    let has_oauth_env = ($src | str contains $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE)
+    let has_oauth_vol = ($src | str contains $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE)
+    let injected_count = ([$has_env $has_oauth_env $has_oauth_vol] | where {|v| $v } | length)
+
+    if $injected_count == 3 {
         return
     }
-    let replacement = $"($WEBAPP_SHARE_SENDER_NO_PROXY_MARKER)\n($WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE)"
-    ($src | str replace $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER $replacement)
+    if $injected_count != 0 {
+        error make {
+            msg: $"sender.yml at ($sender_path) is partially patched for webapp-share \(($injected_count) of 3 lines\); refusing to re-patch a drifted overlay"
+        }
+    }
+
+    if not ($src | str contains $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER) {
+        error make {
+            msg: $"sender.yml at ($sender_path) missing NO_PROXY marker; cannot inject JUPYTER_HOST/OAuth env for webapp-share"
+        }
+    }
+    if not ($src | str contains $WEBAPP_SHARE_SENDER_VOLUMES_MARKER) {
+        error make {
+            msg: $"sender.yml at ($sender_path) missing actors volume marker; cannot inject OAuth handoff volume for webapp-share"
+        }
+    }
+
+    let env_replacement = ([
+        $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
+        $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
+        $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
+    ] | str join "\n")
+    let vol_replacement = ([
+        $WEBAPP_SHARE_SENDER_VOLUMES_MARKER
+        $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
+    ] | str join "\n")
+    ($src
+        | str replace $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER $env_replacement
+        | str replace $WEBAPP_SHARE_SENDER_VOLUMES_MARKER $vol_replacement)
         | save --force $sender_path
 }
 
@@ -346,6 +391,11 @@ export def write-two-party-overlays [
     mkdir ($artifacts_base | path join "mitm" "conf")
     "scripts:\n  - /ocmts/mitmproxy_jsonl.py\n"
         | save --force ($artifacts_base | path join "mitm" "conf" "config.yaml")
+
+    # webapp-share: shared bind dir for the sender NC -> sender-hub OAuth handoff.
+    if $flow_id == "webapp-share" {
+        mkdir ($artifacts_base | path join "oauth-handoff")
+    }
 
     let record_str = if $record_video { "true" } else { "false" }
 

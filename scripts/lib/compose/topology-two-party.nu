@@ -16,20 +16,45 @@ use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
 
-# Sender-side JupyterHub host for webapp-share: network alias on sender, not in NO_PROXY.
-const WEBAPP_SHARE_SENDER_HUB_HOST = "hub1.docker"
+# Sender-side JupyterHub party host for webapp-share (real sender-hub service alias).
+const WEBAPP_SHARE_SENDER_HUB_HOST = "jupyterhub1.docker"
 
-# Patch copied sender.yml for webapp-share hub alias, trusted domains, and JUPYTER_HOST.
-def apply-webapp-share-sender-overlay [compose_d: string] {
+# Deterministic hub secrets for webapp-share compose substitution (dev/test only).
+const WEBAPP_SHARE_HUB_CRYPT_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+const WEBAPP_SHARE_HUB_API_KEY = "ocmts-webapp-share-hub-api-key"
+const WEBAPP_SHARE_HUB_OCM_API_KEY = "ocmts-webapp-share-hub-ocm-api-key"
+
+# webapp-share-only sender env injected after copying the shared sender cookbook.
+const WEBAPP_SHARE_SENDER_NO_PROXY_MARKER = '      - NO_PROXY=${SENDER_NO_PROXY}'
+const WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE = '      - JUPYTER_HOST=${SENDER_HUB_HOST}'
+
+# Inject JUPYTER_HOST into sender.yml for webapp-share (not in shared sender cookbook).
+def patch-webapp-share-sender-yml [compose_d: string] {
     let sender_path = ($compose_d | path join "sender.yml")
-    let content = (open --raw $sender_path)
-    let patched = (
-        $content
-        | str replace "          - ${SENDER_PARTY_HOST}" $"          - ${SENDER_PARTY_HOST}\n          - ${SENDER_HUB_HOST}"
-        | str replace "      - NEXTCLOUD_TRUSTED_DOMAINS=${SENDER_PARTY_HOST}" "      - NEXTCLOUD_TRUSTED_DOMAINS=${SENDER_TRUSTED_DOMAINS}"
-        | str replace "      - OVERWRITEHOST=${SENDER_PARTY_HOST}" $"      - OVERWRITEHOST=${SENDER_PARTY_HOST}\n      - JUPYTER_HOST=${SENDER_HUB_HOST}"
-    )
-    $patched | save --force $sender_path
+    let src = (open --raw $sender_path)
+    if ($src | str contains "JUPYTER_HOST=") {
+        return
+    }
+    let replacement = $"($WEBAPP_SHARE_SENDER_NO_PROXY_MARKER)\n($WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE)"
+    ($src | str replace $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER $replacement)
+        | save --force $sender_path
+}
+
+# Runner depends_on lines shared by runner-ci.yml and runner-dev.yml.
+def two-party-runner-depends-on-lines [flow_id: string] {
+    mut lines = [
+        "      sender:"
+        "        condition: service_healthy"
+        "      receiver:"
+        "        condition: service_healthy"
+    ]
+    if $flow_id == "webapp-share" {
+        $lines = ($lines | append [
+            "      sender-hub:"
+            "        condition: service_healthy"
+        ])
+    }
+    $lines
 }
 
 # Same-side compose service names from a platform cookbook (empty when missing).
@@ -92,6 +117,13 @@ export def write-two-party-env [
         | append (cookbook-service-names $root $sender_platform "sender")
         | uniq
     )
+    if $flow_id == "webapp-share" {
+        $sender_no_proxy = (
+            $sender_no_proxy
+            | append (cookbook-service-names $root $sender_platform "webapp-hub")
+            | uniq
+        )
+    }
     mut receiver_no_proxy = [
         "localhost" "127.0.0.1" "mitm"
         "receiver" "receiver-db" "receiver-cache"
@@ -112,6 +144,12 @@ export def write-two-party-env [
     let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
     let ocm_provider_lines = (provider-env-lines [$sender_provider $receiver_provider])
 
+    let sender_trusted_domains = if $flow_id == "webapp-share" {
+        $"($sender_party_host) ($WEBAPP_SHARE_SENDER_HUB_HOST)"
+    } else {
+        $sender_party_host
+    }
+
     mut lines = [
         $"OCMTS_ROOT=($root)"
         $"OCMTS_ARTIFACTS_BASE=($artifacts_base)"
@@ -127,6 +165,7 @@ export def write-two-party-env [
         $"SENDER_NO_PROXY=($sender_no_proxy_str)"
         $"SENDER_PLATFORM=($sender_platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($sender_party_host)"
+        $"SENDER_TRUSTED_DOMAINS=($sender_trusted_domains)"
         $"RECEIVER_PARTY_HOST=($receiver_party_host)"
         "RECEIVER_MYSQL_HOST=receiver-db"
         "RECEIVER_REDIS_HOST=receiver-cache"
@@ -147,7 +186,9 @@ export def write-two-party-env [
         let hub_host = $WEBAPP_SHARE_SENDER_HUB_HOST
         $lines = ($lines | append [
             $"SENDER_HUB_HOST=($hub_host)"
-            $"SENDER_TRUSTED_DOMAINS=($sender_party_host) ($hub_host)"
+            $"SENDER_HUB_CRYPT_KEY=($WEBAPP_SHARE_HUB_CRYPT_KEY)"
+            $"SENDER_HUB_API_KEY=($WEBAPP_SHARE_HUB_API_KEY)"
+            $"SENDER_HUB_OCM_API_KEY=($WEBAPP_SHARE_HUB_OCM_API_KEY)"
         ])
     }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
@@ -256,7 +297,8 @@ export def write-two-party-overlays [
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
     copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
     if $flow_id == "webapp-share" {
-        apply-webapp-share-sender-overlay $compose_d
+        patch-webapp-share-sender-yml $compose_d
+        copy-platform-cookbook $root $sender_platform "webapp-hub" $compose_d
     }
 
     # Write stack.env with all substitution variables
@@ -307,16 +349,16 @@ export def write-two-party-overlays [
 
     let record_str = if $record_video { "true" } else { "false" }
 
+    let runner_depends_on = (two-party-runner-depends-on-lines $flow_id)
+
     # runner-ci.yml: cypress headless depending on both sender and receiver
     mut runner_ci_lines = [
         "services:"
         "  cypress:"
         $"    image: ($cypress_image)"
         "    depends_on:"
-        "      sender:"
-        "        condition: service_healthy"
-        "      receiver:"
-        "        condition: service_healthy"
+    ]
+    $runner_ci_lines = ($runner_ci_lines | append $runner_depends_on | append [
         "    networks: [ocm-net]"
         "    working_dir: /workspace"
         "    environment:"
@@ -327,7 +369,7 @@ export def write-two-party-overlays [
         "      - CYPRESS_screenshotsFolder=/artifacts/cypress/screenshots"
         "      - CYPRESS_videosFolder=/artifacts/cypress/videos"
         "      - CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
-    ]
+    ])
     if $sender_actor != null {
         $runner_ci_lines = ($runner_ci_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)
@@ -379,10 +421,8 @@ export def write-two-party-overlays [
         "  cypress_dev:"
         $"    image: ($cypress_dev_image)"
         "    depends_on:"
-        "      sender:"
-        "        condition: service_healthy"
-        "      receiver:"
-        "        condition: service_healthy"
+    ]
+    $runner_dev_lines = ($runner_dev_lines | append $runner_depends_on | append [
         "    shm_size: \"2g\""
         "    ports:"
         "      - \"0:6901\""
@@ -392,7 +432,7 @@ export def write-two-party-overlays [
         $"      - CYPRESS_baseUrl=https://($sender_party_host)"
         $"      - CYPRESS_sender_baseUrl=https://($sender_party_host)"
         $"      - CYPRESS_receiver_baseUrl=https://($receiver_party_host)"
-    ]
+    ])
     if $sender_actor != null {
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)
@@ -429,7 +469,10 @@ export def write-two-party-overlays [
     ])
     ($runner_dev_lines | str join "\n") | save --force ($compose_d | path join "runner-dev.yml")
 
-    let base_overlay_fnames = ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"]
+    mut base_overlay_fnames = ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"]
+    if $flow_id == "webapp-share" {
+        $base_overlay_fnames = ($base_overlay_fnames | append "webapp-hub.yml")
+    }
 
     # Copy all overlays to artifacts for durable access.
     copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]

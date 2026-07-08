@@ -69,7 +69,13 @@ def main [
     } --preserve-temp=$preserve_temp --suite-record $suite_hook_base)
 
     # Bring up platform services; quiet by default, verbose with --verbose.
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { [] }
+    let wait_services = if $ctx.is_two_party {
+        if $ctx.cell.flow_id == "webapp-share" {
+            ["sender" "receiver" "mitm" "sender-hub"]
+        } else {
+            ["sender" "receiver" "mitm"]
+        }
+    } else { [] }
     if not $verbose { print "Starting services..." }
     let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose $env_file)
     if $up_err != null {

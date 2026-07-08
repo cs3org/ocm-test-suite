@@ -54,6 +54,18 @@
           "cernbox": "marie"
         }
       }
+    },
+    "webapp-share": {
+      "sender": {
+        "by_platform": {
+          "nextcloud": "michiel"
+        }
+      },
+      "receiver": {
+        "by_platform": {
+          "cernbox": "marie"
+        }
+      }
     }
   }
 }

@@ -1,0 +1,30 @@
+# Nextcloud webapp-share sender-side JupyterHub (real hub service, not an alias on sender).
+# All dynamic values filled by docker compose env substitution from stack.env.
+services:
+  sender-hub:
+    image: ${SENDER_HUB_IMAGE}
+    hostname: sender-hub
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      ocm-net:
+        aliases:
+          - ${SENDER_HUB_HOST}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -skf https://127.0.0.1/ >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    environment:
+      - NEXTCLOUD_HOST=${SENDER_PARTY_HOST}
+      - JUPYTER_HOST=${SENDER_HUB_HOST}
+      - JUPYTERHUB_CRYPT_KEY=${SENDER_HUB_CRYPT_KEY}
+      - JUPYTERHUB_API_KEY=${SENDER_HUB_API_KEY}
+      - JUPYTERHUB_OCM_API_KEY=${SENDER_HUB_OCM_API_KEY}
+      - OCM_TRUSTED_BACK_CHANNEL_DOMAINS=${SENDER_PARTY_HOST}
+      - OCM_TRUSTED_ISSUER_DOMAINS=${SENDER_PARTY_HOST}

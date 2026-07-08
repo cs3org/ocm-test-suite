@@ -97,6 +97,60 @@ def test-cernbox-cookbook-stack-env-parity [] {
     $results
 }
 
+# nextcloud v35 login must not emit phantom SENDER_HUB_IMAGE= from unresolved hub slot.
+def test-nextcloud-v35-login-no-hub-env-line [] {
+    test-log "\n[test-nextcloud-v35-login-no-hub-env-line]"
+    let root = (get-ocmts-root)
+    let artifacts_base = (make-artifacts-base)
+    let imgs = (
+        resolve-images "nextcloud" "v35"
+            --matrix-key "login__nextcloud" --flow-id "login"
+    )
+    let overlay = (
+        write-compose-overlays
+            "login" "nextcloud" "cell-login-nextcloud-v35" $FIXTURE_EXEC_ID
+            $imgs.platform $imgs.cypress_ci $imgs.cypress_dev
+            $imgs.mariadb $imgs.valkey
+            "cypress/e2e/login/index.cy.ts" "chrome" false
+            $root $artifacts_base
+            "" "" "" "v35" "" $imgs.bundle
+    )
+    let lines = (read-stack-env-lines $overlay.env_file)
+    let results = [
+        (assert-truthy (($imgs.bundle | is-empty))
+            "nextcloud v35 login resolve-images bundle is empty")
+        (assert-truthy (
+            $lines | where {|l| $l | str starts-with "SENDER_HUB_IMAGE="} | is-empty
+        ) "nextcloud v35 login stack.env omits SENDER_HUB_IMAGE")
+    ]
+    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
+    $results
+}
+
+# nextcloud login (non-webapp) emits default SENDER_TRUSTED_DOMAINS for sender cookbook.
+def test-nextcloud-login-trusted-domains [] {
+    test-log "\n[test-nextcloud-login-trusted-domains]"
+    let root = (get-ocmts-root)
+    let artifacts_base = (make-artifacts-base)
+    let overlay = (
+        write-compose-overlays
+            "login" "nextcloud" "cell-login-nextcloud-v32" $FIXTURE_EXEC_ID
+            "ghcr.io/example/nextcloud:test"
+            "cypress:ci" "cypress:dev"
+            "mariadb:11" "valkey:7"
+            "cypress/e2e/login/index.cy.ts" "chrome" false
+            $root $artifacts_base
+            "" "" "" "v32" "" {}
+    )
+    let lines = (read-stack-env-lines $overlay.env_file)
+    let results = [
+        (assert-list-contains $lines "SENDER_TRUSTED_DOMAINS=nextcloud1.docker"
+            "nextcloud login stack.env sets sender party host in SENDER_TRUSTED_DOMAINS")
+    ]
+    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
+    $results
+}
+
 # setup-run-context passes images.bundle through to stack.env (full chain).
 def test-setup-run-context-bundle-passthrough [] {
     test-log "\n[test-setup-run-context-bundle-passthrough]"
@@ -145,6 +199,8 @@ def main [] {
     let results = (
         (test-write-compose-overlays-bundle-env-lines)
         | append (test-cernbox-cookbook-stack-env-parity)
+        | append (test-nextcloud-v35-login-no-hub-env-line)
+        | append (test-nextcloud-login-trusted-domains)
         | append (test-setup-run-context-bundle-passthrough)
     ) | flatten
     run-suite "compose/bundle-one-party" $SUITE_PATH $results

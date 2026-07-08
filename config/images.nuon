@@ -98,6 +98,17 @@
             "sender_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE",
             "receiver_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE"
           }
+        },
+        "bundle": {
+          "hub": {
+            "by_flow": {
+              "webapp-share": {
+                "default": "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share",
+                "override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE"
+              }
+            },
+            "service": "hub"
+          }
         }
       }
     }

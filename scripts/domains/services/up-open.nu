@@ -65,7 +65,13 @@ def main [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { [] }
+    let wait_services = if $ctx.is_two_party {
+        if $ctx.cell.flow_id == "webapp-share" {
+            ["sender" "receiver" "mitm" "sender-hub"]
+        } else {
+            ["sender" "receiver" "mitm"]
+        }
+    } else { [] }
     try {
         # Direct compose up (operator-facing): streams output and throws on failure. On failure the local catch block writes the terminal outcome, collects logs, tears down via cleanup-down, and re-raises. CI flow uses do-compose-up in services/up-run.nu. Empty wait_services splats to full project.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services

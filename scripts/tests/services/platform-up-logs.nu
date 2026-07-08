@@ -223,6 +223,10 @@ def test-up-one-party-no-sender-only-target [] {
             "services/up.nu splats wait_services for compose up")
         (assert-truthy (not ($src | str contains "if ($wait_services | is-empty)"))
             "services/up.nu no longer branches on empty wait_services")
+        (assert-truthy ($src | str contains 'if $ctx.cell.flow_id == "webapp-share"')
+            "services/up.nu branches webapp-share two-party wait set")
+        (assert-string-contains $src '"sender-hub"'
+            "services/up.nu webapp-share wait set includes sender-hub")
     ]
 }
 
@@ -267,6 +271,24 @@ def test-up-run-one-party-and-failure-logs [] {
             "services/up-run.nu one-party wait_services is empty list")
         (assert-truthy ($src | str contains "collect-service-logs $ctx.artifacts_base $ctx.stack_id $base_files []")
             "platform-up failure collects logs for all project services")
+    ]
+}
+
+def test-up-webapp-share-two-party-wait-set [] {
+    test-log "\n[test-up-webapp-share-two-party-wait-set]"
+    let wait_set = '["sender" "receiver" "mitm" "sender-hub"]'
+    let up = (read-src "scripts/domains/services/up.nu")
+    let up_open = (read-src "scripts/domains/services/up-open.nu")
+    let up_run = (read-src "scripts/domains/services/up-run.nu")
+    [
+        (assert-string-contains $up $wait_set
+            "services/up.nu webapp-share wait_services includes sender-hub")
+        (assert-string-contains $up_open $wait_set
+            "services/up-open.nu webapp-share wait_services includes sender-hub")
+        (assert-string-contains $up_run $wait_set
+            "services/up-run.nu webapp-share wait_services includes sender-hub")
+        (assert-string-contains $up 'if $ctx.cell.flow_id == "webapp-share"'
+            "services/up.nu branches webapp-share two-party wait set")
     ]
 }
 
@@ -904,6 +926,7 @@ def main [] {
         | append (test-up-one-party-no-sender-only-target)
         | append (test-up-open-one-party-full-project)
         | append (test-up-run-one-party-and-failure-logs)
+        | append (test-up-webapp-share-two-party-wait-set)
         | append (test-logs-empty-services-means-compose-project)
         | append (test-collect-service-logs-empty-services-resolves-config)
         | append (test-collect-service-logs-config-services-failure)

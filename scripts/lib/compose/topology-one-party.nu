@@ -58,6 +58,7 @@ def write-one-party-env [
         "SENDER_NO_PROXY="
         $"SENDER_PLATFORM=($platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($party_host)"
+        $"SENDER_TRUSTED_DOMAINS=($party_host)"
         "RECEIVER_PARTY_HOST="
         "RECEIVER_PLATFORM="
         "RECEIVER_PUBLIC_ORIGIN="

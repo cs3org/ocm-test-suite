@@ -13,6 +13,10 @@ import type {
   ShareWithFlowSenderAdapter,
 } from "../contracts/share-with";
 import type {
+  WebappShareFlowReceiverAdapter,
+  WebappShareFlowSenderAdapter,
+} from "../contracts/webapp-share";
+import type {
   ShareFileReceiverAdapter,
   ShareFileSenderAdapter,
 } from "../contracts/share-file";
@@ -97,6 +101,8 @@ import {
   nextcloudV35ShareWithFlowReceiverAdapter,
   nextcloudV35ShareWithFlowSenderAdapter,
 } from "./nextcloud/v35/share-with-adapter";
+import { nextcloudV35WebappShareFlowSenderAdapter } from "./nextcloud/v35/webapp-share-adapter";
+import { cernboxV11WebappShareFlowReceiverAdapter } from "./cernbox/v11/webapp-share-adapter";
 
 export type AdapterRef = {
   platform: string;
@@ -133,6 +139,24 @@ const shareWithFlowSenderAdapters: Record<string, Record<string, ShareWithFlowSe
   },
   ocmgo: {
     v1: ocmgoV1ShareWithFlowSenderAdapter,
+  },
+};
+
+const webappShareFlowSenderAdapters: Record<
+  string,
+  Record<string, WebappShareFlowSenderAdapter>
+> = {
+  nextcloud: {
+    v35: nextcloudV35WebappShareFlowSenderAdapter,
+  },
+};
+
+const webappShareFlowReceiverAdapters: Record<
+  string,
+  Record<string, WebappShareFlowReceiverAdapter>
+> = {
+  cernbox: {
+    v11: cernboxV11WebappShareFlowReceiverAdapter,
   },
 };
 
@@ -293,6 +317,26 @@ function resolveFromTable<T>(
 
 export function resolveLoginAdapter(ref: AdapterRef): LoginAdapter {
   return resolveFromTable("login adapter", loginAdapters, ref);
+}
+
+export function resolveWebappShareFlowSenderAdapter(
+  ref: AdapterRef,
+): WebappShareFlowSenderAdapter {
+  return resolveFromTable(
+    "webapp-share-flow sender adapter",
+    webappShareFlowSenderAdapters,
+    ref,
+  );
+}
+
+export function resolveWebappShareFlowReceiverAdapter(
+  ref: AdapterRef,
+): WebappShareFlowReceiverAdapter {
+  return resolveFromTable(
+    "webapp-share-flow receiver adapter",
+    webappShareFlowReceiverAdapters,
+    ref,
+  );
 }
 
 export function resolveShareWithFlowSenderAdapter(ref: AdapterRef): ShareWithFlowSenderAdapter {

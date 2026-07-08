@@ -10,31 +10,9 @@ import {
   resolveShareFileSenderAdapter,
   type AdapterRef,
 } from "../../support/adapters/registry";
-import type {
-  ContactTokenReceiverAdapter,
-  ContactTokenSenderAdapter,
-  ProviderIdentityAdapter,
-} from "../../support/contracts/contact";
-import type { ActorRef } from "../../support/contracts/login";
-import type {
-  ShareFileReceiverAdapter,
-  ShareFileSenderAdapter,
-} from "../../support/contracts/share-file";
-import type { LoginAdapter } from "../../support/contracts/login";
+import type { ActorRef, LoginAdapter } from "../../support/contracts/login";
+import type { ScenarioCase } from "../../support/contracts/contact-token";
 import type { MatrixCellId } from "./matrix";
-
-export type ScenarioCase = {
-  id: string;
-  sender: ActorRef;
-  receiver: ActorRef;
-  senderLogin: LoginAdapter;
-  receiverLogin: LoginAdapter;
-  senderShareFile: ShareFileSenderAdapter;
-  receiverShareFile: ShareFileReceiverAdapter;
-  contactTokenSender: ContactTokenSenderAdapter;
-  contactTokenReceiver: ContactTokenReceiverAdapter;
-  receiverIdentity: ProviderIdentityAdapter;
-};
 
 const senderActor: ActorRef = {
   id: "sender",

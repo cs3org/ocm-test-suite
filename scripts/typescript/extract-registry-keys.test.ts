@@ -30,6 +30,8 @@ const EXPECTED_TABLES = [
   "shareFileSenderAdapters",
   "shareWithFlowReceiverAdapters",
   "shareWithFlowSenderAdapters",
+  "webappShareFlowReceiverAdapters",
+  "webappShareFlowSenderAdapters",
 ];
 
 async function runScript(

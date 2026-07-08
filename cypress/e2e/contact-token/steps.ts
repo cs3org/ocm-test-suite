@@ -1,9 +1,8 @@
 /// <reference types="cypress" />
 
 import { resolveActorCredentials } from "../../support/actors/credentials";
-import type { ScenarioCase } from "./cases";
+import type { ScenarioCase } from "../../support/contracts/contact-token";
 import {
-  clearRuntime,
   ensureRuntimeDir,
   installHooks,
   readRuntime,
@@ -14,13 +13,7 @@ import {
 } from "../../support/shared/procedural-flow";
 import { takeEvidenceScreenshot } from "../../support/shared/evidence";
 import { defineIdpLoginPrewarm } from "../../support/shared/idp-prewarm";
-
-type RuntimeState = {
-  acceptedContactUrl?: string;
-  inviteToken: string;
-  sharedFileName: string;
-  expectedContent?: string;
-};
+import { defineContactTrustSetupSteps } from "../../support/shared/contact-trust-setup";
 
 export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
   describe(scenarioCase.id, () => {
@@ -48,88 +41,11 @@ export function defineContactTokenScenarioCase(scenarioCase: ScenarioCase) {
       },
     ]);
 
-    it("sender creates token and stores runtime", () => {
-      const sharedFileName = `contact-token-${scenarioCase.id}.txt`;
-
-      return cy
-        .then(() => clearRuntime(scenarioRuntimePath))
-        .then(() => resolveActorCredentials(scenarioCase.sender))
-        .then((senderCredentials) => {
-          scenarioCase.senderLogin.login(senderCredentials);
-          scenarioCase.senderLogin.assertLoggedIn();
-          takeEvidenceScreenshot({
-            scenarioId: scenarioCase.id,
-            sequence: 1,
-            actor: "sender",
-            checkpoint: "authenticated",
-          });
-
-          return scenarioCase.contactTokenSender.createInviteToken({
-            note: `cypress ${scenarioCase.id}`,
-          }).then((inviteToken) => {
-            takeEvidenceScreenshot({
-              scenarioId: scenarioCase.id,
-              sequence: 2,
-              actor: "sender",
-              checkpoint: "invite-created",
-            });
-
-            const runtimeState: RuntimeState = {
-              inviteToken,
-              sharedFileName,
-            };
-
-            return writeRuntime(scenarioRuntimePath, runtimeState);
-          });
-        });
-    });
-
-    it("receiver accepts token and verifies contact", () => {
-      return resolveActorCredentials(scenarioCase.receiver).then((receiverCredentials) => {
-        setBaseUrl(scenarioCase.receiverIdentity.getBaseUrl());
-
-        scenarioCase.receiverLogin.login(receiverCredentials);
-        scenarioCase.receiverLogin.assertLoggedIn();
-        takeEvidenceScreenshot({
-          scenarioId: scenarioCase.id,
-          sequence: 3,
-          actor: "receiver",
-          checkpoint: "authenticated",
-        });
-
-        return readRuntime(scenarioRuntimePath).then((runtime) => {
-          const inviteToken = requireString(
-            scenarioRuntimePath,
-            runtime,
-            "inviteToken",
-          );
-
-          return scenarioCase.contactTokenReceiver.acceptInviteToken({
-            inviteToken,
-          }).then((acceptedContactUrl) => {
-            takeEvidenceScreenshot({
-              scenarioId: scenarioCase.id,
-              sequence: 4,
-              actor: "receiver",
-              checkpoint: "invite-accepted",
-            });
-            scenarioCase.contactTokenReceiver.assertAcceptedContactExists({
-              acceptedContactUrl,
-            });
-            takeEvidenceScreenshot({
-              scenarioId: scenarioCase.id,
-              sequence: 5,
-              actor: "receiver",
-              checkpoint: "contact-visible",
-            });
-
-            return writeRuntime(scenarioRuntimePath, {
-              ...runtime,
-              acceptedContactUrl,
-            });
-          });
-        });
-      });
+    defineContactTrustSetupSteps({
+      scenarioCase,
+      scenarioRuntimePath,
+      resourceRuntimeKey: "sharedFileName",
+      resourceName: `contact-token-${scenarioCase.id}.txt`,
     });
 
     it("sender shares file -> receiver can accept", () => {

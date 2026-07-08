@@ -12,12 +12,13 @@
     "sender": [
       "flow.webapp-share.sender",
       "op.login",
-      "op.share-file.sender"
+      "op.contact-token.sender"
     ],
     "receiver": [
       "flow.webapp-share.receiver",
       "op.login",
-      "op.share-file.receiver"
+      "op.contact-token.receiver",
+      "op.provider-identity"
     ]
   },
   "include": [

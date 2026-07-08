@@ -29,8 +29,7 @@
           "tracking_note": "Declared for CERNBox v11; OCMTS test not yet implemented."
         },
         "flow.webapp-share.receiver": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for CERNBox v11 webapp-share receiver; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "flow.webapp-share.sender": {
           "status": "vendor-out-of-scope",
@@ -281,8 +280,7 @@
           "rationale": "webapp-share pairs Nextcloud v35 as sender only in the current milestone."
         },
         "flow.webapp-share.sender": {
-          "status": "test-implementation-pending",
-          "tracking_note": "Declared for Nextcloud v35 webapp-share sender; OCMTS test not yet implemented."
+          "status": "supported"
         },
         "op.contact-token.receiver": {
           "status": "supported"

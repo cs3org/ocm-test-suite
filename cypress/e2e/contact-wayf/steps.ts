@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 import { resolveActorCredentials } from "../../support/actors/credentials";
-import type { ScenarioCase } from "./cases";
+import type { ScenarioCase } from "../../support/contracts/contact-wayf";
 import {
   clearRuntime,
   ensureRuntimeDir,

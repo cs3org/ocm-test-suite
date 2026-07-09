@@ -15,75 +15,15 @@ use ../actors/load.nu [load-sender-for-tuple load-receiver-for-tuple]
 use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
-
-# Sender-side JupyterHub party host for webapp-share (real sender-hub service alias).
-const WEBAPP_SHARE_SENDER_HUB_HOST = "jupyterhub1.docker"
-
-# Deterministic hub secrets for webapp-share compose substitution (dev/test only).
-const WEBAPP_SHARE_HUB_CRYPT_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-const WEBAPP_SHARE_HUB_API_KEY = "ocmts-webapp-share-hub-api-key"
-const WEBAPP_SHARE_HUB_OCM_API_KEY = "ocmts-webapp-share-hub-ocm-api-key"
-
-# webapp-share-only sender env/volume injected after copying the shared sender cookbook.
-const WEBAPP_SHARE_SENDER_NO_PROXY_MARKER = '      - NO_PROXY=${SENDER_NO_PROXY}'
-const WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE = '      - JUPYTER_HOST=${SENDER_HUB_HOST}'
-# Sender NC writes the provisioned OAuth client into the shared handoff file so
-# the sender-hub can read NEXTCLOUD_CLIENT_ID/SECRET at boot.
-const WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE = '      - INTEGRATION_JUPYTERHUB_OAUTH_ENV_FILE=/oauth-handoff/oauth.env'
-const WEBAPP_SHARE_SENDER_VOLUMES_MARKER = '      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro'
-const WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE = '      - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff'
-
-# Inject JUPYTER_HOST + OAuth handoff wiring into sender.yml for webapp-share
-# (kept out of the shared sender cookbook so other flows never pick it up).
-#
-# Robustness: this is a text patch over the copied cookbook, so it fails fast
-# rather than silently no-op if the cookbook drifts. It only skips when the
-# overlay is already FULLY patched (all three lines present), and refuses to
-# proceed on a partial patch (some lines present) since that signals drift or a
-# prior interrupted run that structural replace would corrupt.
-export def patch-webapp-share-sender-yml [compose_d: string] {
-    let sender_path = ($compose_d | path join "sender.yml")
-    let src = (open --raw $sender_path)
-
-    let has_env = ($src | str contains $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE)
-    let has_oauth_env = ($src | str contains $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE)
-    let has_oauth_vol = ($src | str contains $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE)
-    let injected_count = ([$has_env $has_oauth_env $has_oauth_vol] | where {|v| $v } | length)
-
-    if $injected_count == 3 {
-        return
-    }
-    if $injected_count != 0 {
-        error make {
-            msg: $"sender.yml at ($sender_path) is partially patched for webapp-share \(($injected_count) of 3 lines\); refusing to re-patch a drifted overlay"
-        }
-    }
-
-    if not ($src | str contains $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER) {
-        error make {
-            msg: $"sender.yml at ($sender_path) missing NO_PROXY marker; cannot inject JUPYTER_HOST/OAuth env for webapp-share"
-        }
-    }
-    if not ($src | str contains $WEBAPP_SHARE_SENDER_VOLUMES_MARKER) {
-        error make {
-            msg: $"sender.yml at ($sender_path) missing actors volume marker; cannot inject OAuth handoff volume for webapp-share"
-        }
-    }
-
-    let env_replacement = ([
-        $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
-        $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
-        $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
-    ] | str join "\n")
-    let vol_replacement = ([
-        $WEBAPP_SHARE_SENDER_VOLUMES_MARKER
-        $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
-    ] | str join "\n")
-    ($src
-        | str replace $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER $env_replacement
-        | str replace $WEBAPP_SHARE_SENDER_VOLUMES_MARKER $vol_replacement)
-        | save --force $sender_path
-}
+use ../run/flow-ids.nu [is-webapp-share-flow]
+use ./topology-webapp-share.nu [
+    apply-webapp-share-compose-overlays
+    webapp-share-base-overlay-fnames
+    webapp-share-extend-sender-no-proxy
+    webapp-share-runner-depends-on-lines
+    webapp-share-sender-trusted-domains
+    webapp-share-stack-env-lines
+]
 
 # Runner depends_on lines shared by runner-ci.yml and runner-dev.yml.
 def two-party-runner-depends-on-lines [flow_id: string] {
@@ -93,11 +33,8 @@ def two-party-runner-depends-on-lines [flow_id: string] {
         "      receiver:"
         "        condition: service_healthy"
     ]
-    if $flow_id == "webapp-share" {
-        $lines = ($lines | append [
-            "      sender-hub:"
-            "        condition: service_healthy"
-        ])
+    if (is-webapp-share-flow $flow_id) {
+        $lines = ($lines | append (webapp-share-runner-depends-on-lines))
     }
     $lines
 }
@@ -162,13 +99,9 @@ export def write-two-party-env [
         | append (cookbook-service-names $root $sender_platform "sender")
         | uniq
     )
-    if $flow_id == "webapp-share" {
-        $sender_no_proxy = (
-            $sender_no_proxy
-            | append (cookbook-service-names $root $sender_platform "webapp-hub")
-            | uniq
-        )
-    }
+    $sender_no_proxy = (
+        webapp-share-extend-sender-no-proxy $sender_no_proxy $flow_id $root $sender_platform
+    )
     mut receiver_no_proxy = [
         "localhost" "127.0.0.1" "mitm"
         "receiver" "receiver-db" "receiver-cache"
@@ -189,8 +122,8 @@ export def write-two-party-env [
     let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
     let ocm_provider_lines = (provider-env-lines [$sender_provider $receiver_provider])
 
-    let sender_trusted_domains = if $flow_id == "webapp-share" {
-        $"($sender_party_host) ($WEBAPP_SHARE_SENDER_HUB_HOST)"
+    let sender_trusted_domains = if (is-webapp-share-flow $flow_id) {
+        (webapp-share-sender-trusted-domains $sender_party_host)
     } else {
         $sender_party_host
     }
@@ -227,14 +160,8 @@ export def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    if $flow_id == "webapp-share" {
-        let hub_host = $WEBAPP_SHARE_SENDER_HUB_HOST
-        $lines = ($lines | append [
-            $"SENDER_HUB_HOST=($hub_host)"
-            $"SENDER_HUB_CRYPT_KEY=($WEBAPP_SHARE_HUB_CRYPT_KEY)"
-            $"SENDER_HUB_API_KEY=($WEBAPP_SHARE_HUB_API_KEY)"
-            $"SENDER_HUB_OCM_API_KEY=($WEBAPP_SHARE_HUB_OCM_API_KEY)"
-        ])
+    if (is-webapp-share-flow $flow_id) {
+        $lines = ($lines | append (webapp-share-stack-env-lines))
     }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
     $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
@@ -341,9 +268,8 @@ export def write-two-party-overlays [
     # Copy sender and receiver cookbook YAMLs
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
     copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
-    if $flow_id == "webapp-share" {
-        patch-webapp-share-sender-yml $compose_d
-        copy-platform-cookbook $root $sender_platform "webapp-hub" $compose_d
+    if (is-webapp-share-flow $flow_id) {
+        apply-webapp-share-compose-overlays $root $sender_platform $compose_d $artifacts_base
     }
 
     # Write stack.env with all substitution variables
@@ -391,11 +317,6 @@ export def write-two-party-overlays [
     mkdir ($artifacts_base | path join "mitm" "conf")
     "scripts:\n  - /ocmts/mitmproxy_jsonl.py\n"
         | save --force ($artifacts_base | path join "mitm" "conf" "config.yaml")
-
-    # webapp-share: shared bind dir for the sender NC -> sender-hub OAuth handoff.
-    if $flow_id == "webapp-share" {
-        mkdir ($artifacts_base | path join "oauth-handoff")
-    }
 
     let record_str = if $record_video { "true" } else { "false" }
 
@@ -519,10 +440,9 @@ export def write-two-party-overlays [
     ])
     ($runner_dev_lines | str join "\n") | save --force ($compose_d | path join "runner-dev.yml")
 
-    mut base_overlay_fnames = ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"]
-    if $flow_id == "webapp-share" {
-        $base_overlay_fnames = ($base_overlay_fnames | append "webapp-hub.yml")
-    }
+    let base_overlay_fnames = (
+        webapp-share-base-overlay-fnames ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"] $flow_id
+    )
 
     # Copy all overlays to artifacts for durable access.
     copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]

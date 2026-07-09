@@ -6,6 +6,9 @@ import type {
   ProviderIdentityAdapter,
 } from "./contact";
 import type { ActorCredentials, ActorRef, LoginAdapter } from "./login";
+import type { WebappShareLaunchArtifact } from "../shared/webapp-share-launch-artifact";
+
+export type { WebappShareLaunchArtifact } from "../shared/webapp-share-launch-artifact";
 
 export type WebappShareFlowSenderAdapter = {
   key: string;
@@ -46,7 +49,9 @@ export function buildSenderFederatedId(params: {
 export type WebappShareFlowReceiverAdapter = {
   key: string;
   acceptIncomingWebappShare(params: WebappShareIncomingShareRef): void;
-  launchRemoteWebapp(params: WebappShareIncomingShareRef): void;
+  launchRemoteWebapp(
+    params: WebappShareIncomingShareRef,
+  ): Cypress.Chainable<WebappShareLaunchArtifact>;
 };
 
 export type ScenarioCase = {

@@ -3,6 +3,7 @@
 # generic override_env through the live resolver path against real
 # config/images.nuon (not just precedence.nu unit fixtures). by_flow scope
 # wins over version scope for nextcloud/v35 contact-token and contact-wayf.
+# Webapp-share flow overrides live in resolve-role-overrides-webapp-share.nu.
 # Run: nu scripts/tests/images/resolve-role-overrides.nu
 
 const SUITE_PATH = path self
@@ -17,7 +18,6 @@ const OPENCLOUD_V6_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
 const OCIS_V8_DEFAULT = "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
 const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.1"
 const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-contacts-app"
-const NEXTCLOUD_V35_WEBAPP_SHARE_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-webapp:webapp-share"
 
 def leaked-role-image-env-mask [] {
     [
@@ -37,8 +37,6 @@ def leaked-role-image-env-mask [] {
         OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_RECEIVER_IMAGE
         OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE
         OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE
-        OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE
     ]
     | reduce --fold {} {|k, acc|
         if $k in $env { $acc | upsert $k null } else { $acc }
@@ -58,7 +56,6 @@ def leaked-platform-image-env-mask [] {
                 OCMTS_NEXTCLOUD_V35_IMAGE
                 OCMTS_NEXTCLOUD_V35_CONTACT_TOKEN_IMAGE
                 OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE
-                OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_IMAGE
             ]
             | reduce --fold {} {|k, acc|
                 if $k in $env { $acc | upsert $k null } else { $acc }
@@ -423,94 +420,6 @@ def test-nextcloud-v34-non-contact-flow-ignores-contact-overrides [] {
     ]
 }
 
-# ---- real-config integration: nextcloud/v35 webapp-share flow overrides ----
-
-def test-nextcloud-v35-webapp-share-flow-default-beats-version-default [] {
-    test-log "\n[test-nextcloud-v35-webapp-share-flow-default-beats-version-default]"
-    let got = (
-        with-env (leaked-platform-image-env-mask) {
-            (resolve-images "nextcloud" "v35" --flow-id "webapp-share").platform
-        }
-    )
-    [
-        (assert-eq $got $NEXTCLOUD_V35_WEBAPP_SHARE_DEFAULT
-            "webapp-share by_flow default wins over nextcloud/v35 version default")
-    ]
-}
-
-def test-nextcloud-v35-webapp-share-sender-role-env [] {
-    test-log "\n[test-nextcloud-v35-webapp-share-sender-role-env]"
-    let sender_role = "localhost/ocmts/nextcloud-v35-webapp-share-sender:local"
-    let got = (
-        with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE: $sender_role
-        }) {
-            (resolve-images "nextcloud" "v35" --flow-id "webapp-share").platform
-        }
-    )
-    [
-        (assert-eq $got $sender_role
-            "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE applies to sender platform ref")
-    ]
-}
-
-def test-nextcloud-v35-webapp-share-receiver-role-env [] {
-    test-log "\n[test-nextcloud-v35-webapp-share-receiver-role-env]"
-    let receiver_role = "localhost/ocmts/nextcloud-v35-webapp-share-receiver:local"
-    let got = (
-        with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE: $receiver_role
-        }) {
-            resolve-receiver-image "nextcloud" "v35" --flow-id "webapp-share"
-        }
-    )
-    [
-        (assert-eq $got $receiver_role
-            "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE applies to receiver ref")
-    ]
-}
-
-def test-nextcloud-v35-webapp-share-flow-generic-env-beats-version-role-env [] {
-    test-log "\n[test-nextcloud-v35-webapp-share-flow-generic-env-beats-version-role-env]"
-    let flow_generic = "localhost/ocmts/nextcloud-v35-webapp-share:local"
-    let version_role = "ghcr.io/example/nextcloud:version-sender-role"
-    let got = (
-        with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V35_SENDER_IMAGE: $version_role
-            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_IMAGE: $flow_generic
-        }) {
-            (resolve-images "nextcloud" "v35" --flow-id "webapp-share").platform
-        }
-    )
-    [
-        (assert-eq $got $flow_generic
-            "webapp-share flow-scoped generic override_env beats version-scoped sender role env")
-    ]
-}
-
-def test-nextcloud-v35-webapp-share-sender-and-receiver-role-env-independence [] {
-    test-log "\n[test-nextcloud-v35-webapp-share-sender-and-receiver-role-env-independence]"
-    let sender_role = "localhost/ocmts/nextcloud-v35-webapp-share-sender:local"
-    let receiver_role = "localhost/ocmts/nextcloud-v35-webapp-share-receiver:local"
-    let got = (
-        with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE: $sender_role
-            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE: $receiver_role
-        }) {
-            {
-                sender: ((resolve-images "nextcloud" "v35" --flow-id "webapp-share").platform)
-                receiver: (resolve-receiver-image "nextcloud" "v35" --flow-id "webapp-share")
-            }
-        }
-    )
-    [
-        (assert-eq $got.sender $sender_role
-            "webapp-share sender role env does not affect receiver resolution")
-        (assert-eq $got.receiver $receiver_role
-            "webapp-share receiver role env does not affect sender resolution")
-    ]
-}
-
 def main [] {
     test-log "=== images/resolve-role-overrides Tests ==="
     let results = (
@@ -534,11 +443,6 @@ def main [] {
         | append (test-nextcloud-v35-contact-wayf-flow-generic-env-beats-version-role-env)
         | append (test-nextcloud-v35-contact-wayf-receiver-flow-role-env)
         | append (test-nextcloud-v34-non-contact-flow-ignores-contact-overrides)
-        | append (test-nextcloud-v35-webapp-share-flow-default-beats-version-default)
-        | append (test-nextcloud-v35-webapp-share-sender-role-env)
-        | append (test-nextcloud-v35-webapp-share-receiver-role-env)
-        | append (test-nextcloud-v35-webapp-share-flow-generic-env-beats-version-role-env)
-        | append (test-nextcloud-v35-webapp-share-sender-and-receiver-role-env-independence)
     ) | flatten
     run-suite "images/resolve-role-overrides" $SUITE_PATH $results
 }

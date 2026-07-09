@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 import type { WebappShareFlowReceiverAdapter } from "../../../contracts/webapp-share";
+import type { CernboxWebappShareLaunchArtifact } from "../../../shared/webapp-share-launch-artifact";
 import { cssEscapeAttributeValue } from "../../../shared/selectors";
 import { makeCernboxFilesHelpers } from "../shared/files";
 import { makeCernboxSharingHelpers } from "../shared/sharing";
@@ -46,18 +47,27 @@ export const cernboxV11WebappShareFlowReceiverAdapter: WebappShareFlowReceiverAd
         .should("be.visible")
         .click({ force: true });
 
-      cy.wait("@cernboxOpenInApp", { timeout: launchTimeoutMs }).then(
-        (interception) => {
+      return cy
+        .wait("@cernboxOpenInApp", { timeout: launchTimeoutMs })
+        .then((interception) => {
           const statusCode = interception.response?.statusCode;
           expect(statusCode, "CERNBox open-in-app status code").to.be.oneOf([
             200, 201, 204,
           ]);
-        },
-      );
-
-      cy.location("pathname", { timeout: launchTimeoutMs }).should(
-        "include",
-        "/lab",
-      );
+        })
+        .then(() => {
+          return cy.location("pathname", { timeout: launchTimeoutMs }).should(
+            "include",
+            "/lab",
+          );
+        })
+        .then((pathname) => {
+          const artifact: CernboxWebappShareLaunchArtifact = {
+            receiverKind: "cernbox",
+            launchGate: "in-tab-open",
+            labPathname: String(pathname),
+          };
+          return cy.wrap(artifact);
+        });
     },
   };

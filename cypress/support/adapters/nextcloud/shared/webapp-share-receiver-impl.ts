@@ -4,6 +4,11 @@ import type {
   WebappShareFlowReceiverAdapter,
   WebappShareIncomingShareRef,
 } from "../../../contracts/webapp-share";
+import {
+  assertHubLaunchOrigin,
+  extractHubLaunchOriginFromRedirectHtml,
+  type NextcloudWebappShareLaunchArtifact,
+} from "../../../shared/webapp-share-launch-artifact";
 
 const REMOTE_WEBAPP_APP_PATH = "/apps/ocmremotewebapp/";
 const acceptTimeoutMs = 60000;
@@ -97,11 +102,6 @@ function findShareCard(
   });
 }
 
-function recoverToRemoteWebappAppPage(): void {
-  cy.visit(REMOTE_WEBAPP_APP_PATH);
-  cy.contains("h2", /Remote web app shares/i, { timeout: 20000 }).should("be.visible");
-}
-
 function chooseThisTabTargetIfPresent(): void {
   cy.get("body").then(($body) => {
     const hasTargetPicker =
@@ -165,18 +165,16 @@ export function createNextcloudWebappShareReceiverAdapter(
       ensureRemoteWebappAppActive();
       findShareCard(shareRef).should("be.visible");
 
-      // Launch gate: open intercept with target=redirect; suppress cross-origin redirect.
+      let hubOrigin: string | null = null;
+
       cy.intercept("GET", "**/apps/ocmremotewebapp/ocm/open/**", (req) => {
         req.continue((res) => {
           const status = res.statusCode ?? 0;
-          if (status >= 300 && status < 400) {
-            res.statusCode = 204;
-            delete res.headers.location;
-            delete res.headers.Location;
-            return;
-          }
-          if (status >= 200 && status < 300) {
-            res.body = "";
+          if (status >= 200 && status < 300 && typeof res.body === "string") {
+            const origin = extractHubLaunchOriginFromRedirectHtml(res.body);
+            if (origin) {
+              hubOrigin = origin;
+            }
           }
         });
       }).as("nextcloudRemoteWebappOpen");
@@ -189,16 +187,23 @@ export function createNextcloudWebappShareReceiverAdapter(
           .click();
       });
 
-      cy.wait("@nextcloudRemoteWebappOpen", { timeout: launchTimeoutMs }).then(
-        (interception) => {
+      return cy
+        .wait("@nextcloudRemoteWebappOpen", { timeout: launchTimeoutMs })
+        .then((interception) => {
           const requestUrl = interception.request.url ?? "";
           expect(requestUrl, "Nextcloud remote webapp open URL").to.include(
             "target=redirect",
           );
-        },
-      );
-
-      recoverToRemoteWebappAppPage();
+          const receiverOrigin = new URL(String(Cypress.config("baseUrl"))).origin;
+          assertHubLaunchOrigin(hubOrigin, receiverOrigin);
+          const artifact: NextcloudWebappShareLaunchArtifact = {
+            receiverKind: "nextcloud",
+            launchGate: "cross-origin-open",
+            hubOrigin: hubOrigin as string,
+            openRequestUrl: requestUrl,
+          };
+          return cy.wrap(artifact);
+        });
     },
   };
 }

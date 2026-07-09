@@ -24,6 +24,7 @@ use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/suite/index.nu [record-suite-run-safe]
 use ../../lib/run/finalize.nu [finalize-run]
 use ../../lib/images/cell-images.nu [emit-cell-images]
+use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
 def main [
     --flow: string,
@@ -69,13 +70,7 @@ def main [
     } --preserve-temp=$preserve_temp --suite-record $suite_hook_base)
 
     # Bring up platform services; quiet by default, verbose with --verbose.
-    let wait_services = if $ctx.is_two_party {
-        if $ctx.cell.flow_id == "webapp-share" {
-            ["sender" "receiver" "mitm" "sender-hub"]
-        } else {
-            ["sender" "receiver" "mitm"]
-        }
-    } else { [] }
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
     if not $verbose { print "Starting services..." }
     let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose $env_file)
     if $up_err != null {

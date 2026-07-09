@@ -18,6 +18,7 @@ use ../../lib/services/lifecycle.nu [
 use ../../lib/publish/envelope.nu [publish-envelope-safe]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 use ../../lib/compose/logs.nu [collect-service-logs]
+use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
 def collect-open-failure-logs [ctx: record, compose_files: list<string>, phase: string] {
     try {
@@ -65,15 +66,9 @@ def main [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = if $ctx.is_two_party {
-        if $ctx.cell.flow_id == "webapp-share" {
-            ["sender" "receiver" "mitm" "sender-hub"]
-        } else {
-            ["sender" "receiver" "mitm"]
-        }
-    } else { [] }
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
     try {
-        # Direct compose up (operator-facing): streams output and throws on failure. On failure the local catch block writes the terminal outcome, collects logs, tears down via cleanup-down, and re-raises. CI flow uses do-compose-up in services/up-run.nu. Empty wait_services splats to full project.
+        # Direct compose up; empty wait_services targets the full project.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services
     } catch {|e|
         let finished_at = (utc-now)
@@ -123,7 +118,7 @@ def main [
         $ctx.base_overlay_fnames "runner-dev.yml"
         ["compose.resolved.yml" "compose.resolved.dev.yml"])
     try {
-        # Direct compose up for cypress_dev (operator-facing): streaming + throw-on-failure semantics; CI does not start cypress_dev.
+        # Direct compose up for cypress_dev.
         ^docker compose ...$env_args ...$f_args_dev -p $ctx.stack_id up -d cypress_dev
     } catch {|e|
         let finished_at = (utc-now)

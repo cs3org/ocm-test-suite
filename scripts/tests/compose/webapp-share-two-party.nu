@@ -3,93 +3,30 @@
 # Run: nu scripts/tests/compose/webapp-share-two-party.nu
 
 const SUITE_PATH = path self
-const FIXTURE_EXEC_ID = "20260101t000000-aabbcc01"
 
-use ../../lib/compose/topology-two-party.nu [
-    write-two-party-env
-    write-two-party-overlays
-]
 use ../../lib/compose/topology-webapp-share.nu [
     WEBAPP_SHARE_HUB_API_KEY
     WEBAPP_SHARE_HUB_CRYPT_KEY
     WEBAPP_SHARE_HUB_OCM_API_KEY
     WEBAPP_SHARE_SENDER_HUB_HOST
-    WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
-    WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
-    WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
-    WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
-    WEBAPP_SHARE_SENDER_VOLUMES_MARKER
-    patch-webapp-share-sender-yml
 ]
-use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
-use ../../lib/images/resolve.nu [resolve-images resolve-receiver-images]
-use ../../lib/run/execution-id.nu [execution-temp-path]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
+use ./_webapp-share-overlay-fixtures.nu [
+    FIXTURE_EXEC_ID
+    read-stack-env-lines
+    read-text
+    extract-compose-service-block
+    cleanup-overlay-artifacts
+    make-webapp-share-overlay
+]
 
 const HUB_HOST = $WEBAPP_SHARE_SENDER_HUB_HOST
 const HUB_IMAGE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
 const HUB_CRYPT_KEY = $WEBAPP_SHARE_HUB_CRYPT_KEY
 const HUB_API_KEY = $WEBAPP_SHARE_HUB_API_KEY
 const HUB_OCM_API_KEY = $WEBAPP_SHARE_HUB_OCM_API_KEY
-
-def read-stack-env-lines [env_file: string] {
-    (open $env_file | lines | each {|l| ($l | str trim)} | where {|l| not ($l | is-empty)})
-}
-
-def read-text [path: string] {
-    open -r $path
-}
-
-def is-compose-top-level-service-line [line: string] {
-    not (($line | parse --regex '^  [^\s].+:$' | is-empty))
-}
-
-def extract-compose-service-block [src: string, service: string] {
-    let marker = $"  ($service):"
-    let lines = ($src | lines)
-    let start = ($lines | enumerate | where {|e| $e.item == $marker} | first)
-    if ($start == null) {
-        return null
-    }
-    let tail = ($lines | skip ($start.index + 1))
-    let next = ($tail | enumerate | where {|e| (is-compose-top-level-service-line $e.item)} | first)
-    let end = if ($next == null) { ($tail | length) } else { $next.index }
-    $tail | take $end | str join (char newline)
-}
-
-def cleanup-overlay-artifacts [artifacts_base: string, execution_id: string] {
-    rm -rf $artifacts_base
-    rm -rf (execution-temp-path $execution_id)
-}
-
-def make-webapp-share-overlay [
-    root: string,
-    artifacts_base: string,
-    --receiver-platform: string = "cernbox",
-    --receiver-version: string = "v11",
-    --artifact-name: string = "cell-webapp-share-nc-v35",
-] {
-    let matrix_key = $"($WEBAPP_SHARE_FLOW_ID)__nextcloud__($receiver_platform)"
-    let sender_imgs = (
-        resolve-images "nextcloud" "v35"
-            --matrix-key $matrix_key --flow-id $WEBAPP_SHARE_FLOW_ID
-    )
-    let recv_imgs = (
-        resolve-receiver-images $receiver_platform $receiver_version
-            --matrix-key $matrix_key --flow-id $WEBAPP_SHARE_FLOW_ID
-    )
-    (write-two-party-overlays
-        $WEBAPP_SHARE_FLOW_ID "nextcloud" $receiver_platform $artifact_name $FIXTURE_EXEC_ID
-        $sender_imgs.platform $recv_imgs.platform "mitmproxy:test"
-        $sender_imgs.cypress_ci $sender_imgs.cypress_dev
-        $sender_imgs.mariadb $sender_imgs.valkey
-        "cypress/e2e/webapp-share/index.cy.ts" "chrome" false
-        $root $artifacts_base
-        "v35" $receiver_version
-    )
-}
 
 def test-webapp-share-overlay-sender-hub-service [] {
     test-log "\n[test-webapp-share-overlay-sender-hub-service]"
@@ -360,150 +297,6 @@ def test-webapp-share-nc-nc-receiver-actor-defaults [] {
     $results
 }
 
-def test-share-with-unchanged-no-sender-hub [] {
-    test-log "\n[test-share-with-unchanged-no-sender-hub]"
-    let root = (get-ocmts-root)
-    let artifacts_base = ($nu.temp-dir | path join $"share-with-regression-(random uuid)")
-    mkdir ($artifacts_base | path join "compose" "inputs")
-    let sender_imgs = (
-        resolve-images "nextcloud" "v32"
-            --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
-    )
-    let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32"
-            --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
-    )
-    let overlay = (write-two-party-overlays
-        "share-with" "nextcloud" "nextcloud" "cell-share-nc-v32" $FIXTURE_EXEC_ID
-        $sender_imgs.platform $recv_imgs.platform "mitmproxy:test"
-        $sender_imgs.cypress_ci $sender_imgs.cypress_dev
-        $sender_imgs.mariadb $sender_imgs.valkey
-        "cypress/e2e/share-with/index.cy.ts" "chrome" false
-        $root $artifacts_base
-        "v32" "v32"
-    )
-    let lines = (read-stack-env-lines $overlay.env_file)
-    let sender_yml = (read-text ($overlay.compose_d | path join "sender.yml"))
-    let sender_block = (extract-compose-service-block $sender_yml "sender")
-    let runner_ci = (read-text ($overlay.compose_d | path join "runner-ci.yml"))
-    let hub_overlay = ($overlay.compose_d | path join "webapp-hub.yml")
-    let results = [
-        (assert-truthy (not ($hub_overlay | path exists))
-            "share-with does not copy webapp-hub overlay")
-        (assert-truthy (not ($overlay.base_overlay_fnames | any {|f| $f == "webapp-hub.yml"}))
-            "share-with base_overlay_fnames omits webapp-hub.yml")
-        (assert-not-null $sender_block "share-with sender service block exists")
-        (assert-truthy (not ($sender_block | str contains "JUPYTER_HOST"))
-            "share-with sender overlay omits JUPYTER_HOST")
-        (assert-truthy (not ($sender_block | str contains "SENDER_HUB_HOST"))
-            "share-with sender overlay omits SENDER_HUB_HOST substitution")
-        (assert-truthy (not ($sender_block | str contains "oauth-handoff"))
-            "share-with sender overlay omits the oauth-handoff wiring")
-        (assert-truthy (not (($artifacts_base | path join "oauth-handoff") | path exists))
-            "share-with does not create the oauth-handoff shared dir")
-        (assert-truthy (
-            $lines | where {|l| $l | str starts-with "SENDER_HUB_HOST="} | is-empty
-        ) "share-with stack.env omits SENDER_HUB_HOST")
-        (assert-truthy (
-            $lines | where {|l| $l | str starts-with "SENDER_HUB_IMAGE="} | is-empty
-        ) "share-with stack.env omits SENDER_HUB_IMAGE")
-        (assert-list-contains $lines "SENDER_TRUSTED_DOMAINS=nextcloud1.docker"
-            "share-with stack.env sets default sender trusted domains without hub host")
-        (assert-truthy (not ($runner_ci | str contains "sender-hub:"))
-            "share-with runner does not depend on sender-hub")
-    ]
-    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
-    $results
-}
-
-# --- patch-webapp-share-sender-yml direct unit coverage (topology-webapp-share.nu) ---
-const PATCH_NO_PROXY_MARKER = $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
-const PATCH_ACTORS_VOL_MARKER = $WEBAPP_SHARE_SENDER_VOLUMES_MARKER
-const PATCH_JUPYTER_ENV_LINE = $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
-const PATCH_OAUTH_ENV_LINE = $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
-const PATCH_OAUTH_VOL_LINE = $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
-
-def did-throw [cl: closure] {
-    try { do $cl; false } catch { true }
-}
-
-def write-sender-fixture [lines: list<string>] {
-    let dir = ($nu.temp-dir | path join $"patch-sender-fixture-(random uuid)")
-    mkdir $dir
-    ($lines | str join (char newline)) | save --force ($dir | path join "sender.yml")
-    $dir
-}
-
-def test-patch-sender-happy-and-idempotent [] {
-    test-log "\n[test-patch-sender-happy-and-idempotent]"
-    let dir = (write-sender-fixture [
-        "services:"
-        "  sender:"
-        "    environment:"
-        $PATCH_NO_PROXY_MARKER
-        "    volumes:"
-        $PATCH_ACTORS_VOL_MARKER
-    ])
-    let sender_path = ($dir | path join "sender.yml")
-    patch-webapp-share-sender-yml $dir
-    let once = (open -r $sender_path)
-    # A second call must be a no-op (fully patched), not an error or a re-inject.
-    patch-webapp-share-sender-yml $dir
-    let twice = (open -r $sender_path)
-    let results = [
-        (assert-string-contains $once $PATCH_JUPYTER_ENV_LINE
-            "patch injects JUPYTER_HOST env line")
-        (assert-string-contains $once $PATCH_OAUTH_ENV_LINE
-            "patch injects OAuth env-file line")
-        (assert-string-contains $once $PATCH_OAUTH_VOL_LINE
-            "patch injects OAuth handoff volume line")
-        (assert-eq $twice $once
-            "second patch is idempotent (no double-inject, no error)")
-    ]
-    rm -rf $dir
-    $results
-}
-
-def test-patch-sender-marker-miss-fails [] {
-    test-log "\n[test-patch-sender-marker-miss-fails]"
-    # sender.yml missing the NO_PROXY marker must fail fast, not silently no-op.
-    let dir = (write-sender-fixture [
-        "services:"
-        "  sender:"
-        "    environment:"
-        "      - SOME_OTHER=1"
-        "    volumes:"
-        $PATCH_ACTORS_VOL_MARKER
-    ])
-    let threw = (did-throw {|| patch-webapp-share-sender-yml $dir })
-    rm -rf $dir
-    [
-        (assert-truthy $threw
-            "patch fails fast when the NO_PROXY marker is absent (no silent no-op)")
-    ]
-}
-
-def test-patch-sender-partial-fails [] {
-    test-log "\n[test-patch-sender-partial-fails]"
-    # Already carries JUPYTER_HOST but not the OAuth lines -> drifted/partial;
-    # patch must refuse rather than corrupt the overlay.
-    let dir = (write-sender-fixture [
-        "services:"
-        "  sender:"
-        "    environment:"
-        $PATCH_NO_PROXY_MARKER
-        $PATCH_JUPYTER_ENV_LINE
-        "    volumes:"
-        $PATCH_ACTORS_VOL_MARKER
-    ])
-    let threw = (did-throw {|| patch-webapp-share-sender-yml $dir })
-    rm -rf $dir
-    [
-        (assert-truthy $threw
-            "patch refuses to re-patch a partially-patched (drifted) overlay")
-    ]
-}
-
 def main [] {
     test-log "=== compose/webapp-share-two-party Tests ==="
     let results = (
@@ -516,10 +309,6 @@ def main [] {
         | append (test-webapp-share-nc-nc-reuses-sender-hub-topology)
         | append (test-webapp-share-nc-nc-local-image-override-compose-boundary)
         | append (test-webapp-share-nc-nc-receiver-actor-defaults)
-        | append (test-share-with-unchanged-no-sender-hub)
-        | append (test-patch-sender-happy-and-idempotent)
-        | append (test-patch-sender-marker-miss-fails)
-        | append (test-patch-sender-partial-fails)
     ) | flatten
     run-suite "compose/webapp-share-two-party" $SUITE_PATH $results
 }

@@ -33,7 +33,7 @@
         },
         "flow.webapp-share.sender": {
           "status": "vendor-out-of-scope",
-          "rationale": "webapp-share pairs CERNBox v11 as receiver only in the current milestone."
+          "rationale": "CERNBox v11 is webapp-share receiver only in the matrix."
         },
         "op.contact-token.receiver": {
           "status": "supported"
@@ -92,11 +92,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "op.contact-token.receiver": {
           "status": "vendor-unsupported",
@@ -158,11 +158,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "op.contact-token.receiver": {
           "status": "vendor-unsupported",
@@ -220,11 +220,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-unsupported",
-          "tracking_note": "webapp-share is scoped to Nextcloud v35."
+          "tracking_note": "Requires Nextcloud v35."
         },
         "op.contact-token.receiver": {
           "status": "supported"
@@ -336,11 +336,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "op.contact-token.receiver": {
           "status": "supported"
@@ -399,11 +399,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "op.contact-token.receiver": {
           "status": "test-implementation-pending",
@@ -465,11 +465,11 @@
         },
         "flow.webapp-share.receiver": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "flow.webapp-share.sender": {
           "status": "vendor-out-of-scope",
-          "rationale": "Not in current webapp-share matrix pairing."
+          "rationale": "Not in the webapp-share matrix."
         },
         "op.contact-token.receiver": {
           "status": "supported"

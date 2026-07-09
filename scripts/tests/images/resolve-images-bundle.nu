@@ -13,6 +13,13 @@ const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:ma
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
 const NEXTCLOUD_V35_HUB_WEBAPP_SHARE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
 
+def leaked-nextcloud-webapp-share-hub-env-mask [] {
+    [OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE]
+    | reduce --fold {} {|k, acc|
+        if $k in $env { $acc | upsert $k null } else { $acc }
+    }
+}
+
 def leaked-cernbox-image-env-mask [] {
     [
         OCMTS_CERNBOX_WEB_V11_IMAGE
@@ -142,6 +149,40 @@ def test-nextcloud-v35-webapp-share-hub-bundle [] {
     ]
 }
 
+def test-nextcloud-v35-webapp-share-hub-bundle-nc-nc [] {
+    test-log "\n[test-nextcloud-v35-webapp-share-hub-bundle-nc-nc]"
+    let imgs = (
+        resolve-images "nextcloud" "v35" --matrix-key "webapp-share__nextcloud__nextcloud" --flow-id "webapp-share"
+    )
+    [
+        (assert-eq ($imgs.bundle | columns | sort) ["hub"]
+            "NC->NC webapp-share resolves the same hub bundle slot")
+        (assert-eq ($imgs.bundle | get hub) $NEXTCLOUD_V35_HUB_WEBAPP_SHARE
+            "NC->NC webapp-share hub default ref matches NC->CB")
+        (assert-eq ($imgs.bundle_services | get hub) "sender-hub"
+            "NC->NC hub slot maps to sender-hub compose service name")
+    ]
+}
+
+def test-nextcloud-v35-webapp-share-hub-env-override [] {
+    test-log "\n[test-nextcloud-v35-webapp-share-hub-env-override]"
+    let custom_hub = "localhost/ocmts/nextcloud-v35-webapp-share-hub:local"
+    let imgs = (
+        with-env (
+            leaked-nextcloud-webapp-share-hub-env-mask
+            | merge { OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE: $custom_hub }
+        ) {
+            resolve-images "nextcloud" "v35" --matrix-key "webapp-share__nextcloud__nextcloud" --flow-id "webapp-share"
+        }
+    )
+    [
+        (assert-eq ($imgs.bundle | get hub) $custom_hub
+            "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE overrides hub bundle slot")
+        (assert-eq ($imgs.bundle_services | get hub) "sender-hub"
+            "hub bundle_services entry unchanged when hub env override is set")
+    ]
+}
+
 def main [] {
     test-log "=== images/resolve-images-bundle Tests ==="
     let results = (
@@ -152,6 +193,8 @@ def main [] {
         | append (test-nextcloud-v32-bundle-empty)
         | append (test-nextcloud-v35-login-no-hub-bundle)
         | append (test-nextcloud-v35-webapp-share-hub-bundle)
+        | append (test-nextcloud-v35-webapp-share-hub-bundle-nc-nc)
+        | append (test-nextcloud-v35-webapp-share-hub-env-override)
     ) | flatten
     run-suite "images/resolve-images-bundle" $SUITE_PATH $results
 }

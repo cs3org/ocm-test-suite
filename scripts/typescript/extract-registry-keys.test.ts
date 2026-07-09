@@ -128,6 +128,17 @@ describe("extract-registry-keys", () => {
     expect(parsed.shareFileReceiverAdapters).toContain("cernbox/v11");
   });
 
+  test("webapp-share tables register nextcloud/v35 sender and receiver", async () => {
+    const { stdout, exitCode } = await runScript([REGISTRY_PATH]);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.webappShareFlowSenderAdapters).toEqual(["nextcloud/v35"]);
+    expect(parsed.webappShareFlowReceiverAdapters).toEqual([
+      "cernbox/v11",
+      "nextcloud/v35",
+    ]);
+  });
+
   test("exits 2 with error message when no argument given", async () => {
     const { stderr, exitCode } = await runScript([]);
     expect(exitCode).toBe(2);

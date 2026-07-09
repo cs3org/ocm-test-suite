@@ -52,23 +52,30 @@ def cleanup-overlay-artifacts [artifacts_base: string, execution_id: string] {
     rm -rf (execution-temp-path $execution_id)
 }
 
-def make-webapp-share-overlay [root: string, artifacts_base: string] {
+def make-webapp-share-overlay [
+    root: string,
+    artifacts_base: string,
+    --receiver-platform: string = "cernbox",
+    --receiver-version: string = "v11",
+    --artifact-name: string = "cell-webapp-share-nc-v35",
+] {
+    let matrix_key = $"webapp-share__nextcloud__($receiver_platform)"
     let sender_imgs = (
         resolve-images "nextcloud" "v35"
-            --matrix-key "webapp-share__nextcloud__cernbox" --flow-id "webapp-share"
+            --matrix-key $matrix_key --flow-id "webapp-share"
     )
     let recv_imgs = (
-        resolve-receiver-images "cernbox" "v11"
-            --matrix-key "webapp-share__nextcloud__cernbox" --flow-id "webapp-share"
+        resolve-receiver-images $receiver_platform $receiver_version
+            --matrix-key $matrix_key --flow-id "webapp-share"
     )
     (write-two-party-overlays
-        "webapp-share" "nextcloud" "cernbox" "cell-webapp-share-nc-v35" $FIXTURE_EXEC_ID
+        "webapp-share" "nextcloud" $receiver_platform $artifact_name $FIXTURE_EXEC_ID
         $sender_imgs.platform $recv_imgs.platform "mitmproxy:test"
         $sender_imgs.cypress_ci $sender_imgs.cypress_dev
         $sender_imgs.mariadb $sender_imgs.valkey
         "cypress/e2e/webapp-share/index.cy.ts" "chrome" false
         $root $artifacts_base
-        "v35" "v11"
+        "v35" $receiver_version
     )
 }
 
@@ -220,6 +227,122 @@ def test-webapp-share-actor-resolution-defaults [] {
             "default receiver actor marie resolved without overrides")
         (assert-list-contains $lines "CYPRESS_receiver_password=radioactivity"
             "default receiver password resolved from cernbox actor marie")
+    ]
+    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
+    $results
+}
+
+def test-webapp-share-nc-nc-reuses-sender-hub-topology [] {
+    test-log "\n[test-webapp-share-nc-nc-reuses-sender-hub-topology]"
+    let root = (get-ocmts-root)
+    let artifacts_cb = ($nu.temp-dir | path join $"webapp-share-nc-cb-(random uuid)")
+    let artifacts_nc = ($nu.temp-dir | path join $"webapp-share-nc-nc-(random uuid)")
+    mkdir ($artifacts_cb | path join "compose" "inputs")
+    mkdir ($artifacts_nc | path join "compose" "inputs")
+    let overlay_cb = (make-webapp-share-overlay $root $artifacts_cb)
+    let overlay_nc = (
+        make-webapp-share-overlay $root $artifacts_nc
+            --receiver-platform "nextcloud" --receiver-version "v35"
+            --artifact-name "cell-webapp-share-nc-v35-nc"
+    )
+    let hub_cb = (read-text ($overlay_cb.compose_d | path join "webapp-hub.yml"))
+    let hub_nc = (read-text ($overlay_nc.compose_d | path join "webapp-hub.yml"))
+    let runner_nc = (read-text ($overlay_nc.compose_d | path join "runner-ci.yml"))
+    let source_hub = (read-text ($root | path join "config/compose/cookbooks/nextcloud.webapp-hub.yml"))
+    let results = [
+        (assert-eq $hub_nc $hub_cb
+            "NC->NC webapp-hub.yml matches NC->CB sender-hub overlay shape")
+        (assert-eq $hub_nc $source_hub
+            "NC->NC webapp-hub.yml mirrors nextcloud.webapp-hub.yml cookbook")
+        (assert-list-contains $overlay_nc.base_overlay_fnames "webapp-hub.yml"
+            "NC->NC base_overlay_fnames includes webapp-hub.yml")
+        (assert-string-contains $runner_nc "sender-hub:"
+            "NC->NC runner-ci depends_on sender-hub")
+        (assert-truthy (($overlay_nc.compose_d | path join "webapp-hub.yml") | path exists)
+            "NC->NC compose_d contains webapp-hub.yml overlay")
+    ]
+    cleanup-overlay-artifacts $artifacts_cb $FIXTURE_EXEC_ID
+    cleanup-overlay-artifacts $artifacts_nc $FIXTURE_EXEC_ID
+    $results
+}
+
+def webapp-share-image-override-env-mask [] {
+    [
+        OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_IMAGE
+        OCMTS_NEXTCLOUD_V35_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V35_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V35_IMAGE
+    ]
+    | reduce --fold {} {|k, acc|
+        if $k in $env { $acc | upsert $k null } else { $acc }
+    }
+}
+
+def test-webapp-share-nc-nc-local-image-override-compose-boundary [] {
+    test-log "\n[test-webapp-share-nc-nc-local-image-override-compose-boundary]"
+    let root = (get-ocmts-root)
+    let artifacts_base = ($nu.temp-dir | path join $"webapp-share-nc-nc-img-(random uuid)")
+    mkdir ($artifacts_base | path join "compose" "inputs")
+    let sender_role = "localhost/ocmts/nextcloud-v35-webapp-share-sender:local"
+    let receiver_role = "localhost/ocmts/nextcloud-v35-webapp-share-receiver:local"
+    let overlay = (
+        with-env (webapp-share-image-override-env-mask | merge {
+            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE: $sender_role
+            OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE: $receiver_role
+        }) {
+            (make-webapp-share-overlay $root $artifacts_base --receiver-platform "nextcloud" --receiver-version "v35" --artifact-name "cell-webapp-share-nc-v35-nc")
+        }
+    )
+    let lines = (read-stack-env-lines $overlay.env_file)
+    let sender_yml = (read-text ($overlay.compose_d | path join "sender.yml"))
+    let receiver_yml = (read-text ($overlay.compose_d | path join "receiver.yml"))
+    let sender_block = (extract-compose-service-block $sender_yml "sender")
+    let receiver_block = (extract-compose-service-block $receiver_yml "receiver")
+    let results = [
+        (assert-list-contains $lines $"SENDER_IMAGE=($sender_role)"
+            "NC->NC stack.env carries resolved sender image override")
+        (assert-list-contains $lines $"RECEIVER_IMAGE=($receiver_role)"
+            "NC->NC stack.env carries resolved receiver image override")
+        (assert-string-contains $sender_yml "${SENDER_IMAGE}"
+            "NC->NC sender.yml keeps SENDER_IMAGE placeholder from cookbook")
+        (assert-string-contains $receiver_yml "${RECEIVER_IMAGE}"
+            "NC->NC receiver.yml keeps RECEIVER_IMAGE placeholder from cookbook")
+        (assert-not-null $sender_block "NC->NC sender service block exists")
+        (assert-not-null $receiver_block "NC->NC receiver service block exists")
+        (assert-string-contains $sender_block "image: ${SENDER_IMAGE}"
+            "NC->NC sender service consumes SENDER_IMAGE from stack.env")
+        (assert-string-contains $receiver_block "image: ${RECEIVER_IMAGE}"
+            "NC->NC receiver service consumes RECEIVER_IMAGE from stack.env")
+    ]
+    cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
+    $results
+}
+
+def test-webapp-share-nc-nc-receiver-actor-defaults [] {
+    test-log "\n[test-webapp-share-nc-nc-receiver-actor-defaults]"
+    let root = (get-ocmts-root)
+    let artifacts_base = ($nu.temp-dir | path join $"webapp-share-nc-nc-actors-(random uuid)")
+    mkdir ($artifacts_base | path join "compose" "inputs")
+    let overlay = (
+        make-webapp-share-overlay $root $artifacts_base
+            --receiver-platform "nextcloud" --receiver-version "v35"
+            --artifact-name "cell-webapp-share-nc-v35-nc"
+    )
+    let lines = (read-stack-env-lines $overlay.env_file)
+    let results = [
+        (assert-list-contains $lines "CYPRESS_sender_username=michiel"
+            "NC->NC default sender actor michiel resolved without overrides")
+        (assert-list-contains $lines "CYPRESS_sender_password=michiel"
+            "NC->NC default sender password resolved without overrides")
+        (assert-list-contains $lines "CYPRESS_receiver_username=marie"
+            "NC->NC default receiver actor marie resolved without overrides")
+        (assert-list-contains $lines "CYPRESS_receiver_password=marie"
+            "NC->NC receiver password resolved from nextcloud actor marie")
+        (assert-truthy (
+            not ($lines | any {|l| $l == "CYPRESS_receiver_password=radioactivity"})
+        ) "NC->NC receiver password is not the cernbox marie password")
     ]
     cleanup-overlay-artifacts $artifacts_base $FIXTURE_EXEC_ID
     $results
@@ -382,6 +505,9 @@ def main [] {
         | append (test-webapp-share-runner-depends-on-sender-hub)
         | append (test-webapp-share-oauth-handoff-wiring)
         | append (test-webapp-share-actor-resolution-defaults)
+        | append (test-webapp-share-nc-nc-reuses-sender-hub-topology)
+        | append (test-webapp-share-nc-nc-local-image-override-compose-boundary)
+        | append (test-webapp-share-nc-nc-receiver-actor-defaults)
         | append (test-share-with-unchanged-no-sender-hub)
         | append (test-patch-sender-happy-and-idempotent)
         | append (test-patch-sender-marker-miss-fails)

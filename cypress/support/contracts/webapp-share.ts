@@ -5,23 +5,26 @@ import type {
   ContactTokenSenderAdapter,
   ProviderIdentityAdapter,
 } from "./contact";
-import type { ActorRef, LoginAdapter } from "./login";
+import type { ActorCredentials, ActorRef, LoginAdapter } from "./login";
 
 export type WebappShareFlowSenderAdapter = {
   key: string;
-  prepareShareFolder(params: { sharedFolderName: string }): void;
+  prepareShareFolder(params: {
+    sharedFolderName: string;
+    credentials: ActorCredentials;
+  }): void;
   openWebappShareDialog(params: { sharedFolderName: string }): void;
   submitWebappShare(params: { federatedRecipientId: string }): void;
-  shareWebappWithFederatedRecipient(params: {
-    sharedFolderName: string;
-    federatedRecipientId: string;
-  }): void;
 };
 
 export type WebappShareIncomingShareRef = {
   sharedFolderName: string;
   senderFederatedId: string;
+  appName: string;
 };
+
+// Receiver cards title shares by webapp appName, not folder name.
+export const WEBAPP_SHARE_APP_NAME = "Jupyter";
 
 export function buildSenderFederatedId(params: {
   username: string;

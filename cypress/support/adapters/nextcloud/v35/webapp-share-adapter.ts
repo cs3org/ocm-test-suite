@@ -1,10 +1,9 @@
 /// <reference types="cypress" />
 
-import { createNextcloudWebappShareReceiverAdapter } from "../shared/webapp-share-receiver-impl";
-import { createNextcloudWebappShareSenderAdapter } from "../shared/webapp-share-impl";
+import { createNextcloudWebappShareAdapters } from "../shared/webapp-share-adapters";
 
-export const nextcloudV35WebappShareFlowSenderAdapter =
-  createNextcloudWebappShareSenderAdapter("v35");
+const { webappShareFlowSender, webappShareFlowReceiver } =
+  createNextcloudWebappShareAdapters("v35");
 
-export const nextcloudV35WebappShareFlowReceiverAdapter =
-  createNextcloudWebappShareReceiverAdapter("v35");
+export const nextcloudV35WebappShareFlowSenderAdapter = webappShareFlowSender;
+export const nextcloudV35WebappShareFlowReceiverAdapter = webappShareFlowReceiver;

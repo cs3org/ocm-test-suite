@@ -28,14 +28,20 @@ export function matchesIncomingWebappShareCardText(
 ): boolean {
   const folderName = shareRef.sharedFolderName.trim();
   const senderFederatedId = shareRef.senderFederatedId.trim();
-  if (folderName.length === 0 || senderFederatedId.length === 0) {
+  const appName = shareRef.appName.trim();
+  if (senderFederatedId.length === 0) {
+    return false;
+  }
+  if (folderName.length === 0 && appName.length === 0) {
     return false;
   }
 
+  // Match sender plus folder name or app name (cards title by appName).
   const normalized = cardText.replace(/\s+/g, " ").trim();
-  return (
-    normalized.includes(folderName) && normalized.includes(senderFederatedId)
-  );
+  const matchesResource =
+    (folderName.length > 0 && normalized.includes(folderName)) ||
+    (appName.length > 0 && normalized.includes(appName));
+  return matchesResource && normalized.includes(senderFederatedId);
 }
 
 function summarizeShareCardTexts(items: JQuery<HTMLElement>): string {
@@ -71,6 +77,7 @@ function findShareCard(
           "Could not find a unique ocmremotewebapp share card.",
           `resource="${shareRef.sharedFolderName}"`,
           `sender="${shareRef.senderFederatedId}"`,
+          `app="${shareRef.appName}"`,
           `Visible cards: ${items.length}.`,
           `Card texts: ${cardSummary}`,
         ].join(" "),
@@ -82,6 +89,7 @@ function findShareCard(
         "Ambiguous ocmremotewebapp share card match.",
         `resource="${shareRef.sharedFolderName}"`,
         `sender="${shareRef.senderFederatedId}"`,
+        `app="${shareRef.appName}"`,
         `Matched cards: ${matches.length}.`,
         `Card texts: ${cardSummary}`,
       ].join(" "),
@@ -89,7 +97,12 @@ function findShareCard(
   });
 }
 
-function chooseThisTabTargetWithinShareCard(): void {
+function recoverToRemoteWebappAppPage(): void {
+  cy.visit(REMOTE_WEBAPP_APP_PATH);
+  cy.contains("h2", /Remote web app shares/i, { timeout: 20000 }).should("be.visible");
+}
+
+function chooseThisTabTargetIfPresent(): void {
   cy.get("body").then(($body) => {
     const hasTargetPicker =
       $body.find('[aria-label="Open in"], [aria-label-combobox="Open in"]').filter(":visible")
@@ -128,7 +141,7 @@ export function createNextcloudWebappShareReceiverAdapter(
       );
 
       findShareCard(shareRef).within(() => {
-        cy.contains("button", /^Accept$/i, { timeout: acceptTimeoutMs })
+        cy.contains("button", /^\s*Accept\s*$/i, { timeout: acceptTimeoutMs })
           .should("be.visible")
           .click();
       });
@@ -144,7 +157,7 @@ export function createNextcloudWebappShareReceiverAdapter(
 
       findShareCard(shareRef).within(() => {
         cy.contains(/accepted/i, { timeout: acceptTimeoutMs }).should("be.visible");
-        cy.contains("button", /^Open$/i, { timeout: acceptTimeoutMs }).should("be.visible");
+        cy.contains("button", /^\s*Open\s*$/i, { timeout: acceptTimeoutMs }).should("be.visible");
       });
     },
 
@@ -152,13 +165,26 @@ export function createNextcloudWebappShareReceiverAdapter(
       ensureRemoteWebappAppActive();
       findShareCard(shareRef).should("be.visible");
 
-      cy.intercept("GET", "**/apps/ocmremotewebapp/ocm/open/**").as(
-        "nextcloudRemoteWebappOpen",
-      );
+      // Launch gate: open intercept with target=redirect; suppress cross-origin redirect.
+      cy.intercept("GET", "**/apps/ocmremotewebapp/ocm/open/**", (req) => {
+        req.continue((res) => {
+          const status = res.statusCode ?? 0;
+          if (status >= 300 && status < 400) {
+            res.statusCode = 204;
+            delete res.headers.location;
+            delete res.headers.Location;
+            return;
+          }
+          if (status >= 200 && status < 300) {
+            res.body = "";
+          }
+        });
+      }).as("nextcloudRemoteWebappOpen");
+
+      chooseThisTabTargetIfPresent();
 
       findShareCard(shareRef).within(() => {
-        chooseThisTabTargetWithinShareCard();
-        cy.contains("button", /^Open$/i, { timeout: launchTimeoutMs })
+        cy.contains("button", /^\s*Open\s*$/i, { timeout: launchTimeoutMs })
           .should("be.visible")
           .click();
       });
@@ -172,10 +198,7 @@ export function createNextcloudWebappShareReceiverAdapter(
         },
       );
 
-      cy.location("pathname", { timeout: launchTimeoutMs }).should(
-        "include",
-        "/apps/ocmremotewebapp/ocm/open/",
-      );
+      recoverToRemoteWebappAppPage();
     },
   };
 }

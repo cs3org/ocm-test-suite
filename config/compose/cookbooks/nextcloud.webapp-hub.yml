@@ -1,4 +1,4 @@
-# Nextcloud webapp-share sender-side JupyterHub (real hub service, not an alias on sender).
+# Nextcloud webapp-share sender-side JupyterHub.
 # All dynamic values filled by docker compose env substitution from stack.env.
 services:
   sender-hub:
@@ -14,8 +14,10 @@ services:
       sender:
         condition: service_healthy
     healthcheck:
-      # k8s-hub has no curl; python3 is always present. Probe the hub health
-      # endpoint over the in-container TLS listener (self-signed at boot).
+      # The hub image has no curl; python3 is always present. Probe the hub
+      # health endpoint over the in-container TLS listener (self-signed at boot).
+      # This exercises the full proxy path (configurable-http-proxy -> hub), so
+      # an unproxied hub stays unhealthy instead of passing.
       test:
         - CMD
         - python3
@@ -34,7 +36,7 @@ services:
       - OCM_TRUSTED_BACK_CHANNEL_DOMAINS=${SENDER_PARTY_HOST}
       - OCM_TRUSTED_ISSUER_DOMAINS=${SENDER_PARTY_HOST}
       # OAuth client id/secret are provisioned by the sender NC post-install hook
-      # and handed off via this shared file; entrypoint-init.nu waits for it.
+      # and handed off via this shared file.
       - NEXTCLOUD_OAUTH_ENV_FILE=/oauth-handoff/oauth.env
     volumes:
       - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff:ro

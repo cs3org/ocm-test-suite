@@ -4,6 +4,7 @@ import { resolveActorCredentials } from "../../support/actors/credentials";
 import {
   buildSenderFederatedId,
   type ScenarioCase,
+  WEBAPP_SHARE_APP_NAME,
 } from "../../support/contracts/webapp-share";
 import {
   ensureRuntimeDir,
@@ -21,13 +22,13 @@ import {
   assertMitmExpectations,
   captureMitmTrafficScopeMarker,
 } from "../../support/shared/mitm-traffic";
-import { resolveWebappShareLaunchExpectations } from "../../support/shared/webapp-share-launch-oracle";
+import { resolveWebappShareMitmLaunchExpectations } from "../../support/shared/webapp-share-launch-oracle";
 
 export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
   describe(scenarioCase.id, () => {
     const flowId = "webapp-share";
     const scenarioRuntimePath = runtimePath(flowId, scenarioCase.id);
-    const launchExpectations = resolveWebappShareLaunchExpectations(
+    const mitmLaunchExpectations = resolveWebappShareMitmLaunchExpectations(
       scenarioCase.receiverAdapter.key,
     );
 
@@ -78,7 +79,10 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
               scenarioCase.senderLogin.login(senderCredentials);
               scenarioCase.senderLogin.assertLoggedIn();
 
-              scenarioCase.senderAdapter.prepareShareFolder({ sharedFolderName });
+              scenarioCase.senderAdapter.prepareShareFolder({
+                sharedFolderName,
+                credentials: senderCredentials,
+              });
               takeEvidenceScreenshot({
                 scenarioId: scenarioCase.id,
                 sequence: 6,
@@ -118,7 +122,7 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
       });
     });
 
-    it("receiver launches remote webapp through Layer 2 handoff", () => {
+    it("receiver accepts share and launches remote webapp", () => {
       return resolveActorCredentials(scenarioCase.receiver).then((receiverCredentials) => {
         setBaseUrl(scenarioCase.receiverIdentity.getBaseUrl());
 
@@ -142,7 +146,11 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
             runtime,
             "senderFederatedId",
           );
-          const incomingShareRef = { sharedFolderName, senderFederatedId };
+          const incomingShareRef = {
+            sharedFolderName,
+            senderFederatedId,
+            appName: WEBAPP_SHARE_APP_NAME,
+          };
 
           scenarioCase.receiverAdapter.acceptIncomingWebappShare(incomingShareRef);
           takeEvidenceScreenshot({
@@ -165,12 +173,15 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
               scenarioId: scenarioCase.id,
               sequence: 12,
               actor: "receiver",
-              checkpoint: "launch-started",
+              checkpoint: "launch-gated",
             });
+            if (mitmLaunchExpectations.length === 0) {
+              return;
+            }
             return assertMitmExpectations({
-              title: "webapp-share launch leg",
+              title: "webapp-share MITM launch leg",
               marker,
-              expectations: launchExpectations,
+              expectations: mitmLaunchExpectations,
             });
           });
         });

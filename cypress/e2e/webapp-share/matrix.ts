@@ -1,5 +1,4 @@
-// Pair-scoped matrix cell for webapp-share milestone slice.
-// Regenerate via `nu scripts/ocmts.nu matrix gen cypress` when the flow widens.
+// webapp-share matrix cells (manual list; regenerate via matrix gen when widened).
 export const matrixCellIds = [
   "webapp-share__nextcloud-v35__cernbox-v11",
   "webapp-share__nextcloud-v35__nextcloud-v35",

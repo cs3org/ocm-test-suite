@@ -10,7 +10,7 @@ export type EvidenceCheckpoint =
   | "share-saved"
   | "share-visible"
   | "launch-ready"
-  | "launch-started"
+  | "launch-gated"
   | "invite-created"
   | "invite-accepted"
   | "contact-visible";
@@ -24,7 +24,7 @@ const evidenceCheckpoints = new Set<EvidenceCheckpoint>([
   "share-saved",
   "share-visible",
   "launch-ready",
-  "launch-started",
+  "launch-gated",
   "invite-created",
   "invite-accepted",
   "contact-visible",

@@ -29,7 +29,7 @@
     },
     {
       "id": "ocm-login",
-      "method": "GET",
+      "method": "POST",
       "path_prefix": "/hub/ocm-login"
     },
     {

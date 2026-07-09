@@ -15,7 +15,11 @@ import {
   setBaseUrl,
   writeRuntime,
 } from "../../support/shared/procedural-flow";
-import { takeEvidenceScreenshot } from "../../support/shared/evidence";
+import {
+  buildEvidenceScreenshotName,
+  takeEvidenceScreenshot,
+} from "../../support/shared/evidence";
+import { proveJupyterLabFromLaunchArtifact } from "../../support/shared/jupyter-ui-proof";
 import { defineIdpLoginPrewarm } from "../../support/shared/idp-prewarm";
 import { defineContactTrustSetupSteps } from "../../support/shared/contact-trust-setup";
 import {
@@ -168,21 +172,26 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
           });
 
           return captureMitmTrafficScopeMarker().then((marker) => {
-            scenarioCase.receiverAdapter.launchRemoteWebapp(incomingShareRef);
-            takeEvidenceScreenshot({
-              scenarioId: scenarioCase.id,
-              sequence: 12,
-              actor: "receiver",
-              checkpoint: "launch-gated",
-            });
-            if (mitmLaunchExpectations.length === 0) {
-              return;
-            }
-            return assertMitmExpectations({
-              title: "webapp-share MITM launch leg",
-              marker,
-              expectations: mitmLaunchExpectations,
-            });
+            return scenarioCase.receiverAdapter
+              .launchRemoteWebapp(incomingShareRef)
+              .then((launchArtifact) => {
+                const jupyterShotName = buildEvidenceScreenshotName({
+                  scenarioId: scenarioCase.id,
+                  sequence: 13,
+                  actor: "receiver",
+                  checkpoint: "launch-jupyter-visible",
+                });
+                proveJupyterLabFromLaunchArtifact(launchArtifact, jupyterShotName);
+
+                if (mitmLaunchExpectations.length === 0) {
+                  return;
+                }
+                return assertMitmExpectations({
+                  title: "webapp-share MITM launch leg",
+                  marker,
+                  expectations: mitmLaunchExpectations,
+                });
+              });
           });
         });
       });

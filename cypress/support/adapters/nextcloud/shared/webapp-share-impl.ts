@@ -111,6 +111,25 @@ function openWebappShareDialog(folderName: string): void {
   cy.get(".webapp-share-dialog", { timeout: 20000 }).should("be.visible");
 }
 
+function submitWebappShareDialog(): void {
+  cy.intercept("POST", "**/apps/integration_jupyterhub/api/v1/webapp-share").as(
+    "nextcloudWebappShare",
+  );
+
+  cy.contains(".webapp-share-dialog button", /^Share$/i, { timeout: 20000 })
+    .should("be.visible")
+    .click();
+
+  cy.wait("@nextcloudWebappShare", { timeout: 60000 }).then((interception) => {
+    const statusCode = interception.response?.statusCode;
+    expect(statusCode, "Nextcloud webapp-share API status code").to.be.oneOf([200, 201]);
+  });
+
+  cy.contains('[role="alert"], .toast, .toastify', /Shared .+ with /i, {
+    timeout: 20000,
+  }).should("be.visible");
+}
+
 export function createNextcloudWebappShareSenderAdapter(
   version: "v35",
 ): WebappShareFlowSenderAdapter {
@@ -128,6 +147,21 @@ export function createNextcloudWebappShareSenderAdapter(
       ensureFileExists(sharedFolderName);
     },
 
+    openWebappShareDialog({ sharedFolderName }) {
+      ensureFilesAppActive();
+      ensureFileExists(sharedFolderName);
+      openWebappShareDialog(sharedFolderName);
+    },
+
+    submitWebappShare({ federatedRecipientId }) {
+      cy.get(".webapp-share-dialog input", { timeout: 20000 })
+        .filter(":visible")
+        .first()
+        .clear()
+        .type(federatedRecipientId);
+      submitWebappShareDialog();
+    },
+
     shareWebappWithFederatedRecipient({ sharedFolderName, federatedRecipientId }) {
       ensureFilesAppActive();
       ensureFileExists(sharedFolderName);
@@ -139,27 +173,7 @@ export function createNextcloudWebappShareSenderAdapter(
         .clear()
         .type(federatedRecipientId);
 
-      cy.intercept(
-        "POST",
-        "**/apps/integration_jupyterhub/api/v1/webapp-share",
-      ).as("nextcloudWebappShare");
-
-      cy.contains(".webapp-share-dialog button", /^Share$/i, { timeout: 20000 })
-        .should("be.visible")
-        .click();
-
-      cy.wait("@nextcloudWebappShare", { timeout: 60000 }).then((interception) => {
-        const statusCode = interception.response?.statusCode;
-        expect(statusCode, "Nextcloud webapp-share API status code").to.be.oneOf([
-          200, 201,
-        ]);
-      });
-
-      cy.contains(
-        '[role="alert"], .toast, .toastify',
-        /Shared .+ with /i,
-        { timeout: 20000 },
-      ).should("be.visible");
+      submitWebappShareDialog();
     },
   };
 }

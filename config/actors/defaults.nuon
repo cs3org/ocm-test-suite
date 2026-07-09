@@ -63,7 +63,8 @@
       },
       "receiver": {
         "by_platform": {
-          "cernbox": "marie"
+          "cernbox": "marie",
+          "nextcloud": "marie"
         }
       }
     }

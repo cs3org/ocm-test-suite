@@ -120,6 +120,51 @@ export function findUnmetExpectations(
     .map((expectation) => expectation.label);
 }
 
+export function summarizeScopedMitmTraffic(
+  records: MitmTrafficRecord[],
+  options?: { limit?: number },
+): string {
+  const limit = options?.limit ?? 12;
+  if (records.length === 0) {
+    return "(no scoped MITM records)";
+  }
+
+  const sliceStart = Math.max(0, records.length - limit);
+  const lines: string[] = [];
+  for (let index = sliceStart; index < records.length; index += 1) {
+    const record = records[index];
+    const method = record.request.method ?? "?";
+    const path = record.request.path ?? record.request.url ?? "?";
+    const host = record.request.host ?? "";
+    const status =
+      record.response?.status_code === undefined ||
+      record.response?.status_code === null
+        ? "?"
+        : String(record.response.status_code);
+    const hostPrefix = host.length > 0 ? `${host} ` : "";
+    lines.push(`  ${index - sliceStart + 1}. ${method} ${hostPrefix}${path} -> ${status}`);
+  }
+
+  const omitted = records.length - lines.length;
+  const header =
+    omitted > 0
+      ? `Scoped MITM records (${records.length} total, showing last ${lines.length}, ${omitted} earlier omitted):`
+      : `Scoped MITM records (${records.length} total):`;
+
+  return [header, ...lines].join("\n");
+}
+
+function formatMitmExpectationFailure(
+  title: string,
+  missing: string[],
+  records: MitmTrafficRecord[],
+): string {
+  return [
+    `${title}: MITM traffic is missing expected legs: ${missing.join(", ")}`,
+    summarizeScopedMitmTraffic(records),
+  ].join("\n\n");
+}
+
 // Re-reads traffic.jsonl until every expectation is met or the timeout elapses.
 // Cypress retries the readFile assertion callback when it throws. Pass a marker
 // to scope assertions to records appended after a specific attempt.
@@ -142,9 +187,7 @@ export function assertMitmExpectations(options: {
           : recordsAfterMarker(text, marker);
       const missing = findUnmetExpectations(records, expectations);
       if (missing.length > 0) {
-        throw new Error(
-          `${title}: MITM traffic is missing expected legs: ${missing.join(", ")}`,
-        );
+        throw new Error(formatMitmExpectationFailure(title, missing, records));
       }
     })
     .then(() => undefined);

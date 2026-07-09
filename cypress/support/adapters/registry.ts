@@ -101,7 +101,10 @@ import {
   nextcloudV35ShareWithFlowReceiverAdapter,
   nextcloudV35ShareWithFlowSenderAdapter,
 } from "./nextcloud/v35/share-with-adapter";
-import { nextcloudV35WebappShareFlowSenderAdapter } from "./nextcloud/v35/webapp-share-adapter";
+import {
+  nextcloudV35WebappShareFlowReceiverAdapter,
+  nextcloudV35WebappShareFlowSenderAdapter,
+} from "./nextcloud/v35/webapp-share-adapter";
 import { cernboxV11WebappShareFlowReceiverAdapter } from "./cernbox/v11/webapp-share-adapter";
 
 export type AdapterRef = {
@@ -157,6 +160,9 @@ const webappShareFlowReceiverAdapters: Record<
 > = {
   cernbox: {
     v11: cernboxV11WebappShareFlowReceiverAdapter,
+  },
+  nextcloud: {
+    v35: nextcloudV35WebappShareFlowReceiverAdapter,
   },
 };
 

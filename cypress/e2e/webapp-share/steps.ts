@@ -1,7 +1,10 @@
 /// <reference types="cypress" />
 
 import { resolveActorCredentials } from "../../support/actors/credentials";
-import type { ScenarioCase } from "../../support/contracts/webapp-share";
+import {
+  buildSenderFederatedId,
+  type ScenarioCase,
+} from "../../support/contracts/webapp-share";
 import {
   ensureRuntimeDir,
   installHooks,
@@ -9,6 +12,7 @@ import {
   requireString,
   runtimePath,
   setBaseUrl,
+  writeRuntime,
 } from "../../support/shared/procedural-flow";
 import { takeEvidenceScreenshot } from "../../support/shared/evidence";
 import { defineIdpLoginPrewarm } from "../../support/shared/idp-prewarm";
@@ -16,49 +20,16 @@ import { defineContactTrustSetupSteps } from "../../support/shared/contact-trust
 import {
   assertMitmExpectations,
   captureMitmTrafficScopeMarker,
-  type MitmExpectation,
-  type MitmTrafficRecord,
 } from "../../support/shared/mitm-traffic";
-
-// Launch-leg proof for the CERNBox -> JupyterHub Layer 2 handoff. Cross-origin
-// navigation makes in-browser assertions unreliable, so the MITM capture is the
-// authoritative oracle: the remote open reaches the hub and redirects toward the
-// notebook workspace.
-function mentionsLab(record: MitmTrafficRecord): boolean {
-  return [
-    record.response?.headers?.Location,
-    record.response?.headers?.location,
-    record.response?.body?.preview,
-    record.request.url,
-  ].some((value) => typeof value === "string" && value.includes("/lab"));
-}
-
-const WEBAPP_SHARE_LAUNCH_EXPECTATIONS: MitmExpectation[] = [
-  {
-    label: "POST /services/ocm/open",
-    predicate: (record) =>
-      record.request.method === "POST" &&
-      (record.request.path ?? "").includes("/services/ocm/open"),
-  },
-  {
-    // The OCM service launcher submits a cross-origin form POST to the hub's
-    // OCMLoginHandler (hub/.../handlers.py: OCMLoginHandler implements post()
-    // only); asserting GET here never matches real launch traffic.
-    label: "POST /hub/ocm-login",
-    predicate: (record) =>
-      record.request.method === "POST" &&
-      (record.request.path ?? "").includes("/hub/ocm-login"),
-  },
-  {
-    label: "redirect toward /lab handoff boundary",
-    predicate: mentionsLab,
-  },
-];
+import { resolveWebappShareLaunchExpectations } from "../../support/shared/webapp-share-launch-oracle";
 
 export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
   describe(scenarioCase.id, () => {
     const flowId = "webapp-share";
     const scenarioRuntimePath = runtimePath(flowId, scenarioCase.id);
+    const launchExpectations = resolveWebappShareLaunchExpectations(
+      scenarioCase.receiverAdapter.key,
+    );
 
     installHooks();
 
@@ -108,16 +79,38 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
               scenarioCase.senderLogin.assertLoggedIn();
 
               scenarioCase.senderAdapter.prepareShareFolder({ sharedFolderName });
-              scenarioCase.senderAdapter.shareWebappWithFederatedRecipient({
-                sharedFolderName,
-                federatedRecipientId,
-              });
-
               takeEvidenceScreenshot({
                 scenarioId: scenarioCase.id,
                 sequence: 6,
                 actor: "sender",
+                checkpoint: "folder-ready",
+              });
+
+              scenarioCase.senderAdapter.openWebappShareDialog({ sharedFolderName });
+              takeEvidenceScreenshot({
+                scenarioId: scenarioCase.id,
+                sequence: 7,
+                actor: "sender",
+                checkpoint: "share-dialog-ready",
+              });
+
+              scenarioCase.senderAdapter.submitWebappShare({ federatedRecipientId });
+              takeEvidenceScreenshot({
+                scenarioId: scenarioCase.id,
+                sequence: 8,
+                actor: "sender",
                 checkpoint: "share-saved",
+              });
+
+              const senderHost = new URL(String(Cypress.config("baseUrl"))).host;
+              const senderFederatedId = buildSenderFederatedId({
+                username: senderCredentials.username,
+                host: senderHost,
+              });
+
+              return writeRuntime(scenarioRuntimePath, {
+                ...runtime,
+                senderFederatedId,
               });
             },
           );
@@ -133,7 +126,7 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
         scenarioCase.receiverLogin.assertLoggedIn();
         takeEvidenceScreenshot({
           scenarioId: scenarioCase.id,
-          sequence: 7,
+          sequence: 9,
           actor: "receiver",
           checkpoint: "authenticated",
         });
@@ -144,23 +137,40 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
             runtime,
             "sharedFolderName",
           );
+          const senderFederatedId = requireString(
+            scenarioRuntimePath,
+            runtime,
+            "senderFederatedId",
+          );
+          const incomingShareRef = { sharedFolderName, senderFederatedId };
 
-          scenarioCase.receiverAdapter.acceptIncomingWebappShare({
-            sharedFolderName,
-          });
+          scenarioCase.receiverAdapter.acceptIncomingWebappShare(incomingShareRef);
           takeEvidenceScreenshot({
             scenarioId: scenarioCase.id,
-            sequence: 8,
+            sequence: 10,
             actor: "receiver",
             checkpoint: "share-visible",
           });
 
+          takeEvidenceScreenshot({
+            scenarioId: scenarioCase.id,
+            sequence: 11,
+            actor: "receiver",
+            checkpoint: "launch-ready",
+          });
+
           return captureMitmTrafficScopeMarker().then((marker) => {
-            scenarioCase.receiverAdapter.launchRemoteWebapp({ sharedFolderName });
+            scenarioCase.receiverAdapter.launchRemoteWebapp(incomingShareRef);
+            takeEvidenceScreenshot({
+              scenarioId: scenarioCase.id,
+              sequence: 12,
+              actor: "receiver",
+              checkpoint: "launch-started",
+            });
             return assertMitmExpectations({
               title: "webapp-share launch leg",
               marker,
-              expectations: WEBAPP_SHARE_LAUNCH_EXPECTATIONS,
+              expectations: launchExpectations,
             });
           });
         });

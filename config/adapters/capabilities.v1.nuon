@@ -276,8 +276,7 @@
           "status": "supported"
         },
         "flow.webapp-share.receiver": {
-          "status": "vendor-out-of-scope",
-          "rationale": "webapp-share pairs Nextcloud v35 as sender only in the current milestone."
+          "status": "supported"
         },
         "flow.webapp-share.sender": {
           "status": "supported"

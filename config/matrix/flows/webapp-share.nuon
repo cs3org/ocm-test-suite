@@ -27,7 +27,8 @@
         "nextcloud"
       ],
       "receiver": [
-        "cernbox"
+        "cernbox",
+        "nextcloud"
       ]
     }
   ],
@@ -39,6 +40,9 @@
   "versions_receiver": {
     "cernbox": [
       "v11"
+    ],
+    "nextcloud": [
+      "v35"
     ]
   }
 }

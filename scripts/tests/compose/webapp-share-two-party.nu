@@ -8,19 +8,31 @@ const FIXTURE_EXEC_ID = "20260101t000000-aabbcc01"
 use ../../lib/compose/topology-two-party.nu [
     write-two-party-env
     write-two-party-overlays
+]
+use ../../lib/compose/topology-webapp-share.nu [
+    WEBAPP_SHARE_HUB_API_KEY
+    WEBAPP_SHARE_HUB_CRYPT_KEY
+    WEBAPP_SHARE_HUB_OCM_API_KEY
+    WEBAPP_SHARE_SENDER_HUB_HOST
+    WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
+    WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
+    WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
+    WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
+    WEBAPP_SHARE_SENDER_VOLUMES_MARKER
     patch-webapp-share-sender-yml
 ]
+use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
 use ../../lib/images/resolve.nu [resolve-images resolve-receiver-images]
 use ../../lib/run/execution-id.nu [execution-temp-path]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
-const HUB_HOST = "jupyterhub1.docker"
+const HUB_HOST = $WEBAPP_SHARE_SENDER_HUB_HOST
 const HUB_IMAGE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
-const HUB_CRYPT_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-const HUB_API_KEY = "ocmts-webapp-share-hub-api-key"
-const HUB_OCM_API_KEY = "ocmts-webapp-share-hub-ocm-api-key"
+const HUB_CRYPT_KEY = $WEBAPP_SHARE_HUB_CRYPT_KEY
+const HUB_API_KEY = $WEBAPP_SHARE_HUB_API_KEY
+const HUB_OCM_API_KEY = $WEBAPP_SHARE_HUB_OCM_API_KEY
 
 def read-stack-env-lines [env_file: string] {
     (open $env_file | lines | each {|l| ($l | str trim)} | where {|l| not ($l | is-empty)})
@@ -59,17 +71,17 @@ def make-webapp-share-overlay [
     --receiver-version: string = "v11",
     --artifact-name: string = "cell-webapp-share-nc-v35",
 ] {
-    let matrix_key = $"webapp-share__nextcloud__($receiver_platform)"
+    let matrix_key = $"($WEBAPP_SHARE_FLOW_ID)__nextcloud__($receiver_platform)"
     let sender_imgs = (
         resolve-images "nextcloud" "v35"
-            --matrix-key $matrix_key --flow-id "webapp-share"
+            --matrix-key $matrix_key --flow-id $WEBAPP_SHARE_FLOW_ID
     )
     let recv_imgs = (
         resolve-receiver-images $receiver_platform $receiver_version
-            --matrix-key $matrix_key --flow-id "webapp-share"
+            --matrix-key $matrix_key --flow-id $WEBAPP_SHARE_FLOW_ID
     )
     (write-two-party-overlays
-        "webapp-share" "nextcloud" $receiver_platform $artifact_name $FIXTURE_EXEC_ID
+        $WEBAPP_SHARE_FLOW_ID "nextcloud" $receiver_platform $artifact_name $FIXTURE_EXEC_ID
         $sender_imgs.platform $recv_imgs.platform "mitmproxy:test"
         $sender_imgs.cypress_ci $sender_imgs.cypress_dev
         $sender_imgs.mariadb $sender_imgs.valkey
@@ -404,16 +416,12 @@ def test-share-with-unchanged-no-sender-hub [] {
     $results
 }
 
-# --- patch-webapp-share-sender-yml direct unit coverage ---
-# These mirror the injected line contract in topology-two-party.nu so drift in
-# either place is caught. They exercise the fail-fast and idempotency paths that
-# the full-generation tests above cannot reach (the real cookbook always has the
-# markers and is never pre-patched).
-const PATCH_NO_PROXY_MARKER = '      - NO_PROXY=${SENDER_NO_PROXY}'
-const PATCH_ACTORS_VOL_MARKER = '      - ${OCMTS_ROOT}/config/actors:/ocmts/actors:ro'
-const PATCH_JUPYTER_ENV_LINE = '      - JUPYTER_HOST=${SENDER_HUB_HOST}'
-const PATCH_OAUTH_ENV_LINE = '      - INTEGRATION_JUPYTERHUB_OAUTH_ENV_FILE=/oauth-handoff/oauth.env'
-const PATCH_OAUTH_VOL_LINE = '      - ${OCMTS_ARTIFACTS_BASE}/oauth-handoff:/oauth-handoff'
+# --- patch-webapp-share-sender-yml direct unit coverage (topology-webapp-share.nu) ---
+const PATCH_NO_PROXY_MARKER = $WEBAPP_SHARE_SENDER_NO_PROXY_MARKER
+const PATCH_ACTORS_VOL_MARKER = $WEBAPP_SHARE_SENDER_VOLUMES_MARKER
+const PATCH_JUPYTER_ENV_LINE = $WEBAPP_SHARE_SENDER_JUPYTER_ENV_LINE
+const PATCH_OAUTH_ENV_LINE = $WEBAPP_SHARE_SENDER_OAUTH_ENV_LINE
+const PATCH_OAUTH_VOL_LINE = $WEBAPP_SHARE_SENDER_OAUTH_VOLUME_LINE
 
 def did-throw [cl: closure] {
     try { do $cl; false } catch { true }

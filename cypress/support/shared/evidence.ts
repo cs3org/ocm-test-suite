@@ -11,6 +11,7 @@ export type EvidenceCheckpoint =
   | "share-visible"
   | "launch-ready"
   | "launch-gated"
+  | "launch-jupyter-visible"
   | "invite-created"
   | "invite-accepted"
   | "contact-visible";
@@ -25,6 +26,7 @@ const evidenceCheckpoints = new Set<EvidenceCheckpoint>([
   "share-visible",
   "launch-ready",
   "launch-gated",
+  "launch-jupyter-visible",
   "invite-created",
   "invite-accepted",
   "contact-visible",

@@ -11,7 +11,7 @@ use ../../lib/ci/aggregate.nu [build-aggregate-summary]
 use ../../lib/ci/workflow-gen.nu [build-ci-matrix-yml build-aggregate-needs-block]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
-use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
+use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps prod-plan]
 
 # ---- tests ----
 
@@ -203,6 +203,15 @@ def test-aggregate-archive-flag-present [] {
     ]
 }
 
+def test-aggregate-needs-includes-webapp-share [] {
+    test-log "\n[test-aggregate-needs-includes-webapp-share]"
+    let yml = (build-ci-matrix-yml (prod-plan).plan)
+    [
+        (assert-truthy ($yml | str contains "webapp-share,")
+            "aggregate needs block contains webapp-share flow job")
+    ]
+}
+
 def main [] {
     test-log "=== CI Aggregate Tests ==="
     let results = (
@@ -215,6 +224,7 @@ def main [] {
         | append (test-plan-aware-aggregate-injects-missing)
         | append (test-aggregate-needs-flow-jobs)
         | append (test-aggregate-archive-flag-present)
+        | append (test-aggregate-needs-includes-webapp-share)
     ) | flatten
     run-suite "ci/aggregate" $SUITE_PATH $results
 }

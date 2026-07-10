@@ -17,7 +17,7 @@ use ../../lib/ci/template-renderer.nu [render-template]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
-use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
+use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps prod-plan]
 
 # ---- tests ----
 
@@ -337,6 +337,30 @@ def test-ci-matrix-raw-agg-artifact-seam [] {
     }
 }
 
+def test-cypress-matrix-drift-preflight [] {
+    test-log "\n[test-cypress-matrix-drift-preflight]"
+    let yml = (build-ci-matrix-yml (prod-plan).plan)
+    [
+        (assert-truthy ($yml | str contains "nu scripts/ocmts.nu matrix gen cypress --check")
+            "ci-matrix preflight runs cypress matrix drift check")
+    ]
+}
+
+def test-webapp-share-flow-job-needs [] {
+    test-log "\n[test-webapp-share-flow-job-needs]"
+    let yml = (build-ci-matrix-yml (prod-plan).plan)
+    [
+        (assert-truthy ($yml | str contains "  webapp-share:")
+            "generated ci-matrix.yml contains webapp-share flow job")
+        (assert-truthy ($yml | str contains "needs: [setup, login, share-with, contact-token, contact-wayf]")
+            "webapp-share job needs prior flow jobs through contact-wayf")
+        (assert-truthy ($yml | str contains "flow-id: webapp-share")
+            "webapp-share job passes flow-id webapp-share")
+        (assert-truthy ($yml | str contains "cells-path: .github/workflows/assets/webapp-share.json")
+            "webapp-share job uses webapp-share asset path")
+    ]
+}
+
 def main [] {
     test-log "=== CI workflow-gen tests ==="
     let results = (
@@ -355,6 +379,8 @@ def main [] {
         | append (test-media-lane-raw-default-fallback)
         | append (test-media-lane-optimized-opt-in)
         | append (test-ci-matrix-raw-agg-artifact-seam)
+        | append (test-cypress-matrix-drift-preflight)
+        | append (test-webapp-share-flow-job-needs)
     ) | flatten
     run-suite "ci/workflow-gen" $SUITE_PATH $results
 }

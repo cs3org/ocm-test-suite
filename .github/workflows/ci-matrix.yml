@@ -31,6 +31,10 @@ jobs:
         env:
           OCMTS_ROOT: ${{ github.workspace }}
         run: nu scripts/ocmts.nu ci workflows check github
+      - name: Cypress matrix drift check
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu matrix gen cypress --check
       - name: Adapter capabilities drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}
@@ -94,6 +98,15 @@ jobs:
       suite-id: ${{ needs.setup.outputs['suite-id'] }}
       cells-path: .github/workflows/assets/contact-wayf.json
 
+  webapp-share:
+    needs: [setup, login, share-with, contact-token, contact-wayf]
+    if: always() && needs.setup.result == 'success'
+    uses: ./.github/workflows/ci-run-wave.yml
+    with:
+      flow-id: webapp-share
+      suite-id: ${{ needs.setup.outputs['suite-id'] }}
+      cells-path: .github/workflows/assets/webapp-share.json
+
   aggregate:
     needs:
       [
@@ -102,6 +115,7 @@ jobs:
         share-with,
         contact-token,
         contact-wayf,
+        webapp-share,
       ]
     if: always() && needs.setup.result == 'success'
     runs-on: ubuntu-latest

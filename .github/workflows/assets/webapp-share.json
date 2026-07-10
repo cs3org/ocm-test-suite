@@ -1,0 +1,26 @@
+[
+  {
+    "flow": "webapp-share",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "cernbox",
+    "receiver_version": "v11",
+    "display_name": "Nextcloud v35 to CERNBox v11",
+    "artifact_name": "cell-webapp-share-nextcloud-v35-cernbox-v11",
+    "cell_id": "webapp-share__nextcloud-v35__cernbox-v11",
+    "cell_depends_on": "cell-login-nextcloud-v35,cell-login-cernbox-v11",
+    "wave_index": 1
+  },
+  {
+    "flow": "webapp-share",
+    "sender_platform": "nextcloud",
+    "sender_version": "v35",
+    "receiver_platform": "nextcloud",
+    "receiver_version": "v35",
+    "display_name": "Nextcloud v35 to Nextcloud v35",
+    "artifact_name": "cell-webapp-share-nextcloud-v35-nextcloud-v35",
+    "cell_id": "webapp-share__nextcloud-v35__nextcloud-v35",
+    "cell_depends_on": "cell-login-nextcloud-v35",
+    "wave_index": 2
+  }
+]

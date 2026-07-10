@@ -8,7 +8,7 @@ use ./cells.nu [expand-matrix-cells]
 # To add a new flow (e.g. "example-flow"), first create the
 # cypress/e2e/example-flow/ directory with at least one spec, then add
 # the flow_id here.
-const CYPRESS_MATRIX_FLOWS = ["login" "share-with" "contact-token" "contact-wayf"]
+const CYPRESS_MATRIX_FLOWS = ["login" "share-with" "contact-token" "contact-wayf" "webapp-share"]
 
 # Build TypeScript content for one flow's matrix file.
 def gen-cypress-matrix-ts [cell_ids: list<string>] {

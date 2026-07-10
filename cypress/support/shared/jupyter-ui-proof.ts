@@ -23,68 +23,42 @@ export const jupyterLabReadySelector = [
 
 export const jupyterLabFileListingSelector = ".jp-DirListing-item";
 
-export function assertJupyterLabUiVisible(): void {
-  cy.get("#jupyterlab-splash", { timeout: jupyterUiTimeoutMs }).should("not.exist");
-  cy.get(jupyterLabReadySelector, { timeout: jupyterUiTimeoutMs })
-    .filter(":visible")
-    .first()
-    .should("be.visible");
-
-  cy.get("body", { timeout: jupyterUiTimeoutMs }).should(($body) => {
-    const text = $body.text().replace(/\s+/g, " ").trim();
-    expect(text, "Jupyter page body").to.not.match(/403\s*:?\s*Forbidden/i);
-    expect(text, "Jupyter page body").to.not.match(/404\s*:?\s*Not Found/i);
-  });
-}
-
 export function proveJupyterLabFromLaunchArtifact(
   artifact: WebappShareLaunchArtifact,
   screenshotName: string,
 ): void {
-  if (artifact.receiverKind === "nextcloud") {
-    cy.origin(
-      artifact.hubOrigin,
-      {
-        args: {
-          readySelector: jupyterLabReadySelector,
-          fileListingSelector: jupyterLabFileListingSelector,
-          screenshotName,
-          timeout: jupyterUiTimeoutMs,
-        },
+  // Both Nextcloud and CERNBox launches hand off cross-origin to the remote hub
+  // (the launch traffic never traverses the server-to-server OCM MITM). Assert
+  // the terminal JupyterLab UI within the hub origin: the one bounded cy.origin
+  // use allowed for this spec (see cypress/support/e2e.ts allowOriginForSpec).
+  cy.origin(
+    artifact.hubOrigin,
+    {
+      args: {
+        readySelector: jupyterLabReadySelector,
+        fileListingSelector: jupyterLabFileListingSelector,
+        screenshotName,
+        timeout: jupyterUiTimeoutMs,
       },
-      ({ readySelector, fileListingSelector, screenshotName, timeout }) => {
-        Cypress.on("uncaught:exception", (err) => {
-          if (/unrecognized expression/i.test(err.message)) {
-            return false;
-          }
-          return undefined;
+    },
+    ({ readySelector, fileListingSelector, screenshotName, timeout }) => {
+      Cypress.on("uncaught:exception", (err) => {
+        if (/unrecognized expression/i.test(err.message)) {
+          return false;
+        }
+        return undefined;
+      });
+      // JupyterLab shows a splash (#jupyterlab-splash) while booting; wait for it
+      // to clear so the screenshot shows the real Lab UI, not the loading spinner.
+      cy.get("#jupyterlab-splash", { timeout }).should("not.exist");
+      cy.get(readySelector, { timeout }).filter(":visible").first().should("be.visible");
+      cy.get(fileListingSelector, { timeout })
+        .filter(":visible")
+        .should("be.visible")
+        .should(($els) => {
+          expect($els.text()).to.match(/\.ipynb/i);
         });
-        // JupyterLab shows a splash (#jupyterlab-splash) while booting; wait for it
-        // to clear so the screenshot shows the real Lab UI, not the loading spinner.
-        cy.get("#jupyterlab-splash", { timeout }).should("not.exist");
-        cy.get(readySelector, { timeout }).filter(":visible").first().should("be.visible");
-        cy.get(fileListingSelector, { timeout })
-          .filter(":visible")
-          .should("be.visible")
-          .should(($els) => {
-            expect($els.text()).to.match(/\.ipynb/i);
-          });
-        cy.screenshot(screenshotName);
-      },
-    );
-    return;
-  }
-
-  cy.location("pathname", { timeout: jupyterUiTimeoutMs }).should(
-    "include",
-    "/lab",
+      cy.screenshot(screenshotName);
+    },
   );
-  assertJupyterLabUiVisible();
-  cy.get(jupyterLabFileListingSelector, { timeout: jupyterUiTimeoutMs })
-    .filter(":visible")
-    .should("be.visible")
-    .should(($els) => {
-      expect($els.text()).to.match(/\.ipynb/i);
-    });
-  cy.screenshot(screenshotName);
 }

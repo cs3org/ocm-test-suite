@@ -11,8 +11,9 @@ export type NextcloudWebappShareLaunchArtifact = {
 
 export type CernboxWebappShareLaunchArtifact = {
   receiverKind: "cernbox";
-  launchGate: "in-tab-open";
-  labPathname: string;
+  launchGate: "cross-origin-open";
+  /** Absolute origin of the remote hub, extracted from the open-in-app app_url. */
+  hubOrigin: string;
 };
 
 export type WebappShareLaunchArtifact =
@@ -48,6 +49,29 @@ export function extractHubLaunchOriginFromRedirectHtml(body: string): string | n
 
     const decoded = decodeMinimalHtmlEntities(raw);
     const parsed = new URL(decoded);
+    if (!/^https?:$/i.test(parsed.protocol)) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+// CERNBox launches via a JSON open-in-app response ({ app_url, access_token }),
+// not the redirect HTML Nextcloud returns. Pull the remote hub origin from the
+// app_url the browser then form-POSTs into.
+export function extractHubLaunchOriginFromOpenInApp(body: unknown): string | null {
+  try {
+    let payload: unknown = body;
+    if (typeof body === "string") {
+      payload = JSON.parse(body);
+    }
+    const appUrl = (payload as { app_url?: unknown } | null | undefined)?.app_url;
+    if (typeof appUrl !== "string" || appUrl.trim().length === 0) {
+      return null;
+    }
+    const parsed = new URL(appUrl);
     if (!/^https?:$/i.test(parsed.protocol)) {
       return null;
     }

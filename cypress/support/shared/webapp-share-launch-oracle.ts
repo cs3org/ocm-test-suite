@@ -1,33 +1,11 @@
-import type { MitmExpectation, MitmTrafficRecord } from "./mitm-traffic";
+import type { MitmExpectation } from "./mitm-traffic";
 
-// MITM launch-leg expectations for receivers where hub traffic is proxied.
-export function mentionsLab(record: MitmTrafficRecord): boolean {
-  return [
-    record.response?.headers?.Location,
-    record.response?.headers?.location,
-    record.response?.body?.preview,
-    record.request.url,
-  ].some((value) => typeof value === "string" && value.includes("/lab"));
-}
-
-export const CERNBOX_WEBAPP_SHARE_MITM_LAUNCH_EXPECTATIONS: MitmExpectation[] = [
-  {
-    label: "POST /services/ocm/open",
-    predicate: (record) =>
-      record.request.method === "POST" &&
-      (record.request.path ?? "").includes("/services/ocm/open"),
-  },
-  {
-    label: "POST /hub/ocm-login",
-    predicate: (record) =>
-      record.request.method === "POST" &&
-      (record.request.path ?? "").includes("/hub/ocm-login"),
-  },
-  {
-    label: "redirect toward /lab handoff boundary",
-    predicate: mentionsLab,
-  },
-];
+// CERNBox launch traffic is a client-side cross-origin handoff to the remote hub
+// (browser -> hub POST /services/ocm/open, POST /hub/ocm-login, redirect to
+// /lab). Like Nextcloud, none of these legs traverse the server-to-server OCM
+// MITM, so there are no MITM launch expectations; the launch is gated in-browser
+// via the cy.origin JupyterLab proof (proveJupyterLabFromLaunchArtifact).
+export const CERNBOX_WEBAPP_SHARE_MITM_LAUNCH_EXPECTATIONS: MitmExpectation[] = [];
 
 // Nextcloud launch traffic stays on browser-to-hub paths the MITM does not proxy.
 export const NEXTCLOUD_WEBAPP_SHARE_MITM_LAUNCH_EXPECTATIONS: MitmExpectation[] = [];

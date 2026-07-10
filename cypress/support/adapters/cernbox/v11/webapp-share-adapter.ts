@@ -2,6 +2,10 @@
 
 import type { WebappShareFlowReceiverAdapter } from "../../../contracts/webapp-share";
 import type { CernboxWebappShareLaunchArtifact } from "../../../shared/webapp-share-launch-artifact";
+import {
+  assertHubLaunchOrigin,
+  extractHubLaunchOriginFromOpenInApp,
+} from "../../../shared/webapp-share-launch-artifact";
 import { cssEscapeAttributeValue } from "../../../shared/selectors";
 import { makeCernboxFilesHelpers } from "../shared/files";
 import { makeCernboxSharingHelpers } from "../shared/sharing";
@@ -32,8 +36,13 @@ export const cernboxV11WebappShareFlowReceiverAdapter: WebappShareFlowReceiverAd
     },
 
     launchRemoteWebapp({ sharedFolderName }) {
+      // Keep the launch in-tab: the "Open remotely" action pre-opens a named
+      // popup then form-POSTs the launch into it. The stub names the current
+      // window so the POST targets this tab.
       files.stubWindowOpenForInTabNavigation();
 
+      // Observe (do not modify) the open-in-app response; the app_url in its
+      // JSON body is the cross-origin remote hub the browser then POSTs into.
       cy.intercept("POST", "**/sciencemesh/open-in-app").as("cernboxOpenInApp");
 
       openReceivedFolderMenu(sharedFolderName);
@@ -47,6 +56,8 @@ export const cernboxV11WebappShareFlowReceiverAdapter: WebappShareFlowReceiverAd
         .should("be.visible")
         .click({ force: true });
 
+      const receiverOrigin = new URL(String(Cypress.config("baseUrl"))).origin;
+
       return cy
         .wait("@cernboxOpenInApp", { timeout: launchTimeoutMs })
         .then((interception) => {
@@ -54,18 +65,16 @@ export const cernboxV11WebappShareFlowReceiverAdapter: WebappShareFlowReceiverAd
           expect(statusCode, "CERNBox open-in-app status code").to.be.oneOf([
             200, 201, 204,
           ]);
-        })
-        .then(() => {
-          return cy.location("pathname", { timeout: launchTimeoutMs }).should(
-            "include",
-            "/lab",
+
+          const hubOrigin = extractHubLaunchOriginFromOpenInApp(
+            interception.response?.body,
           );
-        })
-        .then((pathname) => {
+          assertHubLaunchOrigin(hubOrigin, receiverOrigin);
+
           const artifact: CernboxWebappShareLaunchArtifact = {
             receiverKind: "cernbox",
-            launchGate: "in-tab-open",
-            labPathname: String(pathname),
+            launchGate: "cross-origin-open",
+            hubOrigin: hubOrigin as string,
           };
           return cy.wrap(artifact);
         });

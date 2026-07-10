@@ -13,14 +13,10 @@ describe("resolveWebappShareMitmLaunchExpectations", () => {
     expect(expectations).toHaveLength(0);
   });
 
-  test("cernbox/v11 returns CERNBox MITM launch expectations", () => {
+  test("cernbox/v11 returns empty CERNBox expectations (launch gated in-browser)", () => {
     const expectations = resolveWebappShareMitmLaunchExpectations("cernbox/v11");
     expect(expectations).toBe(CERNBOX_WEBAPP_SHARE_MITM_LAUNCH_EXPECTATIONS);
-    expect(expectations.map((entry) => entry.label)).toEqual([
-      "POST /services/ocm/open",
-      "POST /hub/ocm-login",
-      "redirect toward /lab handoff boundary",
-    ]);
+    expect(expectations).toHaveLength(0);
   });
 
   test("unknown adapter throws", () => {

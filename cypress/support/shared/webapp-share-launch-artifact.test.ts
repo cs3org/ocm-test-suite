@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   assertHubLaunchOrigin,
+  extractHubLaunchOriginFromOpenInApp,
   extractHubLaunchOriginFromRedirectHtml,
 } from "./webapp-share-launch-artifact";
 
@@ -47,6 +48,34 @@ describe("extractHubLaunchOriginFromRedirectHtml", () => {
       extractHubLaunchOriginFromRedirectHtml(
         '<form action="ftp://jupyterhub1.docker/hub/ocm-login"></form>',
       ),
+    ).toBeNull();
+  });
+});
+
+describe("extractHubLaunchOriginFromOpenInApp", () => {
+  test("extracts hub origin from an object app_url", () => {
+    expect(
+      extractHubLaunchOriginFromOpenInApp({
+        app_url: "https://jupyterhub1.docker/services/ocm/open",
+        access_token: "token",
+      }),
+    ).toBe("https://jupyterhub1.docker");
+  });
+
+  test("extracts hub origin from a stringified JSON body", () => {
+    expect(
+      extractHubLaunchOriginFromOpenInApp(
+        JSON.stringify({ app_url: "https://jupyterhub1.docker/hub/ocm-login" }),
+      ),
+    ).toBe("https://jupyterhub1.docker");
+  });
+
+  test("returns null for missing, malformed, or non-http(s) app_url", () => {
+    expect(extractHubLaunchOriginFromOpenInApp(null)).toBeNull();
+    expect(extractHubLaunchOriginFromOpenInApp({})).toBeNull();
+    expect(extractHubLaunchOriginFromOpenInApp("not json")).toBeNull();
+    expect(
+      extractHubLaunchOriginFromOpenInApp({ app_url: "ftp://jupyterhub1.docker" }),
     ).toBeNull();
   });
 });

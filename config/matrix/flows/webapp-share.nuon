@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
-  "label": "Webapp Share",
-  "subtitle": "Share from sender webapp to receiver",
+  "label": "WebApp Share Flow",
+  "subtitle": "Cross-vendor WebApp sharing and remote launch",
+  "glyph_id": "app-window",
   "display_order": 50,
   "flow_id": "webapp-share",
   "two_party": true,

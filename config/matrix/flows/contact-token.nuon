@@ -2,6 +2,7 @@
   "schema_version": 1,
   "label": "Contact via Token",
   "subtitle": "Cross-vendor contact discovery using a token",
+  "glyph_id": "ticket",
   "display_order": 30,
   "flow_id": "contact-token",
   "two_party": true,

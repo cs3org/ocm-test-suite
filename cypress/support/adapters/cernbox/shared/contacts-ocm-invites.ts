@@ -189,6 +189,36 @@ export function createCernboxInviteTokenBase64(
   });
 }
 
+function decodesToProviderToken(value: string): boolean {
+  try {
+    return atob(value).includes("@");
+  } catch {
+    return false;
+  }
+}
+
+// cernbox-web IncomingInvitations decodes the entered token with atob() and
+// splits on "@" to derive the institution; the Accept button stays disabled
+// until both parts resolve. Nextcloud copies a plaintext `token@domain` code,
+// so normalize to the base64 `token@provider` form the CERNBox UI expects.
+// Idempotent: a value that already base64-decodes to `x@y` is left as-is.
+export function encodeCernboxInviteTokenForUi(inviteToken: string): string {
+  const trimmed = inviteToken.trim();
+  if (decodesToProviderToken(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.includes("@")) {
+    return btoa(trimmed);
+  }
+  throw new Error(
+    [
+      "Cannot present invite token to the CERNBox accept form.",
+      "Expected base64(token@provider) or plaintext token@provider,",
+      `got: ${inviteToken}`,
+    ].join(" "),
+  );
+}
+
 export function acceptCernboxInviteToken(
   inviteToken: string,
 ): Cypress.Chainable<string> {
@@ -197,6 +227,8 @@ export function acceptCernboxInviteToken(
   cy.get("#sciencemesh-accept-invites", { timeout: ocmActionTimeoutMs }).should(
     "exist",
   );
+
+  const uiInviteToken = encodeCernboxInviteTokenForUi(inviteToken);
 
   cy.get("#sciencemesh-accept-invites")
     .find("label")
@@ -208,7 +240,7 @@ export function acceptCernboxInviteToken(
       cy.get('input[type="text"]')
         .should("be.visible")
         .clear()
-        .type(inviteToken, { delay: 50 });
+        .type(uiInviteToken, { delay: 50 });
     });
 
   cy.get("#sciencemesh-accept-invites")

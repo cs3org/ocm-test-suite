@@ -6,7 +6,7 @@
     },
     {
       "author": "OCM Test Suite maintainers",
-      "content": "The system is driven by a Nushell CLI called ocmts over a config-first design. Core vocabulary: flow_id, matrix_key, and cell_id (see docs/architecture/tuple-identity.md). A run resolves a tuple, generates Docker Compose overlays, runs a Cypress flow (with MITM capture where relevant), and writes a structured evidence envelope (meta/suite-manifest.v1.json). CI is generated from config with drift checks, aggregates results, and deploys the Observatory. Enabled flows today: login, share-with, contact-token, contact-wayf. Platforms: Nextcloud, oCIS, OpenCloud, CERNBox, OpenCloudMesh Go. Around 50 CI cells, Chrome-first."
+      "content": "The system is driven by a Nushell CLI called ocmts over a config-first design. Core vocabulary: flow_id, matrix_key, and cell_id (see docs/architecture/tuple-identity.md). A run resolves a tuple, generates Docker Compose overlays, runs a Cypress flow (with MITM capture where relevant), and writes a structured evidence envelope (meta/suite-manifest.v1.json). CI is generated from config with drift checks, aggregates results, and deploys the Observatory. Enabled flows today: login, share-with, contact-token, contact-wayf, webapp-share. Platforms: Nextcloud, oCIS, OpenCloud, CERNBox, OpenCloudMesh Go. More than 50 CI cells, Chrome-first."
     },
     {
       "author": "OCM Test Suite maintainers",

@@ -15,6 +15,7 @@ use ../../lib/matrix/gated-cells.nu [gate-cells-by-capabilities]
 use ../../lib/site/manifest.nu [build-matrix-rules-json]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [materialize-provenance-stubs]
+use ../ci/fixtures.nu [patch-flow-glyph-ids]
 use ../../lib/tests/runner.nu [run-suite]
 
 # Write full-fidelity flow stubs (all required fields) over the minimal stubs
@@ -22,16 +23,18 @@ use ../../lib/tests/runner.nu [run-suite]
 # validate and read them without error.
 def fill-flow-stubs [tmp_root: string] {
     let flows = [
-        {stem: "contact-token", label: "Contact Token",   subtitle: "Token flow",     order: 40, enabled: false, two_party: true,  mitm: false}
-        {stem: "contact-wayf",  label: "Contact WAYF",    subtitle: "WAYF flow",      order: 50, enabled: false, two_party: true,  mitm: false}
-        {stem: "login",         label: "Login Flow",      subtitle: "Login flow",     order: 10, enabled: true,  two_party: false, mitm: false}
-        {stem: "share-with",    label: "Share With Flow", subtitle: "Share-with flow", order: 20, enabled: true,  two_party: true,  mitm: true}
+        {stem: "contact-token", glyph_id: "ticket",     label: "Contact Token",   subtitle: "Token flow",      order: 40, enabled: false, two_party: true,  mitm: false}
+        {stem: "contact-wayf",  glyph_id: "compass",    label: "Contact WAYF",    subtitle: "WAYF flow",       order: 50, enabled: false, two_party: true,  mitm: false}
+        {stem: "login",         glyph_id: "key",        label: "Login Flow",      subtitle: "Login flow",      order: 10, enabled: true,  two_party: false, mitm: false}
+        {stem: "share-with",    glyph_id: "share-2",    label: "Share With Flow", subtitle: "Share-with flow", order: 20, enabled: true,  two_party: true,  mitm: true}
+        {stem: "webapp-share",  glyph_id: "app-window", label: "Webapp Share",    subtitle: "Share from sender webapp to receiver", order: 30, enabled: true, two_party: true, mitm: true}
     ]
     for s in $flows {
         mut flow = {
             flow_id: $s.stem,
             label: $s.label,
             subtitle: $s.subtitle,
+            glyph_id: $s.glyph_id,
             display_order: $s.order,
             enabled: $s.enabled,
             two_party: $s.two_party,
@@ -319,6 +322,7 @@ def test-build-matrix-not-in-scope-json-shape [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-prov-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
     let out = (build-matrix-not-in-scope-json $not_in_scope $tmp)
     let cols = ($out | columns | sort)
     let contact_wayf_entries = ($out.flows | get "contact-wayf")
@@ -335,8 +339,8 @@ def test-build-matrix-not-in-scope-json-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 8
-            "sources has 8 entries")
+        (assert-eq ($out.sources | length) 9
+            "sources has 9 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
@@ -372,8 +376,8 @@ def test-build-matrix-rules-json-provenance-shape [] {
             "generator points at this writer")
         (assert-eq $out.producer {name: "ocmts", version: "0.1.0"}
             "producer matches uniform constant")
-        (assert-eq ($out.sources | length) 8
-            "sources has 8 entries")
+        (assert-eq ($out.sources | length) 9
+            "sources has 9 entries")
         (assert-eq ($out.sources | first | columns | sort) ["path", "sha256"]
             "each source entry has path and sha256 keys")
         (assert-truthy ($out.sources | all {|s| not ($s.path | str starts-with "/")})
@@ -436,15 +440,15 @@ def test-build-matrix-rules-json-emits-flows-and-platforms [] {
         }
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let out = (build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp)
-    let required_flow_keys = (["flow_id" "label" "subtitle" "display_order" "enabled" "two_party" "mitm"] | sort)
+    let required_flow_keys = (["flow_id" "label" "subtitle" "glyph_id" "display_order" "enabled" "two_party" "mitm"] | sort)
     let required_plat_keys = (["id" "display_name" "version_lines"] | sort)
     let first_flow_cols = ($out.flows | first | columns | sort)
     let first_plat_cols = ($out.platforms | first | columns | sort)
     let display_orders = ($out.flows | each {|f| $f.display_order})
     let sorted_orders = ($display_orders | sort)
     let result = [
-        (assert-eq ($out.flows | length) 4
-            "flows has one entry per flow file (4 total)")
+        (assert-eq ($out.flows | length) 5
+            "flows has one entry per flow file (5 total)")
         (assert-eq $first_flow_cols $required_flow_keys
             "first flow has required keys")
         (assert-eq $display_orders $sorted_orders
@@ -470,19 +474,23 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
     let login_flow = ($flows | where flow_id == "login" | first)
     let share_flow = ($flows | where flow_id == "share-with" | first)
     let contact_wayf = ($flows | where flow_id == "contact-wayf" | first)
+    let webapp_share = ($flows | where flow_id == "webapp-share" | first)
 
     let result = [
         (assert-truthy ($flows | all {|f|
             let cols = ($f | columns)
             (("label" in $cols)
                 and ("subtitle" in $cols)
+                and ("glyph_id" in $cols)
                 and ("display_order" in $cols)
                 and ("enabled" in $cols))
-        }) "every flow block carries label, subtitle, display_order, enabled")
+        }) "every flow block carries label, subtitle, glyph_id, display_order, enabled")
         (assert-truthy ($flows | all {|f| ($f.label | describe) == "string" and (($f.label | str length) > 0)})
             "every flow label is a non-empty string")
         (assert-truthy ($flows | all {|f| ($f.subtitle | describe) == "string" and (($f.subtitle | str length) > 0)})
             "every flow subtitle is a non-empty string")
+        (assert-truthy ($flows | all {|f| ($f.glyph_id | describe) == "string" and (($f.glyph_id | str length) > 0)})
+            "every flow glyph_id is a non-empty string")
         (assert-truthy ($flows | all {|f| ($f.display_order | describe) == "int"})
             "every flow display_order is an integer")
         (assert-truthy ($flows | all {|f| ($f.enabled | describe) == "bool"})
@@ -496,6 +504,70 @@ def test-build-matrix-rules-json-flows-metadata-values [] {
         (assert-eq $share_flow.enabled true "share-with enabled is true")
         (assert-eq $contact_wayf.enabled false "contact-wayf enabled is false")
         (assert-eq $contact_wayf.display_order 50 "contact-wayf display_order is 50")
+        (assert-eq $webapp_share.glyph_id "app-window" "webapp-share publishes glyph_id app-window")
+    ]
+    rm --recursive --force $tmp
+    $result
+}
+
+def test-build-matrix-rules-json-rejects-missing-glyph-id [] {
+    test-log "\n[test-build-matrix-rules-json-rejects-missing-glyph-id]"
+    mut tmp = ($nu.temp-dir | path join $"ocmts-noglyph-(random uuid)")
+    mkdir $tmp
+    materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
+    let bad_path = ($tmp | path join "config/matrix/flows/login.nuon")
+    let bad_flow = (open $bad_path | reject glyph_id)
+    $bad_flow | to nuon | save --force $bad_path
+    let err = (try {
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
+    } catch {|e| $e.rendered | default $e.msg})
+    let result = [
+        (assert-string-contains $err "missing required fields" "error mentions missing required fields")
+        (assert-string-contains $err "glyph_id" "error lists missing glyph_id")
+        (assert-string-contains $err "login.nuon" "error names the flow file")
+    ]
+    rm --recursive --force $tmp
+    $result
+}
+
+def test-build-matrix-rules-json-rejects-empty-glyph-id [] {
+    test-log "\n[test-build-matrix-rules-json-rejects-empty-glyph-id]"
+    mut tmp = ($nu.temp-dir | path join $"ocmts-emptyglyph-(random uuid)")
+    mkdir $tmp
+    materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
+    let bad_path = ($tmp | path join "config/matrix/flows/login.nuon")
+    let bad_flow = (open $bad_path | upsert glyph_id "")
+    $bad_flow | to nuon | save --force $bad_path
+    let err = (try {
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
+    } catch {|e| $e.rendered | default $e.msg})
+    let result = [
+        (assert-string-contains $err "invalid glyph_id" "error mentions invalid glyph_id")
+        (assert-string-contains $err "non-empty non-whitespace" "error requires non-empty non-whitespace glyph_id")
+        (assert-string-contains $err "login.nuon" "error names the flow file")
+    ]
+    rm --recursive --force $tmp
+    $result
+}
+
+def test-build-matrix-rules-json-rejects-whitespace-glyph-id [] {
+    test-log "\n[test-build-matrix-rules-json-rejects-whitespace-glyph-id]"
+    mut tmp = ($nu.temp-dir | path join $"ocmts-wsglyph-(random uuid)")
+    mkdir $tmp
+    materialize-provenance-stubs $tmp
+    fill-flow-stubs $tmp
+    let bad_path = ($tmp | path join "config/matrix/flows/share-with.nuon")
+    let bad_flow = (open $bad_path | upsert glyph_id "   ")
+    $bad_flow | to nuon | save --force $bad_path
+    let err = (try {
+        build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
+    } catch {|e| $e.rendered | default $e.msg})
+    let result = [
+        (assert-string-contains $err "invalid glyph_id" "error mentions invalid glyph_id")
+        (assert-string-contains $err "non-empty non-whitespace" "error requires non-empty non-whitespace glyph_id")
+        (assert-string-contains $err "share-with.nuon" "error names the flow file")
     ]
     rm --recursive --force $tmp
     $result
@@ -507,7 +579,7 @@ def test-build-matrix-rules-json-rejects-empty-flows-dir [] {
     mkdir ($tmp | path join "config/matrix/flows")
     let err = (try {
         build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
-    } catch {|e| $e.msg})
+    } catch {|e| $e.rendered | default $e.msg})
     let result = [
         (assert-string-contains $err "no flow files found under" "error mentions no flow files")
         (assert-string-contains $err "expected at least one *.nuon" "error mentions expected nuon pattern")
@@ -521,11 +593,12 @@ def test-build-matrix-rules-json-rejects-missing-platforms [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-noplat-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
+    patch-flow-glyph-ids $tmp
     # Overwrite with a file that has no platforms key at all.
     ({schema_version: 1} | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
         build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
-    } catch {|e| $e.msg})
+    } catch {|e| $e.rendered | default $e.msg})
     let result = [
         (assert-string-contains $err "has no 'platforms' record or it is empty" "error mentions missing platforms")
         (assert-string-contains $err "config/matrix" "error includes rules_path")
@@ -539,6 +612,7 @@ def test-build-matrix-rules-json-rejects-platform-missing-keys [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-missingkeys-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
+    patch-flow-glyph-ids $tmp
     ({
         schema_version: 1,
         platforms: {
@@ -547,9 +621,10 @@ def test-build-matrix-rules-json-rejects-platform-missing-keys [] {
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
         build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
-    } catch {|e| $e.msg})
+    } catch {|e| $e.rendered | default $e.msg})
     let result = [
-        (assert-string-contains $err "platform 'myplat' is missing required keys" "error names platform and problem")
+        (assert-string-contains $err "platform 'myplat'" "error names platform")
+        (assert-string-contains $err "missing required keys" "error names platform key problem")
         (assert-string-contains $err "display_name" "error lists missing field display_name")
         (assert-string-contains $err "config/matrix" "error includes rules_path")
     ]
@@ -562,6 +637,7 @@ def test-build-matrix-rules-json-rejects-empty-version-lines [] {
     mut tmp = ($nu.temp-dir | path join $"ocmts-emptylines-(random uuid)")
     mkdir $tmp
     materialize-provenance-stubs $tmp
+    patch-flow-glyph-ids $tmp
     # Platform with all keys present but version_lines is an empty list.
     ({
         schema_version: 1,
@@ -571,7 +647,7 @@ def test-build-matrix-rules-json-rejects-empty-version-lines [] {
     } | to nuon) | save --force ($tmp | path join "config/matrix/platforms.nuon")
     let err = (try {
         build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
-    } catch {|e| $e.msg})
+    } catch {|e| $e.rendered | default $e.msg})
     # Same validation must reject scalar values too.
     ({
         schema_version: 1,
@@ -583,9 +659,11 @@ def test-build-matrix-rules-json-rejects-empty-version-lines [] {
         build-matrix-rules-json {matrix: {}} "config/matrix" {} {} $tmp
     } catch {|e| $e.msg})
     let result = [
-        (assert-string-contains $err "platform 'myplat' version_lines must be a non-empty list" "error names platform and requirement")
+        (assert-string-contains $err "platform 'myplat'" "error names platform")
+        (assert-string-contains $err "must be a non-empty list" "error names version_lines requirement")
         (assert-string-contains $err "config/matrix" "error includes rules_path")
-        (assert-string-contains $scalar_err "platform 'myplat' version_lines must be a non-empty list" "scalar version_lines rejected with same error")
+        (assert-string-contains $scalar_err "platform 'myplat'" "scalar error names platform")
+        (assert-string-contains $scalar_err "must be a non-empty list" "scalar version_lines rejected with same error")
         (assert-string-contains $scalar_err "config/matrix" "scalar error includes rules_path")
     ]
     rm --recursive --force $tmp
@@ -818,6 +896,9 @@ def main [] {
         | append (test-expand-flow-skips-disabled-flow)
         | append (test-build-matrix-rules-json-emits-flows-and-platforms)
         | append (test-build-matrix-rules-json-flows-metadata-values)
+        | append (test-build-matrix-rules-json-rejects-missing-glyph-id)
+        | append (test-build-matrix-rules-json-rejects-empty-glyph-id)
+        | append (test-build-matrix-rules-json-rejects-whitespace-glyph-id)
         | append (test-build-matrix-rules-json-rejects-empty-flows-dir)
         | append (test-build-matrix-rules-json-rejects-missing-platforms)
         | append (test-build-matrix-rules-json-rejects-platform-missing-keys)

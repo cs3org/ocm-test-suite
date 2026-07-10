@@ -17,7 +17,7 @@ export def build-matrix-rules-json [
     let cell_list = (compute-matrix-cells $rules)
     let result = (apply-display-rule $cell_list $adapters $flow_caps)
 
-    let required_flow_fields = ["flow_id" "label" "subtitle" "display_order" "enabled" "two_party" "mitm"]
+    let required_flow_fields = ["flow_id" "label" "subtitle" "glyph_id" "display_order" "enabled" "two_party" "mitm"]
     let flows_dir = ($ocmts_root | path join "config/matrix/flows")
     let flow_files = (glob ($flows_dir | path join "*.nuon") | sort)
     if ($flow_files | is-empty) {
@@ -29,7 +29,11 @@ export def build-matrix-rules-json [
         if not ($missing | is-empty) {
             error make {msg: $"flow file '($f)' missing required fields: ($missing | str join ', ')"}
         }
-        $raw | select flow_id label subtitle display_order enabled two_party mitm
+        let glyph_id = ($raw.glyph_id? | default "")
+        if ($glyph_id | describe) != "string" or (($glyph_id | str trim) | is-empty) {
+            error make {msg: $"flow file '($f)' has invalid glyph_id: must be a non-empty non-whitespace string"}
+        }
+        $raw | select flow_id label subtitle glyph_id display_order enabled two_party mitm
     } | sort-by display_order flow_id)
 
     let platforms_data = open ($ocmts_root | path join "config/matrix/platforms.nuon")

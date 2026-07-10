@@ -7,6 +7,7 @@ const SUITE_PATH = path self
 
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [materialize-provenance-stubs]
+use ./fixtures.nu [patch-flow-glyph-ids]
 use ../../lib/tests/runner.nu [run-suite]
 
 def test-ingest-missing-injection [] {
@@ -14,6 +15,7 @@ def test-ingest-missing-injection [] {
     use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
     materialize-provenance-stubs $tmp
+    patch-flow-glyph-ids $tmp
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
     let ts = "2026-01-01T00:00:00Z"
@@ -142,6 +144,7 @@ def test-ingest-missing-injection-cell-list-fallback [] {
     use ../../lib/site/ingest.nu [ingest-site]
     let tmp = (^mktemp -d | str trim)
     materialize-provenance-stubs $tmp
+    patch-flow-glyph-ids $tmp
     let artifacts_root = ($tmp | path join "artifacts")
     let public_dir = ($tmp | path join "public")
     let ts = "2026-01-01T00:00:00Z"

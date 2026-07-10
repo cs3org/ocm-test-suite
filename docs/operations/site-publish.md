@@ -56,6 +56,10 @@ each cell. It writes public data files such as:
 - `matrix-rules.v1.json`
 - `matrix-not-in-scope.v1.json`
 
+`matrix-rules.v1.json` publishes each flow's `flow_id`, label, subtitle,
+display order, topology flags, and `glyph_id`. The site uses this catalog for
+flow presentation.
+
 It also copies published evidence into:
 
 ```text

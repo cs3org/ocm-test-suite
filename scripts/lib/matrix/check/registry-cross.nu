@@ -12,6 +12,8 @@ export const REGISTRY_TABLE_CAPABILITY = [
     {table_name: "loginAdapters",                    capability: "op.login"},
     {table_name: "shareWithFlowSenderAdapters",      capability: "flow.share-with.sender"},
     {table_name: "shareWithFlowReceiverAdapters",    capability: "flow.share-with.receiver"},
+    {table_name: "webappShareFlowSenderAdapters",    capability: "flow.webapp-share.sender"},
+    {table_name: "webappShareFlowReceiverAdapters",  capability: "flow.webapp-share.receiver"},
     {table_name: "shareFileSenderAdapters",          capability: "op.share-file.sender"},
     {table_name: "shareFileReceiverAdapters",        capability: "op.share-file.receiver"},
     {table_name: "contactTokenSenderAdapters",       capability: "op.contact-token.sender"},

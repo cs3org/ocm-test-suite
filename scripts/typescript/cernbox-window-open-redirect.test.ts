@@ -4,6 +4,7 @@ import { redirectWindowOpenInSameWindow } from "../../cypress/support/adapters/c
 function makeMockWindow(): { win: Window; assignCalls: string[] } {
   const assignCalls: string[] = [];
   const win = {
+    name: "",
     location: {
       assign: (url: string) => {
         assignCalls.push(url);
@@ -41,5 +42,27 @@ describe("redirectWindowOpenInSameWindow", () => {
       expect(assignCalls).toEqual([]);
       expect(result).toBe(win);
     }
+  });
+
+  test("names the window but does not navigate on an about:blank preopen", () => {
+    const { win, assignCalls } = makeMockWindow();
+    const result = redirectWindowOpenInSameWindow(win, "about:blank", "ocm-remote-1");
+    expect(assignCalls).toEqual([]);
+    expect((win as unknown as { name: string }).name).toBe("ocm-remote-1");
+    expect(result).toBe(win);
+  });
+
+  test("names the window and navigates in-tab for a real launch target", () => {
+    const { win, assignCalls } = makeMockWindow();
+    const result = redirectWindowOpenInSameWindow(
+      win,
+      "https://jupyterhub1.docker/services/ocm/open",
+      "ocm-remote-2",
+    );
+    expect((win as unknown as { name: string }).name).toBe("ocm-remote-2");
+    expect(assignCalls).toEqual([
+      "https://jupyterhub1.docker/services/ocm/open",
+    ]);
+    expect(result).toBe(win);
   });
 });

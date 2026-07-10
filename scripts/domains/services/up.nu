@@ -10,6 +10,7 @@ use ../../lib/services/compose-files.nu [
 use ../../lib/services/lifecycle.nu [cleanup-temp]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
 use ../../lib/images/cell-images.nu [emit-cell-images]
+use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
 def main [
     --flow: string,
@@ -40,9 +41,9 @@ def main [
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
             $env_file)
     } --preserve-temp=$preserve_temp)
-    let wait_services = if $ctx.is_two_party { ["sender" "receiver" "mitm"] } else { [] }
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
     (with-infra-fail-cleanup $ctx "platform-up" {
-        # Direct compose up (operator-facing): streams output and throws on failure, caught by with-infra-fail-cleanup. CI flow uses do-compose-up in services/up-run.nu. Empty wait_services splats to full project (no service targets).
+        # Direct compose up; empty wait_services targets the full project.
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
         emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
     } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)

@@ -37,8 +37,8 @@ the end of the story here; you can open a cell and see exactly what happened.
 Real UI flows against real containerized stacks, not mocked APIs:
 
 - Platforms: Nextcloud, oCIS, OpenCloud, CERNBox, and OpenCloudMesh Go
-- Flows: `login`, `share-with`, `contact-token`, `contact-wayf`
-- Around 50 matrix cells run in CI, Chrome-first
+- Flows: `login`, `share-with`, `contact-token`, `contact-wayf`, `webapp-share`
+- More than 50 matrix cells run in CI, Chrome-first
 
 Coverage is deliberately explicit. Not every platform supports every flow, and
 the suite tracks that honestly with a capability registry rather than hiding

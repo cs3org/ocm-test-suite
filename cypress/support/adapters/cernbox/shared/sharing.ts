@@ -16,6 +16,10 @@ const sharesNavTimeoutMs = 60000;
 export interface CernboxSharingHelpers {
   openSharingPanel: (sharedFileName: string) => void;
   openSharesWithMe: () => void;
+  openResourceContextMenu: (
+    resourceSelector: string,
+    timeoutMs?: number,
+  ) => void;
   addExternalShare: (
     sharedFileName: string,
     federatedRecipientId: string,
@@ -30,20 +34,32 @@ export function makeCernboxSharingHelpers(
   const sel = profile.selectors.sharing;
   const net = profile.network;
 
-  function triggerShareAction(fileName: string): void {
-    const escaped = cssEscapeAttributeValue(fileName);
-
-    cy.get(`[data-test-resource-name="${escaped}"]`, { timeout: sharingTimeoutMs })
+  // Opens the row/tile context menu for a resource and waits for the menu to be
+  // visible. Callers then pick a menu entry (share, "Open remotely", ...).
+  function openResourceContextMenu(
+    resourceSelector: string,
+    timeoutMs: number = sharingTimeoutMs,
+  ): void {
+    cy.get(resourceSelector, { timeout: timeoutMs })
       .filter(":visible")
       .first()
+      .scrollIntoView()
+      .should("be.visible")
       .closest("tr, .oc-tile-card")
       .find(sel.contextMenuTrigger)
       .first()
       .should("be.visible")
       .click({ force: true });
 
+    cy.get(sel.contextMenu, { timeout: timeoutMs }).should("be.visible");
+  }
+
+  function triggerShareAction(fileName: string): void {
+    const escaped = cssEscapeAttributeValue(fileName);
+
+    openResourceContextMenu(`[data-test-resource-name="${escaped}"]`);
+
     cy.get(sel.contextMenu, { timeout: sharingTimeoutMs })
-      .should("be.visible")
       .find(sel.showSharesAction)
       .first()
       .should("be.visible")
@@ -290,6 +306,7 @@ export function makeCernboxSharingHelpers(
   return {
     openSharingPanel,
     openSharesWithMe,
+    openResourceContextMenu,
     addExternalShare,
     acceptIncomingShare,
   };

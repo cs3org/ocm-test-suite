@@ -11,6 +11,7 @@ export const SITE_PROVENANCE_SOURCES = [
     "config/matrix/flows/contact-wayf.nuon",
     "config/matrix/flows/login.nuon",
     "config/matrix/flows/share-with.nuon",
+    "config/matrix/flows/webapp-share.nuon",
     "config/adapters/capabilities.v1.nuon",
 ]
 

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "label": "Login Flow",
   "subtitle": "Single-party login on each platform",
+  "glyph_id": "key",
   "display_order": 10,
   "flow_id": "login",
   "two_party": false,

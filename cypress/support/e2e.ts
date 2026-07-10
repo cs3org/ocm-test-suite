@@ -38,15 +38,19 @@ Cypress.on("window:before:load", (win) => {
 // External IdP (Keycloak) login does NOT use cy.origin(): the IdP is visited as
 // a first-class origin and the session is cached with cy.session(), so the app
 // completes a silent OIDC handshake. See cypress/support/shared/idp-session.ts.
-// Exception:
-// - contact-wayf may use cy.origin() only to capture the receiver redirect URL
-//   after WAYF provider discovery.
-// Invite accept, contact proof, share flow, and login must stay off cy.origin().
+// Exceptions (bounded cy.origin use only):
+// - contact-wayf: capture the receiver redirect URL after WAYF provider discovery.
+// - webapp-share: after sender/receiver, accept, and launch-gate work complete,
+//   the launch is a client-side cross-origin POST handoff to the remote hub;
+//   cy.origin() is used only for the terminal JupyterLab visual-proof assertion
+//   and success screenshot. It must not drive login, accept, contact proof, or
+//   share flows.
 const normalizedSpecRelative = String(Cypress.spec.relative ?? "")
   .split("\\")
   .join("/");
 const allowOriginForSpec =
-  normalizedSpecRelative === "cypress/e2e/contact-wayf/index.cy.ts";
+  normalizedSpecRelative === "cypress/e2e/contact-wayf/index.cy.ts" ||
+  normalizedSpecRelative === "cypress/e2e/webapp-share/index.cy.ts";
 try {
   if (!allowOriginForSpec) {
     Cypress.Commands.overwrite("origin", () => {

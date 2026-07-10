@@ -2,6 +2,7 @@
   "schema_version": 1,
   "label": "Share With Flow",
   "subtitle": "Two-party share between sender and receiver",
+  "glyph_id": "share-2",
   "display_order": 20,
   "flow_id": "share-with",
   "two_party": true,

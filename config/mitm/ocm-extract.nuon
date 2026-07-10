@@ -18,6 +18,21 @@
       "path_prefix": "/ocm/notifications"
     },
     {
+      "id": "ocm-token",
+      "method": "POST",
+      "path_prefix": "/ocm/token"
+    },
+    {
+      "id": "ocm-open",
+      "method": "POST",
+      "path_prefix": "/services/ocm/open"
+    },
+    {
+      "id": "ocm-login",
+      "method": "POST",
+      "path_prefix": "/hub/ocm-login"
+    },
+    {
       "id": "webdav",
       "method": "PROPFIND",
       "path_prefix": "/public.php/webdav/",

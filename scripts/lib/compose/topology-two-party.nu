@@ -15,6 +15,29 @@ use ../actors/load.nu [load-sender-for-tuple load-receiver-for-tuple]
 use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
+use ../run/flow-ids.nu [is-webapp-share-flow]
+use ./topology-webapp-share.nu [
+    apply-webapp-share-compose-overlays
+    webapp-share-base-overlay-fnames
+    webapp-share-extend-sender-no-proxy
+    webapp-share-runner-depends-on-lines
+    webapp-share-sender-trusted-domains
+    webapp-share-stack-env-lines
+]
+
+# Runner depends_on lines shared by runner-ci.yml and runner-dev.yml.
+def two-party-runner-depends-on-lines [flow_id: string] {
+    mut lines = [
+        "      sender:"
+        "        condition: service_healthy"
+        "      receiver:"
+        "        condition: service_healthy"
+    ]
+    if (is-webapp-share-flow $flow_id) {
+        $lines = ($lines | append (webapp-share-runner-depends-on-lines))
+    }
+    $lines
+}
 
 # Same-side compose service names from a platform cookbook (empty when missing).
 def cookbook-service-names [root: string, platform: string, role: string] {
@@ -54,6 +77,7 @@ export def write-two-party-env [
     receiver_idp_env: record = {},
     sender_bundle: record = {},
     receiver_bundle: record = {},
+    flow_id: string = "",
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -75,6 +99,9 @@ export def write-two-party-env [
         | append (cookbook-service-names $root $sender_platform "sender")
         | uniq
     )
+    $sender_no_proxy = (
+        webapp-share-extend-sender-no-proxy $sender_no_proxy $flow_id $root $sender_platform
+    )
     mut receiver_no_proxy = [
         "localhost" "127.0.0.1" "mitm"
         "receiver" "receiver-db" "receiver-cache"
@@ -95,6 +122,12 @@ export def write-two-party-env [
     let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
     let ocm_provider_lines = (provider-env-lines [$sender_provider $receiver_provider])
 
+    let sender_trusted_domains = if (is-webapp-share-flow $flow_id) {
+        (webapp-share-sender-trusted-domains $sender_party_host)
+    } else {
+        $sender_party_host
+    }
+
     mut lines = [
         $"OCMTS_ROOT=($root)"
         $"OCMTS_ARTIFACTS_BASE=($artifacts_base)"
@@ -110,6 +143,7 @@ export def write-two-party-env [
         $"SENDER_NO_PROXY=($sender_no_proxy_str)"
         $"SENDER_PLATFORM=($sender_platform)"
         $"SENDER_PUBLIC_ORIGIN=https://($sender_party_host)"
+        $"SENDER_TRUSTED_DOMAINS=($sender_trusted_domains)"
         $"RECEIVER_PARTY_HOST=($receiver_party_host)"
         "RECEIVER_MYSQL_HOST=receiver-db"
         "RECEIVER_REDIS_HOST=receiver-cache"
@@ -126,6 +160,9 @@ export def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
+    if (is-webapp-share-flow $flow_id) {
+        $lines = ($lines | append (webapp-share-stack-env-lines))
+    }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
     $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
     if $sender_actor != null {
@@ -231,6 +268,9 @@ export def write-two-party-overlays [
     # Copy sender and receiver cookbook YAMLs
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
     copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
+    if (is-webapp-share-flow $flow_id) {
+        apply-webapp-share-compose-overlays $root $sender_platform $compose_d $artifacts_base
+    }
 
     # Write stack.env with all substitution variables
     let env_file = (write-two-party-env
@@ -238,7 +278,8 @@ export def write-two-party-overlays [
         $sender_version $receiver_version
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
         $record_video $root $sender_actor $receiver_actor $exec_cidr
-        $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle)
+        $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle
+        $flow_id)
 
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -279,16 +320,16 @@ export def write-two-party-overlays [
 
     let record_str = if $record_video { "true" } else { "false" }
 
+    let runner_depends_on = (two-party-runner-depends-on-lines $flow_id)
+
     # runner-ci.yml: cypress headless depending on both sender and receiver
     mut runner_ci_lines = [
         "services:"
         "  cypress:"
         $"    image: ($cypress_image)"
         "    depends_on:"
-        "      sender:"
-        "        condition: service_healthy"
-        "      receiver:"
-        "        condition: service_healthy"
+    ]
+    $runner_ci_lines = ($runner_ci_lines | append $runner_depends_on | append [
         "    networks: [ocm-net]"
         "    working_dir: /workspace"
         "    environment:"
@@ -299,7 +340,7 @@ export def write-two-party-overlays [
         "      - CYPRESS_screenshotsFolder=/artifacts/cypress/screenshots"
         "      - CYPRESS_videosFolder=/artifacts/cypress/videos"
         "      - CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
-    ]
+    ])
     if $sender_actor != null {
         $runner_ci_lines = ($runner_ci_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)
@@ -351,10 +392,8 @@ export def write-two-party-overlays [
         "  cypress_dev:"
         $"    image: ($cypress_dev_image)"
         "    depends_on:"
-        "      sender:"
-        "        condition: service_healthy"
-        "      receiver:"
-        "        condition: service_healthy"
+    ]
+    $runner_dev_lines = ($runner_dev_lines | append $runner_depends_on | append [
         "    shm_size: \"2g\""
         "    ports:"
         "      - \"0:6901\""
@@ -364,7 +403,7 @@ export def write-two-party-overlays [
         $"      - CYPRESS_baseUrl=https://($sender_party_host)"
         $"      - CYPRESS_sender_baseUrl=https://($sender_party_host)"
         $"      - CYPRESS_receiver_baseUrl=https://($receiver_party_host)"
-    ]
+    ])
     if $sender_actor != null {
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)
@@ -401,7 +440,9 @@ export def write-two-party-overlays [
     ])
     ($runner_dev_lines | str join "\n") | save --force ($compose_d | path join "runner-dev.yml")
 
-    let base_overlay_fnames = ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"]
+    let base_overlay_fnames = (
+        webapp-share-base-overlay-fnames ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"] $flow_id
+    )
 
     # Copy all overlays to artifacts for durable access.
     copy-overlays-to-artifacts $compose_d $art_inputs $base_overlay_fnames ["runner-ci.yml" "runner-dev.yml"]

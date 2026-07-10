@@ -11,6 +11,14 @@ use ../../lib/tests/runner.nu [run-suite]
 const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master"
 const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
+const NEXTCLOUD_V35_HUB_WEBAPP_SHARE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
+
+def leaked-nextcloud-webapp-share-hub-env-mask [] {
+    [OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE]
+    | reduce --fold {} {|k, acc|
+        if $k in $env { $acc | upsert $k null } else { $acc }
+    }
+}
 
 def leaked-cernbox-image-env-mask [] {
     [
@@ -111,6 +119,70 @@ def test-nextcloud-v32-bundle-empty [] {
     ]
 }
 
+def test-nextcloud-v35-login-no-hub-bundle [] {
+    test-log "\n[test-nextcloud-v35-login-no-hub-bundle]"
+    let imgs = (
+        resolve-images "nextcloud" "v35"
+            --matrix-key "login__nextcloud" --flow-id "login"
+    )
+    [
+        (assert-truthy (($imgs.bundle | is-empty))
+            "nextcloud/v35 login omits unresolved hub bundle slot")
+        (assert-truthy (($imgs.bundle_services | is-empty))
+            "nextcloud/v35 login omits hub bundle_services entry")
+    ]
+}
+
+def test-nextcloud-v35-webapp-share-hub-bundle [] {
+    test-log "\n[test-nextcloud-v35-webapp-share-hub-bundle]"
+    let imgs = (
+        resolve-images "nextcloud" "v35"
+            --matrix-key "webapp-share__nextcloud__cernbox" --flow-id "webapp-share"
+    )
+    [
+        (assert-eq ($imgs.bundle | columns | sort) ["hub"]
+            "nextcloud/v35 webapp-share resolves hub bundle slot")
+        (assert-eq ($imgs.bundle | get hub) $NEXTCLOUD_V35_HUB_WEBAPP_SHARE
+            "nextcloud/v35 webapp-share hub default ref")
+        (assert-eq ($imgs.bundle_services | get hub) "sender-hub"
+            "hub slot maps to sender-hub compose service name")
+    ]
+}
+
+def test-nextcloud-v35-webapp-share-hub-bundle-nc-nc [] {
+    test-log "\n[test-nextcloud-v35-webapp-share-hub-bundle-nc-nc]"
+    let imgs = (
+        resolve-images "nextcloud" "v35" --matrix-key "webapp-share__nextcloud__nextcloud" --flow-id "webapp-share"
+    )
+    [
+        (assert-eq ($imgs.bundle | columns | sort) ["hub"]
+            "NC->NC webapp-share resolves the same hub bundle slot")
+        (assert-eq ($imgs.bundle | get hub) $NEXTCLOUD_V35_HUB_WEBAPP_SHARE
+            "NC->NC webapp-share hub default ref matches NC->CB")
+        (assert-eq ($imgs.bundle_services | get hub) "sender-hub"
+            "NC->NC hub slot maps to sender-hub compose service name")
+    ]
+}
+
+def test-nextcloud-v35-webapp-share-hub-env-override [] {
+    test-log "\n[test-nextcloud-v35-webapp-share-hub-env-override]"
+    let custom_hub = "localhost/ocmts/nextcloud-v35-webapp-share-hub:local"
+    let imgs = (
+        with-env (
+            leaked-nextcloud-webapp-share-hub-env-mask
+            | merge { OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE: $custom_hub }
+        ) {
+            resolve-images "nextcloud" "v35" --matrix-key "webapp-share__nextcloud__nextcloud" --flow-id "webapp-share"
+        }
+    )
+    [
+        (assert-eq ($imgs.bundle | get hub) $custom_hub
+            "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE overrides hub bundle slot")
+        (assert-eq ($imgs.bundle_services | get hub) "sender-hub"
+            "hub bundle_services entry unchanged when hub env override is set")
+    ]
+}
+
 def main [] {
     test-log "=== images/resolve-images-bundle Tests ==="
     let results = (
@@ -119,6 +191,10 @@ def main [] {
         | append (test-cernbox-v11-bundle-idp-env-override-precedence)
         | append (test-cernbox-v11-web-and-bundle-env-override-independence)
         | append (test-nextcloud-v32-bundle-empty)
+        | append (test-nextcloud-v35-login-no-hub-bundle)
+        | append (test-nextcloud-v35-webapp-share-hub-bundle)
+        | append (test-nextcloud-v35-webapp-share-hub-bundle-nc-nc)
+        | append (test-nextcloud-v35-webapp-share-hub-env-override)
     ) | flatten
     run-suite "images/resolve-images-bundle" $SUITE_PATH $results
 }

@@ -31,6 +31,10 @@ jobs:
         env:
           OCMTS_ROOT: ${{ github.workspace }}
         run: nu scripts/ocmts.nu ci workflows check github
+      - name: Cypress matrix drift check
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu matrix gen cypress --check
       - name: Adapter capabilities drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}

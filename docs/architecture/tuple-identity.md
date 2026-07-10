@@ -10,12 +10,12 @@ lookups use a version-less `matrix_key`.
 
 ## Vocabulary
 
-| Term           | Definition                                                                 |
-| -------------- | -------------------------------------------------------------------------- |
-| `flow_id`      | Public flow name (`login`, `share-with`, `contact-token`, `contact-wayf`). Stable across versions and pairs. |
-| `matrix_key`   | Version-less internal lookup key. Shape `<flow_id>__<sender_platform>[__<receiver_platform>]`. Platform names, not slugs. |
-| `cell_id`      | Per-pair, per-version artifact id. Shape `<flow_id>__<sender_platform>-<sender_version>[__<receiver_platform>-<receiver_version>]`. |
-| `pair`         | Role-ordered artifact path segment. One-party: `<sender_platform>-<sender_version>`. Two-party: `<sender>-<sver>-<recv>-<rver>`. |
+| Term           | Definition                                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `flow_id`      | Public flow name (`login`, `share-with`, `contact-token`, `contact-wayf`, `webapp-share`). Stable across versions and pairs.         |
+| `matrix_key`   | Version-less internal lookup key. Shape `<flow_id>__<sender_platform>[__<receiver_platform>]`. Platform names, not slugs.            |
+| `cell_id`      | Per-pair, per-version artifact id. Shape `<flow_id>__<sender_platform>-<sender_version>[__<receiver_platform>-<receiver_version>]`.  |
+| `pair`         | Role-ordered artifact path segment. One-party: `<sender_platform>-<sender_version>`. Two-party: `<sender>-<sver>-<recv>-<rver>`.     |
 
 The tuple is what operators pass on the CLI. `matrix_key` is what matrix
 rules, actor overrides, and image override resolution use internally.
@@ -45,7 +45,7 @@ with the shape defined above.
 `services up run` and similar commands require the full tuple. `cell.nu`
 validates the tuple against matrix rules and refuses mismatches.
 
-### Two-party (contact-token, share-with, contact-wayf)
+### Two-party (contact-token, share-with, contact-wayf, webapp-share)
 
 ```sh
 nu scripts/ocmts.nu services up run \

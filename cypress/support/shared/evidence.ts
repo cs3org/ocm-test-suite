@@ -5,8 +5,13 @@ export type EvidenceActor = "single" | "sender" | "receiver";
 export type EvidenceCheckpoint =
   | "login-page-ready"
   | "authenticated"
+  | "folder-ready"
+  | "share-dialog-ready"
   | "share-saved"
   | "share-visible"
+  | "launch-ready"
+  | "launch-gated"
+  | "launch-jupyter-visible"
   | "invite-created"
   | "invite-accepted"
   | "contact-visible";
@@ -15,8 +20,13 @@ const evidenceActors = new Set<EvidenceActor>(["single", "sender", "receiver"]);
 const evidenceCheckpoints = new Set<EvidenceCheckpoint>([
   "login-page-ready",
   "authenticated",
+  "folder-ready",
+  "share-dialog-ready",
   "share-saved",
   "share-visible",
+  "launch-ready",
+  "launch-gated",
+  "launch-jupyter-visible",
   "invite-created",
   "invite-accepted",
   "contact-visible",

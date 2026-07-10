@@ -32,6 +32,8 @@
     "flow.contact-wayf.sender",
     "flow.contact-wayf.receiver",
     "op.contact-wayf.sender",
-    "op.contact-wayf.receiver"
+    "op.contact-wayf.receiver",
+    "flow.webapp-share.sender",
+    "flow.webapp-share.receiver"
   ]
 }

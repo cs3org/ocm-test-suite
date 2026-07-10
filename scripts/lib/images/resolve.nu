@@ -17,15 +17,17 @@ def resolve-bundle-slots [
         $bundle_spec
         | transpose key val
         | reduce --fold {} {|row, acc|
-            $acc | upsert $row.key (resolve-image $row.val $matrix_key $flow_id)
+            let ref = (resolve-image $row.val $matrix_key $flow_id)
+            if $ref == null { $acc } else { $acc | upsert $row.key $ref }
         }
     )
     let bundle_services = (
-        $bundle_spec
-        | transpose key val
-        | reduce --fold {} {|row, acc|
-            let svc = ($row.val.service? | default $row.key)
-            $acc | upsert $row.key $"($role)-($svc)"
+        $bundle
+        | columns
+        | reduce --fold {} {|slot, acc|
+            let slot_spec = ($bundle_spec | get $slot)
+            let svc = ($slot_spec.service? | default $slot)
+            $acc | upsert $slot $"($role)-($svc)"
         }
     )
     {bundle: $bundle, bundle_services: $bundle_services}

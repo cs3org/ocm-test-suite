@@ -3,6 +3,7 @@
 # generic override_env through the live resolver path against real
 # config/images.nuon (not just precedence.nu unit fixtures). by_flow scope
 # wins over version scope for nextcloud/v35 contact-token and contact-wayf.
+# Webapp-share flow overrides live in resolve-role-overrides-webapp-share.nu.
 # Run: nu scripts/tests/images/resolve-role-overrides.nu
 
 const SUITE_PATH = path self

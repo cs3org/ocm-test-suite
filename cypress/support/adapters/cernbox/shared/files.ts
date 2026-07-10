@@ -9,13 +9,31 @@ const filesAppTimeoutMs = 20000;
 const editorTimeoutMs = 20000;
 const contentReadTimeoutMs = 30000;
 
-// Pure in-tab window.open redirect for unit tests and Cypress runtime.
+// Pure in-tab window.open replacement for unit tests and Cypress runtime.
+//
+// The OCM "Open remotely" action pre-opens a named popup
+// (window.open("about:blank", name)) to hold a user-gesture-tied handle, then
+// form-POSTs the launch into that named target. To keep everything in the
+// single Cypress-controlled tab: name the current window so a later
+// form target=name resolves in-tab, and do NOT navigate on the about:blank
+// preopen (that would tear down the app and abort the in-flight launch request).
 export function redirectWindowOpenInSameWindow(
   win: Window,
   url: string | URL | undefined | null,
+  target?: string | null,
 ): Window {
-  if (url !== undefined && url !== null && String(url) !== "") {
-    win.location.assign(String(url));
+  if (typeof target === "string" && target.trim() !== "") {
+    try {
+      win.name = target;
+    } catch {
+      // Some runtimes forbid renaming the window; the form target then falls
+      // back to a new browsing context, which the caller handles.
+    }
+  }
+
+  const href = url === undefined || url === null ? "" : String(url);
+  if (href !== "" && href !== "about:blank") {
+    win.location.assign(href);
   }
   return win;
 }
@@ -76,8 +94,9 @@ export function makeCernboxFilesHelpers(
         typeof win.open === "function" &&
         !(win.open as unknown as { isSinonProxy?: boolean }).isSinonProxy
       ) {
-        cy.stub(win, "open").callsFake((url: string | URL | undefined) =>
-          redirectWindowOpenInSameWindow(win, url),
+        cy.stub(win, "open").callsFake(
+          (url?: string | URL, target?: string) =>
+            redirectWindowOpenInSameWindow(win, url, target),
         );
       }
     });

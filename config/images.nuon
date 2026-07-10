@@ -29,10 +29,22 @@
       "v11": {
         "default": "ghcr.io/mahdibaghbani/containers/cernbox-web:master",
         "override_env": "OCMTS_CERNBOX_WEB_V11_IMAGE",
+        "by_flow": {
+          "webapp-share": {
+            "default": "ghcr.io/mahdibaghbani/containers/cernbox-web:ocm-webapp-share",
+            "override_env": "OCMTS_CERNBOX_WEB_V11_WEBAPP_SHARE_IMAGE"
+          }
+        },
         "bundle": {
           "revad": {
             "default": "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development",
             "override_env": "OCMTS_CERNBOX_REVAD_IMAGE",
+            "by_flow": {
+              "webapp-share": {
+                "default": "ghcr.io/mahdibaghbani/containers/cernbox-revad:ocm-webapp-share-development",
+                "override_env": "OCMTS_CERNBOX_REVAD_WEBAPP_SHARE_IMAGE"
+              }
+            },
             "service": "revad-gateway"
           },
           "idp": {
@@ -79,6 +91,23 @@
             "override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_IMAGE",
             "sender_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_SENDER_IMAGE",
             "receiver_override_env": "OCMTS_NEXTCLOUD_V35_CONTACT_WAYF_RECEIVER_IMAGE"
+          },
+          "webapp-share": {
+            "default": "ghcr.io/mahdibaghbani/containers/nextcloud-webapp:webapp-share",
+            "override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_IMAGE",
+            "sender_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_SENDER_IMAGE",
+            "receiver_override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_RECEIVER_IMAGE"
+          }
+        },
+        "bundle": {
+          "hub": {
+            "by_flow": {
+              "webapp-share": {
+                "default": "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share",
+                "override_env": "OCMTS_NEXTCLOUD_V35_WEBAPP_SHARE_HUB_IMAGE"
+              }
+            },
+            "service": "hub"
           }
         }
       }

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "label": "WebApp Share Flow",
+  "subtitle": "Cross-vendor WebApp sharing and remote launch",
+  "glyph_id": "app-window",
+  "display_order": 50,
+  "flow_id": "webapp-share",
+  "two_party": true,
+  "enabled": true,
+  "mitm": true,
+  "browsers": null,
+  "required_capabilities": {
+    "sender": [
+      "flow.webapp-share.sender",
+      "op.login",
+      "op.contact-token.sender"
+    ],
+    "receiver": [
+      "flow.webapp-share.receiver",
+      "op.login",
+      "op.contact-token.receiver",
+      "op.provider-identity"
+    ]
+  },
+  "include": [
+    {
+      "sender": [
+        "nextcloud"
+      ],
+      "receiver": [
+        "cernbox",
+        "nextcloud"
+      ]
+    }
+  ],
+  "versions_sender": {
+    "nextcloud": [
+      "v35"
+    ]
+  },
+  "versions_receiver": {
+    "cernbox": [
+      "v11"
+    ],
+    "nextcloud": [
+      "v35"
+    ]
+  }
+}

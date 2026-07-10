@@ -19,7 +19,8 @@
             "login",
             "share-with",
             "contact-token",
-            "contact-wayf"
+            "contact-wayf",
+            "webapp-share"
         ]
     }
 }

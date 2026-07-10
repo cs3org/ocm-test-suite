@@ -11,12 +11,10 @@ use ../../lib/ci/workflow-gen.nu [
     build-ci-matrix-yml
     build-flow-assets
 ]
-use ../../lib/matrix/rules-gen.nu [load-matrix-rules]
-use ../../lib/site/flow-caps.nu [load-flow-caps]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [make-cell]
 use ../../lib/tests/runner.nu [run-suite]
-use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps]
+use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps prod-plan]
 
 # Fixture: plan with a share-with cell that depends on two distinct login cells
 # (sender=nextcloud-v34, receiver=nextcloud-v33 -> needs login for both).
@@ -239,23 +237,39 @@ def test-asset-display-name-two-party-format [] {
     ]
 }
 
-# Builds the production login flow asset from real config (matrix rules,
-# prerequisites.nuon, flow-caps, adapter capabilities). Returns repo_root plus
-# the parsed login cells so login/cernbox/drift tests share one prod plan.
+# Builds the production CI plan and flow assets from real config (matrix rules,
+# prerequisites.nuon, flow-caps, adapter capabilities).
+def prod-plan-context [] {
+    let prod = (prod-plan)
+    let flow_assets = (build-flow-assets $prod.plan)
+    {repo_root: $prod.repo_root, flow_assets: $flow_assets}
+}
+
+# Returns repo_root plus parsed login asset content for login prod regressions.
 def prod-plan-and-login-asset [] {
-    let repo_root = ($SUITE_PATH | path dirname | path join ".." ".." ".." | path expand)
-    let rules = (load-matrix-rules $repo_root)
-    let prod_prereqs = (open ($repo_root | path join "config" "ci" "prerequisites.nuon"))
-    let flow_caps = (load-flow-caps ($repo_root | path join "config" "matrix" "flows"))
-    let adapters = (open ($repo_root | path join "config" "adapters" "capabilities.v1.nuon") | get adapters)
-    let plan = (plan-suite $rules $prod_prereqs $flow_caps $adapters)
-    let flow_assets = (build-flow-assets $plan)
-    let login_asset_list = ($flow_assets | where {|a| ($a.path | path basename) == "login.json"})
+    let ctx = (prod-plan-context)
+    let login_asset_list = ($ctx.flow_assets | where {|a| ($a.path | path basename) == "login.json"})
     let login_content = if not ($login_asset_list | is-empty) {
         $login_asset_list | first | get content
     } else { "" }
     let login_cells = if ($login_content | is-empty) { [] } else { $login_content | from json }
-    {repo_root: $repo_root, login_cells: $login_cells, login_content: $login_content}
+    {repo_root: $ctx.repo_root, login_cells: $login_cells, login_content: $login_content}
+}
+
+# Returns repo_root plus parsed webapp-share asset content for prod regressions.
+def prod-plan-and-webapp-share-asset [] {
+    let ctx = (prod-plan-context)
+    let webapp_share_asset_list = ($ctx.flow_assets | where {|a| ($a.path | path basename) == "webapp-share.json"})
+    let webapp_share_content = if not ($webapp_share_asset_list | is-empty) {
+        $webapp_share_asset_list | first | get content
+    } else { "" }
+    let webapp_share_cells = if ($webapp_share_content | is-empty) { [] } else { $webapp_share_content | from json }
+    {
+        repo_root: $ctx.repo_root,
+        flow_assets: $ctx.flow_assets,
+        webapp_share_cells: $webapp_share_cells,
+        webapp_share_content: $webapp_share_content,
+    }
 }
 
 # Regression: production matrix + adapter config must emit login__cernbox-v11
@@ -281,6 +295,55 @@ def test-prod-login-asset-includes-cernbox-v11 [] {
             "cernbox login cell artifact_name is cell-login-cernbox-v11")
         (assert-eq ($cernbox_cell_list | first | get display_name) "CERNBox v11"
             "cernbox login cell display_name uses platform SSOT display_name")
+    ]
+}
+
+# Regression: production matrix + adapter config must emit the supported
+# webapp-share cells in the webapp-share flow asset.
+def test-prod-webapp-share-asset-includes-supported-cells [] {
+    test-log "\n[test-prod-webapp-share-asset-includes-supported-cells]"
+    let ctx = (prod-plan-and-webapp-share-asset)
+    let asset_paths = ($ctx.flow_assets | each {|a| $a.path})
+    let cernbox_cell_list = ($ctx.webapp_share_cells | where cell_id == "webapp-share__nextcloud-v35__cernbox-v11")
+    let nextcloud_cell_list = ($ctx.webapp_share_cells | where cell_id == "webapp-share__nextcloud-v35__nextcloud-v35")
+    [
+        (assert-truthy ($asset_paths | any {|p| $p == ".github/workflows/assets/webapp-share.json"})
+            "prod config: flow assets include .github/workflows/assets/webapp-share.json")
+        (assert-truthy (not ($cernbox_cell_list | is-empty))
+            "prod config: webapp-share asset includes webapp-share__nextcloud-v35__cernbox-v11")
+        (assert-truthy (not ($nextcloud_cell_list | is-empty))
+            "prod config: webapp-share asset includes webapp-share__nextcloud-v35__nextcloud-v35")
+        (assert-eq ($cernbox_cell_list | first | get display_name)
+            "Nextcloud v35 to CERNBox v11"
+            "webapp-share cernbox cell display_name uses platform SSOT display_name values plus versions")
+        (assert-eq ($nextcloud_cell_list | first | get display_name)
+            "Nextcloud v35 to Nextcloud v35"
+            "webapp-share nextcloud cell display_name uses platform SSOT display_name values plus versions")
+        (assert-eq ($cernbox_cell_list | first | get cell_depends_on)
+            "cell-login-nextcloud-v35,cell-login-cernbox-v11"
+            "webapp-share cernbox cell cell_depends_on references both login artifacts")
+        (assert-eq ($nextcloud_cell_list | first | get cell_depends_on)
+            "cell-login-nextcloud-v35"
+            "webapp-share nextcloud cell cell_depends_on references sender login artifact")
+        (assert-eq ($cernbox_cell_list | first | get wave_index) 1
+            "webapp-share cernbox cell wave_index is 1")
+        (assert-eq ($nextcloud_cell_list | first | get wave_index) 2
+            "webapp-share nextcloud cell wave_index is 2")
+    ]
+}
+
+# Regression: committed webapp-share.json must match prod generator output.
+def test-committed-webapp-share-asset-matches-prod-generator [] {
+    test-log "\n[test-committed-webapp-share-asset-matches-prod-generator]"
+    let ctx = (prod-plan-and-webapp-share-asset)
+    let committed_path = ($ctx.repo_root | path join ".github" "workflows" "assets" "webapp-share.json")
+    let committed_cells = (open $committed_path)
+    let committed_raw = (open --raw $committed_path)
+    [
+        (assert-eq $committed_cells $ctx.webapp_share_cells
+            "committed webapp-share.json matches prod generator in emitted order (regenerate via: nu scripts/ocmts.nu ci workflows generate github)")
+        (assert-eq $committed_raw $ctx.webapp_share_content
+            "committed webapp-share.json is byte-exact with prod generator output (regenerate via: nu scripts/ocmts.nu ci workflows generate github)")
     ]
 }
 
@@ -353,6 +416,8 @@ def main [] {
         | append (test-asset-display-name-two-party-format)
         | append (test-prod-login-asset-includes-cernbox-v11)
         | append (test-committed-login-asset-matches-prod-generator)
+        | append (test-prod-webapp-share-asset-includes-supported-cells)
+        | append (test-committed-webapp-share-asset-matches-prod-generator)
         | append (test-prod-prereqs-share-with-cell-depends-on)
     ) | flatten
     run-suite "ci/workflow-assets" $SUITE_PATH $results

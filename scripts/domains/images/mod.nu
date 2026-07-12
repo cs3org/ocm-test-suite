@@ -5,6 +5,7 @@ use ../../lib/images/config.nu [list-platforms-versions validate-platform-versio
 use ../../lib/images/resolve.nu [resolve-images resolve-receiver-image resolve-mitmproxy-image]
 use ../../lib/matrix/cell.nu [assert-matrix-entry-enabled compute-cell validate-cell-rules]
 use ../../lib/matrix/rules-gen.nu [load-matrix-rules matrix-key]
+use ../../lib/images/validate.nu [validate-images-cfg]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu images <verb> [flags]"
@@ -13,6 +14,7 @@ def main [] {
     print "  list              List all configured platforms and versions"
     print "  show              Show raw version-scoped config for one platform/version"
     print "  resolve           Resolve effective image refs with matrix/flow overrides"
+    print "  validate          Validate image config references against matrix and flow SSOT"
 }
 
 def "main list" [--json] {
@@ -100,4 +102,32 @@ def "main resolve" [
         print $"mariadb:         ($output.mariadb)"
         print $"valkey:          ($output.valkey)"
     }
+}
+
+# Validate config/images.nuon by_flow and by_matrix_key references against flow and matrix SSOT.
+def "main validate" [] {
+    let root = get-ocmts-root
+    let result = (validate-images-cfg $root)
+
+    if $result.ok {
+        print "[images validate] OK"
+        return
+    }
+
+    print --stderr "[images validate] FAIL"
+
+    if ($result.unknown_flow_keys | length) > 0 {
+        print --stderr "unknown_flow_keys:"
+        for e in $result.unknown_flow_keys {
+            print --stderr $"  - ($e.key) at ($e.location)"
+        }
+    }
+    if ($result.unknown_matrix_keys | length) > 0 {
+        print --stderr "unknown_matrix_keys:"
+        for e in $result.unknown_matrix_keys {
+            print --stderr $"  - ($e.key) at ($e.location)"
+        }
+    }
+
+    error make {msg: "images validate: unknown keys in image config"}
 }

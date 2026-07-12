@@ -39,6 +39,22 @@ jobs:
         env:
           OCMTS_ROOT: ${{ github.workspace }}
         run: nu scripts/ocmts.nu matrix check capabilities
+      - name: Matrix cells drift check
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu matrix check cells
+      - name: Images config validate
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu images validate
+      - name: Actor configs validate-all
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu actors validate-all
+      - name: TypeScript typecheck
+        run: bunx tsc --noEmit
+      - name: TypeScript sidecar tests
+        run: bun test scripts/typescript/
 
   setup:
     needs: [preflight]

@@ -41,7 +41,7 @@ def main [
             ($ctx.artifacts_base | path join "compose" "compose.resolved.yml")
             $env_file)
     } --preserve-temp=$preserve_temp)
-    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root)
     (with-infra-fail-cleanup $ctx "platform-up" {
         # Direct compose up; empty wait_services targets the full project.
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services

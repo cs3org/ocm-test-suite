@@ -194,6 +194,66 @@ nu scripts/ocmts.nu images resolve \
   --json
 ```
 
+### Local development loop
+
+When developing locally and testing, you rebuild images frequently and need
+ocmts to run those local images. Do not edit `config/images.nuon` for this.
+Its defaults are published GHCR refs; editing them for dev churns a
+published-contract file, risks committing dev refs, and pushing dev builds to
+GHCR just to satisfy a default is bad practice and bandwidth-consuming.
+
+Use shell-scoped env overrides instead. They are read live from `$env` at
+resolution time (see `scripts/lib/images/precedence.nu::try-env-override`), so
+they apply to every verb that resolves images: `services up run`,
+`services up open`, `test cypress run`, `test cypress suite`, and
+`images resolve`. No config edit is needed.
+
+The local-build trick: build the image with the same tag as the GHCR default
+carries after its registry prefix, then override the env to the local name.
+
+```sh
+docker build -t cernbox-web:master ...
+export OCMTS_CERNBOX_WEB_V11_IMAGE=cernbox-web:master
+```
+
+For a one-off run, prefix the whole `nu` command with the env assignments. This
+is the common local-dev loop for a cernbox -> ocis contact-token cell:
+
+```bash
+OCMTS_CERNBOX_WEB_V11_IMAGE="cernbox-web:master" \
+OCMTS_CERNBOX_REVAD_IMAGE="cernbox-revad:master-development" \
+OCMTS_CERNBOX_IDP_IMAGE="idp:v26.4.2" \
+OCMTS_OCIS_V8_RECEIVER_IMAGE="ocis:v8.0.1" \
+OCMTS_CYPRESS_CI_IMAGE="cypress:v15.14.1-ci" \
+OCMTS_MITMPROXY_IMAGE="mitmproxy:v12.2.2" \
+OCMTS_MARIADB_IMAGE="mariadb:11.8" \
+OCMTS_VALKEY_IMAGE="valkey/valkey:9.0-alpine" \
+nu scripts/ocmts.nu services up run \
+  --flow contact-token \
+  --sender-platform cernbox --sender-version v11 \
+  --receiver-platform ocis --receiver-version v8 \
+  --browser chrome --verbose
+```
+
+Use a role-specific env (`..._SENDER_IMAGE` / `..._RECEIVER_IMAGE`) when the
+platform has a role in the cell (above, ocis is the receiver, so
+`OCMTS_OCIS_V8_RECEIVER_IMAGE`). Use the generic env for single-image platforms
+(cernbox web) and shared leaves (mariadb, valkey, mitmproxy, cypress).
+
+For a tight edit-rebuild-test loop, `export` the overrides once and keep the
+stack up between rebuilds:
+
+```sh
+export OCMTS_CERNBOX_WEB_V11_IMAGE=cernbox-web:master
+# ...export the rest...
+nu scripts/ocmts.nu services up run --flow login \
+  --sender-platform cernbox --sender-version v11 --keep-up
+# edit source, rebuild cernbox-web:master, then:
+nu scripts/ocmts.nu test cypress run --flow login \
+  --sender-platform cernbox --sender-version v11
+nu scripts/ocmts.nu services down
+```
+
 ## Actors (test accounts)
 
 Actor configuration lives under `config/actors/`:

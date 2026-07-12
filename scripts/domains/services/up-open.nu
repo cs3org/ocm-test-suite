@@ -66,7 +66,7 @@ def main [
         cleanup-temp $ctx.execution_id $preserve_temp
         error make {msg: $"Compose validation failed: ($e.msg)"}
     }
-    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root)
     try {
         # Direct compose up; empty wait_services targets the full project.
         ^docker compose ...$env_args ...$f_args_base -p $ctx.stack_id up -d --wait ...$wait_services

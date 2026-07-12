@@ -13,7 +13,8 @@ use ../../lib/services/lifecycle.nu [do-compose-up]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/services/wait-services.nu [platform-up-wait-services]
-use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID is-webapp-share-flow]
+use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID]
+use ../../lib/run/flow-topology.nu [flow-has-sender-hub load-flow-topology]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ../../lib/tests/runner.nu [run-suite]
@@ -221,12 +222,23 @@ def test-up-one-party-no-sender-only-target [] {
             "services/up.nu no longer hardcodes one-party wait_services = [sender]")
         (assert-truthy ($src | str contains "use ../../lib/services/wait-services.nu [platform-up-wait-services]")
             "services/up.nu imports platform-up-wait-services helper")
-        (assert-truthy ($src | str contains "platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id")
-            "services/up.nu delegates wait_services to platform-up-wait-services")
+        (assert-truthy ($src | str contains "platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root")
+            "services/up.nu delegates wait_services to platform-up-wait-services with root")
         (assert-truthy ($src | str contains "up -d --wait ...$wait_services")
             "services/up.nu splats wait_services for compose up")
         (assert-truthy (not ($src | str contains "if ($wait_services | is-empty)"))
             "services/up.nu no longer branches on empty wait_services")
+    ]
+}
+
+def test-up-run-delegates-wait-services-with-root [] {
+    test-log "\n[test-up-run-delegates-wait-services-with-root]"
+    let src = (read-src "scripts/domains/services/up-run.nu")
+    [
+        (assert-truthy ($src | str contains "use ../../lib/services/wait-services.nu [platform-up-wait-services]")
+            "services/up-run.nu imports platform-up-wait-services helper")
+        (assert-truthy ($src | str contains "platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root")
+            "services/up-run.nu delegates wait_services to platform-up-wait-services with root")
     ]
 }
 
@@ -238,8 +250,8 @@ def test-up-open-one-party-full-project [] {
             "services/up-open.nu no longer hardcodes one-party wait_services = [sender]")
         (assert-truthy ($src | str contains "use ../../lib/services/wait-services.nu [platform-up-wait-services]")
             "services/up-open.nu imports platform-up-wait-services helper")
-        (assert-truthy ($src | str contains "platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id")
-            "services/up-open.nu delegates wait_services to platform-up-wait-services")
+        (assert-truthy ($src | str contains "platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root")
+            "services/up-open.nu delegates wait_services to platform-up-wait-services with root")
         (assert-truthy ($src | str contains "up -d --wait ...$wait_services")
             "services/up-open.nu splats wait_services for platform compose up")
         (assert-truthy (not ($src | str contains "if ($wait_services | is-empty)"))
@@ -278,22 +290,24 @@ def test-up-run-one-party-and-failure-logs [] {
 
 def test-platform-up-wait-services-helper [] {
     test-log "\n[test-platform-up-wait-services-helper]"
+    let root = (ocmts-repo-root)
+    let topology = (load-flow-topology $root)
     let wait_src = (read-src "scripts/lib/services/wait-services.nu")
     [
-        (assert-eq (platform-up-wait-services false "") []
+        (assert-eq (platform-up-wait-services false "" $root) []
             "one-party wait_services is empty list")
-        (assert-eq (platform-up-wait-services false "login") []
+        (assert-eq (platform-up-wait-services false "login" $root) []
             "one-party login wait_services is empty list")
-        (assert-eq (platform-up-wait-services true "share-with") ["sender" "receiver" "mitm"]
+        (assert-eq (platform-up-wait-services true "share-with" $root) ["sender" "receiver" "mitm"]
             "two-party default wait_services is sender/receiver/mitm")
-        (assert-eq (platform-up-wait-services true $WEBAPP_SHARE_FLOW_ID) ["sender" "receiver" "mitm" "sender-hub"]
+        (assert-eq (platform-up-wait-services true $WEBAPP_SHARE_FLOW_ID $root) ["sender" "receiver" "mitm" "sender-hub"]
             "webapp-share two-party wait_services appends sender-hub")
-        (assert-truthy (is-webapp-share-flow $WEBAPP_SHARE_FLOW_ID)
-            "is-webapp-share-flow recognizes WEBAPP_SHARE_FLOW_ID")
-        (assert-truthy (not (is-webapp-share-flow "share-with"))
-            "is-webapp-share-flow rejects non-webapp-share flows")
-        (assert-truthy ($wait_src | str contains "is-webapp-share-flow")
-            "wait-services.nu routes webapp-share via flow-ids helper")
+        (assert-truthy (flow-has-sender-hub $WEBAPP_SHARE_FLOW_ID $topology)
+            "flow-has-sender-hub recognizes webapp-share topology")
+        (assert-truthy (not (flow-has-sender-hub "share-with" $topology))
+            "flow-has-sender-hub rejects share-with topology")
+        (assert-truthy ($wait_src | str contains "flow-has-sender-hub")
+            "wait-services.nu routes sender-hub via flow-topology helper")
         (assert-truthy (not ($wait_src | str contains '== "webapp-share"'))
             "wait-services.nu does not inline webapp-share string compare")
     ]
@@ -931,6 +945,7 @@ def main [] {
     let results = (
         (test-lifecycle-empty-wait-services-full-project)
         | append (test-up-one-party-no-sender-only-target)
+        | append (test-up-run-delegates-wait-services-with-root)
         | append (test-up-open-one-party-full-project)
         | append (test-up-run-one-party-and-failure-logs)
         | append (test-platform-up-wait-services-helper)

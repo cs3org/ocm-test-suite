@@ -30,6 +30,12 @@ function openReceivedFolderMenu(sharedFolderName: string): void {
 export const cernboxV11WebappShareFlowReceiverAdapter: WebappShareFlowReceiverAdapter =
   {
     key: "cernbox/v11",
+    // CERNBox launch traffic is a client-side cross-origin handoff to the remote hub
+    // (browser -> hub POST /services/ocm/open, POST /hub/ocm-login, redirect to
+    // /lab). Like Nextcloud, none of these legs traverse the server-to-server OCM
+    // MITM, so there are no MITM launch expectations; the launch is gated in-browser
+    // via the cy.origin JupyterLab proof (proveJupyterLabFromLaunchArtifact).
+    mitmLaunchExpectations: [],
 
     acceptIncomingWebappShare({ sharedFolderName }) {
       sharing.acceptIncomingShare(sharedFolderName);

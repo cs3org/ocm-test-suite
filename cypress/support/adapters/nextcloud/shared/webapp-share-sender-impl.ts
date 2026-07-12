@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 import type { WebappShareFlowSenderAdapter } from "../../../contracts/webapp-share";
+import type { NextcloudWebappShareVersion } from "./webapp-share-adapters";
 import {
   ensureFileExists,
   ensureFilesAppActive,
@@ -113,7 +114,7 @@ function submitWebappShareDialog(): void {
 }
 
 export function createNextcloudWebappShareSenderAdapter(
-  version: "v35",
+  version: NextcloudWebappShareVersion,
 ): WebappShareFlowSenderAdapter {
   const key = `nextcloud/${version}`;
 

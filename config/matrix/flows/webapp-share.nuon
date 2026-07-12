@@ -45,5 +45,11 @@
     "nextcloud": [
       "v35"
     ]
+  },
+  "sender_hub": {
+    "enabled": true,
+    "host": "jupyterhub1.docker",
+    "overlay_fname": "webapp-hub.yml",
+    "cookbook_kind": "webapp-hub"
   }
 }

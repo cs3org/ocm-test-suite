@@ -1,5 +1,10 @@
 /// <reference types="cypress" />
 
+import {
+  CROSS_ORIGIN_ALLOWED_SPECS,
+  CROSS_ORIGIN_POLICY_TEXT,
+} from "./shared/cross-origin-policy";
+
 const resizeObserverUndeliveredNotifications =
   "ResizeObserver loop completed with undelivered notifications";
 
@@ -48,20 +53,13 @@ Cypress.on("window:before:load", (win) => {
 const normalizedSpecRelative = String(Cypress.spec.relative ?? "")
   .split("\\")
   .join("/");
-const allowOriginForSpec =
-  normalizedSpecRelative === "cypress/e2e/contact-wayf/index.cy.ts" ||
-  normalizedSpecRelative === "cypress/e2e/webapp-share/index.cy.ts";
+const allowOriginForSpec = (
+  CROSS_ORIGIN_ALLOWED_SPECS as readonly string[]
+).includes(normalizedSpecRelative);
 try {
   if (!allowOriginForSpec) {
     Cypress.Commands.overwrite("origin", () => {
-      throw new Error(
-        [
-          "cy.origin() is forbidden in this test suite.",
-          "Rule: split sender and receiver work into separate tests.",
-          "External IdP login must use cy.session() via idp-session.ts, not cy.origin().",
-          "Only contact-wayf redirect capture may use cy.origin(); it must not act as a second EFSS party or drive invite accept, contact proof, share, or login flows.",
-        ].join(" "),
-      );
+      throw new Error(CROSS_ORIGIN_POLICY_TEXT);
     });
   }
 } catch {

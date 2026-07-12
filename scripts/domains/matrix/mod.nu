@@ -8,6 +8,7 @@ use ../../lib/matrix/cypress-gen.nu [write-cypress-matrix-files check-cypress-ma
 use ../../lib/matrix/cells.nu [expand-matrix-cells]
 use ../../lib/matrix/expand.nu [expand-version-pairs]
 use ../../lib/matrix/check/capabilities.nu [check-adapter-capabilities]
+use ../../lib/matrix/check/cells.nu [check-cells-runnable]
 
 def main [] {
     print "Usage: nu scripts/ocmts.nu matrix <verb> [flags]"
@@ -18,6 +19,7 @@ def main [] {
     print "  list entries         Summarize matrix rules entries (one row per matrix_key)"
     print "  cell                 Compute cell_id and image refs for a matrix entry"
     print "  check capabilities   Validate adapter capabilities SSOT against platforms, flows, registry, and public-site files"
+    print "  check cells          Report matrix cell capability gating drift (runnable vs gated actions)"
 }
 
 # Generate cypress/e2e/<flow>/matrix.ts files from the matrix SSOT under config/matrix/.
@@ -206,4 +208,33 @@ def "main check capabilities" [] {
     }
 
     error make {msg: "matrix check capabilities: drift detected"}
+}
+
+# Report matrix cell capability gating drift: enabled cells whose action is not run.
+def "main check cells" [] {
+    let root = get-ocmts-root
+    let result = (check-cells-runnable $root)
+
+    for entry in $result.cap_skipped {
+        print --stderr $"[matrix check cells] INFO: ($entry.cell_id) ($entry.flow_id): capability_action=($entry.capability_action), status=($entry.capability_status)"
+    }
+    for entry in $result.excluded {
+        print --stderr $"[matrix check cells] INFO: ($entry.cell_id) ($entry.flow_id): capability_action=($entry.capability_action), status=($entry.capability_status)"
+    }
+
+    if not $result.ok {
+        print --stderr "[matrix check cells] FAIL"
+        for entry in $result.divergent {
+            let action = $entry.capability_action
+            if not ($action in ["capability-skipped" "exclude-placeholder"]) {
+                print --stderr $"($entry.cell_id) ($entry.flow_id): capability_action=($entry.capability_action), status=($entry.capability_status)"
+            }
+        }
+        if ($result.divergent | where {|e| not ($e.capability_action in ["capability-skipped" "exclude-placeholder"])} | is-empty) {
+            print --stderr "[matrix check cells] invalid matrix state detected: no unexplained enabled divergences; check for disabled cells gating to run or unknown capability_action values. Inspect config/matrix and config/adapters/capabilities.v1.nuon"
+        }
+        error make {msg: "matrix check cells: invalid matrix state or divergent enabled cells detected"}
+    }
+
+    print "[matrix check cells] OK"
 }

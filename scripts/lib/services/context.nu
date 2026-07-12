@@ -96,6 +96,7 @@ export def setup-run-context [
 
     {
         cell: $cell,
+        root: $root,
         images: $images_full,
         execution_id: $execution_id,
         suite_id: $eff_suite_id,

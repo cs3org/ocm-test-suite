@@ -133,6 +133,8 @@ export function createNextcloudWebappShareReceiverAdapter(
 
   return {
     key,
+    // Nextcloud launch traffic stays on browser-to-hub paths the MITM does not proxy.
+    mitmLaunchExpectations: [],
 
     acceptIncomingWebappShare(shareRef) {
       ensureRemoteWebappAppActive();

@@ -26,15 +26,12 @@ import {
   assertMitmExpectations,
   captureMitmTrafficScopeMarker,
 } from "../../support/shared/mitm-traffic";
-import { resolveWebappShareMitmLaunchExpectations } from "../../support/shared/webapp-share-launch-oracle";
 
 export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
   describe(scenarioCase.id, () => {
     const flowId = "webapp-share";
     const scenarioRuntimePath = runtimePath(flowId, scenarioCase.id);
-    const mitmLaunchExpectations = resolveWebappShareMitmLaunchExpectations(
-      scenarioCase.receiverAdapter.key,
-    );
+    const mitmLaunchExpectations = scenarioCase.receiverAdapter.mitmLaunchExpectations;
 
     installHooks();
 

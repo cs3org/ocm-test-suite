@@ -6,6 +6,7 @@ import type {
   ProviderIdentityAdapter,
 } from "./contact";
 import type { ActorCredentials, ActorRef, LoginAdapter } from "./login";
+import type { MitmExpectation } from "../shared/mitm-traffic";
 import type { WebappShareLaunchArtifact } from "../shared/webapp-share-launch-artifact";
 
 export type { WebappShareLaunchArtifact } from "../shared/webapp-share-launch-artifact";
@@ -48,6 +49,7 @@ export function buildSenderFederatedId(params: {
 
 export type WebappShareFlowReceiverAdapter = {
   key: string;
+  mitmLaunchExpectations: MitmExpectation[];
   acceptIncomingWebappShare(params: WebappShareIncomingShareRef): void;
   launchRemoteWebapp(
     params: WebappShareIncomingShareRef,

@@ -4,13 +4,14 @@
 
 const SUITE_PATH = path self
 
-use ../../lib/compose/topology-webapp-share.nu [
-    WEBAPP_SHARE_HUB_API_KEY
-    WEBAPP_SHARE_HUB_CRYPT_KEY
-    WEBAPP_SHARE_HUB_OCM_API_KEY
-    WEBAPP_SHARE_SENDER_HUB_HOST
+use ../../lib/compose/topology-sender-hub.nu [
+    SENDER_HUB_API_KEY
+    SENDER_HUB_CRYPT_KEY
+    SENDER_HUB_OCM_API_KEY
 ]
 use ../../lib/domain/core/ocmts-root.nu [get-ocmts-root]
+use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID]
+use ../../lib/run/flow-topology.nu [load-flow-topology sender-hub-config]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 use ./_webapp-share-overlay-fixtures.nu [
@@ -22,11 +23,14 @@ use ./_webapp-share-overlay-fixtures.nu [
     make-webapp-share-overlay
 ]
 
-const HUB_HOST = $WEBAPP_SHARE_SENDER_HUB_HOST
+def hub-host [] {
+    sender-hub-config $WEBAPP_SHARE_FLOW_ID (load-flow-topology (get-ocmts-root)) | get host
+}
+
 const HUB_IMAGE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
-const HUB_CRYPT_KEY = $WEBAPP_SHARE_HUB_CRYPT_KEY
-const HUB_API_KEY = $WEBAPP_SHARE_HUB_API_KEY
-const HUB_OCM_API_KEY = $WEBAPP_SHARE_HUB_OCM_API_KEY
+const HUB_CRYPT_KEY = $SENDER_HUB_CRYPT_KEY
+const HUB_API_KEY = $SENDER_HUB_API_KEY
+const HUB_OCM_API_KEY = $SENDER_HUB_OCM_API_KEY
 
 def test-webapp-share-overlay-sender-hub-service [] {
     test-log "\n[test-webapp-share-overlay-sender-hub-service]"
@@ -63,7 +67,7 @@ def test-webapp-share-hub-host-alias-on-sender-hub [] {
     let results = [
         (assert-not-null $sender_block "sender service block exists")
         (assert-not-null $hub_block "sender-hub service block exists")
-        (assert-truthy (not ($sender_block | str contains $HUB_HOST))
+        (assert-truthy (not ($sender_block | str contains (hub-host)))
             "jupyterhub1.docker is not aliased on sender service")
         (assert-string-contains $hub_block "${SENDER_HUB_HOST}"
             "sender-hub network alias uses SENDER_HUB_HOST from stack.env")
@@ -83,11 +87,11 @@ def test-webapp-share-stack-env-hub-contract [] {
     let lines = (read-stack-env-lines $overlay.env_file)
     let no_proxy_line = ($lines | where {|l| $l | str starts-with "SENDER_NO_PROXY="} | first)
     let results = [
-        (assert-list-contains $lines $"SENDER_HUB_HOST=($HUB_HOST)"
+        (assert-list-contains $lines $"SENDER_HUB_HOST=((hub-host))"
             "stack.env sets SENDER_HUB_HOST=jupyterhub1.docker")
         (assert-list-contains $lines $"SENDER_HUB_IMAGE=($HUB_IMAGE)"
             "stack.env has SENDER_HUB_IMAGE from hub bundle slot")
-        (assert-list-contains $lines "SENDER_TRUSTED_DOMAINS=nextcloud1.docker jupyterhub1.docker"
+        (assert-list-contains $lines $"SENDER_TRUSTED_DOMAINS=nextcloud1.docker ((hub-host))"
             "stack.env sets sender and hub hosts in SENDER_TRUSTED_DOMAINS")
         (assert-list-contains $lines $"SENDER_HUB_CRYPT_KEY=($HUB_CRYPT_KEY)"
             "stack.env has deterministic SENDER_HUB_CRYPT_KEY")
@@ -96,7 +100,7 @@ def test-webapp-share-stack-env-hub-contract [] {
         (assert-list-contains $lines $"SENDER_HUB_OCM_API_KEY=($HUB_OCM_API_KEY)"
             "stack.env has deterministic SENDER_HUB_OCM_API_KEY")
         (assert-not-null $no_proxy_line "SENDER_NO_PROXY line present")
-        (assert-truthy (not (($no_proxy_line | str replace "SENDER_NO_PROXY=" "") | str contains $HUB_HOST))
+        (assert-truthy (not (($no_proxy_line | str replace "SENDER_NO_PROXY=" "") | str contains (hub-host)))
             "hub host is absent from SENDER_NO_PROXY")
         (assert-string-contains ($no_proxy_line | str replace "SENDER_NO_PROXY=" "") "sender-hub"
             "sender-hub compose service name is in SENDER_NO_PROXY")

@@ -15,26 +15,26 @@ use ../actors/load.nu [load-sender-for-tuple load-receiver-for-tuple]
 use ../images/resolve.nu [resolve-images resolve-receiver-images]
 use ../matrix/cell.nu [tuple-matrix-key validate-browser]
 use ../ocm/endpoints.nu [resolve-ocm-provider provider-env-lines]
-use ../run/flow-ids.nu [is-webapp-share-flow]
-use ./topology-webapp-share.nu [
-    apply-webapp-share-compose-overlays
-    webapp-share-base-overlay-fnames
-    webapp-share-extend-sender-no-proxy
-    webapp-share-runner-depends-on-lines
-    webapp-share-sender-trusted-domains
-    webapp-share-stack-env-lines
+use ../run/flow-topology.nu [flow-has-sender-hub load-flow-topology]
+use ./topology-sender-hub.nu [
+    apply-sender-hub-compose-overlays
+    sender-hub-base-overlay-fnames
+    sender-hub-extend-sender-no-proxy
+    sender-hub-runner-depends-on-lines
+    sender-hub-sender-trusted-domains
+    sender-hub-stack-env-lines
 ]
 
 # Runner depends_on lines shared by runner-ci.yml and runner-dev.yml.
-def two-party-runner-depends-on-lines [flow_id: string] {
+def two-party-runner-depends-on-lines [flow_id: string, topology: record] {
     mut lines = [
         "      sender:"
         "        condition: service_healthy"
         "      receiver:"
         "        condition: service_healthy"
     ]
-    if (is-webapp-share-flow $flow_id) {
-        $lines = ($lines | append (webapp-share-runner-depends-on-lines))
+    if (flow-has-sender-hub $flow_id $topology) {
+        $lines = ($lines | append (sender-hub-runner-depends-on-lines))
     }
     $lines
 }
@@ -78,6 +78,7 @@ export def write-two-party-env [
     sender_bundle: record = {},
     receiver_bundle: record = {},
     flow_id: string = "",
+    topology: record = {},
 ]: nothing -> string {
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -100,7 +101,7 @@ export def write-two-party-env [
         | uniq
     )
     $sender_no_proxy = (
-        webapp-share-extend-sender-no-proxy $sender_no_proxy $flow_id $root $sender_platform
+        sender-hub-extend-sender-no-proxy $sender_no_proxy $flow_id $topology $root $sender_platform
     )
     mut receiver_no_proxy = [
         "localhost" "127.0.0.1" "mitm"
@@ -122,11 +123,9 @@ export def write-two-party-env [
     let receiver_provider = (resolve-ocm-provider $root $receiver_platform 2 $receiver_version)
     let ocm_provider_lines = (provider-env-lines [$sender_provider $receiver_provider])
 
-    let sender_trusted_domains = if (is-webapp-share-flow $flow_id) {
-        (webapp-share-sender-trusted-domains $sender_party_host)
-    } else {
-        $sender_party_host
-    }
+    let sender_trusted_domains = (
+        sender-hub-sender-trusted-domains $sender_party_host $flow_id $topology
+    )
 
     mut lines = [
         $"OCMTS_ROOT=($root)"
@@ -160,8 +159,8 @@ export def write-two-party-env [
         "CYPRESS_videosFolder=/artifacts/cypress/videos"
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
-    if (is-webapp-share-flow $flow_id) {
-        $lines = ($lines | append (webapp-share-stack-env-lines))
+    if (flow-has-sender-hub $flow_id $topology) {
+        $lines = ($lines | append (sender-hub-stack-env-lines $flow_id $topology))
     }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
     $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
@@ -234,6 +233,7 @@ export def write-two-party-overlays [
     receiver_bundle: record = {},
     --cell-id: string = "",
 ] {
+    let topology = (load-flow-topology $root)
     let safe_browser = (validate-browser $browser)
     let sender_actor = (load-sender-for-tuple $flow_id $sender_platform $receiver_platform $root $sender_platform)
     let receiver_actor = (load-receiver-for-tuple $flow_id $sender_platform $receiver_platform $root $receiver_platform)
@@ -268,8 +268,8 @@ export def write-two-party-overlays [
     # Copy sender and receiver cookbook YAMLs
     copy-platform-cookbook $root $sender_platform "sender" $compose_d
     copy-platform-cookbook $root $receiver_platform "receiver" $compose_d
-    if (is-webapp-share-flow $flow_id) {
-        apply-webapp-share-compose-overlays $root $sender_platform $compose_d $artifacts_base
+    if (flow-has-sender-hub $flow_id $topology) {
+        apply-sender-hub-compose-overlays $root $flow_id $topology $sender_platform $compose_d $artifacts_base
     }
 
     # Write stack.env with all substitution variables
@@ -279,7 +279,7 @@ export def write-two-party-overlays [
         $sender_image_ref $receiver_image_ref $mariadb_image $valkey_image
         $record_video $root $sender_actor $receiver_actor $exec_cidr
         $sender_idp_env $receiver_idp_env $eff_sender_bundle $eff_receiver_bundle
-        $flow_id)
+        $flow_id $topology)
 
     let sender_party_host = (platform-party-host $sender_platform 1)
     let receiver_party_host = (platform-party-host $receiver_platform 2)
@@ -320,7 +320,7 @@ export def write-two-party-overlays [
 
     let record_str = if $record_video { "true" } else { "false" }
 
-    let runner_depends_on = (two-party-runner-depends-on-lines $flow_id)
+    let runner_depends_on = (two-party-runner-depends-on-lines $flow_id $topology)
 
     # runner-ci.yml: cypress headless depending on both sender and receiver
     mut runner_ci_lines = [
@@ -441,7 +441,7 @@ export def write-two-party-overlays [
     ($runner_dev_lines | str join "\n") | save --force ($compose_d | path join "runner-dev.yml")
 
     let base_overlay_fnames = (
-        webapp-share-base-overlay-fnames ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"] $flow_id
+        sender-hub-base-overlay-fnames ["exec.yml" "sender.yml" "receiver.yml" "mitm.yml"] $flow_id $topology
     )
 
     # Copy all overlays to artifacts for durable access.

@@ -70,7 +70,7 @@ def main [
     } --preserve-temp=$preserve_temp --suite-record $suite_hook_base)
 
     # Bring up platform services; quiet by default, verbose with --verbose.
-    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id)
+    let wait_services = (platform-up-wait-services $ctx.is_two_party $ctx.cell.flow_id $ctx.root)
     if not $verbose { print "Starting services..." }
     let up_err = (do-compose-up $f_args_base $ctx.stack_id $wait_services $verbose $env_file)
     if $up_err != null {

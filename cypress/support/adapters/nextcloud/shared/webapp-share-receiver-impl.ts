@@ -4,6 +4,7 @@ import type {
   WebappShareFlowReceiverAdapter,
   WebappShareIncomingShareRef,
 } from "../../../contracts/webapp-share";
+import type { NextcloudWebappShareVersion } from "./webapp-share-adapters";
 import {
   assertHubLaunchOrigin,
   extractHubLaunchOriginFromRedirectHtml,
@@ -126,7 +127,7 @@ function chooseThisTabTargetIfPresent(): void {
 }
 
 export function createNextcloudWebappShareReceiverAdapter(
-  version: "v35",
+  version: NextcloudWebappShareVersion,
 ): WebappShareFlowReceiverAdapter {
   const key = `nextcloud/${version}`;
 

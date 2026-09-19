@@ -12,6 +12,12 @@
   "rebuild_source_workflow": "ci-matrix.yml",
   "deploy_base_path": "/ocm-test-suite/",
   "deploy_site_url": "https://cs3org.github.io/ocm-test-suite/",
+  "site": {
+    "profile": "observatory-root",
+    "primary": "observatory",
+    "community_url": "https://www.cs3community.org/ocm",
+    "logo_href": ""
+  },
   "archive_zstd": {
     "level": 3,
     "threads": 0,

@@ -17,7 +17,12 @@ const REQUIRED_SITE_CFG_KEYS = [
     "optimized_aggregate_artifact_name"
     "rebuild_source_workflow"
     "deploy_base_path"
+    "site"
 ]
+
+# Profiles valid for the Pages build.
+const KNOWN_SITE_PROFILES = ["", "observatory-root"]
+const KNOWN_SITE_PAGE_KEYS = ["home", "observatory", "validator", "statistics"]
 
 # Load config/site.nuon from the OCMTS repo root.
 export def load-site-cfg [] {
@@ -56,6 +61,36 @@ def validate-zstd-policy [policy: any] {
     }
 }
 
+# Validate the required site sub-record.
+def validate-site-subrecord [site: any] {
+    if $site == null {
+        error make {msg: "config/site.nuon missing required key: site"}
+    }
+    if not (($site | describe) | str starts-with "record") {
+        error make {msg: $"config/site.nuon site must be a record, got ($site | describe)"}
+    }
+    for key in [profile primary community_url logo_href] {
+        let val = ($site | get --optional $key)
+        if $val == null {
+            error make {msg: $"config/site.nuon site: missing required key: ($key)"}
+        }
+        if ($val | describe) != "string" {
+            error make {msg: $"config/site.nuon site.($key) must be string, got ($val | describe)"}
+        }
+    }
+    let profile = $site.profile
+    if $profile not-in $KNOWN_SITE_PROFILES {
+        error make {msg: $"config/site.nuon site.profile must be one of ($KNOWN_SITE_PROFILES | str join ', '), got ($profile)"}
+    }
+    let primary = $site.primary
+    if $primary not-in $KNOWN_SITE_PAGE_KEYS {
+        error make {msg: $"config/site.nuon site.primary must be one of ($KNOWN_SITE_PAGE_KEYS | str join ', '), got ($primary)"}
+    }
+    if ($site.community_url | is-empty) {
+        error make {msg: "config/site.nuon site.community_url must not be empty"}
+    }
+}
+
 # Validate that a site config record has all required keys and non-empty
 # required string fields. Returns the record unchanged on success.
 export def validate-site-cfg [cfg: record] {
@@ -80,6 +115,7 @@ export def validate-site-cfg [cfg: record] {
     if ($cfg.deploy_base_path | is-empty) {
         error make {msg: "config/site.nuon: deploy_base_path must not be empty"}
     }
+    validate-site-subrecord ($cfg.site? | default null)
     validate-zstd-policy ($cfg.archive_zstd? | default null)
     $cfg
 }
@@ -172,4 +208,80 @@ export def resolve-effective-deploy-site-url [] {
         return ($cfg.deploy_site_url? | default "")
     }
     ""
+}
+
+# Resolve the effective site profile (passed as SITE_PROFILE to the site build).
+# Priority: explicit arg > OCMTS_SITE_PROFILE env > config/site.nuon site.profile.
+export def resolve-effective-site-profile [arg: string] {
+    if not ($arg | is-empty) {
+        return $arg
+    }
+    let env_profile = ($env.OCMTS_SITE_PROFILE? | default "")
+    if not ($env_profile | is-empty) {
+        return $env_profile
+    }
+    let cfg = (try { load-site-cfg } catch { null })
+    if $cfg != null {
+        let cfg_profile = ($cfg.site?.profile?)
+        if $cfg_profile != null {
+            return $cfg_profile
+        }
+    }
+    ""
+}
+
+# Resolve the effective primary page key (passed as SITE_PRIMARY_PAGE).
+# Priority: explicit arg > OCMTS_SITE_PRIMARY env > config/site.nuon site.primary.
+export def resolve-effective-site-primary [arg: string] {
+    if not ($arg | is-empty) {
+        return $arg
+    }
+    let env_primary = ($env.OCMTS_SITE_PRIMARY? | default "")
+    if not ($env_primary | is-empty) {
+        return $env_primary
+    }
+    let cfg = (try { load-site-cfg } catch { null })
+    if ($cfg != null) and (not ($cfg.site?.primary? | default "" | is-empty)) {
+        return $cfg.site.primary
+    }
+    "observatory"
+}
+
+# Resolve the effective community URL (passed as SITE_COMMUNITY_URL).
+# Priority: explicit arg > OCMTS_SITE_COMMUNITY_URL env > config/site.nuon site.community_url.
+export def resolve-effective-community-url [arg: string] {
+    if not ($arg | is-empty) {
+        return $arg
+    }
+    let env_url = ($env.OCMTS_SITE_COMMUNITY_URL? | default "")
+    if not ($env_url | is-empty) {
+        return $env_url
+    }
+    let cfg = (try { load-site-cfg } catch { null })
+    if ($cfg != null) and (not ($cfg.site?.community_url? | default "" | is-empty)) {
+        return $cfg.site.community_url
+    }
+    ""
+}
+
+# Resolve the effective logo href (passed as SITE_LOGO_HREF).
+# Empty config value falls through to the effective community URL.
+# Priority: explicit arg > OCMTS_SITE_LOGO_HREF env > config/site.nuon site.logo_href
+# > resolve-effective-community-url.
+export def resolve-effective-logo-href [arg: string] {
+    if not ($arg | is-empty) {
+        return $arg
+    }
+    let env_href = ($env.OCMTS_SITE_LOGO_HREF? | default "")
+    if not ($env_href | is-empty) {
+        return $env_href
+    }
+    let cfg = (try { load-site-cfg } catch { null })
+    if $cfg != null {
+        let cfg_href = ($cfg.site?.logo_href? | default null)
+        if ($cfg_href != null) and (not ($cfg_href | is-empty)) {
+            return $cfg_href
+        }
+    }
+    resolve-effective-community-url ""
 }

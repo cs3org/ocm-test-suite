@@ -325,6 +325,10 @@ export def build-ci-site-yml [
     # the Astro build produces correct asset paths and canonical URLs.
     let deploy_base = ($site_cfg.deploy_base_path? | default "/")
     let deploy_site_url = ($site_cfg.deploy_site_url? | default "")
+    let site_profile = ($site_cfg.site?.profile? | default "")
+    let site_primary = ($site_cfg.site?.primary? | default "")
+    let site_community_url = ($site_cfg.site?.community_url? | default "")
+    let site_logo_href = ($site_cfg.site?.logo_href? | default "")
     let lane = ($site_cfg.media_lane_mode? | default "raw")
     if $lane not-in ["raw" "optimized"] {
         error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
@@ -366,6 +370,10 @@ export def build-ci-site-yml [
         "site.build.output.path": $build_out
         "astro.base": $deploy_base
         "astro.site": $deploy_site_url
+        "site.profile": $site_profile
+        "site.primary": $site_primary
+        "site.community.url": $site_community_url
+        "site.logo.href": $site_logo_href
         "media.lane.optimized.literal": $optimized_literal
         "media.lane.optimized.media.dir.scalar": $optimized_media_dir_scalar
         "media.lane.optimized.media.dir.flag": $optimized_media_dir_flag

@@ -363,6 +363,120 @@ def test-ci-site-build-setup-node [] {
     ]
 }
 
+# Generated ci-site.yml exposes SITE_* env vars from config/site.nuon.
+def test-ci-site-env-vars [] {
+    test-log "\n[test-ci-site-env-vars]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let site_cfg = (open ($real_root | path join "config/site.nuon"))
+    let site = ($site_cfg.site? | default {})
+    let profile = ($site.profile? | default "")
+    let primary = ($site.primary? | default "")
+    let community_url = ($site.community_url? | default "")
+    let logo_href = ($site.logo_href? | default "")
+    let ci_site_yml = (build-ci-site-yml)
+    [
+        (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE:")
+            "ci-site.yml sets SITE_PROFILE env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE:")
+            "ci-site.yml sets SITE_PRIMARY_PAGE env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL:")
+            "ci-site.yml sets SITE_COMMUNITY_URL env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF:")
+            "ci-site.yml sets SITE_LOGO_HREF env for Astro build")
+        (assert-truthy ($ci_site_yml | str contains $"SITE_PROFILE: '($profile)'")
+            "SITE_PROFILE value comes from config/site.nuon site.profile")
+        (assert-truthy ($ci_site_yml | str contains $"SITE_PRIMARY_PAGE: '($primary)'")
+            "SITE_PRIMARY_PAGE value comes from config/site.nuon site.primary")
+        (assert-truthy ($ci_site_yml | str contains $"SITE_COMMUNITY_URL: '($community_url)'")
+            "SITE_COMMUNITY_URL value comes from config/site.nuon site.community_url")
+        (assert-truthy ($ci_site_yml | str contains $"SITE_LOGO_HREF: '($logo_href)'")
+            "SITE_LOGO_HREF value comes from config/site.nuon site.logo_href")
+        (assert-truthy (not ($ci_site_yml | str contains "SITE_PAGES:"))
+            "ci-site.yml does not set SITE_PAGES env")
+    ]
+}
+
+def test-ci-site-empty-logo-href-renders-explicit [] {
+    test-log "\n[test-ci-site-empty-logo-href-renders-explicit]"
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {site: {
+        profile: "observatory-root"
+        primary: "observatory"
+        community_url: "https://www.cs3community.org/ocm"
+        logo_href: ""
+    }})
+    [
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
+            "empty logo_href renders SITE_LOGO_HREF: '' (explicit empty scalar)")
+    ]
+}
+
+def test-ci-site-env-vars-overrides [] {
+    test-log "\n[test-ci-site-env-vars-overrides]"
+    let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {site: {
+        profile: "x"
+        primary: "validator"
+        community_url: "https://e.org/x"
+        logo_href: ""
+    }})
+    [
+        (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE: 'x'")
+            "site-cfg-overrides site.profile appears in generated YAML")
+        (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE: 'validator'")
+            "site-cfg-overrides site.primary appears in generated YAML")
+        (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL: 'https://e.org/x'")
+            "site-cfg-overrides site.community_url appears in generated YAML")
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
+            "site-cfg-overrides empty logo_href appears as explicit empty scalar")
+    ]
+}
+
+# build-ci-site-yml must not throw when config/site.nuon lacks a site sub-record.
+# Mirrors test-resolve-site-missing-site-fallbacks in scripts/tests/site/config.nu.
+def test-ci-site-missing-site-block-fallbacks [] {
+    test-log "\n[test-ci-site-missing-site-block-fallbacks]"
+    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let tmp = (^mktemp -d | str trim)
+    let cfg_dir = ($tmp | path join "config")
+    let ci_cfg_dir = ($cfg_dir | path join "ci")
+    mkdir $ci_cfg_dir
+    cp ($real_root | path join "config/ci/toolchain.nuon") ($ci_cfg_dir | path join "toolchain.nuon")
+    cp ($real_root | path join "config/ci/workflows.nuon") ($ci_cfg_dir | path join "workflows.nuon")
+    {
+        schema_version: 1
+        media_lane_mode: "raw"
+        repo_slug: "test/org"
+        ref: "main"
+        publish_branch_gate: "main"
+        site_build_output_path: "dist"
+        raw_aggregate_artifact_name: "aggregate-summary"
+        optimized_artifact_pattern: "optimized-media-cell-*"
+        optimized_aggregate_artifact_name: "optimized-media-summary"
+        rebuild_source_workflow: "ci-matrix.yml"
+        deploy_base_path: "/test/"
+        deploy_site_url: ""
+    } | save -f ($cfg_dir | path join "site.nuon")
+    ^ln -s ($real_root | path join "scripts") ($tmp | path join "scripts")
+    let results = (try {
+        with-env {OCMTS_ROOT: $tmp} {
+            let ci_site_yml = (build-ci-site-yml)
+            [
+                (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE: ''")
+                    "missing site block renders SITE_PROFILE as empty")
+                (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE: ''")
+                    "missing site block renders SITE_PRIMARY_PAGE as empty")
+                (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL: ''")
+                    "missing site block renders SITE_COMMUNITY_URL as empty")
+                (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
+                    "missing site block renders SITE_LOGO_HREF as empty")
+            ]
+        }
+    } catch {|e|
+        [ (FAIL $"build-ci-site-yml threw on missing site: ($e.msg)") ]
+    })
+    ^rm -rf $tmp
+    $results
+}
+
 def test-ci-site-raw-mode-lane [] {
     test-log "\n[test-ci-site-raw-mode-lane]"
     let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {media_lane_mode: "raw"})
@@ -409,6 +523,10 @@ def main [] {
         | append (test-ci-site-empty-site-url-renders-explicit)
         | append (test-ci-site-build-setup-node)
         | append (test-ci-site-raw-mode-lane)
+        | append (test-ci-site-env-vars)
+        | append (test-ci-site-empty-logo-href-renders-explicit)
+        | append (test-ci-site-env-vars-overrides)
+        | append (test-ci-site-missing-site-block-fallbacks)
     ) | flatten
     run-suite "ci/site-reusable-workflow" $SUITE_PATH $results
 }

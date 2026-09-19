@@ -11,6 +11,10 @@ use ../../lib/site/config.nu [
     resolve-effective-site-repo-url
     resolve-effective-deploy-base-path
     resolve-effective-deploy-site-url
+    resolve-effective-site-profile
+    resolve-effective-site-primary
+    resolve-effective-community-url
+    resolve-effective-logo-href
     resolve-zstd-archive-policy
 ]
 use ../../lib/tests/assert.nu *
@@ -351,6 +355,173 @@ def test-validate-site-cfg-archive-zstd-bad-checksum [] {
     ]
 }
 
+# Site resolver defaults from config/site.nuon when env is cleared.
+def test-resolve-site-config-defaults [] {
+    test-log "\n[test-resolve-site-config-defaults]"
+    let env_clear = {
+        OCMTS_SITE_PROFILE: ""
+        OCMTS_SITE_PRIMARY: ""
+        OCMTS_SITE_COMMUNITY_URL: ""
+        OCMTS_SITE_LOGO_HREF: ""
+    }
+    let results = (with-env $env_clear {
+        [
+            (assert-eq (resolve-effective-site-profile "") "observatory-root"
+                "config site.profile is default profile")
+            (assert-eq (resolve-effective-site-primary "") "observatory"
+                "config site.primary is default primary page")
+            (assert-eq (resolve-effective-community-url "") "https://www.cs3community.org/ocm"
+                "config site.community_url is default community URL")
+            (assert-eq (resolve-effective-logo-href "") "https://www.cs3community.org/ocm"
+                "empty logo_href falls back to effective community URL")
+        ]
+    })
+    $results
+}
+
+# Site resolver env and arg precedence.
+def test-resolve-site-env-and-arg [] {
+    test-log "\n[test-resolve-site-env-and-arg]"
+    let env_vals = {
+        OCMTS_SITE_PROFILE: "env-override-profile"
+        OCMTS_SITE_PRIMARY: "validator"
+        OCMTS_SITE_COMMUNITY_URL: "https://env.example.org/ocm"
+        OCMTS_SITE_LOGO_HREF: "https://env.example.org/logo"
+    }
+    let env_results = (with-env $env_vals {
+        [
+            (assert-eq (resolve-effective-site-profile "") "env-override-profile"
+                "OCMTS_SITE_PROFILE env wins when arg is empty")
+            (assert-eq (resolve-effective-site-primary "") "validator"
+                "OCMTS_SITE_PRIMARY env wins when arg is empty")
+            (assert-eq (resolve-effective-community-url "") "https://env.example.org/ocm"
+                "OCMTS_SITE_COMMUNITY_URL env wins when arg is empty")
+            (assert-eq (resolve-effective-logo-href "") "https://env.example.org/logo"
+                "OCMTS_SITE_LOGO_HREF env wins when arg is empty")
+        ]
+    })
+    let arg_results = (with-env $env_vals {
+        [
+            (assert-eq (resolve-effective-site-profile "arg-profile") "arg-profile"
+                "explicit arg wins over OCMTS_SITE_PROFILE env")
+            (assert-eq (resolve-effective-site-primary "home") "home"
+                "explicit arg wins over OCMTS_SITE_PRIMARY env")
+            (assert-eq (resolve-effective-community-url "https://arg.example/x") "https://arg.example/x"
+                "explicit arg wins over OCMTS_SITE_COMMUNITY_URL env")
+            (assert-eq (resolve-effective-logo-href "https://arg.example/logo") "https://arg.example/logo"
+                "explicit arg wins over OCMTS_SITE_LOGO_HREF env")
+        ]
+    })
+    $env_results | append $arg_results
+}
+
+def site-cfg-with-valid-site [] {
+    load-site-cfg | upsert deploy_base_path "/ocm-test-suite/"
+}
+
+def validate-cfg-or-error [cfg: record] {
+    try { validate-site-cfg $cfg; "ok" } catch {|e| $"error: ($e.msg)"}
+}
+
+# validate-site-subrecord rejects missing or invalid site block.
+def test-validate-site-subrecord [] {
+    test-log "\n[test-validate-site-subrecord]"
+    let base = (site-cfg-with-valid-site)
+    let missing_site = ($base | reject site)
+    let missing_profile = ($base | upsert site ($base.site | reject profile))
+    let missing_primary = ($base | upsert site ($base.site | reject primary))
+    let unknown_primary = ($base | upsert site ($base.site | upsert primary "not-a-page"))
+    let unknown_profile = ($base | upsert site ($base.site | upsert profile "unknown-profile"))
+    let empty_community = ($base | upsert site ($base.site | upsert community_url ""))
+    let empty_logo_ok = ($base | upsert site ($base.site | upsert logo_href ""))
+    let empty_profile_ok = ($base | upsert site ($base.site | upsert profile ""))
+    [
+        (assert-truthy ((validate-cfg-or-error $missing_site) | str starts-with "error:")
+            "missing site sub-record is rejected")
+        (assert-string-contains (validate-cfg-or-error $missing_site) "site"
+            "missing site error mentions site")
+        (assert-truthy ((validate-cfg-or-error $missing_profile) | str starts-with "error:")
+            "missing site.profile is rejected")
+        (assert-string-contains (validate-cfg-or-error $missing_profile) "profile"
+            "missing profile error mentions profile")
+        (assert-truthy ((validate-cfg-or-error $missing_primary) | str starts-with "error:")
+            "missing site.primary is rejected")
+        (assert-string-contains (validate-cfg-or-error $missing_primary) "primary"
+            "missing primary error mentions primary")
+        (assert-truthy ((validate-cfg-or-error $unknown_primary) | str starts-with "error:")
+            "unknown site.primary is rejected")
+        (assert-string-contains (validate-cfg-or-error $unknown_primary) "primary"
+            "unknown primary error mentions primary")
+        (assert-truthy ((validate-cfg-or-error $unknown_profile) | str starts-with "error:")
+            "unknown site.profile is rejected")
+        (assert-string-contains (validate-cfg-or-error $unknown_profile) "profile"
+            "unknown profile error mentions profile")
+        (assert-truthy ((validate-cfg-or-error $empty_community) | str starts-with "error:")
+            "empty community_url is rejected")
+        (assert-string-contains (validate-cfg-or-error $empty_community) "community_url"
+            "empty community_url error mentions community_url")
+        (assert-eq (validate-cfg-or-error $empty_logo_ok) "ok"
+            "empty logo_href is allowed")
+        (assert-eq (validate-cfg-or-error $empty_profile_ok) "ok"
+            "empty profile is allowed")
+    ]
+}
+
+# --site-cfg-overrides shallow merge replaces nested site sub-record wholesale.
+def test-site-cfg-overrides-shallow-merge-gotcha [] {
+    test-log "\n[test-site-cfg-overrides-shallow-merge-gotcha]"
+    let cfg = (load-site-cfg)
+    let merged = ($cfg | merge {site: {profile: "", primary: "validator", community_url: "https://x.org/y", logo_href: ""}})
+    let result = (try { validate-site-cfg $merged; "ok" } catch {|e| $"error: ($e.msg)"})
+    [
+        (assert-eq $result "ok"
+            "full site override record passes validation when all keys supplied")
+        (assert-eq $merged.site.profile ""
+            "shallow merge site.profile comes from override")
+        (assert-eq $merged.site.primary "validator"
+            "shallow merge site.primary comes from override")
+    ]
+}
+
+# Site resolvers fall back when config loads but site sub-record is absent.
+def test-resolve-site-missing-site-fallbacks [] {
+    test-log "\n[test-resolve-site-missing-site-fallbacks]"
+    let tmp = (^mktemp -d | str trim)
+    let cfg_dir = ($tmp | path join "config")
+    mkdir $cfg_dir
+    {
+        schema_version: 1
+        repo_slug: "test/org"
+        ref: "main"
+        deploy_base_path: "/test/"
+    } | save -f ($cfg_dir | path join "site.nuon")
+    let env_clear = {
+        OCMTS_ROOT: $tmp
+        OCMTS_SITE_PROFILE: ""
+        OCMTS_SITE_PRIMARY: ""
+        OCMTS_SITE_COMMUNITY_URL: ""
+        OCMTS_SITE_LOGO_HREF: ""
+    }
+    let results = (try {
+        with-env $env_clear {
+            [
+                (assert-eq (resolve-effective-site-profile "") ""
+                    "profile fallback when site sub-record missing")
+                (assert-eq (resolve-effective-site-primary "") "observatory"
+                    "primary fallback when site sub-record missing")
+                (assert-eq (resolve-effective-community-url "") ""
+                    "community-url fallback when site sub-record missing")
+                (assert-eq (resolve-effective-logo-href "") ""
+                    "logo-href falls back via community-url when site missing")
+            ]
+        }
+    } catch {|e|
+        [ (FAIL $"resolver threw on missing site: ($e.msg)") ]
+    })
+    ^rm -rf $tmp
+    $results
+}
+
 # resolve-zstd-archive-policy returns the policy from config when available.
 def test-resolve-zstd-policy-from-config [] {
     test-log "\n[test-resolve-zstd-policy-from-config]"
@@ -391,6 +562,11 @@ def main [] {
         | append (test-validate-site-cfg-archive-zstd-missing-key)
         | append (test-validate-site-cfg-archive-zstd-bad-checksum)
         | append (test-resolve-zstd-policy-from-config)
+        | append (test-resolve-site-config-defaults)
+        | append (test-resolve-site-missing-site-fallbacks)
+        | append (test-resolve-site-env-and-arg)
+        | append (test-validate-site-subrecord)
+        | append (test-site-cfg-overrides-shallow-merge-gotcha)
     ) | flatten
     run-suite "site/config" $SUITE_PATH $results
 }

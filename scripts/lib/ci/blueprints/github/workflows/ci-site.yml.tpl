@@ -128,6 +128,10 @@ jobs:
           OCMTS_SITE_REPO_URL: ${{ vars.OCMTS_SITE_REPO_URL || '' }}
           ASTRO_BASE: {{placeholder:astro.base}}
           ASTRO_SITE: '{{placeholder:astro.site}}'
+          SITE_PROFILE: '{{placeholder:site.profile}}'
+          SITE_PRIMARY_PAGE: '{{placeholder:site.primary}}'
+          SITE_COMMUNITY_URL: '{{placeholder:site.community.url}}'
+          SITE_LOGO_HREF: '{{placeholder:site.logo.href}}'
         run: |
           ARGS=(
             --artifacts-root artifacts

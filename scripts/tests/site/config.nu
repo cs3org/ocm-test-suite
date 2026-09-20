@@ -15,7 +15,18 @@ use ../../lib/site/config.nu [
     resolve-effective-site-primary
     resolve-effective-community-url
     resolve-effective-logo-href
+    resolve-effective-site-build-env
+    site-build-env-from-cfg
     resolve-zstd-archive-policy
+]
+
+const SITE_BUILD_ENV_KEYS = [
+    "ASTRO_BASE"
+    "ASTRO_SITE"
+    "SITE_PROFILE"
+    "SITE_PRIMARY_PAGE"
+    "SITE_COMMUNITY_URL"
+    "SITE_LOGO_HREF"
 ]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
@@ -58,6 +69,8 @@ def test-load-site-cfg-values [] {
             "rebuild_source_workflow correct")
         (assert-eq ($cfg.deploy_base_path? | default "") "/ocm-test-suite/"
             "deploy_base_path is Pages base path for cs3org/ocm-test-suite")
+        (assert-eq ($cfg.site.logo_href? | default "") "https://www.cs3community.org/ocm"
+            "site.logo_href is explicit CS3 URL")
     ]
 }
 
@@ -373,10 +386,107 @@ def test-resolve-site-config-defaults [] {
             (assert-eq (resolve-effective-community-url "") "https://www.cs3community.org/ocm"
                 "config site.community_url is default community URL")
             (assert-eq (resolve-effective-logo-href "") "https://www.cs3community.org/ocm"
-                "empty logo_href falls back to effective community URL")
+                "explicit CS3 logo_href from config")
         ]
     })
     $results
+}
+
+# Empty logo_href in config falls through to community URL.
+def test-site-build-env-empty-logo-falls-through [] {
+    test-log "\n[test-site-build-env-empty-logo-falls-through]"
+    let tmp = (^mktemp -d | str trim)
+    let cfg_dir = ($tmp | path join "config")
+    mkdir $cfg_dir
+    {
+        schema_version: 1
+        repo_slug: "test/org"
+        ref: "main"
+        publish_branch_gate: "main"
+        site_build_output_path: "dist"
+        raw_aggregate_artifact_name: "aggregate-summary"
+        optimized_artifact_pattern: "optimized-media-cell-*"
+        optimized_aggregate_artifact_name: "optimized-media-summary"
+        rebuild_source_workflow: "ci-matrix.yml"
+        deploy_base_path: "/test/"
+        deploy_site_url: ""
+        site: {
+            profile: "observatory-root"
+            primary: "observatory"
+            community_url: "https://www.cs3community.org/ocm"
+            logo_href: ""
+        }
+    } | save -f ($cfg_dir | path join "site.nuon")
+    let results = (try {
+        with-env { OCMTS_ROOT: $tmp, OCMTS_SITE_LOGO_HREF: "" } {
+            let env_vals = (resolve-effective-site-build-env)
+            let cfg_vals = (site-build-env-from-cfg (open ($cfg_dir | path join "site.nuon")))
+            [
+                (assert-eq $env_vals.SITE_LOGO_HREF "https://www.cs3community.org/ocm"
+                    "resolve-effective-site-build-env: empty logo falls back to community")
+                (assert-eq $cfg_vals.SITE_LOGO_HREF "https://www.cs3community.org/ocm"
+                    "site-build-env-from-cfg: empty logo falls back to community")
+            ]
+        }
+    } catch {|e|
+        [ (FAIL $"empty-logo resolver threw: ($e.msg)") ]
+    })
+    ^rm -rf $tmp
+    $results
+}
+
+# site-build-env helpers return exactly the six Astro/SITE keys.
+def test-site-build-env-keys [] {
+    test-log "\n[test-site-build-env-keys]"
+    let cfg = (load-site-cfg)
+    let env_vals = (with-env {
+        OCMTS_DEPLOY_BASE: ""
+        OCMTS_DEPLOY_SITE_URL: ""
+        OCMTS_SITE_PROFILE: ""
+        OCMTS_SITE_PRIMARY: ""
+        OCMTS_SITE_COMMUNITY_URL: ""
+        OCMTS_SITE_LOGO_HREF: ""
+    } { resolve-effective-site-build-env })
+    let cfg_vals = (site-build-env-from-cfg $cfg)
+    let env_keys = ($env_vals | columns | sort)
+    let cfg_keys = ($cfg_vals | columns | sort)
+    let expected = ($SITE_BUILD_ENV_KEYS | sort)
+    [
+        (assert-eq ($env_keys | length) 6
+            "resolve-effective-site-build-env returns six keys")
+        (assert-eq ($cfg_keys | length) 6
+            "site-build-env-from-cfg returns six keys")
+        (assert-eq $env_keys $expected
+            "resolve-effective-site-build-env keys match expected set")
+        (assert-eq $cfg_keys $expected
+            "site-build-env-from-cfg keys match expected set")
+        (assert-truthy (not ("SITE_PAGES" in $env_keys))
+            "resolve-effective-site-build-env does not include SITE_PAGES")
+        (assert-truthy (not ("SITE_PAGES" in $cfg_keys))
+            "site-build-env-from-cfg does not include SITE_PAGES")
+    ]
+}
+
+# site-build-env-from-cfg defaults missing primary to observatory.
+def test-site-build-env-from-cfg-defaults [] {
+    test-log "\n[test-site-build-env-from-cfg-defaults]"
+    let cfg = {
+        deploy_base_path: ""
+        deploy_site_url: ""
+        site: {
+            profile: ""
+            community_url: "https://example.org/ocm"
+            logo_href: ""
+        }
+    }
+    let vals = (site-build-env-from-cfg $cfg)
+    [
+        (assert-eq $vals.ASTRO_BASE "/" "empty deploy_base_path defaults to /")
+        (assert-eq $vals.SITE_PRIMARY_PAGE "observatory"
+            "missing site.primary defaults to observatory")
+        (assert-eq $vals.SITE_LOGO_HREF "https://example.org/ocm"
+            "empty logo_href falls back to community_url")
+    ]
 }
 
 # Site resolver env and arg precedence.
@@ -563,6 +673,9 @@ def main [] {
         | append (test-validate-site-cfg-archive-zstd-bad-checksum)
         | append (test-resolve-zstd-policy-from-config)
         | append (test-resolve-site-config-defaults)
+        | append (test-site-build-env-empty-logo-falls-through)
+        | append (test-site-build-env-keys)
+        | append (test-site-build-env-from-cfg-defaults)
         | append (test-resolve-site-missing-site-fallbacks)
         | append (test-resolve-site-env-and-arg)
         | append (test-validate-site-subrecord)

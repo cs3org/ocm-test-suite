@@ -285,3 +285,45 @@ export def resolve-effective-logo-href [arg: string] {
     }
     resolve-effective-community-url ""
 }
+
+# Derive Astro/SITE env values from a (possibly merged) config record.
+# No disk reads or env lookups; used by CI workflow generation.
+export def site-build-env-from-cfg [cfg: record] {
+    let deploy_base = if not (($cfg.deploy_base_path? | default "") | is-empty) {
+        $cfg.deploy_base_path
+    } else {
+        "/"
+    }
+    let community_url = ($cfg.site?.community_url? | default "")
+    let logo_href_cfg = ($cfg.site?.logo_href? | default "")
+    let logo_href = if not ($logo_href_cfg | is-empty) {
+        $logo_href_cfg
+    } else {
+        $community_url
+    }
+    let site_primary = if not (($cfg.site?.primary? | default "") | is-empty) {
+        $cfg.site.primary
+    } else {
+        "observatory"
+    }
+    {
+        ASTRO_BASE: $deploy_base
+        ASTRO_SITE: ($cfg.deploy_site_url? | default "")
+        SITE_PROFILE: ($cfg.site?.profile? | default "")
+        SITE_PRIMARY_PAGE: $site_primary
+        SITE_COMMUNITY_URL: $community_url
+        SITE_LOGO_HREF: $logo_href
+    }
+}
+
+# Local-build SSOT: honor OCMTS_* env via existing resolvers.
+export def resolve-effective-site-build-env [] {
+    {
+        ASTRO_BASE: (resolve-effective-deploy-base-path "")
+        ASTRO_SITE: (resolve-effective-deploy-site-url)
+        SITE_PROFILE: (resolve-effective-site-profile "")
+        SITE_PRIMARY_PAGE: (resolve-effective-site-primary "")
+        SITE_COMMUNITY_URL: (resolve-effective-community-url "")
+        SITE_LOGO_HREF: (resolve-effective-logo-href "")
+    }
+}

@@ -366,13 +366,6 @@ def test-ci-site-build-setup-node [] {
 # Generated ci-site.yml exposes SITE_* env vars from config/site.nuon.
 def test-ci-site-env-vars [] {
     test-log "\n[test-ci-site-env-vars]"
-    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
-    let site_cfg = (open ($real_root | path join "config/site.nuon"))
-    let site = ($site_cfg.site? | default {})
-    let profile = ($site.profile? | default "")
-    let primary = ($site.primary? | default "")
-    let community_url = ($site.community_url? | default "")
-    let logo_href = ($site.logo_href? | default "")
     let ci_site_yml = (build-ci-site-yml)
     [
         (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE:")
@@ -383,21 +376,21 @@ def test-ci-site-env-vars [] {
             "ci-site.yml sets SITE_COMMUNITY_URL env for Astro build")
         (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF:")
             "ci-site.yml sets SITE_LOGO_HREF env for Astro build")
-        (assert-truthy ($ci_site_yml | str contains $"SITE_PROFILE: '($profile)'")
-            "SITE_PROFILE value comes from config/site.nuon site.profile")
-        (assert-truthy ($ci_site_yml | str contains $"SITE_PRIMARY_PAGE: '($primary)'")
-            "SITE_PRIMARY_PAGE value comes from config/site.nuon site.primary")
-        (assert-truthy ($ci_site_yml | str contains $"SITE_COMMUNITY_URL: '($community_url)'")
-            "SITE_COMMUNITY_URL value comes from config/site.nuon site.community_url")
-        (assert-truthy ($ci_site_yml | str contains $"SITE_LOGO_HREF: '($logo_href)'")
-            "SITE_LOGO_HREF value comes from config/site.nuon site.logo_href")
+        (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE: 'observatory-root'")
+            "SITE_PROFILE value is resolved from config/site.nuon")
+        (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE: 'observatory'")
+            "SITE_PRIMARY_PAGE value is resolved from config/site.nuon")
+        (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL: 'https://www.cs3community.org/ocm'")
+            "SITE_COMMUNITY_URL value is resolved from config/site.nuon")
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: 'https://www.cs3community.org/ocm'")
+            "SITE_LOGO_HREF is resolved (explicit CS3 logo_href)")
         (assert-truthy (not ($ci_site_yml | str contains "SITE_PAGES:"))
             "ci-site.yml does not set SITE_PAGES env")
     ]
 }
 
-def test-ci-site-empty-logo-href-renders-explicit [] {
-    test-log "\n[test-ci-site-empty-logo-href-renders-explicit]"
+def test-ci-site-empty-logo-href-resolves-to-community [] {
+    test-log "\n[test-ci-site-empty-logo-href-resolves-to-community]"
     let ci_site_yml = (build-ci-site-yml --site-cfg-overrides {site: {
         profile: "observatory-root"
         primary: "observatory"
@@ -405,8 +398,8 @@ def test-ci-site-empty-logo-href-renders-explicit [] {
         logo_href: ""
     }})
     [
-        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
-            "empty logo_href renders SITE_LOGO_HREF: '' (explicit empty scalar)")
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: 'https://www.cs3community.org/ocm'")
+            "empty logo_href resolves SITE_LOGO_HREF to community URL")
     ]
 }
 
@@ -425,8 +418,8 @@ def test-ci-site-env-vars-overrides [] {
             "site-cfg-overrides site.primary appears in generated YAML")
         (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL: 'https://e.org/x'")
             "site-cfg-overrides site.community_url appears in generated YAML")
-        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
-            "site-cfg-overrides empty logo_href appears as explicit empty scalar")
+        (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: 'https://e.org/x'")
+            "site-cfg-overrides empty logo_href resolves to community URL")
     ]
 }
 
@@ -462,8 +455,8 @@ def test-ci-site-missing-site-block-fallbacks [] {
             [
                 (assert-truthy ($ci_site_yml | str contains "SITE_PROFILE: ''")
                     "missing site block renders SITE_PROFILE as empty")
-                (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE: ''")
-                    "missing site block renders SITE_PRIMARY_PAGE as empty")
+                (assert-truthy ($ci_site_yml | str contains "SITE_PRIMARY_PAGE: 'observatory'")
+                    "missing site block resolves SITE_PRIMARY_PAGE to observatory default")
                 (assert-truthy ($ci_site_yml | str contains "SITE_COMMUNITY_URL: ''")
                     "missing site block renders SITE_COMMUNITY_URL as empty")
                 (assert-truthy ($ci_site_yml | str contains "SITE_LOGO_HREF: ''")
@@ -524,7 +517,7 @@ def main [] {
         | append (test-ci-site-build-setup-node)
         | append (test-ci-site-raw-mode-lane)
         | append (test-ci-site-env-vars)
-        | append (test-ci-site-empty-logo-href-renders-explicit)
+        | append (test-ci-site-empty-logo-href-resolves-to-community)
         | append (test-ci-site-env-vars-overrides)
         | append (test-ci-site-missing-site-block-fallbacks)
     ) | flatten

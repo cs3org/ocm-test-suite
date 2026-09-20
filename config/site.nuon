@@ -16,7 +16,7 @@
     "profile": "observatory-root",
     "primary": "observatory",
     "community_url": "https://www.cs3community.org/ocm",
-    "logo_href": ""
+    "logo_href": "https://www.cs3community.org/ocm"
   },
   "archive_zstd": {
     "level": 3,

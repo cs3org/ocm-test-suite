@@ -131,7 +131,7 @@ jobs:
           SITE_PROFILE: 'observatory-root'
           SITE_PRIMARY_PAGE: 'observatory'
           SITE_COMMUNITY_URL: 'https://www.cs3community.org/ocm'
-          SITE_LOGO_HREF: ''
+          SITE_LOGO_HREF: 'https://www.cs3community.org/ocm'
         run: |
           ARGS=(
             --artifacts-root artifacts

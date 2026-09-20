@@ -18,6 +18,7 @@ use ./template-renderer.nu [render-blueprint render-template]
 use ./flow-order.nu [sort-cells-by-flow-order]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 use ../ocm/endpoints.nu [load-platforms-manifest]
+use ../site/config.nu [site-build-env-from-cfg]
 
 # Build the aggregate needs block (multi-line YAML fragment).
 # Returns the indented `needs:` block string.
@@ -320,11 +321,7 @@ export def build-ci-site-yml [
     let ci_site_checkout_dir = "../ocm-web-site"
     let site_output_subpath = ($site_cfg.site_build_output_path? | default "dist")
     let build_out = ($ci_site_checkout_dir | path join $site_output_subpath)
-    # Deploy-target: base path and optional full URL for the Pages host repo
-    # (cs3org/ocm-test-suite). Injected as ASTRO_BASE / ASTRO_SITE env vars so
-    # the Astro build produces correct asset paths and canonical URLs.
-    let deploy_base = ($site_cfg.deploy_base_path? | default "/")
-    let deploy_site_url = ($site_cfg.deploy_site_url? | default "")
+    let build_env = (site-build-env-from-cfg $site_cfg)
     let lane = ($site_cfg.media_lane_mode? | default "raw")
     if $lane not-in ["raw" "optimized"] {
         error make {msg: $"media_lane_mode must be 'raw' or 'optimized', got: ($lane)"}
@@ -364,8 +361,12 @@ export def build-ci-site-yml [
         "optimized.aggregate.artifact.name": $opt_agg_name
         "site.rebuild.source.workflow": $rebuild_src
         "site.build.output.path": $build_out
-        "astro.base": $deploy_base
-        "astro.site": $deploy_site_url
+        "astro.base": $build_env.ASTRO_BASE
+        "astro.site": $build_env.ASTRO_SITE
+        "site.profile": $build_env.SITE_PROFILE
+        "site.primary": $build_env.SITE_PRIMARY_PAGE
+        "site.community.url": $build_env.SITE_COMMUNITY_URL
+        "site.logo.href": $build_env.SITE_LOGO_HREF
         "media.lane.optimized.literal": $optimized_literal
         "media.lane.optimized.media.dir.scalar": $optimized_media_dir_scalar
         "media.lane.optimized.media.dir.flag": $optimized_media_dir_flag

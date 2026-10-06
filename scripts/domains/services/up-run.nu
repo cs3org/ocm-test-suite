@@ -139,7 +139,7 @@ def main [
 
     collect-run-artifacts $ctx.artifacts_base $ctx.stack_id $run_files $ctx.is_two_party
 
-    mut down_err = null
+    mut down_err: any = null
     if not $keep_up {
         print "Tearing down services..."
         let down_files = $base_files

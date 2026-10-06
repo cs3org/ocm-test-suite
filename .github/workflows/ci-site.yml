@@ -37,7 +37,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Resolve artifact source run
         id: resolve
         env:
@@ -63,7 +63,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Probe optimizer image
         if: false
         run: |
@@ -98,7 +98,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

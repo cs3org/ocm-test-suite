@@ -131,7 +131,7 @@ export def ocmgo-env-lines [
     short_host: string,
     exec_cidr: any = null,
 ]: nothing -> list<string> {
-    let role_upper = ($role | str upcase)
+    let role_upper = ($role | str uppercase)
     let route_lines = if ($platform == "ocmgo" and $exec_cidr != null) {
         let cidr_empty = (($exec_cidr | into string | str trim | str length) == 0)
         if $cidr_empty {

@@ -31,7 +31,7 @@ export def validate-optimized-path [p: string] {
 # Returns an empty string when consistent, or an error message when not.
 # Only performs cheap local extension checks against the two known kind sets.
 export def check-kind-ext-match [kind: string, optimized_path: string]: nothing -> string {
-    let p = ($optimized_path | str downcase)
+    let p = ($optimized_path | str lowercase)
     if $kind == "screenshot" {
         if ($p | str ends-with ".webm") {
             return $"kind=screenshot but optimized_path ends with .webm: ($optimized_path)"

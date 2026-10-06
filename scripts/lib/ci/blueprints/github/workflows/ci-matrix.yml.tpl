@@ -31,6 +31,11 @@ jobs:
         env:
           OCMTS_ROOT: ${{ github.workspace }}
         run: nu scripts/ocmts.nu ci workflows check github
+      - name: Nushell unit tests
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu test units
+
       - name: Cypress matrix drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}

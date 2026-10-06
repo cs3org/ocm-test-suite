@@ -23,8 +23,8 @@ def assert-bytes-start-hex [path: string, hex: string, label: string] {
     let bytes = (open --raw $path)
     let want_len = (($hex | str length) // 2)
     let prefix = ($bytes | bytes at 0..($want_len - 1))
-    let actual = ($prefix | encode hex | str downcase)
-    if $actual == ($hex | str downcase) {
+    let actual = ($prefix | encode hex | str lowercase)
+    if $actual == ($hex | str lowercase) {
         if ($env.OCMTS_TEST_JSON? != "1") { print $"  ok: ($label)" }
         PASS
     } else {
@@ -39,8 +39,8 @@ def assert-bytes-at-hex [path: string, offset: int, hex: string, label: string] 
     let bytes = (open --raw $path)
     let want_len = (($hex | str length) // 2)
     let slice = ($bytes | bytes at $offset..($offset + $want_len - 1))
-    let actual = ($slice | encode hex | str downcase)
-    if $actual == ($hex | str downcase) {
+    let actual = ($slice | encode hex | str lowercase)
+    if $actual == ($hex | str lowercase) {
         if ($env.OCMTS_TEST_JSON? != "1") { print $"  ok: ($label)" }
         PASS
     } else {

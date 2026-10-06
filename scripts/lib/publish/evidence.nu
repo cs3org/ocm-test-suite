@@ -18,7 +18,7 @@ def hash-and-size [abs_path: string] {
         print --stderr $"WARNING: sha256sum failed for ($abs_path)"
         ""
     } else {
-        $sha_result.stdout | split row " " | first | str downcase | str trim
+        $sha_result.stdout | split row " " | first | str lowercase | str trim
     }
     {size_bytes: $size_bytes, sha256: $sha256}
 }

@@ -19,6 +19,48 @@ use ../../lib/tests/runner.nu [run-suite]
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ./fixtures.nu [fixture-rules fixture-prereqs fixture-flow-caps prod-plan]
 
+const WORKFLOW_FILES = [
+    ".github/workflows/ci-matrix.yml"
+    ".github/workflows/ci-run-wave.yml"
+    ".github/workflows/ci-run-cell.yml"
+    ".github/workflows/ci-site.yml"
+]
+
+def workflow-repo-root [] {
+    $SUITE_PATH | path dirname | path dirname | path dirname | path dirname
+}
+
+def load-generated-workflow-yaml [rel_path: string] {
+    let abs = (workflow-repo-root | path join $rel_path)
+    open --raw $abs | from yaml
+}
+
+def collect-setup-nu-steps [obj: any]: any -> list<record> {
+    mut hits = []
+    let desc = ($obj | describe)
+    if ($desc | str starts-with "record") {
+        let uses = ($obj.uses? | default "")
+        if ($uses | str contains "setup-nu") {
+            $hits = ($hits | append {
+                name: ($obj.name? | default "")
+                version: ($obj.with.version? | default null)
+            })
+        }
+        for v in ($obj | values) {
+            $hits = ($hits | append (collect-setup-nu-steps $v))
+        }
+    } else if ($desc | str starts-with "list") or ($desc | str starts-with "table") {
+        for item in $obj {
+            $hits = ($hits | append (collect-setup-nu-steps $item))
+        }
+    }
+    $hits
+}
+
+def all-setup-nu-versions [yml: any] {
+    collect-setup-nu-steps $yml | each {|s| $s.version} | where {|v| $v != null}
+}
+
 # ---- tests ----
 
 def test-workflow-no-baked-ids [] {
@@ -97,27 +139,105 @@ def test-setup-failure-guard [] {
 
 def test-nushell-version-from-config [] {
     test-log "\n[test-nushell-version-from-config]"
-    let real_root = ($SUITE_PATH | path dirname | path dirname | path dirname | path dirname)
+    let real_root = (workflow-repo-root)
     let toolchain = (open ($real_root | path join "config/ci/toolchain.nuon"))
     let nu_ver = $toolchain.nushell.version
-    let rules = fixture-rules
-    let prereqs = fixture-prereqs
-    let plan = (plan-suite $rules $prereqs (fixture-flow-caps) {})
-    let matrix_yml = (build-ci-matrix-yml $plan)
-    let run_cell_yml = (build-run-cell-yml)
+    mut results = []
+    for wf_rel in $WORKFLOW_FILES {
+        let yml = (load-generated-workflow-yaml $wf_rel)
+        let versions = (all-setup-nu-versions $yml)
+        $results = ($results | append (
+            assert-truthy (not ($versions | is-empty))
+                $"($wf_rel) contains at least one setup-nu step"
+        ))
+        for v in $versions {
+            let v_str = ($v | into string)
+            $results = ($results | append (
+                assert-eq $v_str $nu_ver
+                    $"($wf_rel) setup-nu version matches config/ci/toolchain.nuon"
+            ))
+        }
+    }
+    let matrix_raw = (open --raw ($real_root | path join ".github/workflows/ci-matrix.yml"))
+    let run_cell_raw = (open --raw ($real_root | path join ".github/workflows/ci-run-cell.yml"))
+    $results
+    | append (assert-truthy (not ($matrix_raw | str contains "version: '*'"))
+        "ci-matrix.yml does not use version: '*'")
+    | append (assert-truthy (not ($matrix_raw | str contains "version: \"*\""))
+        "ci-matrix.yml does not use version: \"*\"")
+    | append (assert-truthy (not ($run_cell_raw | str contains "version: '*'"))
+        "ci-run-cell.yml does not use version: '*'")
+    | append (assert-truthy (not ($run_cell_raw | str contains "version: \"*\""))
+        "ci-run-cell.yml does not use version: \"*\"")
+}
+
+def test-ci-matrix-nushell-unit-preflight-step [] {
+    test-log "\n[test-ci-matrix-nushell-unit-preflight-step]"
+    let yml = (load-generated-workflow-yaml ".github/workflows/ci-matrix.yml")
+    let steps = $yml.jobs.preflight.steps
+    let names = ($steps | each {|s| $s.name? | default "" })
+    let drift_idx = ($names | enumerate | where item == "Workflow drift check" | get index? | first)
+    let cypress_idx = ($names | enumerate | where item == "Cypress matrix drift check" | get index? | first)
+    let unit_step = (
+        $steps
+        | where {|s| ($s.name? | default "") == "Nushell unit tests"}
+        | first
+    )
+    let unit_idx = ($names | enumerate | where item == "Nushell unit tests" | get index? | first)
+    let unit_env = if $unit_step == null { "" } else { $unit_step.env.OCMTS_ROOT? | default "" }
+    let unit_run = if $unit_step == null { "" } else { $unit_step.run? | default "" }
     [
-        (assert-truthy ($matrix_yml | str contains $"version: '($nu_ver)'")
-            "ci-matrix.yml uses pinned nushell version from config")
-        (assert-truthy ($run_cell_yml | str contains $"version: '($nu_ver)'")
-            "ci-run-cell.yml uses pinned nushell version from config")
-        (assert-truthy (not ($matrix_yml | str contains "version: '*'"))
-            "ci-matrix.yml does not use version: '*'")
-        (assert-truthy (not ($matrix_yml | str contains "version: \"*\""))
-            "ci-matrix.yml does not use version: \"*\"")
-        (assert-truthy (not ($run_cell_yml | str contains "version: '*'"))
-            "ci-run-cell.yml does not use version: '*'")
-        (assert-truthy (not ($run_cell_yml | str contains "version: \"*\""))
-            "ci-run-cell.yml does not use version: \"*\"")
+        (assert-not-null $unit_step "ci-matrix preflight includes Nushell unit tests step")
+        (assert-eq $unit_env "${{ github.workspace }}"
+            "Nushell unit tests step sets OCMTS_ROOT to github.workspace")
+        (assert-eq $unit_run "nu scripts/ocmts.nu test units"
+            "Nushell unit tests step runs ocmts test units")
+        (assert-truthy (
+            ($drift_idx != null) and ($unit_idx != null) and ($cypress_idx != null)
+            and ($drift_idx < $unit_idx) and ($unit_idx < $cypress_idx)
+        ) "Nushell unit tests step is after workflow drift and before cypress matrix drift")
+    ]
+}
+
+def test-yaml-on-key-round-trip [] {
+    test-log "\n[test-yaml-on-key-round-trip]"
+    let sample = "name: sample\non:\n  push:\n    branches: [main]\n"
+    let parsed = ($sample | from yaml)
+    let round = ($parsed | to yaml | from yaml)
+    [
+        (assert-truthy ("on" in ($parsed | columns))
+            "YAML parse preserves literal on key")
+        (assert-truthy ("on" in ($round | columns))
+            "YAML serialize round-trip preserves literal on key")
+        (assert-eq ($round.on.push.branches | first) "main"
+            "on.push.branches survives round-trip")
+    ]
+}
+
+def test-yaml-bool-vs-string-preservation [] {
+    test-log "\n[test-yaml-bool-vs-string-preservation]"
+    let sample = "enabled: true\nlabel: \"false\"\n"
+    let parsed = ($sample | from yaml)
+    [
+        (assert-eq ($parsed.enabled | describe) "bool"
+            "unquoted false/true parses as bool")
+        (assert-eq ($parsed.label | describe) "string"
+            "quoted false parses as string")
+        (assert-eq $parsed.enabled true "bool field stays true")
+        (assert-eq $parsed.label "false" "string field stays literal false")
+    ]
+}
+
+def test-yaml-semantic-round-trip [] {
+    test-log "\n[test-yaml-semantic-round-trip]"
+    let sample = "gate: false\nnote: \"false\"\n"
+    let parsed = ($sample | from yaml)
+    let round = ($parsed | to yaml | from yaml)
+    [
+        (assert-eq ($round.gate | describe) "bool" "semantic round-trip keeps gate bool")
+        (assert-eq ($round.note | describe) "string" "semantic round-trip keeps note string")
+        (assert-eq $round.gate false "gate remains boolean false")
+        (assert-eq $round.note "false" "note remains string false")
     ]
 }
 
@@ -368,6 +488,10 @@ def main [] {
         | append (test-no-generated-timestamp)
         | append (test-setup-failure-guard)
         | append (test-nushell-version-from-config)
+        | append (test-ci-matrix-nushell-unit-preflight-step)
+        | append (test-yaml-on-key-round-trip)
+        | append (test-yaml-bool-vs-string-preservation)
+        | append (test-yaml-semantic-round-trip)
         | append (test-no-unresolved-placeholders)
         | append (test-render-template-fails-on-unresolved)
         | append (test-render-template-replaces-all)

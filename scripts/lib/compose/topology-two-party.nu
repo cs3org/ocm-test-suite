@@ -193,11 +193,11 @@ export def write-two-party-env [
         ])
     }
     for slot in ($sender_bundle | columns) {
-        let slot_up = ($slot | str upcase)
+        let slot_up = ($slot | str uppercase)
         $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($sender_bundle | get $slot)")
     }
     for slot in ($receiver_bundle | columns) {
-        let slot_up = ($slot | str upcase)
+        let slot_up = ($slot | str uppercase)
         $lines = ($lines | append $"RECEIVER_($slot_up)_IMAGE=($receiver_bundle | get $slot)")
     }
     $lines = ($lines | append $ocm_provider_lines)

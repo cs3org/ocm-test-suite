@@ -54,8 +54,10 @@ every job that installs that tool.
 
 Fields:
 
-- `nushell.version` (string): exact Nushell release to install with
-  `hustcer/setup-nu@v3` in every job.
+- `nushell.version` (string): exact Nushell release (currently `0.116.0`)
+  to install with `hustcer/setup-nu@v3` in every job. Bumping this pin
+  requires regenerating all GitHub workflows with
+  `nu scripts/ocmts.nu ci workflows generate github`.
 
 ### `workflows.nuon`
 

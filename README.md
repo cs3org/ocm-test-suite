@@ -65,7 +65,7 @@ consistent instead of drifting into hand-maintained YAML.
 
 Prereqs:
 
-- Nushell (`nu`)
+- Nushell 0.116.0 or later (`nu`)
 - Docker (and Docker Compose)
 
 Discover commands:

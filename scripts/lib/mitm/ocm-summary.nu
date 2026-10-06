@@ -323,12 +323,12 @@ export def write-ocm-mitm-summaries [artifacts_base: string] {
             # Build lowercase-key maps so lookups are case-insensitive.
             let req_headers_lc = (
                 $req_headers | transpose key val
-                | each {|r| {($r.key | str downcase): $r.val}}
+                | each {|r| {($r.key | str lowercase): $r.val}}
                 | into record
             )
             let resp_headers_lc = (
                 $resp_headers | transpose key val
-                | each {|r| {($r.key | str downcase): $r.val}}
+                | each {|r| {($r.key | str lowercase): $r.val}}
                 | into record
             )
             let sig_raw = ($req_headers_lc | get --optional "signature" | default "")
@@ -346,10 +346,10 @@ export def write-ocm-mitm-summaries [artifacts_base: string] {
             let resp_body_meta = (build-body-meta $resp)
 
             let req_header_vals = ($req_header_names | each {|n|
-                $req_headers_lc | get --optional ($n | str downcase) | default ""
+                $req_headers_lc | get --optional ($n | str lowercase) | default ""
             })
             let resp_header_vals = ($resp_header_names | each {|n|
-                $resp_headers_lc | get --optional ($n | str downcase) | default ""
+                $resp_headers_lc | get --optional ($n | str lowercase) | default ""
             })
             let discovery_resp_vals = ($discovery_resp_fields | each {|field|
                 if ($endpoint_id == "discovery" and $resp_body != null) {

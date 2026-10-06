@@ -87,7 +87,7 @@ def write-one-party-env [
     }
 
     for slot in ($bundle | columns) {
-        let slot_up = ($slot | str upcase)
+        let slot_up = ($slot | str uppercase)
         let slot_ref = ($bundle | get $slot)
         $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($slot_ref)")
     }

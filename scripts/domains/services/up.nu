@@ -9,6 +9,7 @@ use ../../lib/services/compose-files.nu [
 ]
 use ../../lib/services/lifecycle.nu [cleanup-temp]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
+use ../../lib/services/reva-registry.nu [wait-reva-registries]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
@@ -23,11 +24,13 @@ def main [
     --preserve-temp,
     --suite-id: string = "",
     --suite-kind: string = "single",
+    --execution-id: string = "", # Execution id; empty generates one. Invalid values fail before compose up
 ] {
     let ctx = (setup-run-context
         $flow $sender_platform $sender_version $browser (not $no_video)
         $receiver_platform $receiver_version
-        --suite-id $suite_id --suite-kind $suite_kind)
+        --suite-id $suite_id --suite-kind $suite_kind
+        --execution-id $execution_id)
     let env_file = $ctx.env_file
     let env_args = if ($env_file | is-empty) { [] } else { ["--env-file" $env_file] }
     let base_files = ([$ctx.base_yml] | append (
@@ -46,6 +49,10 @@ def main [
         # Direct compose up; empty wait_services targets the full project.
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
         emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
+    } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)
+    # CERNBox registry gate. No CERNBox party returns without writing a receipt.
+    (with-infra-fail-cleanup $ctx "reva-registry-ready" {
+        wait-reva-registries $ctx $base_files --phase "platform-ready" | ignore
     } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)
     update-run-lifecycle $ctx.artifacts_base "active" --phase "platform-up"
     print $"Stack up. execution_id=($ctx.execution_id) stack_id=($ctx.stack_id)"

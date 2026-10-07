@@ -181,9 +181,16 @@ Bundle slots:
 | --- | --- | --- |
 | `revad` | `OCMTS_CERNBOX_REVAD_IMAGE` | `sender-revad-gateway` |
 | `idp` | `OCMTS_CERNBOX_IDP_IMAGE` | `sender-idp` |
+| `registry` | `OCMTS_CERNBOX_REGISTRY_IMAGE` | `sender-revad-registry` |
 
 Setting `OCMTS_CERNBOX_REVAD_IMAGE` overrides only the revad slot; other
 bundle slots and the main image keep their own resolution paths.
+
+The `registry` slot selects the per-party JetStream NATS server
+(`nats:2.15.0-alpine3.22` by default). Stack env emission derives the role
+names from the slot: `SENDER_REGISTRY_IMAGE` for the sender party and
+`RECEIVER_REGISTRY_IMAGE` for the receiver party, mirroring the other
+bundle slots.
 
 Example cernbox bundle preview:
 
@@ -323,6 +330,59 @@ When debugging route or subnet issues, inspect these in order:
 - If setup fails before `compose/inputs/` exists, use the CLI error as
   the source of truth for the rejected `exec_cidr` and any overlapping
   active Docker network subnets.
+
+## CERNBox shared service registry
+
+CERNBox v11 runs Reva as twelve single-mode processes per party. Each
+party gets its own JetStream NATS registry service
+(`sender-revad-registry` / `receiver-revad-registry`), and every Reva
+process resolves peers through it. `stack.env` carries the per-role
+settings:
+
+```text
+<ROLE>_REVAD_REGISTRY_DRIVER=nats
+<ROLE>_REVAD_NATS_ADDRESS=nats://<role>-revad-registry:4222
+<ROLE>_REVAD_NATS_BUCKET=reva_registry
+<ROLE>_REVAD_NATS_TTL=30s
+<ROLE>_REVAD_REGISTRY_HEARTBEAT_INTERVAL=5s
+<ROLE>_REVAD_REGISTRY_DEGRADED_AFTER=15s
+<ROLE>_REVAD_REGISTRY_OFFLINE_AFTER=30s
+<ROLE>_REVAD_REGISTRY_REAP_AFTER=5m
+<ROLE>_REVAD_ALLOWED_FEDERATION_CIDRS=["<exec_cidr>"]
+<ROLE>_REVAD_OCM_TIMEOUT=10
+<ROLE>_REVAD_OCM_CLIENT_INSECURE=true
+<ROLE>_REVAD_OCM_USE_ENV_PROXY=false
+<ROLE>_REVAD_ALLOW_LOOPBACK_FEDERATION=false
+```
+
+`<ROLE>` is `SENDER` or `RECEIVER`. The federation lines feed the gateway
+and ScienceMesh dataprovider surfaces (typed OCM controls); other modes
+only read the registry lines. The CIDR is the run's allocated
+`exec_cidr`, so the receiver accepts federation traffic from the test
+network only.
+
+### Registry readiness gate
+
+After the platform is up and before Cypress (or the interactive runner)
+starts, all `services up` entrypoints verify the shared registry: twelve
+healthy Reva processes per CERNBox party with zero restarts, hostnames
+equal to compose service names, one `reva-registry` connection per
+process on the broker, and a live `KV_reva_registry` stream with at
+least twelve watchers. `services up run` repeats the check right after
+Cypress finishes. A failure is recorded as infra-failed
+(`reva-registry-ready`), starts no Cypress, and tears the stack down
+unless `--keep-up` applies. The gate writes a safe receipt at
+`cypress/downloads/local-e2e/reva-registry-readiness.json` (phases
+`platform-ready`, `before-cypress`, `after-cypress`). Non-CERNBox
+cells skip the gate entirely.
+
+### Explicit execution ids
+
+`services up` accepts `--execution-id <id>`. An empty value keeps the
+automatic generation; a supplied id flows to the compose project,
+artifacts, registry receipt, and later `services down`. Invalid ids and
+active subnet conflicts fail in the existing preflight before Docker
+Compose starts.
 
 ## MITM and proxy evidence
 

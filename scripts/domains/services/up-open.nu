@@ -18,6 +18,7 @@ use ../../lib/services/lifecycle.nu [
 use ../../lib/publish/envelope.nu [publish-envelope-safe]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 use ../../lib/compose/logs.nu [collect-service-logs]
+use ../../lib/services/reva-registry.nu [wait-reva-registries]
 use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
 def collect-open-failure-logs [ctx: record, compose_files: list<string>, phase: string] {
@@ -90,6 +91,28 @@ def main [
     emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
     (write-compose-manifest $ctx.artifacts_base $ctx.stack_id
         $ctx.base_overlay_fnames "" ["compose.resolved.yml"])
+    # CERNBox registry gate. No CERNBox party returns without writing a receipt.
+    # up open has no keep-up flag, so a failure tears the platform down.
+    try {
+        wait-reva-registries $ctx $base_files --phase "platform-ready" | ignore
+    } catch {|e|
+        let raw_exit = (try { $env.LAST_EXIT_CODE? | default 1 | into int } catch { 1 })
+        let gate_exit = if $raw_exit > 0 { $raw_exit } else { 1 }
+        let finished_at = (utc-now)
+        (write-terminal-outcome $ctx.artifacts_base $ctx.execution_id
+            $ctx.cell.cell_id $ctx.cell.artifact_name
+            $ctx.started_at $finished_at "infra-failed" $gate_exit $ctx.stack_id
+            $ctx.images --phase "reva-registry-ready" --fail-error $e.msg
+            --suite-id $ctx.suite_id --suite-kind $ctx.suite_kind)
+        collect-open-failure-logs $ctx $base_files "reva-registry-ready"
+        let down_fail = (try { cleanup-down $base_files $ctx.stack_id $ctx.artifacts_base $env_file; null } catch {|ce| $ce.msg})
+        if $down_fail != null {
+            overwrite-cleanup-failed $ctx $preserve_temp $down_fail $"reva-registry-ready failed: ($e.msg)"
+        }
+        publish-envelope-safe $ctx.artifacts_base
+        cleanup-temp $ctx.execution_id $preserve_temp
+        error make {msg: $"reva-registry-ready failed: ($e.msg)"}
+    }
     print $"Stack up. execution_id=($ctx.execution_id) stack_id=($ctx.stack_id)"
 
     let dev_files = ($base_files | append ($ctx.compose_d | path join "runner-dev.yml"))

@@ -3,6 +3,7 @@
 # stack.env for docker compose variable substitution.
 
 use ./yaml.nu [platform-party-host yaml-env-entry]
+use ./cernbox-env.nu [cernbox-reva-env-lines]
 use ./topology-common.nu [
     make-stack-context
     write-exec-yml
@@ -164,6 +165,8 @@ export def write-two-party-env [
     }
     $lines = ($lines | append (ocmgo-env-lines "sender" $sender_platform $sender_actor $sender_short_host $exec_cidr))
     $lines = ($lines | append (ocmgo-env-lines "receiver" $receiver_platform $receiver_actor $receiver_short_host $exec_cidr))
+    $lines = ($lines | append (cernbox-reva-env-lines "sender" $sender_platform $exec_cidr))
+    $lines = ($lines | append (cernbox-reva-env-lines "receiver" $receiver_platform $exec_cidr))
     if $sender_actor != null {
         $lines = ($lines | append [
             $"CYPRESS_sender_username=($sender_actor.username)"

@@ -51,6 +51,11 @@
             "default": "ghcr.io/mahdibaghbani/containers/idp:v26.4.2",
             "override_env": "OCMTS_CERNBOX_IDP_IMAGE",
             "service": "idp"
+          },
+          "registry": {
+            "default": "nats:2.15.0-alpine3.22",
+            "override_env": "OCMTS_CERNBOX_REGISTRY_IMAGE",
+            "service": "revad-registry"
           }
         }
       }

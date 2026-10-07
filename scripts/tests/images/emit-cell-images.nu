@@ -279,6 +279,74 @@ def test-schema-fields [] {
     $results
 }
 
+# Registry is a third bundle slot. Existing fixtures omit it, so their lengths stay put.
+def test-registry-slot-one-party-and-two-party [] {
+    test-log "\n[test-registry-slot-one-party-and-two-party]"
+    let nats = "nats:2.15.0-alpine3.22"
+    let one_tmp = (make-tmp)
+    let one_imgs = {
+        platform: "ghcr.io/example/cernbox-web:master",
+        bundle: {
+            revad: "ghcr.io/example/cernbox-revad:master",
+            idp: "ghcr.io/example/idp:v1",
+            registry: $nats,
+        },
+        bundle_services: {
+            revad: "sender-revad-gateway",
+            idp: "sender-idp",
+            registry: "sender-revad-registry",
+        },
+    }
+    emit-cell-images $one_tmp "stack-registry-1p" $one_imgs false
+    let one_svcs = (open ($one_tmp | path join "meta" "images.v1.json")).services
+    let one_reg = ($one_svcs | where service == "sender-revad-registry" | first)
+    let two_tmp = (make-tmp)
+    let two_imgs = {
+        platform: "ghcr.io/example/cernbox-web:sender",
+        receiver_platform: "ghcr.io/example/cernbox-web:receiver",
+        mitmproxy: "ghcr.io/example/mitmproxy:v1",
+        bundle: {
+            revad: "ghcr.io/example/cernbox-revad:sender",
+            idp: "ghcr.io/example/idp:sender",
+            registry: $nats,
+        },
+        receiver_bundle: {
+            revad: "ghcr.io/example/cernbox-revad:receiver",
+            idp: "ghcr.io/example/idp:receiver",
+            registry: $nats,
+        },
+        bundle_services: {
+            revad: "sender-revad-gateway",
+            idp: "sender-idp",
+            registry: "sender-revad-registry",
+        },
+        receiver_bundle_services: {
+            revad: "receiver-revad-gateway",
+            idp: "receiver-idp",
+            registry: "receiver-revad-registry",
+        },
+    }
+    emit-cell-images $two_tmp "stack-registry-2p" $two_imgs true
+    let two_svcs = (open ($two_tmp | path join "meta" "images.v1.json")).services
+    let recv_reg = ($two_svcs | where service == "receiver-revad-registry" | first)
+    let send_reg = ($two_svcs | where service == "sender-revad-registry" | first)
+    let results = [
+        (assert-eq ($one_svcs | length) 4 "one-party bundle with registry has 4 services")
+        (assert-eq $one_reg.role "registry" "sender registry role is registry")
+        (assert-eq $one_reg.tag $nats "sender registry tag is the nats image")
+        (assert-eq ($two_svcs | length) 9 "two-party bundle with registry has 9 services")
+        (assert-eq $send_reg.role "registry" "two-party sender registry role is registry")
+        (assert-eq $send_reg.tag $nats "two-party sender registry tag is the nats image")
+        (assert-eq $recv_reg.role "recv_registry" "receiver registry role is recv_registry")
+        (assert-eq $recv_reg.service "receiver-revad-registry"
+            "receiver registry service name is receiver-revad-registry")
+        (assert-eq $recv_reg.tag $nats "receiver registry tag is the nats image")
+    ]
+    rm -rf $one_tmp
+    rm -rf $two_tmp
+    $results
+}
+
 def main [] {
     test-log "=== images/emit-cell-images Tests ==="
     let results = (
@@ -290,6 +358,7 @@ def main [] {
         | append (test-ocmgo-platform-only)
         | append (test-empty-tag-skipped)
         | append (test-schema-fields)
+        | append (test-registry-slot-one-party-and-two-party)
     ) | flatten
     run-suite "images/emit-cell-images" $SUITE_PATH $results
 }

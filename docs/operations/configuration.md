@@ -351,7 +351,7 @@ settings:
 <ROLE>_REVAD_ALLOWED_FEDERATION_CIDRS=["<exec_cidr>"]
 <ROLE>_REVAD_OCM_TIMEOUT=10
 <ROLE>_REVAD_OCM_CLIENT_INSECURE=true
-<ROLE>_REVAD_OCM_USE_ENV_PROXY=false
+<ROLE>_REVAD_OCM_USE_ENV_PROXY=true
 <ROLE>_REVAD_ALLOW_LOOPBACK_FEDERATION=false
 ```
 
@@ -372,15 +372,20 @@ least twelve watchers. `services up run` repeats the check right after
 Cypress finishes. A failure is recorded as infra-failed
 (`reva-registry-ready`), starts no Cypress, and tears the stack down
 unless `--keep-up` applies. The gate writes a safe receipt at
-`cypress/downloads/local-e2e/reva-registry-readiness.json` (phases
-`platform-ready`, `before-cypress`, `after-cypress`). Non-CERNBox
-cells skip the gate entirely.
+`meta/readiness.v1.json`. Phases sit under
+`providers.cernbox-registry.phases` and use the harness names
+`platform-ready`, `before-cypress`, and `after-cypress`. A passed
+phase records party rows. A failed phase records `{status, captured_at,
+reasons}` and no party rows. Each services invocation replaces the
+file, so phases from an earlier invocation do not carry forward.
+Non-CERNBox cells do not run the registry check. The receipt for those
+cells stays an empty provider map.
 
 ### Explicit execution ids
 
 `services up` accepts `--execution-id <id>`. An empty value keeps the
 automatic generation; a supplied id flows to the compose project,
-artifacts, registry receipt, and later `services down`. Invalid ids and
+artifacts, readiness receipt, and later `services down`. Invalid ids and
 active subnet conflicts fail in the existing preflight before Docker
 Compose starts.
 

@@ -9,6 +9,7 @@ use ../../domains/artifacts/collect.nu [
     missing-or-empty-expected-service-logs
 ]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
+use ../../lib/services/reva-registry.nu [reva-registry-constants]
 use ../../lib/services/lifecycle.nu [do-compose-up]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]
 use ../../lib/time/utc.nu [utc-now]
@@ -1020,7 +1021,7 @@ def write-up-entrypoint-fixtures [dir: string] {
             stream_detail: [{
                 name: "KV_reva_registry",
                 state: {messages: 12, consumer_count: 12},
-                config: {max_age: 30000000000},
+                config: {max_age: (reva-registry-constants).ttl_ns},
             }],
         }],
     } | to json | save --force ($dir | path join "jsz.json")
@@ -1136,9 +1137,9 @@ def test-execution-id-and-registry-phase-contract [] {
     let ctx = (read-src "scripts/lib/services/context.nu")
     let up_id = ($up | str index-of "--execution-id $execution_id")
     let up_compose = ($up | str index-of "up -d --wait ...$wait_services")
-    let before = ($up_run | str index-of 'wait-reva-registries $ctx $base_files --phase "before-cypress"')
+    let before = ($up_run | str index-of 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "before-cypress"')
     let cypress = ($up_run | str index-of "run-cypress-ci ")
-    let after = ($up_run | str index-of 'wait-reva-registries $ctx $base_files --phase "after-cypress"')
+    let after = ($up_run | str index-of 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "after-cypress"')
     let collect = ($up_run | str index-of "collect-run-artifacts ")
     let id_at = ($ctx | str index-of "validate-execution-id $execution_id")
     let net_at = ($ctx | str index-of "check-subnet-preflight (execution-cidr $execution_id)")
@@ -1147,11 +1148,11 @@ def test-execution-id-and-registry-phase-contract [] {
         (assert-truthy ($up_id >= 0) "services up forwards --execution-id into setup-run-context")
         (assert-truthy ($up_compose >= 0) "services up still runs compose up")
         (assert-truthy ($up_id < $up_compose) "execution id is bound before compose up")
-        (assert-truthy ($up | str contains 'wait-reva-registries $ctx $base_files --phase "platform-ready"')
+        (assert-truthy ($up | str contains 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "platform-ready"')
             "services up gates on phase platform-ready")
         (assert-truthy ($up | str contains 'with-infra-fail-cleanup $ctx "reva-registry-ready"')
             "services up registry gate uses the registry failure phase")
-        (assert-truthy ($up_open | str contains 'wait-reva-registries $ctx $base_files --phase "platform-ready"')
+        (assert-truthy ($up_open | str contains 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "platform-ready"')
             "services up open gates on phase platform-ready")
         (assert-truthy ($before >= 0 and $cypress >= 0 and $after >= 0 and $collect >= 0)
             "up-run names both registry phases, cypress, and artifact collection")
@@ -1246,7 +1247,7 @@ def test-up-supplied-execution-id-receipt-and-down [] {
             "--flow" "login" "--sender-platform" "cernbox" "--sender-version" "v11" "--execution-id" $exec_id
         ] {})
         let artifacts = ($ocmts_root | path join "artifacts" "login" "cernbox-v11" $exec_id)
-        let receipt_path = ($artifacts | path join "cypress/downloads/local-e2e/reva-registry-readiness.json")
+        let receipt_path = ($artifacts | path join "meta" "readiness.v1.json")
         let receipt = if ($receipt_path | path exists) { open $receipt_path } else { {} }
         let run_meta = if ($artifacts | path join "meta/run.json" | path exists) {
             open ($artifacts | path join "meta/run.json")
@@ -1258,7 +1259,10 @@ def test-up-supplied-execution-id-receipt-and-down [] {
             "--flow" "login" "--sender-platform" "cernbox" "--sender-version" "v11" "--execution-id" $exec_id
         ] {})
         let down_log = (open --raw ($ocmts_root | path join "docker-up.log"))
-        let phase = ($receipt.phases?.platform-ready? | default null)
+        let providers = ($receipt.providers? | default {})
+        let tree = ($providers | get --optional "cernbox-registry" | default {})
+        let phases = ($tree.phases? | default {})
+        let phase = ($phases | get --optional "platform-ready" | default null)
         let results = [
             (assert-eq $up.exit_code 0 $"supplied execution id brings cernbox up: ($up.stderr)")
             (assert-string-contains $up.stdout $"execution_id=($exec_id)"

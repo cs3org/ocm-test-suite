@@ -19,6 +19,7 @@ use ../../lib/tests/runner.nu [run-suite]
 const IMAGE_ID = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 const LEAK_TOKEN = "fixture-token-9f3c1a"
 const LEAK_ADDR = "nats://10.9.8.7:4222"
+const EXEC_PROJECT = "ocmts--cell-login-cernbox-v11--20261007t033844-c5e486b4"
 const REVAD_MODES = [
     "gateway"
     "dataprovider-localhome"
@@ -51,14 +52,29 @@ def revad-ip [n: int] {
     $"10.51.0.($n)"
 }
 
-def inspect-row [service: string, id: string, ip: string, restarts: int] {
+# Default network key equals the compose project label. Pass net_name to
+# model a legacy *_ocm-net key or a network that is not the execution net.
+def inspect-row [
+    service: string,
+    id: string,
+    ip: string,
+    restarts: int,
+    net_name: string = "",
+    project: string = "",
+] {
+    let resolved_project = if ($project | is-empty) { $EXEC_PROJECT } else { $project }
+    let resolved_net = if ($net_name | is-empty) { $resolved_project } else { $net_name }
+    let networks = ({} | insert $resolved_net {IPAddress: $ip})
     {
         Id: $id,
         RestartCount: $restarts,
         Image: $IMAGE_ID,
         Config: {
             Hostname: $service,
-            Labels: {"com.docker.compose.service": $service},
+            Labels: {
+                "com.docker.compose.service": $service,
+                "com.docker.compose.project": $resolved_project,
+            },
         },
         State: {
             Status: "running",
@@ -66,14 +82,17 @@ def inspect-row [service: string, id: string, ip: string, restarts: int] {
             RestartCount: $restarts,
         },
         NetworkSettings: {
-            Networks: {
-                ocm-net: {IPAddress: $ip},
-            },
+            Networks: $networks,
         },
     }
 }
 
-def party-fixtures [role: string, gateway_restarts: int] {
+def party-fixtures [
+    role: string,
+    gateway_restarts: int,
+    net_name: string = "",
+    project: string = "",
+] {
     let services = ($REVAD_MODES | each {|mode| $"($role)-revad-($mode)"})
     let rows = ($services | enumerate | each {|e|
         let n = $e.index + 1
@@ -96,7 +115,7 @@ def party-fixtures [role: string, gateway_restarts: int] {
         ips: ($rows | get ip),
         ps: ($with_broker | each {|row| {ID: $row.id, Service: $row.service}}),
         inspect: ($with_broker | each {|row|
-            inspect-row $row.service $row.id $row.ip $row.restarts
+            inspect-row $row.service $row.id $row.ip $row.restarts $net_name $project
         }),
         config_services: ($services | reduce --fold {} {|name, acc|
             $acc | upsert $name {image: "cernbox-revad:fixture"}
@@ -122,10 +141,15 @@ def write-monitor-files [dir: string, ips: list<string>, watchers: int] {
     } | to json | save --force ($dir | path join $"jsz-($watchers).json")
 }
 
-def write-registry-fixtures [dir: string, role: string] {
+def write-registry-fixtures [
+    dir: string,
+    role: string,
+    net_name: string = "",
+    project: string = "",
+] {
     mkdir $dir
-    let healthy = (party-fixtures $role 0)
-    let restarted = (party-fixtures $role 2)
+    let healthy = (party-fixtures $role 0 $net_name $project)
+    let restarted = (party-fixtures $role 2 $net_name $project)
     ($healthy.ps | each {|row| $row | to json --raw} | str join "\n")
         | save --force ($dir | path join "ps.jsonl")
     $healthy.inspect | to json | save --force ($dir | path join "inspect.json")
@@ -234,11 +258,16 @@ esac
     ^chmod +x ($bin_dir | path join "docker")
 }
 
-def fake-env [tmp: string, extra: record] {
+def fake-env [
+    tmp: string,
+    extra: record,
+    net_name: string = "",
+    project: string = "",
+] {
     let bin_dir = ($tmp | path join "bin")
     let fix_dir = ($tmp | path join "fix")
     write-fake-docker $bin_dir
-    write-registry-fixtures $fix_dir "sender"
+    write-registry-fixtures $fix_dir "sender" $net_name $project
     let log = ($tmp | path join "docker.log")
     "" | save --force $log
     {
@@ -530,12 +559,33 @@ def test-wait-samples-disagree [] {
     }
 }
 
+def blank-fixture-ips [tmp: string] {
+    let path = ($tmp | path join "fix" "inspect.json")
+    let rows = (open $path)
+    let updated = ($rows | each {|row|
+        let name = ($row.NetworkSettings.Networks | columns | first)
+        let nets = ({} | insert $name {IPAddress: "   "})
+        $row | upsert NetworkSettings {Networks: $nets}
+    })
+    $updated | to json | save --force $path
+}
+
+def project-net-aligned [tmp: string] {
+    let rows = (open ($tmp | path join "fix" "inspect.json"))
+    $rows | all {|row|
+        let label = ($row.Config.Labels."com.docker.compose.project")
+        let keys = ($row.NetworkSettings.Networks | columns)
+        ($label == $EXEC_PROJECT) and ($keys == [$EXEC_PROJECT])
+    }
+}
+
 def test-wait-receipt-phases [] {
     test-log "\n[test-wait-receipt-phases]"
     with-tmp-dir {|tmp|
         let art = ($tmp | path join "artifacts")
         mkdir $art
         let env_map = (fake-env $tmp {})
+        let aligned = (project-net-aligned $tmp)
         let exec_id = "20260101t000000-aabbccdd"
         let ctx = (registry-ctx $art (cernbox-sender-cell) $exec_id)
         let other = ($ctx | upsert execution_id "20260101t000000-11223344")
@@ -555,6 +605,8 @@ def test-wait-receipt-phases [] {
         let party = ($third.phases.before-cypress.parties | first)
         let text = (open --raw (receipt-file $art))
         [
+            (assert-truthy $aligned
+                "fixture network key equals the compose project label")
             (assert-eq $second.execution_id $exec_id
                 "a later phase keeps the receipt execution id")
             (assert-eq $second.phases.before-cypress.captured_at $before_at
@@ -718,6 +770,93 @@ def test-infra-fail-clamp-and-cleanup [] {
     }
 }
 
+def test-container-network-keys [] {
+    test-log "\n[test-container-network-keys]"
+    let compat_net = $"($EXEC_PROJECT)_ocm-net"
+    let compat = (with-tmp-dir {|tmp|
+        let art = ($tmp | path join "artifacts")
+        mkdir $art
+        let env_map = (fake-env $tmp {} $compat_net $EXEC_PROJECT)
+        let row = (open ($tmp | path join "fix" "inspect.json") | first)
+        let keys = ($row.NetworkSettings.Networks | columns)
+        let label = ($row.Config.Labels."com.docker.compose.project")
+        let ctx = (registry-ctx $art (cernbox-sender-cell) "20261007t033844-c5e486b4")
+        let msg = (with-env $env_map {
+            caught-msg {||
+                wait-reva-registries $ctx ["compose.yml"] --timeout 20sec --phase "before-cypress"
+            }
+        })
+        let party = if ($msg | is-empty) {
+            open (receipt-file $art) | get phases | get before-cypress | get parties | first
+        } else {
+            {}
+        }
+        [
+            (assert-eq $keys [$compat_net]
+                "compat fixture network key ends with _ocm-net")
+            (assert-eq $label $EXEC_PROJECT
+                "compat fixture keeps a project label that is not the network key")
+            (assert-truthy ($compat_net != $EXEC_PROJECT)
+                "compat network key is not the project label")
+            (assert-eq $msg ""
+                "an _ocm-net network key still reaches readiness")
+            (assert-eq ($party.healthy? | default false) true
+                "compat network party is healthy")
+            (assert-eq ($party.processes? | default 0) 12
+                "compat network resolves all 12 Reva addresses")
+        ]
+    })
+    let missing = (with-tmp-dir {|tmp|
+        let art = ($tmp | path join "artifacts")
+        mkdir $art
+        let env_map = (fake-env $tmp {} "bridge" $EXEC_PROJECT)
+        let row = (open ($tmp | path join "fix" "inspect.json") | first)
+        let keys = ($row.NetworkSettings.Networks | columns)
+        let ctx = (registry-ctx $art (cernbox-sender-cell) "20261007t033845-c5e486b4")
+        let msg = (with-env $env_map {
+            caught-msg {||
+                wait-reva-registries $ctx ["compose.yml"] --timeout 6sec --phase "before-cypress"
+            }
+        })
+        [
+            (assert-eq $keys ["bridge"]
+                "negative fixture network key matches neither project nor ocm-net")
+            (assert-eq $msg "Reva service registry readiness failed: sender:missing-ip"
+                "an unrelated network key fails with missing-ip")
+            (assert-truthy (not ((receipt-file $art) | path exists))
+                "missing-ip writes no receipt")
+        ]
+    })
+    let blank = (with-tmp-dir {|tmp|
+        let art = ($tmp | path join "artifacts")
+        mkdir $art
+        let env_map = (fake-env $tmp {})
+        blank-fixture-ips $tmp
+        let stored = (
+            open ($tmp | path join "fix" "inspect.json")
+            | first
+            | get NetworkSettings.Networks
+            | get $EXEC_PROJECT
+            | get IPAddress
+        )
+        let ctx = (registry-ctx $art (cernbox-sender-cell) "20261007t033846-c5e486b4")
+        let msg = (with-env $env_map {
+            caught-msg {||
+                wait-reva-registries $ctx ["compose.yml"] --timeout 6sec --phase "before-cypress"
+            }
+        })
+        [
+            (assert-eq $stored "   "
+                "blank address fixture keeps whitespace in IPAddress")
+            (assert-eq $msg "Reva service registry readiness failed: sender:missing-ip"
+                "a whitespace execution-network address fails with missing-ip")
+            (assert-truthy (not ((receipt-file $art) | path exists))
+                "a blank execution-network address writes no receipt")
+        ]
+    })
+    [$compat $missing $blank] | flatten
+}
+
 def main [] {
     test-log "=== services/cernbox-registry tests ==="
     let results = (
@@ -730,6 +869,7 @@ def main [] {
         | append (test-wait-restarts-and-retries)
         | append (test-wait-samples-disagree)
         | append (test-wait-receipt-phases)
+        | append (test-container-network-keys)
         | append (test-wait-safe-docker-errors)
         | append (test-infra-fail-clamp-and-cleanup)
     ) | flatten

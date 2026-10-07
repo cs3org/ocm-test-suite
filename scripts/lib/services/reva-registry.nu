@@ -410,20 +410,49 @@ def normalize-image-id [raw: string] {
     }
 }
 
+# Execution network key is the compose project label. Compose publishes
+# ocm-net under that name. Older stacks used ocm-net or a *_ocm-net key.
 def container-ip [insp: record] {
     let nets = ($insp.NetworkSettings?.Networks? | default null)
     if not (is-record $nets) {
         return ""
     }
     let rows = ($nets | transpose name net)
-    let preferred = ($rows | where {|row|
-        (($row.name == "ocm-net") or ($row.name | str ends-with "_ocm-net"))
-    })
-    if ($preferred | is-empty) {
+    let labels = ($insp.Config?.Labels? | default null)
+    let project = if not (is-record $labels) {
+        ""
+    } else {
+        let raw = ($labels | get --optional "com.docker.compose.project" | default "")
+        if $raw == null {
+            ""
+        } else {
+            $raw | into string | str trim
+        }
+    }
+    let by_project = if ($project | is-empty) {
+        []
+    } else {
+        $rows | where {|row| $row.name == $project}
+    }
+    let chosen = if not ($by_project | is-empty) {
+        $by_project
+    } else {
+        $rows | where {|row|
+            (($row.name == "ocm-net") or ($row.name | str ends-with "_ocm-net"))
+        }
+    }
+    if ($chosen | is-empty) {
         return ""
     }
-    let addr = ($preferred | first | get net | get --optional IPAddress | default "")
-    $addr | into string | str trim
+    let net = ($chosen | first | get net)
+    if not (is-record $net) {
+        return ""
+    }
+    let raw = ($net | get --optional IPAddress | default "")
+    if $raw == null {
+        return ""
+    }
+    $raw | into string | str trim
 }
 
 def slim-inspect [insp: record] {

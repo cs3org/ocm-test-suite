@@ -9,7 +9,8 @@ use ../../lib/services/compose-files.nu [
 ]
 use ../../lib/services/lifecycle.nu [cleanup-temp]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
-use ../../lib/services/reva-registry.nu [wait-reva-registries]
+use ../../lib/services/readiness.nu [wait-readiness]
+use ../../lib/services/reva-registry.nu [reva-registry-provider]
 use ../../lib/images/cell-images.nu [emit-cell-images]
 use ../../lib/services/wait-services.nu [platform-up-wait-services]
 
@@ -50,9 +51,9 @@ def main [
         ^docker compose ...$env_args ...$f_args -p $ctx.stack_id up -d --wait ...$wait_services
         emit-cell-images $ctx.artifacts_base $ctx.stack_id $ctx.images $ctx.is_two_party
     } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)
-    # CERNBox registry gate. No CERNBox party returns without writing a receipt.
+    # CERNBox registry gate. No CERNBox party leaves the readiness store unchanged.
     (with-infra-fail-cleanup $ctx "reva-registry-ready" {
-        wait-reva-registries $ctx $base_files --phase "platform-ready" | ignore
+        wait-readiness $ctx $base_files (reva-registry-provider) --phase "platform-ready" | ignore
     } --preserve-temp=$preserve_temp --base-files $base_files --env-file $env_file)
     update-run-lifecycle $ctx.artifacts_base "active" --phase "platform-up"
     print $"Stack up. execution_id=($ctx.execution_id) stack_id=($ctx.stack_id)"

@@ -19,7 +19,8 @@ use ../../lib/services/lifecycle.nu [
     do-compose-down
 ]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
-use ../../lib/services/reva-registry.nu [wait-reva-registries]
+use ../../lib/services/readiness.nu [wait-readiness]
+use ../../lib/services/reva-registry.nu [reva-registry-provider]
 use ../../lib/compose/logs.nu [collect-service-logs]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/suite/index.nu [record-suite-run-safe]
@@ -133,9 +134,9 @@ def main [
         $ctx.base_overlay_fnames "runner-ci.yml"
         ["compose.resolved.yml" "compose.resolved.run.yml" "compose.resolved.down.yml"])
 
-    # CERNBox registry gate before Cypress. No CERNBox party writes nothing.
+    # CERNBox registry gate before Cypress. No CERNBox party leaves the store unchanged.
     (with-infra-fail-cleanup $ctx "reva-registry-ready" {
-        wait-reva-registries $ctx $base_files --phase "before-cypress" | ignore
+        wait-readiness $ctx $base_files (reva-registry-provider) --phase "before-cypress" | ignore
     } --preserve-temp=$preserve_temp
         --base-files (if not $keep_up { $base_files } else { [] })
         --env-file $env_file
@@ -148,7 +149,7 @@ def main [
 
     # Post-run snapshot before artifacts and teardown. Failure is infra-failed.
     (with-infra-fail-cleanup $ctx "reva-registry-ready" {
-        wait-reva-registries $ctx $base_files --phase "after-cypress" | ignore
+        wait-readiness $ctx $base_files (reva-registry-provider) --phase "after-cypress" | ignore
     } --preserve-temp=$preserve_temp
         --base-files (if not $keep_up { $base_files } else { [] })
         --env-file $env_file

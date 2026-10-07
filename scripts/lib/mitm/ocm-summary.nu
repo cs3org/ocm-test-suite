@@ -113,6 +113,8 @@ def build-body-meta [r: record] {
 # Build one 03-02 JSON detail record from a processed flow row.
 # Core keys always present; from_host/to_host when non-empty; signature/digest/
 # discovery/shares/notifications objects included only when non-empty.
+# webdav and access-token attach request/response body previews and metadata,
+# including non-JSON bodies such as form-urlencoded token requests.
 def build-det-json-row [r: record] {
     mut rec = {
         captured_at:  $r.captured_at,
@@ -185,6 +187,30 @@ def build-det-json-row [r: record] {
         }
         if not ($wdav | columns | is-empty) {
             $rec = ($rec | insert webdav $wdav)
+        }
+    }
+    # cloud_federation_api access-token. Form-urlencoded requests do not parse
+    # as JSON; keep the preview text and body metadata anyway.
+    if $r.endpoint_id == "access-token" {
+        mut token = {}
+        let req_has_preview = not ($r.req_body_str | str trim | is-empty)
+        let req_has_meta    = ($r.req_body_meta != null)
+        if ($req_has_preview or $req_has_meta) {
+            mut req_bobj = {}
+            if $req_has_preview { $req_bobj = ($req_bobj | insert preview $r.req_body_str) }
+            if $req_has_meta    { $req_bobj = ($req_bobj | insert meta    $r.req_body_meta) }
+            $token = ($token | insert request {body: $req_bobj})
+        }
+        let resp_has_preview = not ($r.resp_body_str | str trim | is-empty)
+        let resp_has_meta    = ($r.resp_body_meta != null)
+        if ($resp_has_preview or $resp_has_meta) {
+            mut resp_bobj = {}
+            if $resp_has_preview { $resp_bobj = ($resp_bobj | insert preview $r.resp_body_str) }
+            if $resp_has_meta    { $resp_bobj = ($resp_bobj | insert meta    $r.resp_body_meta) }
+            $token = ($token | insert response {body: $resp_bobj})
+        }
+        if not ($token | columns | is-empty) {
+            $rec = ($rec | insert "access-token" $token)
         }
     }
     $rec

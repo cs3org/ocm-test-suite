@@ -1,6 +1,9 @@
 // Cypress config is intentionally JS (not TS) so it loads in minimal container
 // environments without requiring a TS runtime.
 
+const path = require("node:path");
+const fs = require("node:fs");
+
 const runtimeStore = new Map();
 
 const TRUE_TOKENS = new Set(["1", "true", "yes", "y", "on"]);
@@ -82,6 +85,24 @@ module.exports = {
           const value = runtimeStore.get(payload.key);
           return value === undefined ? null : value;
         },
+      });
+
+      // Retries suffix screenshots with ' (attempt n)'; strip it so explicit evidence
+      // screenshots keep deterministic names per the evidence standard; ' (failed)' markers are preserved.
+      on("after:screenshot", (details) => {
+        const dir = path.dirname(details.path);
+        const base = path.basename(details.path);
+        const cleanedBase = base.replace(/\s*\(attempt\s+\d+\)\s*/g, "");
+        if (cleanedBase === base) {
+          return undefined;
+        }
+        const cleanPath = path.join(dir, cleanedBase);
+        try {
+          fs.unlinkSync(cleanPath);
+        } catch {
+          // The clean path may not exist on the first attempt.
+        }
+        return { path: cleanPath };
       });
 
       return config;

@@ -4,14 +4,39 @@
 # Extract sender/receiver/mitm participants from a roles record.
 # Returns a record with host and ipv4 for each role; fields default to
 # empty string when missing.
-export def participants-from-roles [roles: record] {
+# Presence of endpoints selects v2 even when the list is empty.
+export def roles-have-endpoints [roles: record] {
+    $roles | values | any {|role| "endpoints" in ($role | columns)}
+}
+
+def participant-for-role [roles: record, name: string] {
+    let value = (try { $roles | get $name } catch { {} })
+    if "endpoints" in ($value | columns) {
+        let endpoint = ($value.endpoints? | default [] | first 1)
+        if ($endpoint | is-empty) { return {host: "", ipv4: ""} }
+        let primary = ($endpoint | first)
+        return {
+            host: (try { $primary.hosts | first } catch { "" })
+            ipv4: ($primary.ipv4? | default "")
+        }
+    }
     {
-        sender_host:   (try { $roles.sender.hosts | first } catch { "" }),
-        receiver_host: (try { $roles.receiver.hosts | first } catch { "" }),
-        mitm_host:     (try { $roles.mitm.hosts | first } catch { "" }),
-        sender_ipv4:   (try { $roles.sender.ipv4? | default "" } catch { "" }),
-        receiver_ipv4: (try { $roles.receiver.ipv4? | default "" } catch { "" }),
-        mitm_ipv4:     (try { $roles.mitm.ipv4? | default "" } catch { "" }),
+        host: (try { $value.hosts | first } catch { "" })
+        ipv4: ($value.ipv4? | default "")
+    }
+}
+
+export def participants-from-roles [roles: record] {
+    let sender = (participant-for-role $roles "sender")
+    let receiver = (participant-for-role $roles "receiver")
+    let mitm = (participant-for-role $roles "mitm")
+    {
+        sender_host: $sender.host,
+        receiver_host: $receiver.host,
+        mitm_host: $mitm.host,
+        sender_ipv4: $sender.ipv4,
+        receiver_ipv4: $receiver.ipv4,
+        mitm_ipv4: $mitm.ipv4,
     }
 }
 
@@ -68,8 +93,7 @@ export def mk-md-row [vals: list<string>] {
     $"| ($joined) |"
 }
 
-# Infer the sending role name from a client IP against a roles record.
-export def infer-from-role [client_ip: string, roles: record] {
+def legacy-infer-from-role [client_ip: string, roles: record] {
     if ($client_ip | is-empty) { return "unknown" }
     let matches = ($roles | items {|name, r|
         if ($r.ipv4? | default "") == $client_ip { $name } else { null }
@@ -77,9 +101,7 @@ export def infer-from-role [client_ip: string, roles: record] {
     if ($matches | is-empty) { "unknown" } else { $matches | first }
 }
 
-# Infer the receiving role name from request host and server IP.
-# Host match against role.hosts takes priority over server IP match.
-export def infer-to-role [req_host: string, server_ip: string, roles: record] {
+def legacy-infer-to-role [req_host: string, server_ip: string, roles: record] {
     let host_matches = ($roles | items {|name, r|
         if $req_host in ($r.hosts? | default []) { $name } else { null }
     } | where {|v| $v != null})
@@ -89,6 +111,66 @@ export def infer-to-role [req_host: string, server_ip: string, roles: record] {
         if ($r.ipv4? | default "") == $server_ip { $name } else { null }
     } | where {|v| $v != null})
     if ($ip_matches | is-empty) { "unknown" } else { $ip_matches | first }
+}
+
+def all-role-endpoints [roles: record] {
+    $roles | items {|name, value|
+        if "endpoints" in ($value | columns) {
+            $value.endpoints? | default [] | each {|endpoint| $endpoint | insert role $name}
+        } else {
+            [{
+                role: $name,
+                service: "",
+                ipv4: ($value.ipv4? | default ""),
+                hosts: ($value.hosts? | default []),
+            }]
+        }
+    } | flatten
+}
+
+def resolved-endpoint [matches: list] {
+    if ($matches | length) != 1 {
+        return {role: "unknown", service: "", host: ""}
+    }
+    let endpoint = ($matches | first)
+    {
+        role: $endpoint.role,
+        service: ($endpoint.service? | default ""),
+        host: (try { $endpoint.hosts | first } catch { "" }),
+    }
+}
+
+export def resolve-from-endpoint [client_ip: string, roles: record] {
+    if not (roles-have-endpoints $roles) {
+        let role = (legacy-infer-from-role $client_ip $roles)
+        return {role: $role, service: "", host: (role-primary-host $role (participants-from-roles $roles))}
+    }
+    if ($client_ip | is-empty) { return {role: "unknown", service: "", host: ""} }
+    let matches = (all-role-endpoints $roles | where {|endpoint| $endpoint.ipv4 == $client_ip})
+    resolved-endpoint $matches
+}
+
+export def resolve-to-endpoint [req_host: string, server_ip: string, roles: record] {
+    if not (roles-have-endpoints $roles) {
+        let role = (legacy-infer-to-role $req_host $server_ip $roles)
+        return {role: $role, service: "", host: (role-primary-host $role (participants-from-roles $roles))}
+    }
+    let endpoints = (all-role-endpoints $roles)
+    let host = ($req_host | str downcase)
+    let host_matches = ($endpoints | where {|endpoint| not ($host | is-empty) and $host in $endpoint.hosts})
+    if not ($host_matches | is-empty) { return (resolved-endpoint $host_matches) }
+    if ($server_ip | is-empty) { return {role: "unknown", service: "", host: ""} }
+    let ip_matches = ($endpoints | where {|endpoint| $endpoint.ipv4 == $server_ip})
+    if not ($ip_matches | is-empty) { return (resolved-endpoint $ip_matches) }
+    resolved-endpoint ($endpoints | where {|endpoint| ($server_ip | str downcase) in $endpoint.hosts})
+}
+
+export def infer-from-role [client_ip: string, roles: record] {
+    resolve-from-endpoint $client_ip $roles | get role
+}
+
+export def infer-to-role [req_host: string, server_ip: string, roles: record] {
+    resolve-to-endpoint $req_host $server_ip $roles | get role
 }
 
 # Re-export for MITM report callers. SSOT: scripts/lib/run/tuple-identity.nu.

@@ -10,8 +10,8 @@
 
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
 use ./report-utils.nu [
-    participants-from-roles role-primary-host md-participants-preface mk-md-row
-    infer-from-role infer-to-role load-meta-identity compute-id-hoist
+    participants-from-roles md-participants-preface mk-md-row
+    resolve-from-endpoint resolve-to-endpoint roles-have-endpoints load-meta-identity compute-id-hoist
 ]
 
 # Match URL+method against the endpoint list from config; returns endpoint id or "".
@@ -333,8 +333,8 @@ export def write-ocm-mitm-summaries [artifacts_base: string] {
             # captured_at takes precedence; ts is the fallback field.
             let captured_at = ($f.captured_at? | default ($f.ts? | default ""))
 
-            let from_role   = (infer-from-role $client_ip $roles)
-            let to_role     = (infer-to-role $req_host $server_ip $roles)
+            let from = (resolve-from-endpoint $client_ip $roles)
+            let to = (resolve-to-endpoint $req_host $server_ip $roles)
             let endpoint_id = (match-endpoint-id $url $method $endpoints_for_match)
 
             let flow_id_raw = ($f.flow_id? | default "")
@@ -398,10 +398,10 @@ export def write-ocm-mitm-summaries [artifacts_base: string] {
                 flow_id:              $flow_id,
                 cell_id:              $cell_id,
                 run_id:               $run_id,
-                from_role:            $from_role,
-                to_role:              $to_role,
-                from_host:            (role-primary-host $from_role $participants),
-                to_host:              (role-primary-host $to_role $participants),
+                from_role:            $from.role,
+                to_role:              $to.role,
+                from_host:            $from.host,
+                to_host:              $to.host,
                 endpoint_id:          $endpoint_id,
                 method:               $method,
                 status_code:          $status_code,
@@ -434,9 +434,9 @@ export def write-ocm-mitm-summaries [artifacts_base: string] {
     let has_from_host = ($rows | any {|r| not ($r.from_host | is-empty)})
     let has_to_host   = ($rows | any {|r| not ($r.to_host | is-empty)})
 
-    # For the MD table: suppress host cols when participants preface is present,
-    # and hoist invariant identity cols into a short inline preface above the table.
-    let suppress_host_cols = not ($preface | is-empty)
+    # Legacy tables retain preface suppression; v2 shows the matched endpoint.
+    # Identity column hoisting remains unchanged.
+    let suppress_host_cols = (not (roles-have-endpoints $roles)) and (not ($preface | is-empty))
     let md_has_from_host = (if $suppress_host_cols { false } else { $has_from_host })
     let md_has_to_host   = (if $suppress_host_cols { false } else { $has_to_host })
     let has_flow_id_ep = ($rows | any {|r| not ($r.flow_id | str trim | is-empty)})

@@ -41,7 +41,7 @@ def two-party-runner-depends-on-lines [flow_id: string, topology: record] {
 }
 
 # Same-side compose service names from a platform cookbook (empty when missing).
-def cookbook-service-names [root: string, platform: string, role: string] {
+export def cookbook-service-names [root: string, platform: string, role: string] {
     let cookbook_path = ($root | path join "config/compose/cookbooks" $"($platform).($role).yml")
     if not ($cookbook_path | path exists) {
         return []
@@ -55,6 +55,28 @@ def cookbook-service-names [root: string, platform: string, role: string] {
     } catch {
         []
     }
+}
+
+# Forward only explicit benchmark switches into webapp-share runners.
+export def webapp-runner-diagnostics-env-lines [flow_id: string] {
+    if $flow_id != "webapp-share" { return [] }
+    mut result = []
+    for key in [
+        "OCMTS_WEBAPP_LAUNCH_DIAGNOSTICS"
+        "OCMTS_WEBAPP_BROWSER_EXPERIMENT"
+        "OCMTS_WEBAPP_REQUEST_REPLAY"
+    ] {
+        let value = ($env | get --optional $key | default "")
+        if $value in ["0" "1"] {
+            $result = ($result | append $"      - ($key)=($value)")
+        } else if not ($value | is-empty) {
+            error make {msg: $"($key) must be 0 or 1"}
+        }
+    }
+    if ($env.OCMTS_WEBAPP_LAUNCH_DIAGNOSTICS? | default "") == "1" {
+        $result = ($result | append "      - DEBUG=cypress:server:proxy,cypress:driver,cypress:server:automation")
+    }
+    $result
 }
 
 # Write stack.env for a two-party run into art_inputs/.
@@ -344,6 +366,7 @@ export def write-two-party-overlays [
         "      - CYPRESS_videosFolder=/artifacts/cypress/videos"
         "      - CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ])
+    $runner_ci_lines = ($runner_ci_lines | append (webapp-runner-diagnostics-env-lines $flow_id))
     if $sender_actor != null {
         $runner_ci_lines = ($runner_ci_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)
@@ -407,6 +430,7 @@ export def write-two-party-overlays [
         $"      - CYPRESS_sender_baseUrl=https://($sender_party_host)"
         $"      - CYPRESS_receiver_baseUrl=https://($receiver_party_host)"
     ])
+    $runner_dev_lines = ($runner_dev_lines | append (webapp-runner-diagnostics-env-lines $flow_id))
     if $sender_actor != null {
         $runner_dev_lines = ($runner_dev_lines | append [
             (yaml-env-entry "CYPRESS_sender_username" $sender_actor.username)

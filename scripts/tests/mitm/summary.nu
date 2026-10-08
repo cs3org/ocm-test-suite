@@ -224,11 +224,65 @@ def test-access-token-bodies-in-detail-json [] {
     }
 }
 
+def test-endpoint-roles-in-both-summaries [] {
+    with-tmp-dir {|tmp|
+        let art = ($tmp | path join "artifacts")
+        write-identity $art
+        mkdir ($art | path join "mitm/flows")
+        let roles = {
+            sender: {endpoints: [
+                {service: "sender", ipv4: "10.42.0.2", hosts: ["nextcloud1.docker"]},
+                {service: "sender-hub", ipv4: "10.42.0.5", hosts: ["jupyterhub1.docker"]},
+            ]},
+            receiver: {endpoints: [
+                {service: "receiver", ipv4: "10.42.0.3", hosts: ["cernbox2.docker"]},
+                {service: "receiver-revad-gateway", ipv4: "10.42.0.6", hosts: ["receiver-revad-gateway"]},
+            ]},
+            mitm: {endpoints: [{service: "mitm", ipv4: "10.42.0.4", hosts: ["mitm"]}]},
+        }
+        {schema_version: 2, roles: $roles} | to json | save --force ($art | path join "mitm/peers.json")
+        let flows = [
+            {
+                request: {method: "GET", url: "https://nextcloud1.docker/ocm/shares", host: "nextcloud1.docker"},
+                response: {status_code: 200},
+                client: ["10.42.0.6" 12345],
+                server: ["10.42.0.2" 443],
+            },
+            {
+                request: {method: "POST", url: "https://jupyterhub1.docker/services/ocm/shares", host: "jupyterhub1.docker"},
+                response: {status_code: 201},
+                client: ["10.42.0.2" 12345],
+                server: ["jupyterhub1.docker" 443],
+            },
+        ]
+        ($flows | each {|flow| $flow | to json --raw} | str join "\n")
+            | save --force ($art | path join "mitm/flows/traffic.jsonl")
+        summarize-mitm-flows $art
+        write-ocm-mitm-summaries $art
+        let tests = (["01-02-traffic-overview.json" "02-02-ocm-endpoints.json"] | each {|filename|
+            let result = (open ($art | path join "mitm/reports" $filename))
+            [
+                (assert-eq $result.flows.0.from_role "receiver" "gateway party in both writers")
+                (assert-eq $result.flows.0.from_host "receiver-revad-gateway" "gateway host in both writers")
+                (assert-eq $result.flows.1.to_role "sender" "hub retains sender party")
+                (assert-eq $result.flows.1.to_host "jupyterhub1.docker" "hub endpoint retained")
+                (assert-eq $result.flows.1.from_role "sender" "sender-to-hub party tradeoff explicit")
+            ]
+        } | flatten)
+        $tests | append (
+            ["01-01-traffic-overview.md" "02-01-ocm-endpoints.md"] | each {|filename|
+                assert-string-contains (open --raw ($art | path join "mitm/reports" $filename)) "receiver-revad-gateway" "v2 Markdown shows endpoint host"
+            }
+        )
+    }
+}
+
 def main [] {
     test-log "=== mitm/summary tests ==="
     let results = [
         (test-traffic-rows-include-captured-at)
         (test-access-token-bodies-in-detail-json)
+        (test-endpoint-roles-in-both-summaries)
     ] | flatten
     run-suite "mitm/summary" $SUITE_PATH $results
 }

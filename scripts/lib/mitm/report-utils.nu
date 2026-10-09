@@ -93,26 +93,6 @@ export def mk-md-row [vals: list<string>] {
     $"| ($joined) |"
 }
 
-def legacy-infer-from-role [client_ip: string, roles: record] {
-    if ($client_ip | is-empty) { return "unknown" }
-    let matches = ($roles | items {|name, r|
-        if ($r.ipv4? | default "") == $client_ip { $name } else { null }
-    } | where {|v| $v != null})
-    if ($matches | is-empty) { "unknown" } else { $matches | first }
-}
-
-def legacy-infer-to-role [req_host: string, server_ip: string, roles: record] {
-    let host_matches = ($roles | items {|name, r|
-        if $req_host in ($r.hosts? | default []) { $name } else { null }
-    } | where {|v| $v != null})
-    if not ($host_matches | is-empty) { return ($host_matches | first) }
-    if ($server_ip | is-empty) { return "unknown" }
-    let ip_matches = ($roles | items {|name, r|
-        if ($r.ipv4? | default "") == $server_ip { $name } else { null }
-    } | where {|v| $v != null})
-    if ($ip_matches | is-empty) { "unknown" } else { $ip_matches | first }
-}
-
 def all-role-endpoints [roles: record] {
     $roles | items {|name, value|
         if "endpoints" in ($value | columns) {
@@ -141,20 +121,12 @@ def resolved-endpoint [matches: list] {
 }
 
 export def resolve-from-endpoint [client_ip: string, roles: record] {
-    if not (roles-have-endpoints $roles) {
-        let role = (legacy-infer-from-role $client_ip $roles)
-        return {role: $role, service: "", host: (role-primary-host $role (participants-from-roles $roles))}
-    }
     if ($client_ip | is-empty) { return {role: "unknown", service: "", host: ""} }
     let matches = (all-role-endpoints $roles | where {|endpoint| $endpoint.ipv4 == $client_ip})
     resolved-endpoint $matches
 }
 
 export def resolve-to-endpoint [req_host: string, server_ip: string, roles: record] {
-    if not (roles-have-endpoints $roles) {
-        let role = (legacy-infer-to-role $req_host $server_ip $roles)
-        return {role: $role, service: "", host: (role-primary-host $role (participants-from-roles $roles))}
-    }
     let endpoints = (all-role-endpoints $roles)
     let host = ($req_host | str lowercase)
     let host_matches = ($endpoints | where {|endpoint| not ($host | is-empty) and $host in $endpoint.hosts})

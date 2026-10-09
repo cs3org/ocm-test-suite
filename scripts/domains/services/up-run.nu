@@ -19,6 +19,8 @@ use ../../lib/services/lifecycle.nu [
     do-compose-down
 ]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
+use ../../lib/services/readiness.nu [wait-readiness]
+use ../../lib/services/reva-registry.nu [reva-registry-provider]
 use ../../lib/compose/logs.nu [collect-service-logs]
 use ../../lib/publish/envelope.nu [publish-envelope-safe emit-publish-envelope]
 use ../../lib/suite/index.nu [record-suite-run-safe]
@@ -132,10 +134,26 @@ def main [
         $ctx.base_overlay_fnames "runner-ci.yml"
         ["compose.resolved.yml" "compose.resolved.run.yml" "compose.resolved.down.yml"])
 
+    # CERNBox registry gate before Cypress. No CERNBox party leaves the store unchanged.
+    (with-infra-fail-cleanup $ctx "reva-registry-ready" {
+        wait-readiness $ctx $base_files (reva-registry-provider) --phase "before-cypress" | ignore
+    } --preserve-temp=$preserve_temp
+        --base-files (if not $keep_up { $base_files } else { [] })
+        --env-file $env_file
+        --suite-record $suite_hook_runner)
+
     print $"Running tests for ($ctx.cell.cell_id) [execution_id=($ctx.execution_id)]..."
     let cy = (run-cypress-ci $ctx.artifacts_base $f_args_run $ctx.stack_id $verbose $env_file)
     let cypress_exit = $cy.exit_code
     let cypress_status = if $cypress_exit == 0 { "passed" } else { "failed" }
+
+    # Post-run snapshot before artifacts and teardown. Failure is infra-failed.
+    (with-infra-fail-cleanup $ctx "reva-registry-ready" {
+        wait-readiness $ctx $base_files (reva-registry-provider) --phase "after-cypress" | ignore
+    } --preserve-temp=$preserve_temp
+        --base-files (if not $keep_up { $base_files } else { [] })
+        --env-file $env_file
+        --suite-record $suite_hook_runner)
 
     collect-run-artifacts $ctx.artifacts_base $ctx.stack_id $run_files $ctx.is_two_party
 

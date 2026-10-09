@@ -9,12 +9,15 @@ use ../../domains/artifacts/collect.nu [
     missing-or-empty-expected-service-logs
 ]
 use ../../lib/services/infra-fail.nu [with-infra-fail-cleanup]
+use ../../lib/services/reva-registry.nu [reva-registry-constants]
 use ../../lib/services/lifecycle.nu [do-compose-up]
 use ../../lib/services/postrun-artifacts.nu [collect-run-artifacts]
 use ../../lib/time/utc.nu [utc-now]
 use ../../lib/services/wait-services.nu [platform-up-wait-services]
 use ../../lib/run/flow-ids.nu [WEBAPP_SHARE_FLOW_ID]
 use ../../lib/run/flow-topology.nu [flow-has-sender-hub load-flow-topology]
+use ../../lib/compose/topology-common.nu [execution-cidr]
+use ../../lib/run/execution-id.nu [execution-temp-path]
 use ../../lib/tests/assert.nu *
 use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ../../lib/tests/runner.nu [run-suite]
@@ -534,8 +537,6 @@ def test-cernbox-cookbook-baked-health-contract [] {
     mut results = [
         (assert-truthy (not ($src | str contains "sport = :"))
             "cernbox.sender.yml has no inline compose sport = : gRPC probes")
-        (assert-truthy (not ($src | str contains "healthcheck:"))
-            "cernbox.sender.yml has no compose healthcheck blocks (baked in images)")
     ]
     $results = ($results | append (
         $CERNBOX_BAKED_HEALTH_SERVICES | each {|svc|
@@ -551,6 +552,10 @@ def test-cernbox-cookbook-baked-health-contract [] {
                         "sender depends_on sender-revad-gateway with service_healthy")
                     (assert-truthy ($block | str contains "sender-revad-dataprovider-localhome:")
                         "sender depends_on dataprovider-localhome with service_healthy")
+                    (assert-truthy ($block | str contains "sender-revad-registry:")
+                        "sender depends_on sender-revad-registry")
+                    (assert-truthy (not ($block | str contains "healthcheck:"))
+                        "sender web block has no compose healthcheck")
                 ]
             } else if ($svc | str starts-with "sender-revad-") and $svc != "sender-revad-gateway" {
                 [
@@ -559,6 +564,8 @@ def test-cernbox-cookbook-baked-health-contract [] {
                         $"($svc) depends_on sender-revad-gateway")
                     (assert-truthy ($block | str contains "condition: service_healthy")
                         $"($svc) waits on gateway with service_healthy")
+                    (assert-truthy (not ($block | str contains "healthcheck:"))
+                        $"($svc) keeps baked health and has no compose healthcheck")
                 ]
             } else if $svc == "sender-revad-gateway" {
                 [
@@ -567,12 +574,30 @@ def test-cernbox-cookbook-baked-health-contract [] {
                         "gateway depends_on sender-idp")
                     (assert-truthy ($block | str contains "condition: service_healthy")
                         "gateway waits on idp with service_healthy")
+                    (assert-truthy ($block | str contains "sender-revad-registry:")
+                        "gateway depends_on sender-revad-registry")
+                    (assert-truthy (not ($block | str contains "healthcheck:"))
+                        "gateway block has no compose healthcheck")
                 ]
             } else {
-                [(assert-not-null $block $"($svc) block exists")]
+                [
+                    (assert-not-null $block $"($svc) block exists")
+                    (assert-truthy (not (($block | default "") | str contains "healthcheck:"))
+                        $"($svc) keeps baked health and has no compose healthcheck")
+                ]
             }
         } | flatten
     ))
+    let registry = (extract-compose-service-block $src "sender-revad-registry")
+    $results = ($results | append [
+        (assert-not-null $registry "sender-revad-registry block exists")
+        (assert-truthy ($registry | str contains "healthcheck:")
+            "registry is the compose service that carries a healthcheck")
+        (assert-truthy ($registry | str contains "nats-server")
+            "registry healthcheck belongs to the nats-server service")
+        (assert-truthy (not ($registry | str contains "sender-revad-gateway:"))
+            "registry does not depend on gateway")
+    ])
     $results
 }
 
@@ -940,6 +965,323 @@ def test-artifacts-collect-partial-cache-rerun-backfills [] {
     }
 }
 
+const UP_IMAGE_ID = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+def up-two-digit [n: int] {
+    if $n < 10 { $"0($n)" } else { $"($n)" }
+}
+
+def write-up-entrypoint-fixtures [dir: string] {
+    mkdir $dir
+    let modes = [
+        "gateway" "dataprovider-localhome" "dataprovider-ocm" "dataprovider-sciencemesh"
+        "authprovider-oidc" "authprovider-machine" "authprovider-ocmshares"
+        "authprovider-ocmsharecode" "authprovider-ocmexchangedtoken"
+        "authprovider-publicshares" "shareproviders" "groupuserproviders"
+    ]
+    let rows = ($modes | enumerate | each {|e|
+        let n = $e.index + 1
+        let service = $"sender-revad-($e.item)"
+        let id = $"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(up-two-digit $n)"
+        {
+            service: $service,
+            id: $id,
+            ip: $"10.51.0.($n)",
+        }
+    })
+    let broker = {
+        service: "sender-revad-registry",
+        id: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa13",
+        ip: "10.51.0.20",
+    }
+    let all_rows = ($rows | append $broker)
+    ($all_rows | each {|row| {ID: $row.id, Service: $row.service} | to json --raw} | str join "\n")
+        | save --force ($dir | path join "ps.jsonl")
+    ($all_rows | each {|row|
+        {
+            Id: $row.id,
+            RestartCount: 0,
+            Image: $UP_IMAGE_ID,
+            Config: {Hostname: $row.service, Labels: {"com.docker.compose.service": $row.service}},
+            State: {Status: "running", Health: {Status: "healthy"}, RestartCount: 0},
+            NetworkSettings: {Networks: {ocm-net: {IPAddress: $row.ip}}},
+        }
+    } | to json) | save --force ($dir | path join "inspect.json")
+    let services = ($rows | reduce --fold {} {|row, acc| $acc | upsert $row.service {image: "cernbox-revad:fixture"}})
+    {services: $services} | to json | save --force ($dir | path join "compose-config.json")
+    $UP_IMAGE_ID | save --force ($dir | path join "image-id.txt")
+    {status: "ok"} | to json | save --force ($dir | path join "healthz.json")
+    {
+        total: 12,
+        connections: ($rows | each {|row| {name: "reva-registry", ip: $"($row.ip):4222"}}),
+    } | to json | save --force ($dir | path join "connz.json")
+    {
+        disabled: false,
+        account_details: [{
+            stream_detail: [{
+                name: "KV_reva_registry",
+                state: {messages: 12, consumer_count: 12},
+                config: {max_age: (reva-registry-constants).ttl_ns},
+            }],
+        }],
+    } | to json | save --force ($dir | path join "jsz.json")
+}
+
+def write-up-entrypoint-docker [bin_dir: string] {
+    mkdir $bin_dir
+    let script = '#!/bin/sh
+log="${FAKE_UP_LOG:-/dev/null}"
+fix="${FAKE_UP_DIR:-}"
+printf "%s\n" "$*" >> "$log"
+case "$*" in
+  *network\ ls*)
+    if [ -n "${FAKE_UP_NET_LS:-}" ]; then
+      printf "%s" "$FAKE_UP_NET_LS"
+    fi
+    exit 0
+    ;;
+  *network\ inspect*)
+    if [ -n "${FAKE_UP_NET_INSPECT:-}" ]; then
+      cat "$FAKE_UP_NET_INSPECT"
+      exit 0
+    fi
+    exit 1
+    ;;
+  *\ config\ --format\ json*)
+    cat "$fix/compose-config.json"
+    exit 0
+    ;;
+  *\ config\ --services*)
+    printf "%s\n" "sender"
+    exit 0
+    ;;
+  *\ config*)
+    printf "%s\n" "name: fake"
+    exit 0
+    ;;
+  *\ ps\ -a*|ps\ -a*)
+    cat "$fix/ps.jsonl"
+    exit 0
+    ;;
+  *image\ inspect\ --format*|image\ inspect\ --format*)
+    cat "$fix/image-id.txt"
+    exit 0
+    ;;
+  *image\ inspect*|image\ inspect*)
+    exit 1
+    ;;
+  inspect*)
+    cat "$fix/inspect.json"
+    exit 0
+    ;;
+  *\ exec\ *)
+    case "$*" in
+      *healthz*) cat "$fix/healthz.json"; exit 0 ;;
+      *connz*) cat "$fix/connz.json"; exit 0 ;;
+      *jsz*) cat "$fix/jsz.json"; exit 0 ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  *\ logs\ *)
+    printf "%s\n" "log-line"
+    exit 0
+    ;;
+  *\ up\ -d\ --wait*)
+    exit 0
+    ;;
+  *\ down\ *)
+    exit 0
+    ;;
+  *)
+    printf "%s\n" "fake-docker unhandled: $*" >&2
+    exit 99
+    ;;
+esac
+'
+    $script | save --force ($bin_dir | path join "docker")
+    ^chmod +x ($bin_dir | path join "docker")
+}
+
+def run-services-entrypoint [
+    ocmts_root: string,
+    repo_root: string,
+    script_rel: string,
+    args: list<string>,
+    extra_env: record,
+] {
+    let bin_dir = ($ocmts_root | path join "_up_bin")
+    let fix_dir = ($ocmts_root | path join "_up_fix")
+    write-up-entrypoint-docker $bin_dir
+    write-up-entrypoint-fixtures $fix_dir
+    let log = ($ocmts_root | path join "docker-up.log")
+    if not ($log | path exists) {
+        "" | save --force $log
+    }
+    let nu_bin = (which nu | get path.0? | default "/usr/bin/nu")
+    let script = ($repo_root | path join $script_rel)
+    with-env ($extra_env | merge {
+        PATH: (path-prepend $bin_dir),
+        OCMTS_ROOT: $ocmts_root,
+        FAKE_UP_LOG: $log,
+        FAKE_UP_DIR: $fix_dir,
+    }) {
+        ^$nu_bin $script ...$args | complete
+    }
+}
+
+def test-execution-id-and-registry-phase-contract [] {
+    test-log "\n[test-execution-id-and-registry-phase-contract]"
+    let up = (read-src "scripts/domains/services/up.nu")
+    let up_open = (read-src "scripts/domains/services/up-open.nu")
+    let up_run = (read-src "scripts/domains/services/up-run.nu")
+    let ctx = (read-src "scripts/lib/services/context.nu")
+    let up_id = ($up | str index-of "--execution-id $execution_id")
+    let up_compose = ($up | str index-of "up -d --wait ...$wait_services")
+    let before = ($up_run | str index-of 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "before-cypress"')
+    let cypress = ($up_run | str index-of "run-cypress-ci ")
+    let after = ($up_run | str index-of 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "after-cypress"')
+    let collect = ($up_run | str index-of "collect-run-artifacts ")
+    let id_at = ($ctx | str index-of "validate-execution-id $execution_id")
+    let net_at = ($ctx | str index-of "check-subnet-preflight (execution-cidr $execution_id)")
+    let ready_hits = ($up_run | lines | where {|line| $line | str contains 'with-infra-fail-cleanup $ctx "reva-registry-ready"'} | length)
+    [
+        (assert-truthy ($up_id >= 0) "services up forwards --execution-id into setup-run-context")
+        (assert-truthy ($up_compose >= 0) "services up still runs compose up")
+        (assert-truthy ($up_id < $up_compose) "execution id is bound before compose up")
+        (assert-truthy ($up | str contains 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "platform-ready"')
+            "services up gates on phase platform-ready")
+        (assert-truthy ($up | str contains 'with-infra-fail-cleanup $ctx "reva-registry-ready"')
+            "services up registry gate uses the registry failure phase")
+        (assert-truthy ($up_open | str contains 'wait-readiness $ctx $base_files (reva-registry-provider) --phase "platform-ready"')
+            "services up open gates on phase platform-ready")
+        (assert-truthy ($before >= 0 and $cypress >= 0 and $after >= 0 and $collect >= 0)
+            "up-run names both registry phases, cypress, and artifact collection")
+        (assert-truthy ($before < $cypress) "before-cypress registry gate precedes Cypress")
+        (assert-truthy ($cypress < $after) "after-cypress registry gate follows Cypress")
+        (assert-truthy ($after < $collect) "after-cypress registry gate precedes artifact collection")
+        (assert-eq $ready_hits 2 "up-run wraps both registry gates in reva-registry-ready")
+        (assert-truthy ($id_at >= 0 and $net_at >= 0 and ($id_at < $net_at))
+            "execution id shape is checked before subnet preflight")
+    ]
+}
+
+def test-up-invalid-execution-id-skips-compose [] {
+    test-log "\n[test-up-invalid-execution-id-skips-compose]"
+    with-ocmts-collect-root {|ocmts_root, repo|
+        let run = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32" "--execution-id" "not-an-id"
+        ] {})
+        let log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        [
+            (assert-truthy ($run.exit_code != 0) "an invalid execution id fails services up")
+            (assert-string-contains $run.stderr "shape invalid" "invalid execution id names the shape check")
+            (assert-eq ($log | str trim) "" "invalid execution id does not call docker")
+            (assert-truthy (not ($run.stdout | str contains "Stack up"))
+                "invalid execution id does not report stack up")
+        ]
+    }
+}
+
+def test-up-subnet-conflict-skips-compose [] {
+    test-log "\n[test-up-subnet-conflict-skips-compose]"
+    with-ocmts-collect-root {|ocmts_root, repo|
+        let exec_id = "20260101t000000-aabbccdd"
+        let cidr = (execution-cidr $exec_id)
+        let inspect_path = ($ocmts_root | path join "overlap-net.json")
+        [{Name: "overlap-net", IPAM: {Config: [{Subnet: $cidr}]}}] | to json | save --force $inspect_path
+        let run = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32" "--execution-id" $exec_id
+        ] {FAKE_UP_NET_LS: "overlap-net\n", FAKE_UP_NET_INSPECT: $inspect_path})
+        let log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        [
+            (assert-truthy ($run.exit_code != 0) "an overlapping subnet fails services up")
+            (assert-string-contains $run.stderr "Subnet conflict" "subnet preflight reports the conflict")
+            (assert-string-contains $run.stderr $cidr "subnet preflight names the execution CIDR")
+            (assert-truthy (not ($log | str contains "up -d"))
+                "subnet conflict fails before compose up")
+        ]
+    }
+}
+
+def test-up-empty-execution-id-round-trip [] {
+    test-log "\n[test-up-empty-execution-id-round-trip]"
+    with-ocmts-collect-root {|ocmts_root, repo|
+        let up = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32"
+        ] {})
+        let parsed = ($up.stdout | parse --regex 'execution_id=(?P<id>\d{8}t\d{6}-[0-9a-f]{8})')
+        let exec_id = if ($parsed | is-empty) { "" } else { $parsed | first | get id }
+        let artifacts = ($ocmts_root | path join "artifacts" "login" "nextcloud-v32" $exec_id)
+        let run_meta = if ($artifacts | path join "meta/run.json" | path exists) {
+            open ($artifacts | path join "meta/run.json")
+        } else {
+            {stack_id: ""}
+        }
+        let up_log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        let down = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/down.nu" [
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32"
+        ] {})
+        let down_log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        let results = [
+            (assert-eq $up.exit_code 0 $"empty execution id brings nextcloud up: ($up.stderr)")
+            (assert-truthy ($exec_id =~ '^\d{8}t\d{6}-[0-9a-f]{8}$')
+                "empty execution id still prints a generated id")
+            (assert-truthy ($artifacts | path exists) "generated id is the artifacts directory")
+            (assert-string-contains $run_meta.stack_id $exec_id "project stack id contains the generated id")
+            (assert-truthy ($up_log | str contains $" -p ($run_meta.stack_id) ")
+                "compose up uses the generated project name")
+            (assert-eq $down.exit_code 0 $"down without an id uses the last run: ($down.stderr)")
+            (assert-string-contains $down.stdout $exec_id "down reports the same generated id")
+            (assert-truthy ($down_log | str contains $exec_id) "compose down uses the same project id")
+        ]
+        try { rm -rf (execution-temp-path $exec_id) } catch { }
+        $results
+    }
+}
+
+def test-up-supplied-execution-id-receipt-and-down [] {
+    test-log "\n[test-up-supplied-execution-id-receipt-and-down]"
+    with-ocmts-collect-root {|ocmts_root, repo|
+        let exec_id = "20260101t000000-01020304"
+        let up = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
+            "--flow" "login" "--sender-platform" "cernbox" "--sender-version" "v11" "--execution-id" $exec_id
+        ] {})
+        let artifacts = ($ocmts_root | path join "artifacts" "login" "cernbox-v11" $exec_id)
+        let receipt_path = ($artifacts | path join "meta" "readiness.v1.json")
+        let receipt = if ($receipt_path | path exists) { open $receipt_path } else { {} }
+        let run_meta = if ($artifacts | path join "meta/run.json" | path exists) {
+            open ($artifacts | path join "meta/run.json")
+        } else {
+            {stack_id: ""}
+        }
+        let up_log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        let down = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/down.nu" [
+            "--flow" "login" "--sender-platform" "cernbox" "--sender-version" "v11" "--execution-id" $exec_id
+        ] {})
+        let down_log = (open --raw ($ocmts_root | path join "docker-up.log"))
+        let providers = ($receipt.providers? | default {})
+        let tree = ($providers | get --optional "cernbox-registry" | default {})
+        let phases = ($tree.phases? | default {})
+        let phase = ($phases | get --optional "platform-ready" | default null)
+        let results = [
+            (assert-eq $up.exit_code 0 $"supplied execution id brings cernbox up: ($up.stderr)")
+            (assert-string-contains $up.stdout $"execution_id=($exec_id)"
+                "services up prints the supplied execution id")
+            (assert-string-contains $up.stdout $artifacts "services up prints the supplied artifacts path")
+            (assert-string-contains $run_meta.stack_id $exec_id "project name contains the supplied id")
+            (assert-truthy ($up_log | str contains $" -p ($run_meta.stack_id) ")
+                "compose up project matches the supplied id")
+            (assert-eq ($receipt.execution_id? | default "") $exec_id "registry receipt records the supplied id")
+            (assert-eq ($phase.status? | default "") "passed" "platform-ready receipt phase passed")
+            (assert-eq $down.exit_code 0 $"down with the supplied id succeeds: ($down.stderr)")
+            (assert-string-contains $down.stdout $exec_id "down reports the supplied id")
+            (assert-truthy ($down_log | str contains $exec_id) "compose down project contains the supplied id")
+        ]
+        try { rm -rf (execution-temp-path $exec_id) } catch { }
+        $results
+    }
+}
+
 def main [] {
     test-log "=== services/platform-up-logs contract tests ==="
     let results = (
@@ -958,6 +1300,11 @@ def main [] {
         | append (test-collect-service-logs-missing-container-skipped)
         | append (test-postrun-artifacts-all-project-services)
         | append (test-cernbox-cookbook-baked-health-contract)
+        | append (test-execution-id-and-registry-phase-contract)
+        | append (test-up-invalid-execution-id-skips-compose)
+        | append (test-up-subnet-conflict-skips-compose)
+        | append (test-up-empty-execution-id-round-trip)
+        | append (test-up-supplied-execution-id-receipt-and-down)
         | append (test-infra-fail-collects-logs-before-teardown)
         | append (test-infra-fail-collects-logs-before-teardown-runtime)
         | append (test-artifacts-collect-all-services-discovery)

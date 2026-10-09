@@ -11,6 +11,7 @@ use ../run/metadata.nu [write-prepared-run]
 use ../time/utc.nu [utc-now]
 use ../artifacts/init.nu [init-artifact-dirs write-last-execution-id]
 use ../domain/core/ocmts-root.nu [get-ocmts-root]
+use ../run/readiness-evidence.nu [readiness-evidence-reset]
 use ./subnet-preflight.nu [check-subnet-preflight]
 
 export def setup-run-context [
@@ -51,6 +52,8 @@ export def setup-run-context [
     check-subnet-preflight (execution-cidr $execution_id)
     let eff_suite_id = if ($suite_id | is-empty) { $execution_id } else { $suite_id }
     let artifacts_base = (init-artifact-dirs $cell.flow_id $cell.pair $execution_id)
+    # Every invocation starts a new attempt. Readiness evidence does not resume.
+    readiness-evidence-reset $artifacts_base $execution_id
 
     let spec_entrypoint = $"cypress/e2e/($cell.flow_id)/index.cy.ts"
     let overlay = (write-compose-overlays

@@ -10,7 +10,9 @@ use ../../lib/tests/runner.nu [run-suite]
 
 const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master"
 const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
+const CERNBOX_REVAD_WEBAPP_SHARE = "ghcr.io/mahdibaghbani/containers/cernbox-revad:ocm-webapp-share-development"
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
+const CERNBOX_REGISTRY_DEFAULT = "nats:2.15.0-alpine3.22"
 const NEXTCLOUD_V35_HUB_WEBAPP_SHARE = "ghcr.io/mahdibaghbani/containers/jupyterhub:webapp-share"
 
 def leaked-nextcloud-webapp-share-hub-env-mask [] {
@@ -24,7 +26,10 @@ def leaked-cernbox-image-env-mask [] {
     [
         OCMTS_CERNBOX_WEB_V11_IMAGE
         OCMTS_CERNBOX_REVAD_IMAGE
+        OCMTS_CERNBOX_REVAD_WEBAPP_SHARE_IMAGE
         OCMTS_CERNBOX_IDP_IMAGE
+        OCMTS_CERNBOX_REGISTRY_IMAGE
+        OCMTS_CERNBOX_WEB_V11_WEBAPP_SHARE_IMAGE
     ]
     | reduce --fold {} {|k, acc|
         if $k in $env { $acc | upsert $k null } else { $acc }
@@ -41,13 +46,17 @@ def test-cernbox-v11-bundle-keys-and-defaults [] {
     let bundle_cols = ($imgs.bundle | columns)
     [
         (assert-eq $imgs.platform $CERNBOX_WEB_DEFAULT "cernbox/v11 platform default")
-        (assert-eq ($bundle_cols | sort) ["idp" "revad"] "bundle has revad and idp slots")
+        (assert-eq ($bundle_cols | sort) ["idp" "registry" "revad"]
+            "bundle has revad, idp, and registry slots")
         (assert-eq ($imgs.bundle | get revad) $CERNBOX_REVAD_DEFAULT "revad default ref")
         (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT "idp default ref")
+        (assert-eq ($imgs.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT "registry default ref")
         (assert-eq ($imgs.bundle_services | get revad) "sender-revad-gateway"
             "revad slot maps to real compose service name")
         (assert-eq ($imgs.bundle_services | get idp) "sender-idp"
             "idp slot maps to real compose service name")
+        (assert-eq ($imgs.bundle_services | get registry) "sender-revad-registry"
+            "registry slot maps to sender-revad-registry")
     ]
 }
 
@@ -64,6 +73,8 @@ def test-cernbox-v11-bundle-env-override-precedence [] {
             "OCMTS_CERNBOX_REVAD_IMAGE overrides revad bundle slot")
         (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT
             "idp bundle slot unchanged when only revad env is set")
+        (assert-eq ($imgs.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT
+            "registry bundle slot unchanged when only revad env is set")
     ]
 }
 
@@ -80,6 +91,8 @@ def test-cernbox-v11-bundle-idp-env-override-precedence [] {
             "OCMTS_CERNBOX_IDP_IMAGE overrides idp bundle slot")
         (assert-eq ($imgs.bundle | get revad) $CERNBOX_REVAD_DEFAULT
             "revad bundle slot unchanged when only idp env is set")
+        (assert-eq ($imgs.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT
+            "registry bundle slot unchanged when only idp env is set")
     ]
 }
 
@@ -105,6 +118,67 @@ def test-cernbox-v11-web-and-bundle-env-override-independence [] {
             "OCMTS_CERNBOX_REVAD_IMAGE overrides revad slot independently of platform web")
         (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT
             "idp bundle slot unchanged when only web and revad envs are set")
+        (assert-eq ($imgs.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT
+            "registry bundle slot unchanged when only web and revad envs are set")
+    ]
+}
+
+def test-cernbox-v11-registry-env-override [] {
+    test-log "\n[test-cernbox-v11-registry-env-override]"
+    let custom_registry = "localhost/ocmts/nats:registry-override"
+    let imgs = (
+        with-env (leaked-cernbox-image-env-mask | merge {
+            OCMTS_CERNBOX_REGISTRY_IMAGE: $custom_registry
+        }) {
+            resolve-images "cernbox" "v11"
+        }
+    )
+    [
+        (assert-eq ($imgs.bundle | get registry) $custom_registry
+            "OCMTS_CERNBOX_REGISTRY_IMAGE overrides the registry slot")
+        (assert-eq ($imgs.bundle | get revad) $CERNBOX_REVAD_DEFAULT
+            "revad slot unchanged when only registry env is set")
+        (assert-eq ($imgs.bundle | get idp) $CERNBOX_IDP_DEFAULT
+            "idp slot unchanged when only registry env is set")
+        (assert-eq ($imgs.bundle_services | get registry) "sender-revad-registry"
+            "registry service name unchanged when the ref is overridden")
+    ]
+}
+
+def test-cernbox-v11-registry-generic-on-webapp-share [] {
+    test-log "\n[test-cernbox-v11-registry-generic-on-webapp-share]"
+    let custom_registry = "localhost/ocmts/nats:registry-flow"
+    let masked = (
+        with-env (leaked-cernbox-image-env-mask) {
+            {
+                login: (resolve-images "cernbox" "v11" --flow-id "login")
+                share: (resolve-images "cernbox" "v11" --flow-id "webapp-share")
+            }
+        }
+    )
+    let overridden = (
+        with-env (leaked-cernbox-image-env-mask | merge {
+            OCMTS_CERNBOX_REGISTRY_IMAGE: $custom_registry
+        }) {
+            {
+                login: (resolve-images "cernbox" "v11" --flow-id "login")
+                share: (resolve-images "cernbox" "v11" --flow-id "webapp-share")
+            }
+        }
+    )
+    [
+        (assert-eq ($masked.login.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT
+            "login registry default is the generic nats ref")
+        (assert-eq ($masked.share.bundle | get registry) $CERNBOX_REGISTRY_DEFAULT
+            "webapp-share registry default stays the generic nats ref")
+        (assert-eq ($masked.share.bundle | get revad) $CERNBOX_REVAD_WEBAPP_SHARE
+            "webapp-share revad still uses its by_flow default")
+        (assert-eq ($overridden.login.bundle | get registry) $custom_registry
+            "generic registry override applies to login")
+        (assert-eq ($overridden.share.bundle | get registry) $custom_registry
+            "generic registry override applies to webapp-share")
+        (assert-eq ($overridden.share.bundle | get revad) $CERNBOX_REVAD_WEBAPP_SHARE
+            "registry override does not change the webapp-share revad ref")
     ]
 }
 
@@ -190,6 +264,8 @@ def main [] {
         | append (test-cernbox-v11-bundle-env-override-precedence)
         | append (test-cernbox-v11-bundle-idp-env-override-precedence)
         | append (test-cernbox-v11-web-and-bundle-env-override-independence)
+        | append (test-cernbox-v11-registry-env-override)
+        | append (test-cernbox-v11-registry-generic-on-webapp-share)
         | append (test-nextcloud-v32-bundle-empty)
         | append (test-nextcloud-v35-login-no-hub-bundle)
         | append (test-nextcloud-v35-webapp-share-hub-bundle)

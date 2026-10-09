@@ -260,6 +260,25 @@ def test-validate-images-cfg-flags-unknown-by-flow-key [] {
     }
 }
 
+def test-validate-accepts-cernbox-registry-slot [] {
+    test-log "\n[test-validate-accepts-cernbox-registry-slot]"
+    let root = (repo-root)
+    let result = (validate-images-cfg $root)
+    let cfg = (open ($root | path join "config/images.nuon"))
+    let slot = $cfg.platforms.cernbox.v11.bundle.registry
+    [
+        (assert-truthy $result.ok "repo image catalog accepts the cernbox registry slot")
+        (assert-eq $slot.default "nats:2.15.0-alpine3.22"
+            "registry slot default is nats:2.15.0-alpine3.22")
+        (assert-eq $slot.override_env "OCMTS_CERNBOX_REGISTRY_IMAGE"
+            "registry slot override env is OCMTS_CERNBOX_REGISTRY_IMAGE")
+        (assert-eq $slot.service "revad-registry"
+            "registry slot service is revad-registry")
+        (assert-truthy (not ("by_flow" in ($slot | columns)))
+            "registry slot has no by_flow map")
+    ]
+}
+
 def main [] {
     test-log "=== images/validate tests ==="
     let results = (
@@ -269,6 +288,7 @@ def main [] {
         | append (test-validate-images-cfg-accepts-capability-less-flow)
         | append (test-images-validate-passes-on-repo)
         | append (test-images-validate-fails-on-fixture-typo)
+        | append (test-validate-accepts-cernbox-registry-slot)
     ) | flatten
     run-suite "images/validate" $SUITE_PATH $results
 }

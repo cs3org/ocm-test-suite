@@ -8,8 +8,8 @@
 # Safe when the jsonl file is missing or empty.
 
 use ./report-utils.nu [
-    participants-from-roles role-primary-host md-participants-preface mk-md-row
-    infer-from-role infer-to-role load-meta-identity compute-id-hoist
+    participants-from-roles md-participants-preface mk-md-row
+    resolve-from-endpoint resolve-to-endpoint roles-have-endpoints load-meta-identity compute-id-hoist
 ]
 
 export def summarize-mitm-flows [artifacts_base: string] {
@@ -69,8 +69,8 @@ export def summarize-mitm-flows [artifacts_base: string] {
             let flow_id = if ($flow_id_raw | str trim | is-empty) { $meta_id.flow_id } else { $flow_id_raw }
             let cell_id = if ($cell_id_raw | str trim | is-empty) { $meta_id.cell_id } else { $cell_id_raw }
             let run_id = if ($run_id_raw | str trim | is-empty) { $meta_id.run_id } else { $run_id_raw }
-            let from_role = (infer-from-role $client_ip $roles)
-            let to_role = (infer-to-role ($req.host? | default "") $server_ip $roles)
+            let from = (resolve-from-endpoint $client_ip $roles)
+            let to = (resolve-to-endpoint ($req.host? | default "") $server_ip $roles)
             {
                 captured_at: $captured_at,
                 event_id:    ($f.event_id? | default ""),
@@ -78,10 +78,10 @@ export def summarize-mitm-flows [artifacts_base: string] {
                 flow_id:     $flow_id,
                 cell_id:     $cell_id,
                 run_id:      $run_id,
-                from_role:   $from_role,
-                to_role:     $to_role,
-                from_host:   (role-primary-host $from_role $participants),
-                to_host:     (role-primary-host $to_role $participants),
+                from_role:   $from.role,
+                to_role:     $to.role,
+                from_host:   $from.host,
+                to_host:     $to.host,
                 method:      ($req.method? | default ""),
                 status_code: ($resp.status_code? | default 0),
                 url:         ($req.url? | default ""),
@@ -99,9 +99,9 @@ export def summarize-mitm-flows [artifacts_base: string] {
     let has_from_host = ($rows | any {|r| not ($r.from_host | is-empty)})
     let has_to_host   = ($rows | any {|r| not ($r.to_host | is-empty)})
 
-    # For the MD table: suppress host cols when participants preface is present,
-    # and hoist invariant identity cols into a short inline preface above the table.
-    let suppress_host_cols = not ($preface | is-empty)
+    # Legacy tables retain preface suppression; v2 shows the matched endpoint.
+    # Identity column hoisting remains unchanged.
+    let suppress_host_cols = (not (roles-have-endpoints $roles)) and (not ($preface | is-empty))
     let md_has_from_host = (if $suppress_host_cols { false } else { $has_from_host })
     let md_has_to_host   = (if $suppress_host_cols { false } else { $has_to_host })
     let id_hoist = (compute-id-hoist $rows ["flow_id" "cell_id" "run_id"])

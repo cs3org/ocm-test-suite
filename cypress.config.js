@@ -1,6 +1,9 @@
 // Cypress config is intentionally JS (not TS) so it loads in minimal container
 // environments without requiring a TS runtime.
 
+const path = require("node:path");
+const fs = require("node:fs");
+
 const runtimeStore = new Map();
 
 const TRUE_TOKENS = new Set(["1", "true", "yes", "y", "on"]);
@@ -38,6 +41,11 @@ function resolveVideoCompressionEnv(value, defaultValue) {
   return defaultValue;
 }
 
+const { createLaunchProbe } = require("./cypress.config.launch-probe.cjs");
+const launchDiagnostics = resolveBooleanEnv(process.env.OCMTS_WEBAPP_LAUNCH_DIAGNOSTICS, false);
+const browserExperiment = resolveBooleanEnv(process.env.OCMTS_WEBAPP_BROWSER_EXPERIMENT, false);
+const requestReplay = resolveBooleanEnv(process.env.OCMTS_WEBAPP_REQUEST_REPLAY, true);
+
 module.exports = {
   video: resolveBooleanEnv(process.env.CYPRESS_video, true),
   videoCompression: resolveVideoCompressionEnv(process.env.CYPRESS_videoCompression, true),
@@ -49,8 +57,11 @@ module.exports = {
     sender_idp_realm: process.env.CYPRESS_sender_idp_realm,
     receiver_idp_origin: process.env.CYPRESS_receiver_idp_origin,
     receiver_idp_realm: process.env.CYPRESS_receiver_idp_realm,
+    webapp_launch_diagnostics: launchDiagnostics,
+    webapp_request_replay: requestReplay,
   },
   e2e: {
+    ...(browserExperiment ? { chromeWebSecurity: false } : {}),
     specPattern: "cypress/e2e/**/*.cy.ts",
     supportFile: "cypress/support/e2e.ts",
     baseUrl: process.env.CYPRESS_BASE_URL || process.env.CYPRESS_baseUrl,
@@ -59,7 +70,28 @@ module.exports = {
     // IdP SSO cookie so a later test logs in as the intended user.
     testIsolation: true,
     setupNodeEvents(on, config) {
+      const probe = createLaunchProbe(config);
+      on("before:browser:launch", (browser, launchOptions) => {
+        const chrome = browser.family === "chromium" && browser.name !== "electron";
+        if (launchDiagnostics && !chrome) {
+          throw new Error("Launch diagnostics require Chrome");
+        }
+        if (chrome) {
+          if (browserExperiment && !launchOptions.args.includes("--disable-http-cache")) {
+            launchOptions.args.push("--disable-http-cache");
+          }
+          if (launchDiagnostics) probe.capturePort(launchOptions.args);
+        }
+        return launchOptions;
+      });
+      on("after:run", () => probe.stop());
       on("task", {
+        "launch-probe:start"(payload) {
+          return launchDiagnostics ? probe.start(payload?.attempt) : null;
+        },
+        "launch-probe:stop"() {
+          return probe.finish();
+        },
         "runtime:clear"() {
           runtimeStore.clear();
           return null;
@@ -82,6 +114,25 @@ module.exports = {
           const value = runtimeStore.get(payload.key);
           return value === undefined ? null : value;
         },
+      });
+
+      // Retries suffix screenshots with ' (attempt n)'; strip it so explicit evidence
+      // screenshots keep deterministic names per the evidence standard; ' (failed)' markers are preserved.
+      on("after:screenshot", (details) => {
+        const dir = path.dirname(details.path);
+        const base = path.basename(details.path);
+        const cleanedBase = base.replace(/\s*\(attempt\s+\d+\)\s*/g, "");
+        if (cleanedBase === base) {
+          return undefined;
+        }
+        const cleanPath = path.join(dir, cleanedBase);
+        try {
+          fs.unlinkSync(cleanPath);
+        } catch (error) {
+          if (error.code !== "ENOENT") throw error;
+        }
+        fs.renameSync(details.path, cleanPath);
+        return { path: cleanPath };
       });
 
       return config;

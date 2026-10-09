@@ -5,6 +5,7 @@ import { parseRemoteHostFromFederatedRecipientId } from "../../../shared/urls";
 import {
   ensureFileExists,
   ensureFilesAppLoadedForShareAcceptance,
+  fileRowShowsSharedBadge,
   getFileRow,
 } from "./files";
 
@@ -60,7 +61,54 @@ function getExternalShareCombobox(): Cypress.Chainable<JQuery<HTMLInputElement>>
     });
 }
 
-export function addExternalShare(federatedRecipientId: string): void {
+function waitForExternalShareCreateConfirmation(sharedFileName: string): void {
+  const pollTimeoutMs = 20000;
+  const pollIntervalMs = 350;
+  // Start the deadline on the first poll cycle; Cypress queues work before it runs.
+  let startedAt: number | null = null;
+
+  const pollForConfirmation = (): Cypress.Chainable<unknown> => {
+    return cy.get("body").then(($body) => {
+      startedAt ??= Date.now();
+
+      const toastVisible = $body
+        .find('[role="alert"], .toast, .toastify')
+        .filter(":visible")
+        .toArray()
+        .some((el) => /Share saved/i.test(Cypress.$(el).text()));
+
+      if (toastVisible) {
+        return cy.wrap(null, { log: false });
+      }
+
+      if (fileRowShowsSharedBadge(sharedFileName, $body)) {
+        return cy.wrap(null, { log: false });
+      }
+
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= pollTimeoutMs) {
+        throw new Error(
+          [
+            "External share create did not show confirmation.",
+            'Expected "Share saved" toast or a "Shared" badge on the file row.',
+            `file: ${sharedFileName}`,
+          ].join(" "),
+        );
+      }
+
+      return cy.wait(pollIntervalMs, { log: false }).then(() => {
+        return pollForConfirmation();
+      });
+    });
+  };
+
+  pollForConfirmation();
+}
+
+export function addExternalShare(
+  federatedRecipientId: string,
+  sharedFileName: string,
+): void {
   const remoteHost = parseRemoteHostFromFederatedRecipientId(federatedRecipientId);
 
   getExternalShareCombobox().clear().type(federatedRecipientId);
@@ -90,8 +138,7 @@ export function addExternalShare(federatedRecipientId: string): void {
     expect(statusCode, "OCS share create status code").to.be.oneOf([200, 201]);
   });
 
-  cy.contains('[role="alert"], .toast, .toastify', "Share saved", { timeout: 20000 })
-    .should("be.visible");
+  waitForExternalShareCreateConfirmation(sharedFileName);
 }
 
 export function handleShareAcceptance(
@@ -100,7 +147,8 @@ export function handleShareAcceptance(
 ): void {
   const pollTimeoutMs = 15000;
   const pollIntervalMs = 350;
-  const startedAt = Date.now();
+  // Start the deadline on the first poll cycle; Cypress queues work before it runs.
+  let startedAt: number | null = null;
 
   const hasRemoteShareDialogButton = ($body: JQuery<HTMLElement>) => {
     return $body.find('button:contains("Add remote share")').filter(":visible").length > 0;
@@ -108,6 +156,8 @@ export function handleShareAcceptance(
 
   const pollForRemoteShareDialogButton = (): Cypress.Chainable<boolean> => {
     return cy.get("body").then(($body) => {
+      startedAt ??= Date.now();
+
       if (hasRemoteShareDialogButton($body)) {
         return cy.wrap(true, { log: false });
       }

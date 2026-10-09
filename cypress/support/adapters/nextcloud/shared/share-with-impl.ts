@@ -18,7 +18,7 @@ import {
 } from "./files";
 import { addExternalShare, handleShareAcceptance, openSharingPanel } from "./sharing";
 
-export type NextcloudShareWithVersion = "v32" | "v33" | "v34" | "v35";
+export type NextcloudShareWithVersion = "v33" | "v34" | "v35";
 
 export type NextcloudShareWithAdapters = {
   shareWithFlowSender: ShareWithFlowSenderAdapter;
@@ -49,7 +49,7 @@ export function createNextcloudShareWithAdapters(
     ensureFilesAppActive();
     cy.log(`share ${sharedFileName} -> ${federatedRecipientId}`);
     openSharingPanel(sharedFileName);
-    addExternalShare(federatedRecipientId);
+    addExternalShare(federatedRecipientId, sharedFileName);
   }
 
   function acceptIncomingShare({ sharedFileName }: { sharedFileName: string }): void {

@@ -2,7 +2,6 @@
 // Do not edit by hand.
 export const matrixCellIds = [
   "login__cernbox-v11",
-  "login__nextcloud-v32",
   "login__nextcloud-v33",
   "login__nextcloud-v34",
   "login__nextcloud-v35",

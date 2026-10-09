@@ -22,7 +22,6 @@
     "nextcloud": {
       "display_name": "Nextcloud",
       "version_lines": [
-        "v32",
         "v33",
         "v34",
         "v35"

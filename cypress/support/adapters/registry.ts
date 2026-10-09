@@ -49,13 +49,6 @@ import {
   opencloudV6ShareFileReceiverAdapter,
   opencloudV6ShareFileSenderAdapter,
 } from "./opencloud/v6/share-file-adapter";
-import { nextcloudV32LoginAdapter } from "./nextcloud/v32/login-adapter";
-import {
-  nextcloudV32ShareFileReceiverAdapter,
-  nextcloudV32ShareFileSenderAdapter,
-  nextcloudV32ShareWithFlowReceiverAdapter,
-  nextcloudV32ShareWithFlowSenderAdapter,
-} from "./nextcloud/v32/share-with-adapter";
 import { nextcloudV33LoginAdapter } from "./nextcloud/v33/login-adapter";
 import {
   nextcloudV33ShareFileReceiverAdapter,
@@ -114,7 +107,6 @@ export type AdapterRef = {
 
 const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
   nextcloud: {
-    v32: nextcloudV32LoginAdapter,
     v33: nextcloudV33LoginAdapter,
     v34: nextcloudV34LoginAdapter,
     v35: nextcloudV35LoginAdapter,
@@ -135,7 +127,6 @@ const loginAdapters: Record<string, Record<string, LoginAdapter>> = {
 
 const shareWithFlowSenderAdapters: Record<string, Record<string, ShareWithFlowSenderAdapter>> = {
   nextcloud: {
-    v32: nextcloudV32ShareWithFlowSenderAdapter,
     v33: nextcloudV33ShareWithFlowSenderAdapter,
     v34: nextcloudV34ShareWithFlowSenderAdapter,
     v35: nextcloudV35ShareWithFlowSenderAdapter,
@@ -168,7 +159,6 @@ const webappShareFlowReceiverAdapters: Record<
 
 const shareWithFlowReceiverAdapters: Record<string, Record<string, ShareWithFlowReceiverAdapter>> = {
   nextcloud: {
-    v32: nextcloudV32ShareWithFlowReceiverAdapter,
     v33: nextcloudV33ShareWithFlowReceiverAdapter,
     v34: nextcloudV34ShareWithFlowReceiverAdapter,
     v35: nextcloudV35ShareWithFlowReceiverAdapter,
@@ -180,7 +170,6 @@ const shareWithFlowReceiverAdapters: Record<string, Record<string, ShareWithFlow
 
 const shareFileSenderAdapters: Record<string, Record<string, ShareFileSenderAdapter>> = {
   nextcloud: {
-    v32: nextcloudV32ShareFileSenderAdapter,
     v33: nextcloudV33ShareFileSenderAdapter,
     v34: nextcloudV34ShareFileSenderAdapter,
     v35: nextcloudV35ShareFileSenderAdapter,
@@ -201,7 +190,6 @@ const shareFileSenderAdapters: Record<string, Record<string, ShareFileSenderAdap
 
 const shareFileReceiverAdapters: Record<string, Record<string, ShareFileReceiverAdapter>> = {
   nextcloud: {
-    v32: nextcloudV32ShareFileReceiverAdapter,
     v33: nextcloudV33ShareFileReceiverAdapter,
     v34: nextcloudV34ShareFileReceiverAdapter,
     v35: nextcloudV35ShareFileReceiverAdapter,

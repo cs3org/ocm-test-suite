@@ -1,5 +1,4 @@
 {
     # Platform/version pairs omitted from CI workflow assets and matrix jobs only.
     # Cypress matrix.ts and shared matrix SSOT are unchanged.
-    "nextcloud": ["v32"]
 }

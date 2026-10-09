@@ -77,7 +77,26 @@ export function decodeCernboxAcceptedContactUrl(
   return acceptedContactUrl.replace(/^ocm-contact:\/\//, "");
 }
 
-function extractSenderDomainFromToken(inviteToken: string): string {
+function decodesToProviderToken(value: string): boolean {
+  try {
+    return atob(value).includes("@");
+  } catch {
+    return false;
+  }
+}
+
+function isBareInviteToken(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.includes("@")) {
+    return false;
+  }
+  return !decodesToProviderToken(trimmed);
+}
+
+function extractSenderDomainFromToken(
+  inviteToken: string,
+  inviteTokenSenderHost?: string,
+): string {
   try {
     const decoded = atob(inviteToken.trim());
     const atIdx = decoded.lastIndexOf("@");
@@ -90,6 +109,10 @@ function extractSenderDomainFromToken(inviteToken: string): string {
   const atIdx = inviteToken.lastIndexOf("@");
   if (atIdx > 0) {
     return inviteToken.slice(atIdx + 1).trim();
+  }
+  const senderHost = inviteTokenSenderHost?.trim() ?? "";
+  if (isBareInviteToken(inviteToken) && senderHost !== "") {
+    return senderHost;
   }
   return inviteToken;
 }
@@ -169,6 +192,9 @@ export function createCernboxInviteTokenBase64(
         if (codeSpan.length > 0 && codeSpan.text().trim() !== "") {
           const code = codeSpan.text().trim();
           expect(code, `OCM invite code (note: ${note})`).to.not.be.empty;
+          if (isBareInviteToken(code)) {
+            return cy.wrap(btoa(`${code}@${senderHost}`), { log: false });
+          }
           return cy.wrap(code, { log: false });
         }
 
@@ -189,20 +215,15 @@ export function createCernboxInviteTokenBase64(
   });
 }
 
-function decodesToProviderToken(value: string): boolean {
-  try {
-    return atob(value).includes("@");
-  } catch {
-    return false;
-  }
-}
-
 // cernbox-web IncomingInvitations decodes the entered token with atob() and
 // splits on "@" to derive the institution; the Accept button stays disabled
 // until both parts resolve. Nextcloud copies a plaintext `token@domain` code,
 // so normalize to the base64 `token@provider` form the CERNBox UI expects.
 // Idempotent: a value that already base64-decodes to `x@y` is left as-is.
-export function encodeCernboxInviteTokenForUi(inviteToken: string): string {
+export function encodeCernboxInviteTokenForUi(
+  inviteToken: string,
+  inviteTokenSenderHost?: string,
+): string {
   const trimmed = inviteToken.trim();
   if (decodesToProviderToken(trimmed)) {
     return trimmed;
@@ -210,10 +231,15 @@ export function encodeCernboxInviteTokenForUi(inviteToken: string): string {
   if (trimmed.includes("@")) {
     return btoa(trimmed);
   }
+  const senderHost = inviteTokenSenderHost?.trim() ?? "";
+  if (isBareInviteToken(trimmed) && senderHost !== "") {
+    return btoa(`${trimmed}@${senderHost}`);
+  }
   throw new Error(
     [
       "Cannot present invite token to the CERNBox accept form.",
-      "Expected base64(token@provider) or plaintext token@provider,",
+      "Expected base64(token@provider), plaintext token@provider,",
+      "or a bare token with inviteTokenSenderHost,",
       `got: ${inviteToken}`,
     ].join(" "),
   );
@@ -221,6 +247,7 @@ export function encodeCernboxInviteTokenForUi(inviteToken: string): string {
 
 export function acceptCernboxInviteToken(
   inviteToken: string,
+  inviteTokenSenderHost?: string,
 ): Cypress.Chainable<string> {
   openCernboxOcmApp();
 
@@ -228,7 +255,10 @@ export function acceptCernboxInviteToken(
     "exist",
   );
 
-  const uiInviteToken = encodeCernboxInviteTokenForUi(inviteToken);
+  const uiInviteToken = encodeCernboxInviteTokenForUi(
+    inviteToken,
+    inviteTokenSenderHost,
+  );
 
   cy.get("#sciencemesh-accept-invites")
     .find("label")
@@ -255,7 +285,10 @@ export function acceptCernboxInviteToken(
   cy.get("#sciencemesh-connections table tbody tr", { timeout: ocmApiTimeoutMs })
     .should("have.length.at.least", 1);
 
-  const senderDomain = extractSenderDomainFromToken(inviteToken);
+  const senderDomain = extractSenderDomainFromToken(
+    inviteToken,
+    inviteTokenSenderHost,
+  );
   return cy.wrap(encodeCernboxAcceptedContactUrl(senderDomain), { log: false });
 }
 

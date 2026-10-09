@@ -43,6 +43,18 @@ export function getFileRow(fileName: string): Cypress.Chainable<JQuery<HTMLEleme
     .should("be.visible");
 }
 
+export function fileRowShowsSharedBadge(
+  fileName: string,
+  $body: JQuery<HTMLElement>,
+): boolean {
+  const selector = `${filesTableSelector} ${filesRowSelector(fileName)}`;
+  const $row = $body.find(selector).first().closest("tr");
+  if ($row.length === 0 || !$row.is(":visible")) {
+    return false;
+  }
+  return /\bShared\b/i.test($row.text());
+}
+
 export function ensureFileExists(
   fileName: string,
   options: { remainingAttempts: number } = { remainingAttempts: 3 },

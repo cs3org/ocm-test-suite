@@ -16,8 +16,8 @@ const OCMGO_V1_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.1
 const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12"
 const OPENCLOUD_V6_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
 const OCIS_V8_DEFAULT = "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
-const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.1"
-const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-contacts-app"
+const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.4"
+const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-webapp-share"
 
 def leaked-role-image-env-mask [] {
     [

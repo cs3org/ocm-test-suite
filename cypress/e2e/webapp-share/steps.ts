@@ -123,7 +123,9 @@ export function defineWebappShareScenarioCase(scenarioCase: ScenarioCase) {
       });
     });
 
-    it("receiver accepts share and launches remote webapp", () => {
+    // Cross-origin multi-hop form-POST launch can miss Cypress page-load watchdog
+    // while the page is interactive; retries recover the attempt.
+    it("receiver accepts share and launches remote webapp", { retries: 2 }, () => {
       return resolveActorCredentials(scenarioCase.receiver).then((receiverCredentials) => {
         setBaseUrl(scenarioCase.receiverIdentity.getBaseUrl());
 

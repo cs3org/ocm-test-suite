@@ -3,6 +3,7 @@
 # stack.env for docker compose variable substitution.
 
 use ./yaml.nu [platform-party-host yaml-env-entry]
+use ./cernbox-env.nu [cernbox-reva-env-lines]
 use ./topology-common.nu [
     make-stack-context
     write-exec-yml
@@ -27,6 +28,8 @@ def write-one-party-env [
     record_video: bool,
     root: string,
     actor: any,
+    # Allocated execution subnet, for example 10.197.228.0/24.
+    exec_cidr: string,
     # External-IdP env for the party, or {} for same-origin platforms.
     # Shape when set: {host, origin, realm}.
     idp_env: record = {},
@@ -69,6 +72,7 @@ def write-one-party-env [
         "CYPRESS_downloadsFolder=/artifacts/cypress/downloads"
     ]
     $lines = ($lines | append (ocmgo-env-lines "sender" $platform $actor $short_host))
+    $lines = ($lines | append (cernbox-reva-env-lines "sender" $platform $exec_cidr))
     if $actor != null {
         $lines = ($lines | append [
             $"CYPRESS_($actor.platform)_username=($actor.username)"
@@ -87,7 +91,7 @@ def write-one-party-env [
     }
 
     for slot in ($bundle | columns) {
-        let slot_up = ($slot | str upcase)
+        let slot_up = ($slot | str uppercase)
         let slot_ref = ($bundle | get $slot)
         $lines = ($lines | append $"SENDER_($slot_up)_IMAGE=($slot_ref)")
     }
@@ -140,7 +144,7 @@ export def write-one-party-overlays [
     # Write stack.env with all substitution variables
     let env_file = (write-one-party-env
         $art_inputs $platform $sender_version $image_ref $mariadb_image $valkey_image
-        $record_video $root $actor $idp_env $bundle)
+        $record_video $root $actor $exec_cidr $idp_env $bundle)
 
     let party_host = (platform-party-host $platform 1)
     let record_str = if $record_video { "true" } else { "false" }

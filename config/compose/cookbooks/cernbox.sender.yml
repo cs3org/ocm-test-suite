@@ -8,6 +8,9 @@
 # start only `sender`/`receiver`/`mitm` plus their transitive depends_on
 # closure, so anything missing here never starts and the gateway's bearer
 # auth silently fails with a DNS lookup error for the missing peer.
+# Every Reva process resolves peers through the party-local
+# JetStream registry (sender-revad-registry, nats-server -js);
+# stack.env supplies the shared registry settings for all 12 modes.
 services:
   sender:
     image: ${SENDER_IMAGE}
@@ -20,6 +23,8 @@ services:
           - ${SENDER_PARTY_HOST}
     depends_on:
       sender-idp:
+        condition: service_healthy
+      sender-revad-registry:
         condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
@@ -83,10 +88,27 @@ services:
       - KC_HTTP_MANAGEMENT_SCHEME=http
       - IDP_DOMAIN=${SENDER_IDP_HOST}
       - IDP_URL=${SENDER_IDP_ORIGIN}
+  sender-revad-registry:
+    image: ${SENDER_REGISTRY_IMAGE}
+    hostname: sender-revad-registry
+    networks: [ocm-net]
+    command: ["nats-server", "-js", "-sd", "/data", "-m", "8222"]
+    tmpfs:
+      - /data:size=268435456
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- 'http://127.0.0.1:8222/healthz?js-enabled-only=true' >/dev/null"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
   sender-revad-gateway:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-gateway
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-idp:
         condition: service_healthy
     environment:
@@ -127,7 +149,11 @@ services:
       - REVAD_AUTHPROVIDER_PUBLICSHARES_HOST=sender-revad-authprovider-publicshares
       - REVAD_AUTHPROVIDER_PUBLICSHARES_GRPC_PORT=9160
       - OCM_ENABLE_CODE_FLOW=true
-      - OCM_TIMEOUT=10
+      - OCM_ALLOWED_FEDERATION_CIDRS=${SENDER_REVAD_ALLOWED_FEDERATION_CIDRS}
+      - OCM_TIMEOUT=${SENDER_REVAD_OCM_TIMEOUT}
+      - OCM_CLIENT_INSECURE=${SENDER_REVAD_OCM_CLIENT_INSECURE}
+      - OCM_USE_ENV_PROXY=${SENDER_REVAD_OCM_USE_ENV_PROXY}
+      - OCM_ALLOW_LOOPBACK_FEDERATION=${SENDER_REVAD_ALLOW_LOOPBACK_FEDERATION}
       - REVAD_SHAREPROVIDERS_HOST=sender-revad-shareproviders
       - REVAD_SHAREPROVIDERS_GRPC_PORT=9144
       - REVAD_GROUPUSERPROVIDERS_HOST=sender-revad-groupuserproviders
@@ -147,12 +173,24 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-authprovider-oidc:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-oidc
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -173,10 +211,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-authprovider-machine:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-machine
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -196,10 +246,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-authprovider-ocmshares:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-ocmshares
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -219,10 +281,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-authprovider-ocmsharecode:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-ocmsharecode
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -242,10 +316,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-authprovider-ocmexchangedtoken:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-ocmexchangedtoken
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -265,10 +351,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-authprovider-publicshares:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-authprovider-publicshares
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -288,10 +386,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-shareproviders:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-shareproviders
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -314,12 +424,24 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-groupuserproviders:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-groupuserproviders
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -339,10 +461,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-dataprovider-localhome:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-dataprovider-localhome
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -364,10 +498,22 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
   sender-revad-dataprovider-ocm:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-dataprovider-ocm
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -390,12 +536,24 @@ services:
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
     volumes:
       - sender-reva-ocmshares:/var/tmp/reva
   sender-revad-dataprovider-sciencemesh:
     image: ${SENDER_REVAD_IMAGE}
+    hostname: sender-revad-dataprovider-sciencemesh
     networks: [ocm-net]
     depends_on:
+      sender-revad-registry:
+        condition: service_healthy
       sender-revad-gateway:
         condition: service_healthy
     environment:
@@ -414,10 +572,23 @@ services:
       - REVAD_LOG_OUTPUT=/var/log/revad.log
       - REVAD_JWT_SECRET=reva-secret
       - REVAD_CONFIG_DIR=/etc/revad
-      - OCM_TIMEOUT=10
+      - OCM_ALLOWED_FEDERATION_CIDRS=${SENDER_REVAD_ALLOWED_FEDERATION_CIDRS}
+      - OCM_TIMEOUT=${SENDER_REVAD_OCM_TIMEOUT}
+      - OCM_CLIENT_INSECURE=${SENDER_REVAD_OCM_CLIENT_INSECURE}
+      - OCM_USE_ENV_PROXY=${SENDER_REVAD_OCM_USE_ENV_PROXY}
+      - OCM_ALLOW_LOOPBACK_FEDERATION=${SENDER_REVAD_ALLOW_LOOPBACK_FEDERATION}
       - HTTP_PROXY=${SENDER_HTTP_PROXY}
       - HTTPS_PROXY=${SENDER_HTTPS_PROXY}
       - NO_PROXY=${SENDER_NO_PROXY}
+      - REVAD_REGISTRY_DRIVER=${SENDER_REVAD_REGISTRY_DRIVER}
+      - REVAD_NATS_ADDRESS=${SENDER_REVAD_NATS_ADDRESS}
+      - REVAD_NATS_TOKEN=
+      - REVAD_NATS_BUCKET=${SENDER_REVAD_NATS_BUCKET}
+      - REVAD_NATS_TTL=${SENDER_REVAD_NATS_TTL}
+      - REVAD_REGISTRY_HEARTBEAT_INTERVAL=${SENDER_REVAD_REGISTRY_HEARTBEAT_INTERVAL}
+      - REVAD_REGISTRY_DEGRADED_AFTER=${SENDER_REVAD_REGISTRY_DEGRADED_AFTER}
+      - REVAD_REGISTRY_OFFLINE_AFTER=${SENDER_REVAD_REGISTRY_OFFLINE_AFTER}
+      - REVAD_REGISTRY_REAP_AFTER=${SENDER_REVAD_REGISTRY_REAP_AFTER}
 
 volumes:
   sender-reva-ocmshares:

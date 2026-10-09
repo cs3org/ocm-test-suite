@@ -6,6 +6,7 @@ const SUITE_PATH = path self
 
 use ../../lib/images/inspect.nu [inspect-one-image]
 use ../../lib/tests/assert.nu *
+use ../../lib/tests/fixtures.nu [with-tmp-dir]
 use ../../lib/tests/runner.nu [run-suite]
 
 def test-inspect-handles-empty-ref [] {
@@ -49,12 +50,44 @@ def test-inspect-fields-present-when-docker-available [] {
     ]
 }
 
+# PATH-first shim so the nats registry ref can be inspected without a daemon.
+def test-inspect-nats-registry-image-fixture [] {
+    test-log "\n[test-inspect-nats-registry-image-fixture]"
+    with-tmp-dir {|tmp|
+        let bin_dir = ($tmp | path join "bin")
+        mkdir $bin_dir
+        let script = '#!/bin/sh
+case "$*" in
+  *nats:2.15.0-alpine3.22*)
+    printf "%s\n" "[{\"Id\":\"sha256:natsfixtureid\",\"RepoDigests\":[\"nats@sha256:natsfixturedigest\"]}]"
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+'
+        $script | save ($bin_dir | path join "docker")
+        ^chmod +x ($bin_dir | path join "docker")
+        let got = (with-env { PATH: ([$bin_dir] | append $env.PATH) } {
+            inspect-one-image "nats:2.15.0-alpine3.22"
+        })
+        [
+            (assert-eq $got.local_image_id "sha256:natsfixtureid"
+                "nats registry fixture returns the shim image id")
+            (assert-eq $got.repo_digests ["nats@sha256:natsfixturedigest"]
+                "nats registry fixture returns the shim repo digest")
+        ]
+    }
+}
+
 def main [] {
     test-log "=== images/inspect Tests ==="
     let results = (
         (test-inspect-handles-empty-ref)
         | append (test-inspect-handles-missing-image)
         | append (test-inspect-fields-present-when-docker-available)
+        | append (test-inspect-nats-registry-image-fixture)
     ) | flatten
     run-suite "images/inspect" $SUITE_PATH $results
 }

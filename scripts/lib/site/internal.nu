@@ -14,6 +14,8 @@ export def evidence-path-allowed [rel: string] {
         or ($rel | str starts-with "mitm/flows/")
         or ($rel == "mitm/redaction-report.json")
         or ($rel | str starts-with "mitm/reports/")
+        or ($rel == "mitm/connect-errors.v1.jsonl")
+        or ($rel == "mitm/startup.v1.json")
         or ($rel | str starts-with "compose/"))
 }
 

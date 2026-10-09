@@ -46,8 +46,8 @@ export def detect-execution-context [] {
     #
     # Detect act via ACT=true (case-insensitive). Treat other non-empty values
     # as not-act to avoid surprising mis-detection.
-    let act_val = (($env.ACT? | default "") | str downcase | str trim)
-    let gha_val = (($env.GITHUB_ACTIONS? | default "") | str downcase | str trim)
+    let act_val = (($env.ACT? | default "") | str lowercase | str trim)
+    let gha_val = (($env.GITHUB_ACTIONS? | default "") | str lowercase | str trim)
     let is_act = ($act_val == "true")
     let is_gha = ($gha_val == "true")
     if $is_act {

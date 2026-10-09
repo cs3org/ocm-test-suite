@@ -238,6 +238,10 @@ def test-download-filtering [] {
     "vid" | save --force ($src | path join "cypress" "videos" "run.mp4")
     "dl" | save --force ($src | path join "cypress" "downloads" "file.txt")
     "rpt" | save --force ($src | path join "mitm" "reports" "01-01-overview.md")
+    "startup" | save --force ($src | path join "mitm" "startup.v1.json")
+    "errors" | save --force ($src | path join "mitm" "connect-errors.v1.jsonl")
+    "near" | save --force ($src | path join "mitm" "connect-errors.v1.json")
+    "other" | save --force ($src | path join "mitm" "other.json")
 
     let count = (copy-allowlisted-artifacts $src $dst)
 
@@ -247,6 +251,10 @@ def test-download-filtering [] {
     let has_vid = (($dst | path join "cypress" "videos" "run.mp4") | path exists)
     let has_dl = (($dst | path join "cypress" "downloads" "file.txt") | path exists)
     let has_rpt = (($dst | path join "mitm" "reports" "01-01-overview.md") | path exists)
+    let has_startup = (($dst | path join "mitm" "startup.v1.json") | path exists)
+    let has_connect = (($dst | path join "mitm" "connect-errors.v1.jsonl") | path exists)
+    let has_near = (($dst | path join "mitm" "connect-errors.v1.json") | path exists)
+    let has_other = (($dst | path join "mitm" "other.json") | path exists)
 
     try { rm -rf $tmp } catch {}
     [
@@ -256,7 +264,11 @@ def test-download-filtering [] {
         (assert-truthy $has_vid "videos copied to site")
         (assert-truthy (not $has_dl) "downloads NOT copied to site")
         (assert-truthy $has_rpt "mitm reports copied to site")
-        (assert-eq $count 5 "exactly 5 files copied (downloads excluded)")
+        (assert-truthy $has_startup "mitm/startup.v1.json copied to site")
+        (assert-truthy $has_connect "mitm/connect-errors.v1.jsonl copied to site")
+        (assert-truthy (not $has_near) "mitm/connect-errors.v1.json is not the jsonl companion")
+        (assert-truthy (not $has_other) "unrelated mitm files are not copied")
+        (assert-eq $count 7 "exactly 7 allowlisted files copied")
     ]
 }
 

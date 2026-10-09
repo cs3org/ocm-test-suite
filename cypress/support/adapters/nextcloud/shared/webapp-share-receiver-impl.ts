@@ -143,24 +143,46 @@ export function createNextcloudWebappShareReceiverAdapter(
         "nextcloudRemoteWebappAccept",
       );
 
-      findShareCard(shareRef).within(() => {
-        cy.contains("button", /^\s*Accept\s*$/i, { timeout: acceptTimeoutMs })
-          .should("be.visible")
-          .click();
-      });
+      // Idempotent accept: a retried launch test may re-enter after accept already succeeded.
+      findShareCard(shareRef).then(($card) => {
+        const openVisible =
+          $card
+            .find("button")
+            .filter(":visible")
+            .filter((_, element) => /^\s*Open\s*$/i.test(Cypress.$(element).text().trim()))
+            .length > 0;
 
-      cy.wait("@nextcloudRemoteWebappAccept", { timeout: acceptTimeoutMs }).then(
-        (interception) => {
-          const statusCode = interception.response?.statusCode;
-          expect(statusCode, "Nextcloud remote webapp accept status code").to.be.oneOf([
-            200, 201,
-          ]);
-        },
-      );
+        if (openVisible) {
+          cy.wrap($card).within(() => {
+            cy.contains(/accepted/i, { timeout: acceptTimeoutMs }).should("be.visible");
+            cy.contains("button", /^\s*Open\s*$/i, { timeout: acceptTimeoutMs }).should(
+              "be.visible",
+            );
+          });
+          return;
+        }
 
-      findShareCard(shareRef).within(() => {
-        cy.contains(/accepted/i, { timeout: acceptTimeoutMs }).should("be.visible");
-        cy.contains("button", /^\s*Open\s*$/i, { timeout: acceptTimeoutMs }).should("be.visible");
+        cy.wrap($card).within(() => {
+          cy.contains("button", /^\s*Accept\s*$/i, { timeout: acceptTimeoutMs })
+            .should("be.visible")
+            .click();
+        });
+
+        cy.wait("@nextcloudRemoteWebappAccept", { timeout: acceptTimeoutMs }).then(
+          (interception) => {
+            const statusCode = interception.response?.statusCode;
+            expect(statusCode, "Nextcloud remote webapp accept status code").to.be.oneOf([
+              200, 201,
+            ]);
+          },
+        );
+
+        findShareCard(shareRef).within(() => {
+          cy.contains(/accepted/i, { timeout: acceptTimeoutMs }).should("be.visible");
+          cy.contains("button", /^\s*Open\s*$/i, { timeout: acceptTimeoutMs }).should(
+            "be.visible",
+          );
+        });
       });
     },
 

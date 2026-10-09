@@ -27,10 +27,9 @@ export function proveJupyterLabFromLaunchArtifact(
   artifact: WebappShareLaunchArtifact,
   screenshotName: string,
 ): void {
-  // Both Nextcloud and CERNBox launches hand off cross-origin to the remote hub
-  // (the launch traffic never traverses the server-to-server OCM MITM). Assert
-  // the terminal JupyterLab UI within the hub origin: the one bounded cy.origin
-  // use allowed for this spec (see cypress/support/e2e.ts allowOriginForSpec).
+  // Navigation stays receiver-specific. CERNBox has already replayed the handoff
+  // and verified cookie-authenticated contents before its commanded Lab visit.
+  // Nextcloud retains its GET ocm/open navigation. Both share this hub UI proof.
   cy.origin(
     artifact.hubOrigin,
     {
@@ -39,17 +38,24 @@ export function proveJupyterLabFromLaunchArtifact(
         fileListingSelector: jupyterLabFileListingSelector,
         screenshotName,
         timeout: jupyterUiTimeoutMs,
+        labUrl: artifact.receiverKind === "cernbox" && artifact.launchGate === "request-replay"
+          ? artifact.labUrl
+          : null,
       },
     },
-    ({ readySelector, fileListingSelector, screenshotName, timeout }) => {
+    ({ readySelector, fileListingSelector, screenshotName, timeout, labUrl }) => {
       Cypress.on("uncaught:exception", (err) => {
         if (/unrecognized expression/i.test(err.message)) {
           return false;
         }
         return undefined;
       });
-      // JupyterLab shows a splash (#jupyterlab-splash) while booting; wait for it
-      // to clear so the screenshot shows the real Lab UI, not the loading spinner.
+      if (labUrl) {
+        cy.visit(labUrl, { log: false });
+        cy.location("origin").should("equal", new URL(labUrl).origin);
+        cy.location("pathname").should("match", /^\/user\/[^/]+\/(?:[^/]+\/)?lab(?:\/.*)?$/);
+      }
+      // Wait for the real Lab UI after its splash, then prove the notebook.
       cy.get("#jupyterlab-splash", { timeout }).should("not.exist");
       cy.get(readySelector, { timeout }).filter(":visible").first().should("be.visible");
       cy.get(fileListingSelector, { timeout })
@@ -61,4 +67,5 @@ export function proveJupyterLabFromLaunchArtifact(
       cy.screenshot(screenshotName);
     },
   );
+  cy.task("launch-probe:stop", null, { log: false });
 }

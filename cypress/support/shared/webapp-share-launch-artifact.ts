@@ -11,9 +11,11 @@ export type NextcloudWebappShareLaunchArtifact = {
 
 export type CernboxWebappShareLaunchArtifact = {
   receiverKind: "cernbox";
-  launchGate: "cross-origin-open";
-  /** Absolute origin of the remote hub, extracted from the open-in-app app_url. */
+  launchGate: "cross-origin-open" | "request-replay";
+  /** Absolute hub origin from the real open-in-app response. */
   hubOrigin: string;
+  /** Present only after authenticated request replay reaches Lab. No token. */
+  labUrl?: string;
 };
 
 export type WebappShareLaunchArtifact =

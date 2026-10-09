@@ -60,7 +60,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Generate execution ID
         id: cell
         run: |

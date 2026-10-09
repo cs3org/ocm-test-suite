@@ -22,7 +22,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
       - name: Install dependencies
@@ -31,6 +31,11 @@ jobs:
         env:
           OCMTS_ROOT: ${{ github.workspace }}
         run: nu scripts/ocmts.nu ci workflows check github
+      - name: Nushell unit tests
+        env:
+          OCMTS_ROOT: ${{ github.workspace }}
+        run: nu scripts/ocmts.nu test units
+
       - name: Cypress matrix drift check
         env:
           OCMTS_ROOT: ${{ github.workspace }}
@@ -66,7 +71,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Generate suite ID
         id: gen
         run: |
@@ -140,7 +145,7 @@ jobs:
       - name: Install Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: '0.108.0'
+          version: '0.116.0'
       - name: Download all cell artifacts
         uses: actions/download-artifact@v7
         with:

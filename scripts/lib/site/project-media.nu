@@ -28,7 +28,7 @@ export def check-path-safe [p: string]: nothing -> string {
 # Returns "" when consistent, or an error message when not.
 # kind=screenshot expects .png source; kind=video expects .mp4 source.
 export def check-kind-path-match [kind: string, ev_path: string]: nothing -> string {
-    let lp = ($ev_path | str downcase)
+    let lp = ($ev_path | str lowercase)
     if $kind == "screenshot" {
         if not ($lp | str ends-with ".png") {
             return $"kind=screenshot but path does not end with .png: ($ev_path)"

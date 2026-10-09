@@ -23,6 +23,11 @@
       "path_prefix": "/ocm/token"
     },
     {
+      "id": "access-token",
+      "method": "POST",
+      "path_prefix": "/apps/cloud_federation_api/api/v1/access-token"
+    },
+    {
       "id": "ocm-open",
       "method": "POST",
       "path_prefix": "/services/ocm/open"

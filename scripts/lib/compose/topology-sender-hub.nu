@@ -61,7 +61,7 @@ export def patch-sender-hub-sender-yml [compose_d: string] {
         | save --force $sender_path
 }
 
-def sender-hub-cookbook-service-names [
+export def sender-hub-cookbook-service-names [
     root: string,
     sender_platform: string,
     flow_id: string,

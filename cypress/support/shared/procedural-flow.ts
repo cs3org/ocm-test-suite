@@ -13,7 +13,11 @@ export function installHooks(options: { stopOnFailure?: boolean } = {}): void {
   afterEach(function () {
     Cypress.config("baseUrl", originalBaseUrl);
 
-    if (stopOnFailure && this.currentTest?.state === "failed") {
+    const test = this.currentTest;
+    const retries = typeof test?.retries === "function" ? test.retries() : 0;
+
+    // Non-retried tests stop on their only attempt; retried tests stop on the final attempt so intermediate attempts can retry.
+    if (stopOnFailure && test?.state === "failed" && (Cypress.currentRetry ?? 0) >= retries) {
       Cypress.stop();
       return;
     }

@@ -44,11 +44,11 @@ def assert-revad-proxy-env [compose: string, service: string, party_prefix: stri
     let label = $"($service) proxy env"
     [
         (assert-not-null $block $"($label) block exists")
-        (assert-string-contains $block $"HTTP_PROXY=${($party_prefix)}_HTTP_PROXY}"
+        (assert-string-contains $block ("HTTP_PROXY=${" + $party_prefix + "_HTTP_PROXY}")
             $"($label) has HTTP_PROXY")
-        (assert-string-contains $block $"HTTPS_PROXY=${($party_prefix)}_HTTPS_PROXY}"
+        (assert-string-contains $block ("HTTPS_PROXY=${" + $party_prefix + "_HTTPS_PROXY}")
             $"($label) has HTTPS_PROXY")
-        (assert-string-contains $block $"NO_PROXY=${($party_prefix)}_NO_PROXY}"
+        (assert-string-contains $block ("NO_PROXY=${" + $party_prefix + "_NO_PROXY}")
             $"($label) has NO_PROXY")
     ]
 }

@@ -54,7 +54,7 @@ export def endpoint-from-inspect [stack_id: string, service: string, inspected: 
         ($net.Aliases? | default [])
         | append ($net.DNSNames? | default [])
         | where {|host| ($host | describe) == "string" and not ($host | is-empty)}
-        | each {|host| $host | str downcase}
+        | each {|host| $host | str lowercase}
         | uniq
     )
     let public_hosts = ($aliases | where {|host| $host | str ends-with ".docker"} | sort)
@@ -78,7 +78,7 @@ export def endpoint-is-participant [service: string, hub_services: list<string>,
         | uniq)
     $env_lines | any {|entry|
         let parts = ($entry | split row "=")
-        let key = ($parts | first | str upcase)
+        let key = ($parts | first | str uppercase)
         let value = ($parts | skip 1 | str join "=")
         ($key in ["HTTP_PROXY" "HTTPS_PROXY"]) and ($value in $proxy_values)
     }

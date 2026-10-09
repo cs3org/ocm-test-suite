@@ -156,13 +156,13 @@ export def resolve-to-endpoint [req_host: string, server_ip: string, roles: reco
         return {role: $role, service: "", host: (role-primary-host $role (participants-from-roles $roles))}
     }
     let endpoints = (all-role-endpoints $roles)
-    let host = ($req_host | str downcase)
+    let host = ($req_host | str lowercase)
     let host_matches = ($endpoints | where {|endpoint| not ($host | is-empty) and $host in $endpoint.hosts})
     if not ($host_matches | is-empty) { return (resolved-endpoint $host_matches) }
     if ($server_ip | is-empty) { return {role: "unknown", service: "", host: ""} }
     let ip_matches = ($endpoints | where {|endpoint| $endpoint.ipv4 == $server_ip})
     if not ($ip_matches | is-empty) { return (resolved-endpoint $ip_matches) }
-    resolved-endpoint ($endpoints | where {|endpoint| ($server_ip | str downcase) in $endpoint.hosts})
+    resolved-endpoint ($endpoints | where {|endpoint| ($server_ip | str lowercase) in $endpoint.hosts})
 }
 
 export def infer-from-role [client_ip: string, roles: record] {

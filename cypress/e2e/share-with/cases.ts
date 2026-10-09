@@ -30,7 +30,7 @@ function parsePlatformVersionToken(token: string): AdapterRef {
     throw new Error(
       [
         `[share-with] Invalid case token "${token}".`,
-        'Expected "<platform>-<versionLine>", for example "nextcloud-v32".',
+        'Expected "<platform>-<versionLine>", for example "nextcloud-v33".',
       ].join(" "),
     );
   }

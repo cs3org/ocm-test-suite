@@ -67,8 +67,11 @@ export function defineContactTrustSetupSteps(config: ContactTrustSetupConfig): v
               checkpoint: "invite-created",
             });
 
+            const senderHost = new URL(String(Cypress.config("baseUrl"))).host;
+
             return writeRuntime(scenarioRuntimePath, {
               inviteToken,
+              inviteTokenSenderHost: senderHost,
               [resourceRuntimeKey]: resourceName,
             });
           });
@@ -95,9 +98,13 @@ export function defineContactTrustSetupSteps(config: ContactTrustSetupConfig): v
             runtime,
             "inviteToken",
           );
+          const inviteTokenSenderHost =
+            typeof runtime["inviteTokenSenderHost"] === "string"
+              ? runtime["inviteTokenSenderHost"]
+              : undefined;
 
           return scenarioCase.contactTokenReceiver
-            .acceptInviteToken({ inviteToken })
+            .acceptInviteToken({ inviteToken, inviteTokenSenderHost })
             .then((acceptedContactUrl) => {
               takeEvidenceScreenshot({
                 scenarioId: scenarioCase.id,

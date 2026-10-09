@@ -25,8 +25,8 @@ export const cernboxV11ContactTokenReceiverAdapter: ContactTokenReceiverAdapter 
   {
     key: "cernbox/v11",
 
-    acceptInviteToken({ inviteToken }) {
-      return acceptCernboxInviteToken(inviteToken);
+    acceptInviteToken({ inviteToken, inviteTokenSenderHost }) {
+      return acceptCernboxInviteToken(inviteToken, inviteTokenSenderHost);
     },
 
     assertAcceptedContactExists({ acceptedContactUrl }) {

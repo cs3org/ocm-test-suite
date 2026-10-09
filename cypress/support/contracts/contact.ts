@@ -11,6 +11,7 @@ export type ContactTokenReceiverAdapter = {
   key: string;
   acceptInviteToken(params: {
     inviteToken: string;
+    inviteTokenSenderHost?: string;
   }): Cypress.Chainable<string>;
   assertAcceptedContactExists(params: {
     acceptedContactUrl: string;

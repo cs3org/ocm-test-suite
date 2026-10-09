@@ -107,7 +107,12 @@ export def build-flow-assets [plan: record]: any -> list {
     let platforms = (load-platforms-manifest $root).platforms
     let gh = $cfg.workflows.github
 
-    let runnable_cells = ($plan.cells | where capability_action == "run")
+    let omit_versions = (load-ci-omit-platform-versions $root)
+    let runnable_cells = (
+        $plan.cells
+        | where capability_action == "run"
+        | filter-ci-runnable-cells $omit_versions
+    )
     let ordered_cells = (sort-cells-by-flow-order $runnable_cells $gh.job_order)
     let cell_id_to_artifact = ($runnable_cells | reduce --fold {} {|c, acc|
         $acc | upsert $c.cell_id $c.artifact_name
@@ -158,6 +163,40 @@ def load-ci-config [root: string]: any -> record {
     {toolchain: $toolchain, workflows: $workflows}
 }
 
+# Platform -> version_lines omitted from CI assets and matrix flow jobs only.
+def load-ci-omit-platform-versions [root: string]: any -> record {
+    let path = ($root | path join "config/ci/omit-platforms.nuon")
+    if not ($path | path exists) {
+        return {}
+    }
+    open $path
+}
+
+def platform-version-ci-omitted [omit_map: record, platform: string, version: string]: any -> bool {
+    if ($platform | is-empty) or ($version | is-empty) {
+        return false
+    }
+    $version in ($omit_map | get --optional $platform | default [])
+}
+
+def cell-ci-omitted [cell: record, omit_map: record]: any -> bool {
+    if ($omit_map | is-empty) {
+        return false
+    }
+    let recv_platform = ($cell.receiver_platform? | default "")
+    let recv_version = ($cell.receiver_version? | default "")
+    (platform-version-ci-omitted $omit_map $cell.sender_platform $cell.sender_version) or (
+        platform-version-ci-omitted $omit_map $recv_platform $recv_version
+    )
+}
+
+def filter-ci-runnable-cells [omit_map: record]: list<any> -> list<any> {
+    if ($omit_map | is-empty) {
+        return $in
+    }
+    $in | where {|c| not (cell-ci-omitted $c $omit_map)}
+}
+
 # Load site config from config/site.nuon.
 def load-site-config [root: string]: any -> record {
     open ($root | path join "config/site.nuon")
@@ -186,7 +225,14 @@ export def build-ci-matrix-yml [plan: record] {
     let publish_branch_gate = ($site_cfg.publish_branch_gate? | default "main")
     let raw_agg_name = ($site_cfg.raw_aggregate_artifact_name? | default "aggregate-summary")
 
-    let ordered_cells = (sort-cells-by-flow-order ($plan.cells | where capability_action == "run") $gh.job_order)
+    let omit_versions = (load-ci-omit-platform-versions $root)
+    let ordered_cells = (
+        sort-cells-by-flow-order (
+            $plan.cells
+            | where capability_action == "run"
+            | filter-ci-runnable-cells $omit_versions
+        ) $gh.job_order
+    )
     let flow_ids_ordered = ($ordered_cells | each {|c| $c.flow_id} | uniq)
     let cells_by_flow = ($ordered_cells | group-by flow_id)
 

@@ -34,7 +34,7 @@ def test-matrix-cell-rejects-scenario-flag [] {
         matrix cell
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "matrix cell"
 }
@@ -55,7 +55,7 @@ def test-images-resolve-rejects-scenario-flag [] {
         images resolve
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "images resolve"
 }
@@ -76,7 +76,7 @@ def test-services-up-run-rejects-scenario-flag [] {
         services up run
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "services up run"
 }
@@ -87,7 +87,7 @@ def test-services-up-rejects-scenario-flag [] {
         services up
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "services up"
 }
@@ -98,7 +98,7 @@ def test-services-up-open-rejects-scenario-flag [] {
         services up open
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "services up open"
 }
@@ -109,7 +109,7 @@ def test-services-list-cell-images-rejects-scenario-flag [] {
         services list-cell-images
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "services list-cell-images"
 }
@@ -120,7 +120,7 @@ def test-services-down-rejects-scenario-flag [] {
         services down
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "services down"
 }
@@ -131,7 +131,7 @@ def test-test-cypress-run-rejects-scenario-flag [] {
         test cypress run
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "test cypress run"
 }
@@ -142,7 +142,7 @@ def test-artifacts-list-rejects-scenario-flag [] {
         artifacts list
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "artifacts list"
 }
@@ -153,7 +153,7 @@ def test-artifacts-collect-rejects-scenario-flag [] {
         artifacts collect
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "artifacts collect"
 }
@@ -164,7 +164,7 @@ def test-artifacts-publish-rejects-scenario-flag [] {
         artifacts publish
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "artifacts publish"
 }
@@ -175,7 +175,7 @@ def test-artifacts-prune-rejects-scenario-flag [] {
         artifacts prune
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "artifacts prune"
 }
@@ -186,7 +186,7 @@ def test-artifacts-show-rejects-scenario-flag [] {
         artifacts show
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --scenario login
     ] "artifacts show"
 }
@@ -198,7 +198,7 @@ def test-ci-emit-blocked-rejects-scenario-flag [] {
         --execution-id 20260101t000000-aaaaaaaa
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --failure-reason blocked
         --scenario login
     ] "ci emit-blocked"
@@ -220,7 +220,7 @@ def test-matrix-cell-one-party-happy [] {
     let out = (^nu (ocmts-script) matrix cell
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --json
         | complete)
     let data = (try { $out.stdout | from json } catch { {} })
@@ -229,7 +229,7 @@ def test-matrix-cell-one-party-happy [] {
             "matrix cell one-party exits 0")
         (assert-eq $data.matrix_key "login__nextcloud"
             "matrix cell one-party resolves matrix_key")
-        (assert-eq $data.cell_id "login__nextcloud-v32"
+        (assert-eq $data.cell_id "login__nextcloud-v33"
             "matrix cell one-party resolves cell_id")
         (assert-truthy (not ($data.images.platform? | default "" | is-empty))
             "matrix cell one-party resolves sender platform image")
@@ -241,7 +241,7 @@ def test-matrix-cell-two-party-happy [] {
     let out = (^nu (ocmts-script) matrix cell
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
@@ -252,7 +252,7 @@ def test-matrix-cell-two-party-happy [] {
             "matrix cell two-party exits 0")
         (assert-eq $data.matrix_key "share-with__nextcloud__ocmgo"
             "matrix cell two-party resolves matrix_key")
-        (assert-eq $data.cell_id "share-with__nextcloud-v32__ocmgo-v1"
+        (assert-eq $data.cell_id "share-with__nextcloud-v33__ocmgo-v1"
             "matrix cell two-party resolves cell_id")
         (assert-truthy (not ($data.receiver_image? | default "" | is-empty))
             "matrix cell two-party resolves receiver image")
@@ -264,7 +264,7 @@ def test-images-resolve-one-party-happy [] {
     let out = (^nu (ocmts-script) images resolve
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --json
         | complete)
     let data = (try { $out.stdout | from json } catch { {} })
@@ -281,37 +281,37 @@ def test-images-resolve-one-party-happy [] {
 const CERNBOX_WEB_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-web:master"
 const CERNBOX_REVAD_DEFAULT = "ghcr.io/mahdibaghbani/containers/cernbox-revad:master-development"
 const CERNBOX_IDP_DEFAULT = "ghcr.io/mahdibaghbani/containers/idp:v26.4.2"
-const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12"
+const NEXTCLOUD_V33_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v33.0.9"
 const NEXTCLOUD_CONTACTS_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud-contacts:ocm-webapp-share"
 
-def test-images-show-nextcloud-v32-role-aware [] {
-    test-log "\n[test-images-show-nextcloud-v32-role-aware]"
+def test-images-show-nextcloud-v33-role-aware [] {
+    test-log "\n[test-images-show-nextcloud-v33-role-aware]"
     let out = (^nu (ocmts-script) images show
         --platform nextcloud
-        --version v32
+        --version v33
         | complete)
     let stdout = $out.stdout
     [
         (assert-eq $out.exit_code 0
-            "images show nextcloud/v32 exits 0")
+            "images show nextcloud/v33 exits 0")
         (assert-truthy ($stdout | str contains "platform:      nextcloud")
-            "images show nextcloud/v32 prints platform")
-        (assert-truthy ($stdout | str contains "version:       v32")
-            "images show nextcloud/v32 prints version")
-        (assert-truthy ($stdout | str contains $"default:       ($NEXTCLOUD_V32_DEFAULT)")
-            "images show nextcloud/v32 prints default ref")
-        (assert-truthy ($stdout | str contains "override_env:  OCMTS_NEXTCLOUD_V32_IMAGE")
-            "images show nextcloud/v32 prints override_env")
-        (assert-truthy ($stdout | str contains "sender_override_env:   OCMTS_NEXTCLOUD_V32_SENDER_IMAGE")
-            "images show nextcloud/v32 prints sender_override_env")
-        (assert-truthy ($stdout | str contains "receiver_override_env: OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE")
-            "images show nextcloud/v32 prints receiver_override_env")
+            "images show nextcloud/v33 prints platform")
+        (assert-truthy ($stdout | str contains "version:       v33")
+            "images show nextcloud/v33 prints version")
+        (assert-truthy ($stdout | str contains $"default:       ($NEXTCLOUD_V33_DEFAULT)")
+            "images show nextcloud/v33 prints default ref")
+        (assert-truthy ($stdout | str contains "override_env:  OCMTS_NEXTCLOUD_V33_IMAGE")
+            "images show nextcloud/v33 prints override_env")
+        (assert-truthy ($stdout | str contains "sender_override_env:   OCMTS_NEXTCLOUD_V33_SENDER_IMAGE")
+            "images show nextcloud/v33 prints sender_override_env")
+        (assert-truthy ($stdout | str contains "receiver_override_env: OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE")
+            "images show nextcloud/v33 prints receiver_override_env")
         (assert-truthy ($stdout | str contains "note: this is the raw version-scoped config")
-            "images show nextcloud/v32 prints raw-config note")
+            "images show nextcloud/v33 prints raw-config note")
         (assert-truthy ($stdout | str contains "note: use 'images resolve --flow ...' for full effective resolution")
-            "images show nextcloud/v32 prints resolve note")
+            "images show nextcloud/v33 prints resolve note")
         (assert-truthy (not ($stdout | str contains "bundle:"))
-            "images show nextcloud/v32 omits bundle section")
+            "images show nextcloud/v33 omits bundle section")
     ]
 }
 
@@ -348,8 +348,8 @@ def test-images-show-cernbox-v11-bundle [] {
 
 def role-image-env-mask [] {
     [
-        OCMTS_NEXTCLOUD_V32_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V33_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE
         OCMTS_OCMGO_V1_SENDER_IMAGE
         OCMTS_OCMGO_V1_RECEIVER_IMAGE
         OCMTS_OPENCLOUD_V6_SENDER_IMAGE
@@ -454,15 +454,15 @@ def test-images-resolve-role-env-beats-generic [] {
         images resolve
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
     ]
     let out = (
         with-env {
-            OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
-            OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: $sender_role
+            OCMTS_NEXTCLOUD_V33_IMAGE: $sender_generic
+            OCMTS_NEXTCLOUD_V33_SENDER_IMAGE: $sender_role
             OCMTS_OCMGO_V1_IMAGE: $receiver_generic
             OCMTS_OCMGO_V1_RECEIVER_IMAGE: $receiver_role
         } {
@@ -474,7 +474,7 @@ def test-images-resolve-role-env-beats-generic [] {
         (assert-eq $out.exit_code 0
             "images resolve role-env precedence exits 0")
         (assert-eq ($data.platform? | default "") $sender_role
-            "sender OCMTS_NEXTCLOUD_V32_SENDER_IMAGE beats OCMTS_NEXTCLOUD_V32_IMAGE")
+            "sender OCMTS_NEXTCLOUD_V33_SENDER_IMAGE beats OCMTS_NEXTCLOUD_V33_IMAGE")
         (assert-eq ($data.receiver_platform? | default "") $receiver_role
             "receiver OCMTS_OCMGO_V1_RECEIVER_IMAGE beats OCMTS_OCMGO_V1_IMAGE")
     ]
@@ -488,7 +488,7 @@ def test-images-resolve-generic-fallback-when-role-env-unset [] {
         images resolve
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
@@ -497,7 +497,7 @@ def test-images-resolve-generic-fallback-when-role-env-unset [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
+                OCMTS_NEXTCLOUD_V33_IMAGE: $sender_generic
                 OCMTS_OCMGO_V1_IMAGE: $receiver_generic
             }
         ) {
@@ -509,7 +509,7 @@ def test-images-resolve-generic-fallback-when-role-env-unset [] {
         (assert-eq $out.exit_code 0
             "images resolve generic fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "OCMTS_NEXTCLOUD_V32_IMAGE applies when sender role env is unset")
+            "OCMTS_NEXTCLOUD_V33_IMAGE applies when sender role env is unset")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
             "OCMTS_OCMGO_V1_IMAGE applies when receiver role env is unset")
     ]
@@ -523,7 +523,7 @@ def test-images-resolve-empty-role-env-falls-back-to-generic [] {
         images resolve
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
@@ -532,8 +532,8 @@ def test-images-resolve-empty-role-env-falls-back-to-generic [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_V32_IMAGE: $sender_generic
-                OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: ""
+                OCMTS_NEXTCLOUD_V33_IMAGE: $sender_generic
+                OCMTS_NEXTCLOUD_V33_SENDER_IMAGE: ""
                 OCMTS_OCMGO_V1_IMAGE: $receiver_generic
                 OCMTS_OCMGO_V1_RECEIVER_IMAGE: ""
             }
@@ -546,7 +546,7 @@ def test-images-resolve-empty-role-env-falls-back-to-generic [] {
         (assert-eq $out.exit_code 0
             "images resolve empty role env fallback exits 0")
         (assert-eq ($data.platform? | default "") $sender_generic
-            "empty sender role env falls back to OCMTS_NEXTCLOUD_V32_IMAGE on CLI")
+            "empty sender role env falls back to OCMTS_NEXTCLOUD_V33_IMAGE on CLI")
         (assert-eq ($data.receiver_platform? | default "") $receiver_generic
             "empty receiver role env falls back to OCMTS_OCMGO_V1_IMAGE on CLI")
     ]
@@ -562,7 +562,7 @@ def test-images-resolve-opposite-role-isolation [] {
         images resolve
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
@@ -571,10 +571,10 @@ def test-images-resolve-opposite-role-isolation [] {
         with-env (
             role-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: $sender_role
+                OCMTS_NEXTCLOUD_V33_SENDER_IMAGE: $sender_role
                 OCMTS_OCMGO_V1_RECEIVER_IMAGE: $receiver_role
                 OCMTS_OCMGO_V1_SENDER_IMAGE: $bogus_receiver
-                OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE: $bogus_sender
+                OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE: $bogus_sender
             }
         ) {
             (^nu (ocmts-script) ...$cmd | complete)
@@ -914,7 +914,7 @@ def test-images-resolve-two-party-happy [] {
     let out = (^nu (ocmts-script) images resolve
         --flow share-with
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --receiver-platform ocmgo
         --receiver-version v1
         --json
@@ -937,7 +937,7 @@ def test-ci-emit-blocked-rejects-flow-id-flag [] {
         --execution-id 20260101t000000-aaaaaaaa
         --flow-id login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --failure-reason blocked
         | complete)
     [
@@ -956,7 +956,7 @@ def test-matrix-cell-json-omits-scenario-module [] {
     let out = (^nu (ocmts-script) matrix cell
         --flow login
         --sender-platform nextcloud
-        --sender-version v32
+        --sender-version v33
         --json
         | complete)
     let data = (try { $out.stdout | from json } catch { {} })
@@ -993,7 +993,7 @@ def main [] {
         | append (test-matrix-cell-one-party-happy)
         | append (test-matrix-cell-two-party-happy)
         | append (test-images-resolve-one-party-happy)
-        | append (test-images-show-nextcloud-v32-role-aware)
+        | append (test-images-show-nextcloud-v33-role-aware)
         | append (test-images-show-cernbox-v11-bundle)
         | append (test-images-resolve-cernbox-bundle)
         | append (test-images-resolve-cernbox-bundle-env-override)

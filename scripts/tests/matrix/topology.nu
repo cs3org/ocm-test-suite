@@ -565,7 +565,7 @@ def test-cernbox-matrix-compose-shapes [] {
         } | where {|id| not ($id | is-empty)} | sort)
         let shape_problems = ($cells | each {|cell| check-cell $cell $root $topology} | flatten)
         [
-            (assert-eq ($cells | length) 52 "enabled matrix still has 52 cells")
+            (assert-eq ($cells | length) 42 "enabled matrix still has 42 cells")
             (assert-eq $got_ids ($CERNBOX_CELL_IDS | sort) "the nine CERNBox cells are unchanged")
             (assert-eq $shape_problems [] "CERNBox and non-CERNBox compose shapes")
         ]

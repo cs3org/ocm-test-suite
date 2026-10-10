@@ -22,11 +22,11 @@ def test-share-with-unchanged-no-sender-hub [] {
     let artifacts_base = ($nu.temp-dir | path join $"share-with-regression-(random uuid)")
     mkdir ($artifacts_base | path join "compose" "inputs")
     let sender_imgs = (
-        resolve-images "nextcloud" "v32"
+        resolve-images "nextcloud" "v33"
             --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32"
+        resolve-receiver-images "nextcloud" "v33"
             --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let overlay = (write-two-party-overlays
@@ -36,7 +36,7 @@ def test-share-with-unchanged-no-sender-hub [] {
         $sender_imgs.mariadb $sender_imgs.valkey
         "cypress/e2e/share-with/index.cy.ts" "chrome" false
         $root $artifacts_base
-        "v32" "v32"
+        "v33" "v33"
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let sender_yml = (read-text ($overlay.compose_d | path join "sender.yml"))

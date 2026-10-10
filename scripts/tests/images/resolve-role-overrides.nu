@@ -13,7 +13,7 @@ use ../../lib/tests/assert.nu *
 use ../../lib/tests/runner.nu [run-suite]
 
 const OCMGO_V1_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloudmesh-go:v1.1.0"
-const NEXTCLOUD_V32_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v32.0.12"
+const NEXTCLOUD_V33_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v33.0.9"
 const OPENCLOUD_V6_DEFAULT = "ghcr.io/mahdibaghbani/containers/opencloud:v6.1.0"
 const OCIS_V8_DEFAULT = "ghcr.io/mahdibaghbani/containers/ocis:v8.0.1"
 const NEXTCLOUD_V34_DEFAULT = "ghcr.io/mahdibaghbani/containers/nextcloud:v34.0.4"
@@ -23,8 +23,8 @@ def leaked-role-image-env-mask [] {
     [
         OCMTS_OCMGO_V1_SENDER_IMAGE
         OCMTS_OCMGO_V1_RECEIVER_IMAGE
-        OCMTS_NEXTCLOUD_V32_SENDER_IMAGE
-        OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE
+        OCMTS_NEXTCLOUD_V33_SENDER_IMAGE
+        OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE
         OCMTS_OPENCLOUD_V6_SENDER_IMAGE
         OCMTS_OPENCLOUD_V6_RECEIVER_IMAGE
         OCMTS_OCIS_V8_SENDER_IMAGE
@@ -49,7 +49,7 @@ def leaked-platform-image-env-mask [] {
         | merge (
             [
                 OCMTS_OCMGO_V1_IMAGE
-                OCMTS_NEXTCLOUD_V32_IMAGE
+                OCMTS_NEXTCLOUD_V33_IMAGE
                 OCMTS_OPENCLOUD_V6_IMAGE
                 OCMTS_OCIS_V8_IMAGE
                 OCMTS_NEXTCLOUD_V34_IMAGE
@@ -88,15 +88,15 @@ def test-receiver-role-env-beats-generic-platform-env [] {
     let role = "ghcr.io/example/nextcloud:receiver-role"
     let got = (
         with-env (leaked-platform-image-env-mask | merge {
-            OCMTS_NEXTCLOUD_V32_IMAGE: $generic
-            OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE: $role
+            OCMTS_NEXTCLOUD_V33_IMAGE: $generic
+            OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE: $role
         }) {
-            resolve-receiver-image "nextcloud" "v32"
+            resolve-receiver-image "nextcloud" "v33"
         }
     )
     [
         (assert-eq $got $role
-            "OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE beats OCMTS_NEXTCLOUD_V32_IMAGE for receiver ref")
+            "OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE beats OCMTS_NEXTCLOUD_V33_IMAGE for receiver ref")
     ]
 }
 
@@ -118,13 +118,13 @@ def test-receiver-falls-back-to-generic-when-role-env-unset [] {
     test-log "\n[test-receiver-falls-back-to-generic-when-role-env-unset]"
     let generic = "ghcr.io/example/nextcloud:generic-only"
     let got = (
-        with-env (leaked-platform-image-env-mask | merge { OCMTS_NEXTCLOUD_V32_IMAGE: $generic }) {
-            resolve-receiver-image "nextcloud" "v32"
+        with-env (leaked-platform-image-env-mask | merge { OCMTS_NEXTCLOUD_V33_IMAGE: $generic }) {
+            resolve-receiver-image "nextcloud" "v33"
         }
     )
     [
         (assert-eq $got $generic
-            "OCMTS_NEXTCLOUD_V32_IMAGE applies when receiver role env is unset")
+            "OCMTS_NEXTCLOUD_V33_IMAGE applies when receiver role env is unset")
     ]
 }
 
@@ -155,16 +155,16 @@ def test-receiver-falls-back-to-generic-when-role-env-empty-string [] {
         with-env (
             leaked-platform-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_V32_IMAGE: $generic
-                OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE: ""
+                OCMTS_NEXTCLOUD_V33_IMAGE: $generic
+                OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE: ""
             }
         ) {
-            resolve-receiver-image "nextcloud" "v32"
+            resolve-receiver-image "nextcloud" "v33"
         }
     )
     [
         (assert-eq $got $generic
-            "OCMTS_NEXTCLOUD_V32_IMAGE applies when receiver role env is empty string")
+            "OCMTS_NEXTCLOUD_V33_IMAGE applies when receiver role env is empty string")
     ]
 }
 
@@ -197,16 +197,16 @@ def test-receiver-ignores-sender-role-env [] {
         with-env (
             leaked-platform-image-env-mask
             | merge {
-                OCMTS_NEXTCLOUD_V32_SENDER_IMAGE: $bogus_sender
-                OCMTS_NEXTCLOUD_V32_RECEIVER_IMAGE: $receiver_role
+                OCMTS_NEXTCLOUD_V33_SENDER_IMAGE: $bogus_sender
+                OCMTS_NEXTCLOUD_V33_RECEIVER_IMAGE: $receiver_role
             }
         ) {
-            resolve-receiver-image "nextcloud" "v32"
+            resolve-receiver-image "nextcloud" "v33"
         }
     )
     [
         (assert-eq $got $receiver_role
-            "receiver resolution ignores OCMTS_NEXTCLOUD_V32_SENDER_IMAGE")
+            "receiver resolution ignores OCMTS_NEXTCLOUD_V33_SENDER_IMAGE")
     ]
 }
 
@@ -252,7 +252,7 @@ def test-defaults-when-no-env-set [] {
         with-env (leaked-platform-image-env-mask) {
             {
                 ocmgo_sender: ((resolve-images "ocmgo" "v1").platform)
-                nextcloud_receiver: (resolve-receiver-image "nextcloud" "v32")
+                nextcloud_receiver: (resolve-receiver-image "nextcloud" "v33")
                 opencloud_sender: ((resolve-images "opencloud" "v6").platform)
                 ocis_receiver: (resolve-receiver-image "ocis" "v8")
             }
@@ -261,8 +261,8 @@ def test-defaults-when-no-env-set [] {
     [
         (assert-eq $sender_receiver.ocmgo_sender $OCMGO_V1_DEFAULT
             "ocmgo/v1 sender default unchanged")
-        (assert-eq $sender_receiver.nextcloud_receiver $NEXTCLOUD_V32_DEFAULT
-            "nextcloud/v32 receiver default unchanged")
+        (assert-eq $sender_receiver.nextcloud_receiver $NEXTCLOUD_V33_DEFAULT
+            "nextcloud/v33 receiver default unchanged")
         (assert-eq $sender_receiver.opencloud_sender $OPENCLOUD_V6_DEFAULT
             "opencloud/v6 sender default unchanged")
         (assert-eq $sender_receiver.ocis_receiver $OCIS_V8_DEFAULT

@@ -1169,7 +1169,7 @@ def test-up-invalid-execution-id-skips-compose [] {
     test-log "\n[test-up-invalid-execution-id-skips-compose]"
     with-ocmts-collect-root {|ocmts_root, repo|
         let run = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
-            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32" "--execution-id" "not-an-id"
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v33" "--execution-id" "not-an-id"
         ] {})
         let log = (open --raw ($ocmts_root | path join "docker-up.log"))
         [
@@ -1190,7 +1190,7 @@ def test-up-subnet-conflict-skips-compose [] {
         let inspect_path = ($ocmts_root | path join "overlap-net.json")
         [{Name: "overlap-net", IPAM: {Config: [{Subnet: $cidr}]}}] | to json | save --force $inspect_path
         let run = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
-            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32" "--execution-id" $exec_id
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v33" "--execution-id" $exec_id
         ] {FAKE_UP_NET_LS: "overlap-net\n", FAKE_UP_NET_INSPECT: $inspect_path})
         let log = (open --raw ($ocmts_root | path join "docker-up.log"))
         [
@@ -1207,11 +1207,11 @@ def test-up-empty-execution-id-round-trip [] {
     test-log "\n[test-up-empty-execution-id-round-trip]"
     with-ocmts-collect-root {|ocmts_root, repo|
         let up = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/up.nu" [
-            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32"
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v33"
         ] {})
         let parsed = ($up.stdout | parse --regex 'execution_id=(?P<id>\d{8}t\d{6}-[0-9a-f]{8})')
         let exec_id = if ($parsed | is-empty) { "" } else { $parsed | first | get id }
-        let artifacts = ($ocmts_root | path join "artifacts" "login" "nextcloud-v32" $exec_id)
+        let artifacts = ($ocmts_root | path join "artifacts" "login" "nextcloud-v33" $exec_id)
         let run_meta = if ($artifacts | path join "meta/run.json" | path exists) {
             open ($artifacts | path join "meta/run.json")
         } else {
@@ -1219,7 +1219,7 @@ def test-up-empty-execution-id-round-trip [] {
         }
         let up_log = (open --raw ($ocmts_root | path join "docker-up.log"))
         let down = (run-services-entrypoint $ocmts_root $repo "scripts/domains/services/down.nu" [
-            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v32"
+            "--flow" "login" "--sender-platform" "nextcloud" "--sender-version" "v33"
         ] {})
         let down_log = (open --raw ($ocmts_root | path join "docker-up.log"))
         let results = [

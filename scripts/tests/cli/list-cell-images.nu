@@ -245,13 +245,13 @@ def test-list-cell-images-nextcloud-non-bundle [] {
                 run-list-cell-images [
                     --flow login
                     --sender-platform nextcloud
-                    --sender-version v32
+                    --sender-version v33
                 ] $mask
             )
             let lines = (parse-image-lines $out)
             let want = (
                 with-env $mask {
-                    expected-one-party-base-refs "login" "nextcloud" "v32"
+                    expected-one-party-base-refs "login" "nextcloud" "v33"
                 }
             )
             {

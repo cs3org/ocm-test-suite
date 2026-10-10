@@ -24,7 +24,7 @@ def test-setup-run-context-persists-matrix-key [] {
     }
     let root = (get-ocmts-root)
     let ctx = (
-        setup-run-context "login" "nextcloud" "v32" "chrome" false
+        setup-run-context "login" "nextcloud" "v33" "chrome" false
             --execution-id $FIXTURE_EXEC_ID
     )
     let cell_meta = (open ($ctx.artifacts_base | path join "meta/cell.json"))
@@ -44,7 +44,7 @@ def test-setup-run-context-persists-matrix-key [] {
     ]
     rm -rf $ctx.artifacts_base
     rm -rf (execution-temp-path $FIXTURE_EXEC_ID)
-    let marker = ($root | path join "artifacts" "login" "nextcloud-v32" "LAST_EXECUTION_ID")
+    let marker = ($root | path join "artifacts" "login" "nextcloud-v33" "LAST_EXECUTION_ID")
     if ($marker | path exists) {
         rm $marker
     }

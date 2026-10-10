@@ -140,7 +140,7 @@ def test-nextcloud-login-trusted-domains [] {
             "mariadb:11" "valkey:7"
             "cypress/e2e/login/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "" "" "" "v32" "" {}
+            "" "" "" "v33" "" {}
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let results = [

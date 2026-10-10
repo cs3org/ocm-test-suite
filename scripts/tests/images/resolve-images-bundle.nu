@@ -182,14 +182,14 @@ def test-cernbox-v11-registry-generic-on-webapp-share [] {
     ]
 }
 
-def test-nextcloud-v32-bundle-empty [] {
-    test-log "\n[test-nextcloud-v32-bundle-empty]"
-    let imgs = (resolve-images "nextcloud" "v32")
+def test-nextcloud-v33-bundle-empty [] {
+    test-log "\n[test-nextcloud-v33-bundle-empty]"
+    let imgs = (resolve-images "nextcloud" "v33")
     [
         (assert-truthy (($imgs.bundle | is-empty))
-            "nextcloud/v32 has no bundle reduction")
+            "nextcloud/v33 has no bundle reduction")
         (assert-truthy (($imgs.bundle_services | is-empty))
-            "nextcloud/v32 has no bundle_services map")
+            "nextcloud/v33 has no bundle_services map")
     ]
 }
 
@@ -266,7 +266,7 @@ def main [] {
         | append (test-cernbox-v11-web-and-bundle-env-override-independence)
         | append (test-cernbox-v11-registry-env-override)
         | append (test-cernbox-v11-registry-generic-on-webapp-share)
-        | append (test-nextcloud-v32-bundle-empty)
+        | append (test-nextcloud-v33-bundle-empty)
         | append (test-nextcloud-v35-login-no-hub-bundle)
         | append (test-nextcloud-v35-webapp-share-hub-bundle)
         | append (test-nextcloud-v35-webapp-share-hub-bundle-nc-nc)

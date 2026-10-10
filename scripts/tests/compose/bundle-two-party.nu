@@ -186,10 +186,10 @@ def test-write-compose-overlays-forwards-empty-bundles-to-topology [] {
     let artifacts_base = ($nu.temp-dir | path join $"bundle-2p-render-(random uuid)")
     mkdir ($artifacts_base | path join "compose" "inputs")
     let sender_imgs = (
-        resolve-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-receiver-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let overlay = (
         write-compose-overlays
@@ -200,7 +200,7 @@ def test-write-compose-overlays-forwards-empty-bundles-to-topology [] {
             "cypress/e2e/share-with/index.cy.ts" "chrome" false
             $root $artifacts_base
             "nextcloud" $recv_imgs.platform "mitmproxy:test"
-            "v32" "v32"
+            "v33" "v33"
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let sender_line = $"SENDER_IMAGE=($sender_imgs.platform)"
@@ -226,10 +226,10 @@ def test-write-compose-overlays-forwards-two-party-bundles [] {
     let artifacts_base = ($nu.temp-dir | path join $"bundle-2p-render-pass-(random uuid)")
     mkdir ($artifacts_base | path join "compose" "inputs")
     let sender_imgs = (
-        resolve-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-receiver-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let cernbox_sender = (
         resolve-images "cernbox" "v11" --matrix-key "login__cernbox" --flow-id "login"
@@ -246,7 +246,7 @@ def test-write-compose-overlays-forwards-two-party-bundles [] {
             "cypress/e2e/share-with/index.cy.ts" "chrome" false
             $root $artifacts_base
             "nextcloud" $recv_imgs.platform "mitmproxy:test"
-            "v32" "v32"
+            "v33" "v33"
             $cernbox_sender.bundle $cernbox_receiver.bundle
     )
     let lines = (read-stack-env-lines $overlay.env_file)
@@ -268,10 +268,10 @@ def test-write-two-party-overlays-resolves-empty-bundles [] {
     let artifacts_base = ($nu.temp-dir | path join $"bundle-2p-topo-(random uuid)")
     mkdir ($artifacts_base | path join "compose" "inputs")
     let sender_imgs = (
-        resolve-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-receiver-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let overlay = (
         write-two-party-overlays
@@ -281,7 +281,7 @@ def test-write-two-party-overlays-resolves-empty-bundles [] {
             $sender_imgs.mariadb $sender_imgs.valkey
             "cypress/e2e/share-with/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "v32" "v32"
+            "v33" "v33"
     )
     let lines = (read-stack-env-lines $overlay.env_file)
     let sender_line = $"SENDER_IMAGE=($sender_imgs.platform)"
@@ -303,10 +303,10 @@ def test-write-two-party-overlays-threads-passed-bundles [] {
     let artifacts_base = ($nu.temp-dir | path join $"bundle-2p-topo-pass-(random uuid)")
     mkdir ($artifacts_base | path join "compose" "inputs")
     let sender_imgs = (
-        resolve-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let recv_imgs = (
-        resolve-receiver-images "nextcloud" "v32" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
+        resolve-receiver-images "nextcloud" "v33" --matrix-key "share-with__nextcloud__nextcloud" --flow-id "share-with"
     )
     let cernbox_sender = (
         resolve-images "cernbox" "v11" --matrix-key "login__cernbox" --flow-id "login"
@@ -322,7 +322,7 @@ def test-write-two-party-overlays-threads-passed-bundles [] {
             $sender_imgs.mariadb $sender_imgs.valkey
             "cypress/e2e/share-with/index.cy.ts" "chrome" false
             $root $artifacts_base
-            "v32" "v32"
+            "v33" "v33"
             $cernbox_sender.bundle $cernbox_receiver.bundle
     )
     let lines = (read-stack-env-lines $overlay.env_file)

@@ -107,7 +107,6 @@ describe("extract-registry-keys", () => {
     const parsed = JSON.parse(stdout);
     expect(parsed.loginAdapters).toEqual([
       "cernbox/v11",
-      "nextcloud/v32",
       "nextcloud/v33",
       "nextcloud/v34",
       "nextcloud/v35",
